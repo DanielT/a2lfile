@@ -120,11 +120,6 @@ impl<'a> ParserState<'a> {
     }
 
 
-    pub(crate) fn copy_tokens(self: &mut ParserState<'a>, startpos: usize, endpos: usize) -> Vec<A2lToken> {
-        self.token_cursor.tokens[startpos .. endpos].iter().cloned().collect()
-    }
-
-
     // expect_token get a token which has to be of a particular type (hence: expect)
     // getting a token of any other type is a ParseError
     pub fn expect_token(&mut self, context: &ParseContext, token_type: A2lTokenType) -> Result<&'a A2lToken, ParseError> {

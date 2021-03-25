@@ -401,7 +401,8 @@ fn generate_data_structures(spec: &Specification) -> proc_macro2::TokenStream {
                 pub struct #name {
                     pub fileid: usize,
                     pub line: u32,
-                    pub ifdata_tokens: Vec<a2ltokenizer::A2lToken>
+                    pub ifdata_text: String,
+                    pub ifdata_filename: String
                 }
             });
         } else if blk.contains_a2ml {
@@ -784,31 +785,31 @@ fn generate_ifdata_parser_function(blk: &Block) -> proc_macro2::TokenStream {
     quote! {
         impl #name {
             fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<#name, ParseError> {
-                let mut ifdata_tokens = Vec::new();
-                let startpos = parser.get_tokenpos();
-                let mut nesting_depth = 1;
-
-                while nesting_depth > 0 {
-                    let token = parser.get_token(context)?;
-                    match token.ttype {
-                        A2lTokenType::Begin => nesting_depth += 1,
-                        A2lTokenType::End => nesting_depth -= 1,
-                        _ => {}
-                    }
-                }
-                let ident = parser.get_identifier(context)?;
-                if ident != context.element {
-                    parser.error_or_log(ParseError::IncorrectEndTag(context.clone(), ident))?;
-                }
-                if parser.get_tokenpos() - startpos > 2 {
-                    ifdata_tokens = parser.copy_tokens(startpos, parser.get_tokenpos());
-                }
+                let token_peek = parser.peek_token();
+                let ifdata_text;
+                let ifdata_filename;
+                if token_peek.is_none() || token_peek.unwrap().ttype != A2lTokenType::Text {
+                    ifdata_text = String::from("");
+                    ifdata_filename = String::from("");
+                } else {
+                    // there is an IF_DATA text token
+                    let token = parser.get_token(context)?; // remove the IF_DATA token from the input
+                    ifdata_text = token.text.clone();
+                    ifdata_filename = parser.get_string(context)?;
+                };
 
                 let blkvar = #name {
                     fileid: context.fileid,
                     line: context.line,
-                    ifdata_tokens
+                    ifdata_text,
+                    ifdata_filename
                 };
+
+                parser.expect_token(context, A2lTokenType::End)?;
+                let ident = parser.get_identifier(context)?;
+                if ident != context.element {
+                    parser.error_or_log(ParseError::IncorrectEndTag(context.clone(), ident))?;
+                }            
 
                 Ok(blkvar)
             }
@@ -826,8 +827,9 @@ fn generate_a2ml_parser_function(blk: &Block) -> proc_macro2::TokenStream {
                 let a2ml_text = if token_peek.is_none() || token_peek.unwrap().ttype != A2lTokenType::Text {
                     String::from("")
                 } else {
-                    // there is an a2ml token
+                    // there is an a2ml text token
                     let token = parser.get_token(context)?; // remove the A2ml token from the input
+                    parser.get_string(context)?;
                     token.text.clone()
                 };
                 let blkvar = #name {
@@ -836,13 +838,11 @@ fn generate_a2ml_parser_function(blk: &Block) -> proc_macro2::TokenStream {
                     a2ml_text
                 };
 
-                if context.inside_block {
-                    parser.expect_token(context, A2lTokenType::End)?;
-                    let ident = parser.get_identifier(context)?;
-                    if ident != context.element {
-                        parser.error_or_log(ParseError::IncorrectEndTag(context.clone(), ident))?;
-                    }            
-                }
+                parser.expect_token(context, A2lTokenType::End)?;
+                let ident = parser.get_identifier(context)?;
+                if ident != context.element {
+                    parser.error_or_log(ParseError::IncorrectEndTag(context.clone(), ident))?;
+                }            
 
                 Ok(blkvar)
             }

@@ -1173,6 +1173,7 @@ fn get_version(parser: &mut ParserState, context: &ParseContext) -> Result<Asap2
             if tag == "ASAP2_VERSION" {
                 let version = Asap2Version::parse(parser, &ver_context);
                 if version.is_ok() {
+                    parser.set_tokenpos(0);
                     return Ok(version.unwrap());
                 }
             }
@@ -1186,17 +1187,37 @@ pub fn load(filename: &str, logger: &mut dyn Logger, strict_parsing: bool) -> Re
     let filedata = a2lloader::load(filename)?;
     let mut tokenresult = a2ltokenizer::tokenize(String::from(filename), 0, &filedata)?;
     tokenresult.finalize();
-    
+
     let mut parser = ParserState::new(&tokenresult.tokens, logger, strict_parsing);
     let context = &ParseContext::from_token(&A2lToken {ttype: A2lTokenType::Identifier, text: "A2L_FILE".to_string(), fileid: 0, line: 1}, true);
 
-    let version = get_version(&mut parser, &context)?;
+    let _version = get_version(&mut parser, &context)?;
     let a2lfile = A2lFile::parse(&mut parser, &context);
     if let Err(parse_error) = a2lfile {
         return Err(parser.stringify_parse_error(&parse_error, true));
     }
-    let mut a2lfile = a2lfile.unwrap();
-    a2lfile.asap2_version = Some(version);
+    let a2lfile = a2lfile.unwrap();
 
     Ok(a2lfile)
+}
+
+
+pub fn tokenize_ifdata(ifdata: &IfData) -> Vec<A2lToken> {
+    let tokenresult = a2ltokenizer::tokenize(ifdata.ifdata_filename.clone(), ifdata.fileid, &ifdata.ifdata_text);
+    let mut ifdata_tokens;
+
+    if tokenresult.is_err() {
+        ifdata_tokens = Vec::new();
+    } else {
+        ifdata_tokens = tokenresult.unwrap().tokens;
+        let mut lastline = ifdata.line;
+        for tok in &mut ifdata_tokens {
+            tok.line += ifdata.line - 1;
+            lastline = tok.line;
+        }
+        ifdata_tokens.push(A2lToken {fileid: ifdata.fileid, line: lastline, ttype: A2lTokenType::End, text: "".to_string()});
+        ifdata_tokens.push(A2lToken {fileid: ifdata.fileid, line: lastline, ttype: A2lTokenType::Identifier, text: "IF_DATA".to_string()});
+    }
+
+    ifdata_tokens
 }

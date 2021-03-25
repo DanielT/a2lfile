@@ -30,6 +30,14 @@ pub(crate) struct A2lTokenResult {
 }
 
 
+#[derive(Debug, PartialEq)]
+enum SpecialBlockType {
+    None,
+    A2ml,
+    IfData
+}
+
+
 // tokenize()
 // Convert the text of an a2l file to tokens.
 // An important extra goal of the tokenizer is to attach the source line number to each token so that error messages can give accurate location info
@@ -39,9 +47,11 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filedata: &str) -> Resul
     let mut offset: usize = 0;
     let mut remaining = filedata.as_bytes();
     let mut line = 1;
-    let mut a2ml_starttoken = 0;
-    let mut a2ml_startoffset = 0;
+    let mut raw_starttoken = 0;
+    let mut raw_startoffset = 0;
     let mut next_fileid = fileid + 1;
+    let mut special_block = SpecialBlockType::None;
+    let mut balance = 0;
 
     while remaining.len() > 0 {
         let mut chars = remaining.iter().enumerate();
@@ -186,33 +196,58 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filedata: &str) -> Resul
         }
 
         if tokens.len() >= 2 {
-            // special A2ML handling. Various A2ML reserved words (e.g. block, struct, taggedstruct) are not reserved in A2L.
+            // Handle the two special block types: A2ML and IF_DATA
+            // A2ML is special because various A2ML reserved words (e.g. block, struct, taggedstruct) are not reserved in A2L.
             // This means the A2L tokenizer is only useful in order to correctly skip over comments and find the end of the A2ML section.
-            // Then the A2ml tokens are removed from the token list and the originaly A2ml text is sotred instead so that it can be processed later. */
-            if tokens[tokens.len() - 2].ttype == A2lTokenType::Begin && tokens[tokens.len() - 1].text == "A2ML" {
-                a2ml_starttoken = tokens.len();
-                a2ml_startoffset = offset;
-            }
-            else if tokens[tokens.len() - 2].ttype == A2lTokenType::End && tokens[tokens.len() - 1].text == "A2ML" && a2ml_starttoken != 0 {
-                // only add an A2ml token if there was anything other than whitespace between /begin A2ML and /end A2ML
-                if a2ml_starttoken < tokens.len() - 2 {
-                    for _ in a2ml_starttoken..tokens.len()-2 {
-                        tokens.remove(a2ml_starttoken);
-                    }
-                    let mut endoffset = offset - 4;
-                    while &filedata[endoffset..endoffset+4] != "/end" {
-                        endoffset -= 1;
-                    }
-                    let a2ml = &filedata[a2ml_startoffset..endoffset];
-                    tokens.insert(a2ml_starttoken, A2lToken{ttype: A2lTokenType::Text, text: String::from(a2ml), fileid, line});
+            // Then the A2ml tokens are removed from the token list and the originaly A2ml text is sotred instead so that it can be processed later.
+            // IF_DATA is special because the parser does not necessarily understand the content of this section.
+            // In particular, this is a problem when writing files containing unknown IF_DATA, because it is not possible to format the tokens nicely.
+            // Having the original input text available is useful, because it can be directly copied into the output file
+            if special_block == SpecialBlockType::None {
+                // A2ML and IF_DATA cannot be nested, so special block handling can only begin if there is none in progress yet.
+                if tokens[tokens.len() - 2].ttype == A2lTokenType::Begin && tokens[tokens.len() - 1].text == "A2ML" {
+                    raw_starttoken = tokens.len();
+                    raw_startoffset = offset;
+                    special_block = SpecialBlockType::A2ml;
+                    balance = 1;
+                } else if tokens[tokens.len() - 2].ttype == A2lTokenType::Begin && tokens[tokens.len() - 1].text == "IF_DATA" {
+                    raw_starttoken = tokens.len();
+                    raw_startoffset = offset;
+                    special_block = SpecialBlockType::IfData;
+                    balance = 1;
                 }
-                a2ml_starttoken = 0;
+            } else {
+                // special block handling is in progress
+                if tokens[tokens.len() - 1].ttype == A2lTokenType::Begin {
+                    balance += 1;
+                } else if tokens[tokens.len() - 1].ttype == A2lTokenType::End {
+                    balance -= 1;
+                } else if balance == 0 {
+                    if (special_block == SpecialBlockType::A2ml && tokens[tokens.len() - 1].text == "A2ML") ||
+                       (special_block == SpecialBlockType::IfData && tokens[tokens.len() - 1].text == "IF_DATA") {
+                        // only add a text token if there was anything other than whitespace between /begin X and /end X
+                        if raw_starttoken < tokens.len() - 2 {
+                            for _ in raw_starttoken..tokens.len()-2 {
+                                tokens.remove(raw_starttoken);
+                            }
+                            let mut endoffset = offset - 4;
+                            while &filedata[endoffset..endoffset+4] != "/end" {
+                                endoffset -= 1;
+                            }
+                            let raw_text = &filedata[raw_startoffset..endoffset];
+                            tokens.insert(raw_starttoken, A2lToken{ttype: A2lTokenType::Text, text: String::from(raw_text), fileid, line});
+                            tokens.insert(raw_starttoken+1, A2lToken{ttype: A2lTokenType::String, text: filenames[0].clone(), fileid, line});
+                        }
+                        raw_starttoken = 0;
+                        special_block = SpecialBlockType::None;
+                    }
+                }
             }
 
             // process /include statements
             // /include foo.a2l and /include "foo.a2l" are both valid
             // /include is not permitted inside <A2ML> blocks
-            if a2ml_starttoken == 0 &&
+            if raw_starttoken == 0 &&
                 tokens[tokens.len() - 2].ttype == A2lTokenType::Include &&
                 (tokens[tokens.len() - 1].ttype == A2lTokenType::String || tokens[tokens.len() - 1].ttype == A2lTokenType::Identifier) {
                 let incname = tokens[tokens.len() - 1].text.clone();
