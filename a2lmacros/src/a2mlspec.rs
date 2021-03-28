@@ -19,7 +19,7 @@ struct A2mlSpec {
 
 #[derive(Debug, PartialEq, Clone)]
 struct EnumItem {
-    item_name: String,
+    name: String,
     value: Option<i32>,
     comment: Option<String>
 }
@@ -267,7 +267,7 @@ fn parse_a2ml_type_enum(token_iter: &mut TokenStreamIter, types: &A2mlTypeList) 
             if lastvalue && enum_token_iter.peek().is_some() {
                 panic!("additional items ({:#?}, ...) found in enum; missing ','?", enum_token_iter.peek().unwrap());
             }
-            enumvalues.push(EnumItem {item_name: tag, value, comment});
+            enumvalues.push(EnumItem {name: tag, value, comment});
         }
         (name, BaseType::Enum(enumvalues))
     } else {
@@ -600,13 +600,19 @@ impl A2mlTypeList {
 // Generate a constant containing the a2ml specification as a text string, e.g.
 // const SECIFICATION_NAME_TEXT: &str = " ... "
 //
-// This constant is neede in order to be able to implement the update_a2ml() function, which
+// This constant is needed in order to be able to implement the update_a2ml() function, which
 // updates the A2ML block of the loaded a2l file
+//
+// The generated string does not contain any of the variable names that are allowed in the
+// input specification, so it is standard-compliant a2ml.
 
 
 const A2ML_INDENT_WIDTH: usize = 2; // number of spaces per indent level
 const A2ML_INITIAL_INDENT_LEVEL: usize = 3; // typically a2ml will be indented by 3 levels within the A2l file
 
+// generate_a2ml_constant()
+// top-level function for constant generation
+// returns a tokenstream containing the full declaration of the constant
 fn generate_a2ml_constant(spec: &A2mlSpec) -> proc_macro2::TokenStream {
     let constname = format_ident!("{}_TEXT", spec.name.to_ascii_uppercase());
     let mut result = quote!{};
@@ -624,10 +630,11 @@ fn generate_a2ml_constant(spec: &A2mlSpec) -> proc_macro2::TokenStream {
 }
 
 
+// generate_a2ml_constant_of_item()
+// Generate the string representing some item (recursively). Calls special handlers as needed.
 fn generate_a2ml_constant_of_item(outstring: &mut String, typename: &Option<String>, item: &BaseType, indent_level: usize, indent_first: bool) {
-
     if indent_first {
-        write!(outstring, "{:1$}", "", (indent_level * A2ML_INDENT_WIDTH)).unwrap();
+        write!(outstring, "{}", get_indent_string(indent_level)).unwrap();
     }
 
     match item {
@@ -684,15 +691,15 @@ fn generate_a2ml_constant_of_item(outstring: &mut String, typename: &Option<Stri
 }
 
 
+// generate_a2ml_constant_of_enum()
+// Generate the string representing an enum.
 fn generate_a2ml_constant_of_enum(outstring: &mut String, name: &Option<String>, enumdef: &Vec<EnumItem>, indent_level: usize) {
     write!(outstring, "enum").unwrap();
-    if let Some(name_unwrapped) = name {
-        write!(outstring, " {}", name_unwrapped).unwrap();
-    }
+    generate_optional_typename(outstring, name);
     write!(outstring, " {{\n").unwrap();
     let itemcount = enumdef.len();
     for (idx, item) in enumdef.iter().enumerate() {
-        write!(outstring, "{:2$}\"{}\"", "", item.item_name, (indent_level+1) * A2ML_INDENT_WIDTH).unwrap();
+        write!(outstring, "{}\"{}\"", get_indent_string(indent_level+1), item.name).unwrap();
         if let Some(val) = item.value {
             write!(outstring, " = {}", val).unwrap();
         }
@@ -704,15 +711,15 @@ fn generate_a2ml_constant_of_enum(outstring: &mut String, name: &Option<String>,
         }
         write!(outstring, "\n").unwrap();
     }
-    write!(outstring, "{:1$}}}", "", indent_level * A2ML_INDENT_WIDTH).unwrap();
+    write!(outstring, "{}}}", get_indent_string(indent_level)).unwrap();
 }
 
 
+// generate_a2ml_constant_of_struct()
+// Generate the string representing a struct.
 fn generate_a2ml_constant_of_struct(outstring: &mut String, name: &Option<String>, structdef: &Vec<DataItem>, indent_level: usize) {
     write!(outstring, "struct").unwrap();
-    if let Some(name_unwrapped) = name {
-        write!(outstring, " {}", name_unwrapped).unwrap();
-    }
+    generate_optional_typename(outstring, name);
     write!(outstring, " {{\n").unwrap();
     for structitem in structdef {
         generate_a2ml_constant_of_item(outstring, &structitem.typename, &structitem.basetype, indent_level + 1, true);
@@ -722,73 +729,83 @@ fn generate_a2ml_constant_of_struct(outstring: &mut String, name: &Option<String
         }
         write!(outstring, "\n").unwrap();
     }
-    write!(outstring, "{:1$}}}", "", indent_level * A2ML_INDENT_WIDTH).unwrap();
+    write!(outstring, "{}}}", get_indent_string(indent_level)).unwrap();
 }
 
 
+// generate_a2ml_constant_of_taggedunion()
 fn generate_a2ml_constant_of_taggedunion(outstring: &mut String, name: &Option<String>, tudef: &Vec<TaggedItem>, indent_level: usize) {
     write!(outstring, "taggedunion").unwrap();
-    if let Some(name_unwrapped) = name {
-        write!(outstring, " {}", name_unwrapped).unwrap();
-    }
+    generate_optional_typename(outstring, name);
     write!(outstring, " {{\n").unwrap();
-    for tuitem in tudef.iter() {
-        if let BaseType::Block(_,_) = tuitem.item.basetype {
-            generate_a2ml_constant_of_item(outstring, &tuitem.item.typename, &tuitem.item.basetype, indent_level + 1, true);
-        } else {
-            write!(outstring, "{:2$}\"{}\" ", "", tuitem.tag, (indent_level+1) * A2ML_INDENT_WIDTH).unwrap();
-            generate_a2ml_constant_of_item(outstring, &tuitem.item.typename, &tuitem.item.basetype, indent_level + 1, false);
-        }
-        write!(outstring, ";").unwrap();
-        if let Some(comment) = &tuitem.item.comment {
-            write!(outstring, " //{}", comment).unwrap();
-        }
-        write!(outstring, "\n").unwrap();
-    }
-    write!(outstring, "{:1$}}}", "", indent_level * A2ML_INDENT_WIDTH).unwrap();
+    generate_a2ml_constant_of_taggeditems(outstring, tudef, indent_level + 1);
+    write!(outstring, "{}}}", get_indent_string(indent_level)).unwrap();
 }
 
 
+// generate_a2ml_constant_of_taggedstruct()
 fn generate_a2ml_constant_of_taggedstruct(outstring: &mut String, name: &Option<String>, tsdef: &Vec<TaggedItem>, indent_level: usize) {
     write!(outstring, "taggedstruct").unwrap();
-    if let Some(name_unwrapped) = name {
-        write!(outstring, " {}", name_unwrapped).unwrap();
-    }
+    generate_optional_typename(outstring, name);
     write!(outstring, " {{\n").unwrap();
-    for tsitem in tsdef.iter() {
-        write!(outstring, "{:1$}", "", (indent_level+1) * A2ML_INDENT_WIDTH).unwrap();
-        if tsitem.repeat {
+    generate_a2ml_constant_of_taggeditems(outstring, tsdef, indent_level + 1);
+    write!(outstring, "{}}}", get_indent_string(indent_level)).unwrap();
+}
+
+
+// generate_a2ml_constant_of_taggeditems()
+// both taggestruct and taggedunion contain taggeditems; this function works equally for both
+fn generate_a2ml_constant_of_taggeditems(outstring: &mut String, taggeditems: &Vec<TaggedItem>, indent_level: usize) {
+    for tgitem in taggeditems.iter() {
+        write!(outstring, "{}", get_indent_string(indent_level)).unwrap();
+        // on taggedunions tgitem.repeat is never true
+        if tgitem.repeat {
             write!(outstring, "(").unwrap();
         }
-        if let BaseType::Block(_,_) = tsitem.item.basetype {
-            generate_a2ml_constant_of_item(outstring, &tsitem.item.typename, &tsitem.item.basetype, indent_level + 1, false);
+        if let BaseType::Block(_,_) = tgitem.item.basetype {
+            generate_a2ml_constant_of_item(outstring, &tgitem.item.typename, &tgitem.item.basetype, indent_level, false);
         } else {
-            write!(outstring, "\"{}\" ", tsitem.tag).unwrap();
-            generate_a2ml_constant_of_item(outstring, &tsitem.item.typename, &tsitem.item.basetype, indent_level + 1, false);
+            write!(outstring, "\"{}\" ", tgitem.tag).unwrap();
+            generate_a2ml_constant_of_item(outstring, &tgitem.item.typename, &tgitem.item.basetype, indent_level, false);
         }
-        if tsitem.repeat {
+        if tgitem.repeat {
             write!(outstring, ")*").unwrap();
         }
         write!(outstring, ";").unwrap();
-        if let Some(comment) = &tsitem.item.comment {
+        if let Some(comment) = &tgitem.item.comment {
             write!(outstring, " //{}", comment).unwrap();
         }
         write!(outstring, "\n").unwrap();
     }
-    write!(outstring, "{:1$}}}", "", indent_level * A2ML_INDENT_WIDTH).unwrap();
+ 
 }
 
-
+// generate_a2ml_constant_of_block()
+// in the A2ML specification the string 'block "BLOCK_NAME"' can appear inside a list of taggeditems
 fn generate_a2ml_constant_of_block(outstring: &mut String, name: &String, blockitem: &DataItem, indent_level: usize) {
     write!(outstring, "block \"{}\" ", name).unwrap();
     generate_a2ml_constant_of_item(outstring, &blockitem.typename, &blockitem.basetype, indent_level, false);
 }
 
 
+fn generate_optional_typename(outstring: &mut String, name: &Option<String>) {
+    if let Some(name_unwrapped) = name {
+        write!(outstring, " {}", name_unwrapped).unwrap();
+    }
+}
+
+
+// get_indent_string()
+// build a string consisting of the number of spaces required to indent to the given indent_level
+fn get_indent_string(indent_level: usize) -> String {
+    format!("{:1$}", "", indent_level * A2ML_INDENT_WIDTH)
+}
+
+
 //-----------------------------------------------------------------------------
 //
 // The datatypes derived from the input a2ml specification are not directly suited for code generation
-// Problems taht need to be fixed:
+// Problems that need to be fixed:
 // - items are not required to have names
 // - there is nothing that prevents the spec from using one type name with different meanings in different places
 // - a2ml is often excessivly complex, e.g. struct {a, b, struct {c, d}} can be flattened to struct {a, b, c, d}
@@ -1067,7 +1084,7 @@ fn make_enum_name(itemname: &Option<String>, enumitems: &Vec<EnumItem>) -> Strin
         //     FOO_BAR_ONE
         //     FOO_BAR_TWO
         // has the common prefix FOO_BAR_
-        let namechars: Vec<Vec<char>> = enumitems.iter().map(|item| { item.item_name.chars().collect() }).collect();
+        let namechars: Vec<Vec<char>> = enumitems.iter().map(|item| { item.name.chars().collect() }).collect();
         let minlen = namechars.iter().map(|vec| vec.len()).min().unwrap();
         let mut prefixlen = minlen;
         'outer_loop: for pos in 0..minlen {
@@ -1137,7 +1154,7 @@ fn generate_data_structures(types: &HashMap<String, BaseType>) -> proc_macro2::T
 
 fn generate_enum_data_structure(typename: &str, enumitems: &Vec<EnumItem>) -> proc_macro2::TokenStream {
     let typeident = format_ident!("{}", typename);
-    let enumidents: Vec<proc_macro2::Ident> = enumitems.iter().map(|enumitem| { format_ident!("{}", ucname_to_typename(&enumitem.item_name)) } ).collect();
+    let enumidents: Vec<proc_macro2::Ident> = enumitems.iter().map(|enumitem| { format_ident!("{}", ucname_to_typename(&enumitem.name)) } ).collect();
     quote!{
         #[derive(Debug, PartialEq)]
         pub(crate) enum #typeident {
@@ -1306,8 +1323,8 @@ fn generate_enum_parser(typename: &str, enumitems: &Vec<EnumItem>) -> proc_macro
 
     let mut match_branches = Vec::new();
     for enitem in enumitems {
-        let enident = format_ident!("{}", ucname_to_typename(&enitem.item_name));
-        let entag = &enitem.item_name;
+        let enident = format_ident!("{}", ucname_to_typename(&enitem.name));
+        let entag = &enitem.name;
         match_branches.push(quote!{#entag => Ok(Self::#enident),});
     }
 
