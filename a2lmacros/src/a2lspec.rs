@@ -1,6 +1,6 @@
-use proc_macro::TokenStream;
-use proc_macro::TokenTree;
-use proc_macro::Delimiter;
+use proc_macro2::TokenStream;
+use proc_macro2::TokenTree;
+use proc_macro2::Delimiter;
 use std::collections::HashSet;
 use std::collections::HashMap;
 use quote::quote;

@@ -1,6 +1,6 @@
-use proc_macro::*;
+use proc_macro2::*;
 
-pub(crate) type TokenStreamIter = std::iter::Peekable<proc_macro::token_stream::IntoIter>;
+pub(crate) type TokenStreamIter = std::iter::Peekable<proc_macro2::token_stream::IntoIter>;
 
 
 pub(crate) fn get_ident(token_iter: &mut TokenStreamIter) -> String {
@@ -18,10 +18,14 @@ pub(crate) fn get_string(token_iter: &mut TokenStreamIter) -> String {
         TokenTree::Literal(literal) => {
             let raw_string = literal.to_string();
             let chars: Vec<char> = raw_string.chars().collect();
-            if chars[0] != '"' {
+            let startoffset = if chars[0] == '"' {
+                1
+            } else if chars[0] == 'r' && chars[1] == '"' {
+                2
+            } else {
                 panic!("expected a string in double-quotes, got {}", raw_string);
-            }
-            let stripped_string = chars[1..chars.len()-1].iter().collect();
+            };
+            let stripped_string = chars[startoffset..chars.len()-1].iter().collect();
             stripped_string
         }
         _ => panic!("Expected a string in this position, got: {:#?}", tok.to_string())
