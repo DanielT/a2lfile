@@ -4,6 +4,7 @@ use proc_macro::TokenStream;
 pub(crate) mod a2lspec;
 pub(crate) mod a2mlspec;
 mod util;
+mod codegenerator;
 
 
 #[proc_macro]
