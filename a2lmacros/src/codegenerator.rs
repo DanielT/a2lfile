@@ -27,6 +27,7 @@ pub(crate) struct DataItem {
 pub(crate) struct TaggedItem {
     pub(crate) tag: String,
     pub(crate) item: DataItem,
+    pub(crate) is_block: bool,
     pub(crate) repeat: bool
 }
 
@@ -52,7 +53,6 @@ pub(crate) enum BaseType {
     TaggedUnionRef,
     TaggedStruct(Vec<TaggedItem>),
     TaggedStructRef,
-    Block(String, Box<DataItem>)
 }
 
 
@@ -132,7 +132,6 @@ fn generate_struct_item_definition(item: &DataItem) -> TokenStream {
 
     match &item.basetype {
         BaseType::None => { panic!("type None is not permitted for struct items"); }
-        BaseType::Block(_, _) => { panic!("type Block is not permitted for struct items"); }
         BaseType::Enum(_) => { panic!("type Enum is not permitted at this point and should have been transformed to an EnumRef"); }
         BaseType::Struct(_) => { panic!("type Struct is not permitted at this point and should have been transformed to a StructRef"); }
         BaseType::TaggedUnionRef => { panic!("TaggedUnionRef should have been resolved in the data structure fixup phase"); }
@@ -212,10 +211,6 @@ fn generate_bare_typename(typename: &Option<String>, item: &BaseType) -> TokenSt
         BaseType::StructRef => {
             let typename = typename.as_ref().unwrap();
             let name = format_ident!("{}", typename);
-            quote!{#name}
-        }
-        BaseType::Block(_, item) => {
-            let name = generate_bare_typename(&item.typename, &item.basetype);
             quote!{#name}
         }
         _ => {
@@ -418,11 +413,7 @@ fn generate_taggeditem_parser(tg_items: &Vec<TaggedItem>, is_taggedunion: bool) 
             };
         }
 
-        let mut is_block_item = false;
-        if let BaseType::Block(_, _) = item.item.basetype {
-            is_block_item = true;
-        }
-
+        let is_block_item = item.is_block;
         let keyword = &item.tag;
         item_match_arms.push(
             quote!{
