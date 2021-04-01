@@ -32,6 +32,7 @@ pub enum ParseError {
     IncorrectEndTag(ParseContext, String),
     UnknownSubBlock(ParseContext, String),
     UnexpectedEOF(ParseContext),
+    StringTooLong(ParseContext, String, usize, usize)
 }
 
 
@@ -96,7 +97,7 @@ impl<'a> ParserState<'a> {
     
 
     pub(crate) fn log_warning(&mut self, parse_error: ParseError) {
-        (*self.logger).log_message(self.stringify_parse_error(&parse_error, false));
+        self.logger.log_message(self.stringify_parse_error(&parse_error, false));
     }
 
     
@@ -137,6 +138,17 @@ impl<'a> ParserState<'a> {
     // Get the content of a String token as a string
     pub fn get_string(&mut self, context: &ParseContext) -> Result<String, ParseError> {
         let token = self.expect_token(context, A2lTokenType::String)?;
+        Ok(String::from(&token.text))
+    }
+
+
+    // get_string_maxlen()
+    // Get the content of a String token as a string. Trigger an error if the string is longer than maxlen
+    pub fn get_string_maxlen(&mut self, context: &ParseContext, maxlen: usize) -> Result<String, ParseError> {
+        let token = self.expect_token(context, A2lTokenType::String)?;
+        if token.text.len() > maxlen {
+            self.error_or_log(ParseError::StringTooLong(context.copy(), token.text.clone(), maxlen, token.text.len()))?
+        }
         Ok(String::from(&token.text))
     }
 
@@ -344,6 +356,9 @@ impl<'a> ParserState<'a> {
             }
             ParseError::IncorrectEndTag(context, tag) => {
                 format!("{} on line {}: Wrong end tag {} found at the end of block {} starting on line {}", prefix, self.currentline, tag, context.element, context.line)
+            }
+            ParseError::StringTooLong(context, text, maxlen, actual_len) => {
+                format!("{} on line {}: String \"{}\" in block {} is {} bytes long, mut the maximum allowed length is {}", prefix, self.currentline, text, context.element, actual_len, maxlen)
             }
         }
     }

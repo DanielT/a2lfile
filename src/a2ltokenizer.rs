@@ -9,7 +9,6 @@ pub enum A2lTokenType {
     String,
     Symbol,
     Number,
-    Text,
     // LineComment,
     // BlockComment,
     Eof,
@@ -235,7 +234,7 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filedata: &str) -> Resul
                                 endoffset -= 1;
                             }
                             let raw_text = &filedata[raw_startoffset..endoffset];
-                            tokens.insert(raw_starttoken, A2lToken{ttype: A2lTokenType::Text, text: String::from(raw_text), fileid, line});
+                            tokens.insert(raw_starttoken, A2lToken{ttype: A2lTokenType::String, text: String::from(raw_text), fileid, line});
                             tokens.insert(raw_starttoken+1, A2lToken{ttype: A2lTokenType::String, text: filenames[0].clone(), fileid, line});
                         }
                         raw_starttoken = 0;

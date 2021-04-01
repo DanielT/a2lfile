@@ -139,6 +139,7 @@ fn parse_a2ml_type(token_iter: &mut TokenStreamIter, types: &A2mlTypeList, tok_s
         "ulong" => (None, BaseType::Ulong),
         "float" => (None, BaseType::Float),
         "double" => (None, BaseType::Double),
+        "ident" => (None, BaseType::Ident),
         "enum" => parse_a2ml_type_enum(token_iter, &types),
         "struct" => parse_a2ml_type_struct(token_iter, &types),
         "taggedstruct" => parse_a2ml_type_taggedstruct(token_iter, &types),
@@ -365,7 +366,7 @@ fn parse_a2ml_taggeditem(token_iter: &mut TokenStreamIter, types: &A2mlTypeList,
                 // case 3: not at the end of the iterator and not followed by ';' immediately, so there is an item to parse
                 dataitem = parse_a2ml_tagged_def(ts_item_iter, &types);
             };
-            TaggedItem { tag, item: dataitem, is_block, repeat: multi }
+            TaggedItem { tag, item: dataitem, is_block, repeat: multi, required: false }
         }
         tok => {
             panic!("got {:#?} while attempting to parse tagged item", tok);
@@ -544,6 +545,7 @@ fn generate_a2ml_constant_of_item(outstring: &mut String, typename: &Option<Stri
         BaseType::Ulong => { write!(outstring, "ulong").unwrap(); }
         BaseType::Double => { write!(outstring, "double").unwrap(); }
         BaseType::Float => { write!(outstring, "float").unwrap(); }
+        BaseType::Ident =>  { write!(outstring, "ident").unwrap(); }
         BaseType::Array(arrayitem, dim) => {
             generate_a2ml_constant_of_item(outstring, typename, &arrayitem.basetype, indent_level, false);
             write!(outstring, "[{}]", dim).unwrap();
@@ -581,6 +583,8 @@ fn generate_a2ml_constant_of_item(outstring: &mut String, typename: &Option<Stri
             let typename = typename.as_ref().unwrap();
             write!(outstring, "taggedstruct {}", typename).unwrap();
         }
+        BaseType::String => panic!("type String not possible in A2ml"),
+        BaseType::Block(_) => panic!("type Block is not allowed here")
     }
 }
 
@@ -698,30 +702,38 @@ fn get_indent_string(indent_level: usize) -> String {
 //-----------------------------------------------------------------------------
 //
 // The datatypes derived from the input a2ml specification are not directly suited for code generation
-// Problems that need to be fixed:
-// - items are not required to have names
-// - there is nothing that prevents the spec from using one type name with different meanings in different places
+// Required changes are
+// - types can be nested to an arbitrary depth, but the code generator needs a flat list
+// - items are not required to have names and need to be named
+// - there is nothing that prevents the spec from using one type name with different meanings in different places, so some disambiguation might be needed
 // - a2ml is often excessivly complex, e.g. struct {a, b, struct {c, d}} can be flattened to struct {a, b, c, d}
 
+
+// fixup_output_datatypes
+// The entry point for data type fixup. Recursively adds the "IF_DATA" block and all data types referenced by or defined within it
 fn fixup_output_datatypes(spec: &A2mlSpec) -> HashMap<String, BaseType> {
     let mut datatypes = HashMap::<String, BaseType>::new();
-    fixup_output_block_struct(spec, &spec.name, &spec.ifdata_item, &mut datatypes);
+    fixup_output_block(spec, &spec.name, &spec.ifdata_item, &mut datatypes);
     datatypes
 }
 
 
-fn fixup_output_block_struct(spec: &A2mlSpec, tag: &str, item: &DataItem, defined_types: &mut HashMap<String, BaseType>) -> String {
+// fixup_output_block
+// fixup of one "block". A block is a struct, which occurs at the top level as "IF_DATA" or after a tag in a TaggedStruct or TaggedUnion
+fn fixup_output_block(spec: &A2mlSpec, tag: &str, item: &DataItem, defined_types: &mut HashMap<String, BaseType>) -> String {
     let structname = ucname_to_typename(tag);
 
     // add the top level datatype to a new struct. If the datatype is also a struct, its elements will be merged
     let mut structitems = fixup_add_data_to_struct(spec, item, defined_types);
     fixup_make_varnames_unique(&mut structitems);
 
-    let newstruct = BaseType::Struct(structitems);
+    let newstruct = BaseType::Block(structitems);
     fixup_add_type(&structname, newstruct, defined_types)
 }
 
 
+// fixup_add_data_to_struct
+// Add a data element to a struct or block. If the data element being added is a struct (or structref) itself, flatten the data structure
 fn fixup_add_data_to_struct(spec: &A2mlSpec, item: &DataItem, defined_types: &mut HashMap<String, BaseType>) -> Vec<DataItem> {
     let mut new_structitems= Vec::<DataItem>::new();
 
@@ -851,6 +863,9 @@ fn fixup_data_type(spec: &A2mlSpec, typename: &Option<String>, basetype: &BaseTy
         BaseType::Ulong => (None, BaseType::Ulong),
         BaseType::Double => (None, BaseType::Double),
         BaseType::Float => (None, BaseType::Float),
+        BaseType::Ident => (None, BaseType::Ident),
+        BaseType::String => (None, BaseType::String),
+        BaseType::Block(_) => panic!("type block is not allowed as an input of the fixup function")
     }
 }
 
@@ -871,12 +886,13 @@ fn fixup_struct(structname: &str, structitems: &Vec<DataItem>, spec: &A2mlSpec, 
 fn fixup_taggeditems(taggeditems: &Vec<TaggedItem>, spec: &A2mlSpec, defined_types: &mut HashMap<String, BaseType>) -> Vec<TaggedItem> {
     let mut new_tuitems = Vec::<TaggedItem>::new();
     for tgitem in taggeditems {
-        let new_typename = fixup_output_block_struct(spec, &tgitem.tag, &tgitem.item, defined_types);
+        let new_typename = fixup_output_block(spec, &tgitem.tag, &tgitem.item, defined_types);
         new_tuitems.push(TaggedItem {
             tag: tgitem.tag.clone(),
             item: DataItem { typename: Some(new_typename.clone()), basetype: BaseType::StructRef, varname: None, comment: None },
             is_block: tgitem.is_block,
-            repeat: tgitem.repeat
+            repeat: tgitem.repeat,
+            required: false
         });
     }
 

@@ -56,7 +56,8 @@ a2l_specification! {
 
     // Specification: 3.5.2
     block A2ML {
-        #[A2ML]
+        string a2ml_text
+        string filename
     }
 
     // Specification: 3.5.3
@@ -119,7 +120,7 @@ a2l_specification! {
 
     // Specification: 3.5.14
     block ANNOTATION_TEXT {
-        {string}* annotation_text
+        {string annotation_text}* annotation_text_list
     }
 
     // Specification: 3.5.15
@@ -134,7 +135,7 @@ a2l_specification! {
     }
 
     // Specification: 3.5.17
-    enum AxisDescrAtribute {
+    enum AxisDescrAttribute {
         CURVE_AXIS,
         COM_AXIS,
         FIX_AXIS,
@@ -144,7 +145,7 @@ a2l_specification! {
 
     // Specification: 3.5.17
     block AXIS_DESCR {
-        AxisDescrAtribute attribute
+        AxisDescrAttribute attribute
         ident input_quantity
         ident conversion
         uint max_axis_points
@@ -173,7 +174,7 @@ a2l_specification! {
         string long_identifier
         ulong address
         ident input_quantity
-        ident deposit
+        ident deposit_record
         float max_diff
         ident conversion
         uint max_axis_points
@@ -182,7 +183,7 @@ a2l_specification! {
         [-> ANNOTATION]*
         [-> BYTE_ORDER]
         [-> CALIBRATION_ACCESS]
-        [-> DEPOSIT] as deposit_mode
+        [-> DEPOSIT]
         [-> DISPLAY_IDENTIFIER]
         [-> ECU_ADDRESS_EXTENSION]
         [-> EXTENDED_LIMITS]
@@ -233,24 +234,32 @@ a2l_specification! {
     }
 
     // Specification: 3.5.24
-    enum ByteOrder {
+    enum ByteOrderEnum {
         LITTLE_ENDIAN,
         BIG_ENDIAN,
         MSB_LAST,
         MSB_FIRST
     }
 
+    keyword BYTE_ORDER {
+        ByteOrderEnum byte_order
+    }
+
     // Specification: 3.5.25
-    enum CalibrationAccess {
+    enum CalibrationAccessEnum {
         CALIBRATION,
         NO_CALIBRATION,
         NOT_IN_MCD_SYSTEM,
         OFFLINE_CALIBRATION
     }
 
+    keyword CALIBRATION_ACCESS {
+        CalibrationAccessEnum calibration_access
+    }
+
     // Specification: 3.5.26
     block CALIBRATION_HANDLE {
-        {long}* handle
+        {long handle}* handle_list
         [-> CALIBRATION_HANDLE_TEXT]
     }
 
@@ -369,7 +378,10 @@ a2l_specification! {
         string long_identifier
         ConversionType conversion_type
         uint number_value_pairs
-        { float, float  }* tab_entry
+        {
+            float in_val
+            float out_val
+        }* tab_entry
         [-> DEFAULT_VALUE]
         [-> DEFAULT_VALUE_NUMERIC]
     }
@@ -385,7 +397,10 @@ a2l_specification! {
         string long_identifier
         ConversionType conversion_type
         uint number_value_pairs
-        { float, string }* value_pairs
+        {
+            float in_val
+            string out_val
+        }* value_pairs
         [-> DEFAULT_VALUE]
     }
 
@@ -394,7 +409,11 @@ a2l_specification! {
         ident name
         string long_identifier
         uint number_value_triples
-        { float, float, string }* value_triples
+        {
+            float in_val_min
+            float in_val_max
+            string out_val
+        }* value_triples
         [-> DEFAULT_VALUE]
     }
 
@@ -425,7 +444,7 @@ a2l_specification! {
 
     // Specification: 3.5.43
     block DEF_CHARACTERISTIC {
-        { ident }* identifier
+        { ident identifier }* identifier_list
     }
 
     // Specification: 3.5.44
@@ -441,7 +460,7 @@ a2l_specification! {
     // Specification: 3.5.46
     block DEPENDENT_CHARACTERISTIC {
         string formula
-        {ident }* characteristic
+        {ident characteristic}* characteristic_list
     }
 
     // Specification: 3.5.47
@@ -521,7 +540,7 @@ a2l_specification! {
 
     // Specification: 3.5.60
     block FIX_AXIS_PAR_LIST {
-        { float }* AxisPts_Value
+        { float axis_pts_value }* axis_pts_value_list
     }
 
     // Specification: 3.5.61
@@ -574,7 +593,7 @@ a2l_specification! {
 
     // Specification: 3.5.67
     keyword FRAME_MEASUREMENT {
-        { ident}* identifier 
+        { ident identifier}* identifier_list
     }
 
     // Specification: 3.5.68
@@ -594,7 +613,7 @@ a2l_specification! {
 
     // Specification: 3.5.69
     block FUNCTION_LIST {
-        {ident}* name
+        {ident name}* name_list
     }
 
     // Specification: 3.5.70
@@ -633,12 +652,13 @@ a2l_specification! {
 
     // Specification: 3.5.75
     block IF_DATA {
-        #[IFDATA]
+        string ifdata_text
+        string ifdata_filename
     }
 
     // Specification: 3.5.76
     block IN_MEASUREMENT {
-        {ident}* identifier
+        {ident identifier}* identifier_list
     }
 
     // Specification: 3.5.77
@@ -653,17 +673,17 @@ a2l_specification! {
 
     // Specification: 3.5.79
     block LOC_MEASUREMENT {
-        {ident}* identifier
+        {ident identifier}* identifier_list
     }
 
     // Specification: 3.5.80
     block MAP_LIST {
-        {ident}* name
+        {ident name}* name_list
     }
 
     // Specification: 3.5.81
     keyword MATRIX_DIM {
-        {uint}* dim // note: changed for 1.70
+        {uint dim}* dim_list // note: changed for 1.70
     }
 
     // Specification: 3.5.82
@@ -707,7 +727,7 @@ a2l_specification! {
         [-> READ_WRITE]
         [-> REF_MEMORY_SEGMENT]
         [-> SYMBOL_LINK]
-        [-> VIRTUAL] as virtual_measurement
+        [-> VIRTUAL]
     }
 
     // Specification: 3.5.85
@@ -873,7 +893,7 @@ a2l_specification! {
 
     // Specification: 3.5.96
     block OUT_MEASUREMENT {
-        {ident}* identifier
+        {ident identifier}* identifier_list
     }
 
     // Specification: 3.5.97
@@ -932,17 +952,17 @@ a2l_specification! {
 
     // Specification: 3.5.104
     block REF_CHARACTERISTIC {
-        { ident }* identifier
+        { ident identifier}* identifier_list
     }
 
     // Specification: 3.5.105
     block REF_GROUP {
-        { ident }* identifier
+        { ident identifier}* identifier_list
     }
 
     // Specification: 3.5.106
     block REF_MEASUREMENT {
-        { ident }* identifier
+        { ident identifier}* identifier_list
     }
 
     // Specification: 3.5.107
@@ -1016,12 +1036,12 @@ a2l_specification! {
 
     // Specification: 3.5.120
     block SUB_FUNCTION {
-        { ident }* identifier
+        { ident identifier}* identifier_list
     }
 
     // Specification: 3.5.121
     block SUB_GROUP {
-        { ident }* identifier
+        { ident identifier}* identifier_list
     }
 
     // Specification: 3.5.122
@@ -1083,13 +1103,13 @@ a2l_specification! {
 
     // Specification: 3.5.130
     block VAR_ADDRESS {
-        { ulong }* address
+        { ulong address}* address_list
     }
 
     // Specification: 3.5.131
     block VAR_CHARACTERISTIC {
         ident name
-        { ident  }* criterion_name
+        { ident criterion_name }* criterion_name_list
         [-> VAR_ADDRESS]
     }
 
@@ -1097,14 +1117,17 @@ a2l_specification! {
     block VAR_CRITERION {
         ident name
         string long_identifier
-        {ident  }* value
+        {ident  value}* value_list
         [-> VAR_MEASUREMENT]
         [-> VAR_SELECTION_CHARACTERISTIC]
     }
 
     // Specification: 3.5.133
     block VAR_FORBIDDEN_COMB {
-        { ident, ident }* combination
+        {
+            ident criterion_name
+            ident criterion_value
+        }* combination
     }
 
     // Specification: 3.5.134
@@ -1148,13 +1171,13 @@ a2l_specification! {
 
     // Specification: 3.5.140
     block VIRTUAL {
-        { ident }* measuring_channel
+        { ident measuring_channel }* measuring_channel_list
     }
 
     // Specification: 3.5.141
     block VIRTUAL_CHARACTERISTIC {
         string formula
-        {ident }* characteristic
+        {ident characteristic }* characteristic_list
     }
 }
 
