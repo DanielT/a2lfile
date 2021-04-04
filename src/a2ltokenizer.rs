@@ -181,6 +181,11 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filedata: &str) -> Resul
                 c = pair.1;
             }
             let number = &filedata[offset..offset+idx];
+            if number == "-" {
+                return Err(format!("Invalid numerical constant consisting of only \"-\" found on line {}", line));
+            } else if number == "0x" {
+                return Err(format!("Invalid numerical constant consisting of only \"0x\" found on line {}", line));
+            }
             tokens.push(A2lToken{ttype: A2lTokenType::Number, text: String::from(number), fileid, line});
             offset += idx;
             remaining = &remaining[idx..];
@@ -317,16 +322,18 @@ fn make_include_filename(incname: &str, base_filename: &str) -> String {
 
 impl A2lTokenResult {
     pub fn finalize(&mut self) {
-        let final_line = self.tokens[self.tokens.len() - 1].line;
+        if self.tokens.len() > 0 {
+            let final_line = self.tokens[self.tokens.len() - 1].line;
 
-        // in the parser, parse_block_elements() expects each block to end with (End) (Blockname).
-        // In order to use the same function at the top level, the ending sequence needs to be faked.
-        // This is done by inserting (End) (FILE_ROOT) before the (Eof) marker at the end of the token sequence */
-        self.tokens.push(A2lToken {ttype: A2lTokenType::End, text: "".to_string(), line: final_line, fileid: 0});
-        self.tokens.push(A2lToken {ttype: A2lTokenType::Identifier, text: "A2L_FILE".to_string(), line: final_line, fileid: 0});
+            // in the parser, parse_block_elements() expects each block to end with (End) (Blockname).
+            // In order to use the same function at the top level, the ending sequence needs to be faked.
+            // This is done by inserting (End) (FILE_ROOT) before the (Eof) marker at the end of the token sequence */
+            self.tokens.push(A2lToken {ttype: A2lTokenType::End, text: "".to_string(), line: final_line, fileid: 0});
+            self.tokens.push(A2lToken {ttype: A2lTokenType::Identifier, text: "A2L_FILE".to_string(), line: final_line, fileid: 0});
 
-        // add an end of file token to signal that there is no more input during parsing
-        self.tokens.push(A2lToken{ttype: A2lTokenType::Eof, text: String::from(""), line: final_line, fileid: 0});
+            // add an end of file token to signal that there is no more input during parsing
+            self.tokens.push(A2lToken{ttype: A2lTokenType::Eof, text: String::from(""), line: final_line, fileid: 0});
+        }
     }
 }
 

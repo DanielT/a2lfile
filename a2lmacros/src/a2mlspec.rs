@@ -437,27 +437,6 @@ fn parse_optional_name(token_iter: &mut TokenStreamIter) -> Option<String> {
 }
 
 
-// parse_optional_comment()
-// check if there is a rust-style doc comment in the input and parse it
-fn parse_optional_comment(token_iter: &mut TokenStreamIter) -> Option<String> {
-    if let Some(TokenTree::Punct(_)) = token_iter.peek() {
-        // comments beginning with "///"" in the input are converted to rust's doc-comment form: #[doc="comment string here"]
-        require_punct(token_iter, '#');
-        let doc_tokens = get_group(token_iter, Delimiter::Bracket);
-        let doc_iter = &mut doc_tokens.into_iter().peekable();
-        let doc_ident = get_ident(doc_iter);
-        if doc_ident == "doc" {
-            require_punct(doc_iter, '=');
-            Some(get_string(doc_iter))
-        } else {
-            None
-        }
-    } else {
-        None
-    }
-}
-
-
 /// A2mlTypeList is a wrapper around Vec<(name, BaseType)>
 /// It provides functions to get varios entries from the list.
 /// Unlike a HashMap, it preserves the ordering of the elements, which is needed when generating the a2ml-constant
@@ -711,9 +690,14 @@ fn get_indent_string(indent_level: usize) -> String {
 
 // fixup_output_datatypes
 // The entry point for data type fixup. Recursively adds the "IF_DATA" block and all data types referenced by or defined within it
-fn fixup_output_datatypes(spec: &A2mlSpec) -> HashMap<String, BaseType> {
-    let mut datatypes = HashMap::<String, BaseType>::new();
-    fixup_output_block(spec, &spec.name, &spec.ifdata_item, &mut datatypes);
+fn fixup_output_datatypes(spec: &A2mlSpec) -> HashMap<String, DataItem> {
+    let mut tmp_datatypes = HashMap::<String, BaseType>::new();
+    fixup_output_block(spec, &spec.name, &spec.ifdata_item, &mut tmp_datatypes);
+
+    let mut datatypes = HashMap::<String, DataItem>::new();
+    for (typename, basetype) in tmp_datatypes {
+        datatypes.insert(typename.clone(), DataItem {typename: Some(typename), basetype, varname: None, comment: None});
+    }
     datatypes
 }
 

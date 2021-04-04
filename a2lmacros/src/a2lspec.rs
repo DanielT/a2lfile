@@ -36,16 +36,19 @@ fn parse_input(token_iter: &mut TokenStreamIter) -> (Vec<StructInfo>, Vec<DataIt
     let mut enums = Vec::new();
 
     while token_iter.peek().is_some() {
+
+        let comment = parse_doc_comments(token_iter);
+
         let ident = get_ident(token_iter);
         match &*ident {
             "block" => {
-                structs.push(parse_struct(token_iter, false));
+                structs.push(parse_struct(token_iter, comment, false));
             },
             "keyword" => {
-                structs.push(parse_struct(token_iter, true));
+                structs.push(parse_struct(token_iter, comment, true));
             },
             "enum" => {
-                enums.push(parse_enum(token_iter))
+                enums.push(parse_enum(token_iter, comment))
             },
             _ => { panic!("expected a keyword of the a2l specification in this position, got {}", ident); }
         }
@@ -54,8 +57,25 @@ fn parse_input(token_iter: &mut TokenStreamIter) -> (Vec<StructInfo>, Vec<DataIt
     (structs, enums)
 }
 
+fn parse_doc_comments(token_iter: &mut TokenStreamIter) -> Option<String> {
+    let mut comment = "".to_string();
+    while let Some(comment_line) = parse_optional_comment(token_iter) {
+        if comment.len() > 0 {
+            comment = format!("{}\n{}", comment, comment_line);
+        } else {
+            comment = comment_line.clone();
+        }
+    }
 
-fn parse_struct(token_iter: &mut TokenStreamIter, is_keyword: bool) -> StructInfo {
+    if comment.len() > 0 {
+        Some(comment)
+    } else {
+        None
+    }
+}
+
+
+fn parse_struct(token_iter: &mut TokenStreamIter, comment: Option<String>, is_keyword: bool) -> StructInfo {
     let mut items = Vec::new();
     let mut references = Vec::new();
 
@@ -106,7 +126,7 @@ fn parse_struct(token_iter: &mut TokenStreamIter, is_keyword: bool) -> StructInf
         typename: Some(name),
         basetype: BaseType::Struct(items),
         varname: None,
-        comment: None
+        comment
     };
     StructInfo {
         taglist: namelist,
@@ -186,11 +206,23 @@ fn parse_blockitem_group(block_token_iter: &mut TokenStreamIter) -> DataItem {
         structitems.push(parse_blockitem_single(&mut grp_token_iter));
     }
 
-    DataItem {
-        typename: Some(typename),
-        basetype: BaseType::Sequence(Box::new(BaseType::Struct(structitems))),
-        varname: Some(varname),
-        comment: None
+    if structitems.len() == 1 {
+        // there is actually only one item in the sequence; no need to create a struct for it
+        let item = structitems.pop().unwrap();
+        DataItem {
+            typename: Some(typename),
+            basetype: BaseType::Sequence(Box::new(item.basetype)),
+            varname: Some(varname),
+            comment: None
+        }
+    } else {
+        // since there are multiple items in the sequence, they are wrapped in a struct
+        DataItem {
+            typename: Some(typename),
+            basetype: BaseType::Sequence(Box::new(BaseType::Struct(structitems))),
+            varname: Some(varname),
+            comment: None
+        }
     }
 }
 
@@ -242,7 +274,7 @@ fn parse_optitem(block_token_iter: &mut TokenStreamIter) -> Vec<TaggedItem> {
 }
 
 
-fn parse_enum(token_iter: &mut TokenStreamIter) -> DataItem {
+fn parse_enum(token_iter: &mut TokenStreamIter, comment: Option<String>) -> DataItem {
     let name = get_ident(token_iter);
     let mut items = Vec::new();
 
@@ -265,7 +297,7 @@ fn parse_enum(token_iter: &mut TokenStreamIter) -> DataItem {
         typename: Some(name),
         basetype: BaseType::Enum(items),
         varname: None,
-        comment: None
+        comment
     }
 }
 
@@ -308,17 +340,19 @@ fn get_basetype(typename: &str) -> BaseType {
 //-------------------------------------------------------------------------------------------------
 
 
-fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<String, BaseType> {
-    let mut typelist: HashMap<String, BaseType> = HashMap::new();
+fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<String, DataItem> {
+    let mut typelist: HashMap<String, DataItem> = HashMap::new();
     let mut tagmap: HashMap<String, bool> = HashMap::new();
 
+    // enums can be copied directly to the output type list
     for e in enums {
-        let typename = e.typename.unwrap();
-        if typelist.insert(typename.clone(), e.basetype) != None {
+        let typename = e.typename.as_ref().unwrap().to_owned();
+        if typelist.insert(typename.clone(), e) != None {
             panic!("duplicate enum name {} in a2l specification", typename);
         }
     }
 
+    // for all tags of all structs: store if this tag refers to a block or not
     for StructInfo{taglist, is_block, ..} in &structs {
         for tag in taglist {
             tagmap.insert(tag.clone(), *is_block);
@@ -334,38 +368,21 @@ fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<Str
         // in the input a nested struct to represent the items is generated. These nested structs
         // need to be moved to the typelist, and are replaced by StructRefs at their original locations
 
-        let mut new_structitems = Vec::new();
+        let mut output_structitems = Vec::new();
         // everything in the structs array is a Struct, so the condition is always true. It's just a convenient way to unwrap the structitems
-        if let BaseType::Struct(structitems) = dataitem.basetype {
-            for si in structitems {
-                if let BaseType::Sequence(seqitem) = si.basetype {
-                    let typename = si.typename.unwrap();
-                    let existing_type = typelist.get(&typename);
-                    if existing_type.is_none() {
-                        typelist.insert(typename.clone(), *seqitem);
-                    } else {
-                        // the struct type already exists in the output types. Some sequences (identifier_list) occur frequently
-                        if *existing_type.unwrap() != *seqitem {
-                            panic!("type {} has mutliple incompatible definitions", typename);
-                        }
-                        // no need to insert the type, because it exists and is compatible
-                    }
-                    new_structitems.push(DataItem {
-                        typename: Some(typename),
-                        basetype: BaseType::Sequence(Box::new(BaseType::StructRef)),
-                        varname: si.varname,
-                        comment: si.comment
-                    });
-                } else {
-                    // anything that is not a sequence remains unchanged and is directly added to the output struct
-                    new_structitems.push(si);
-                }
+        if let BaseType::Struct(blockitems) = dataitem.basetype {
+            for si in blockitems {
+                output_structitems.push(unwrap_nested_structs(&taglist[0], si, &mut typelist));
             }
 
-            let si_count = new_structitems.len();
+            // If the struct contains a TaggedStruct with optional elements, these need to updatd with the info if the referent is a block or not
+            // Check if there are any elements in the struct at all. Some structs are empty.
+            let si_count = output_structitems.len();
             if si_count > 0 {
-                let lastitem = &mut new_structitems[si_count-1];
+                // the struct is not empty, so it is safe to get the last item (the TaggedStruct is always last if it exists)
+                let lastitem = &mut output_structitems[si_count-1];
                 if let BaseType::TaggedStruct(taggeditems) = &mut lastitem.basetype {
+                    // The taggedstruct exists, loop over the taggeditems and update them
                     for tgitem in taggeditems {
                         if let Some(is_block) = tagmap.get(&tgitem.tag) {
                             tgitem.is_block = *is_block;
@@ -377,14 +394,57 @@ fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<Str
             }
     
             let typename = dataitem.typename.unwrap();
-            if typelist.insert(typename.clone(), BaseType::Block(new_structitems)) != None {
+            if typelist.insert(typename.clone(), DataItem {typename: Some(typename.clone()), basetype: BaseType::Block(output_structitems), varname: None, comment: dataitem.comment }) != None {
                 panic!("type {} for block {} altready exists", typename, taglist[0]);
             }
         }
     }
 
-
     typelist
+}
+
+
+// unwrap_nested_structs
+// if the current item is a Sequence and contains a struct rather than a single item, then the struct needs to be moved out of the sequence
+fn unwrap_nested_structs(tag: &str, si: DataItem, typelist: &mut HashMap<String, DataItem>) -> DataItem {
+    if let BaseType::Sequence(seqitem) = si.basetype {
+        if let BaseType::Struct(_) = *seqitem {
+            // the sequence contains a struct, which needs to be moved out of the sequence
+            let typename = si.typename.unwrap();
+            let existing_type = typelist.get(&typename);
+            if existing_type.is_none() {
+                let comment = if let Some(comment) = si.comment {
+                    Some(comment)
+                } else {
+                    Some(format!("Auto generated for repeating sequence {} in block {}", si.varname.as_ref().unwrap().to_owned(), tag))
+                };
+                typelist.insert(typename.clone(), DataItem {typename: Some(typename.clone()), basetype: *seqitem, varname: None, comment});
+            } else {
+                // the struct type already exists in the output types. Some sequences (identifier_list) occur frequently
+                if existing_type.unwrap().basetype != *seqitem {
+                    panic!("type {} has multiple incompatible definitions", typename);
+                }
+                // no need to insert the type, because it exists and is compatible
+            }
+            DataItem {
+                typename: Some(typename),
+                basetype: BaseType::Sequence(Box::new(BaseType::StructRef)),
+                varname: si.varname,
+                comment: None
+            }
+        } else {
+            // the sequence does not contain a struct, so the type can be added unchanged to the output struct
+            DataItem {
+                typename: si.typename,
+                basetype: BaseType::Sequence(seqitem),
+                varname: si.varname,
+                comment: si.comment
+            }
+        }
+    } else {
+        // anything that is not a sequence remains unchanged and is directly added to the output struct
+        si
+    }
 }
 
 

@@ -78,6 +78,25 @@ pub(crate) fn require_punct(token_iter: &mut TokenStreamIter, reqchar: char) {
 }
 
 
+// parse_optional_comment()
+// check if there is a rust-style doc comment and parse it
+pub(crate) fn parse_optional_comment(token_iter: &mut TokenStreamIter) -> Option<String> {
+    if let Some(TokenTree::Punct(_)) = token_iter.peek() {
+        // comments beginning with "///"" in the input are converted to rust's doc-comment form: #[doc="comment string here"]
+        require_punct(token_iter, '#');
+        let doc_tokens = get_group(token_iter, Delimiter::Bracket);
+        let doc_iter = &mut doc_tokens.into_iter().peekable();
+        let doc_ident = get_ident(doc_iter);
+        if doc_ident == "doc" {
+            require_punct(doc_iter, '=');
+            Some(get_string(doc_iter))
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
 
 
 // convert an uppercase name with underscores to a CamelCase type name (e.g. COMPU_METHOD -> CompuMethod)

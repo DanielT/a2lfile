@@ -61,16 +61,20 @@ pub(crate) enum BaseType {
 
 
 
-pub(crate) fn generate_data_structures(types: &HashMap<String, BaseType>) -> TokenStream {
+pub(crate) fn generate_data_structures(types: &HashMap<String, DataItem>) -> TokenStream {
     let mut result = quote!{};
 
     // Convert the hashmap of types to a vec and sort it. This gives stable output ordering
-    let mut typesvec: Vec<(&String, &BaseType)> = types.iter().map(|(key, val)| (key, val)).collect();
+    let mut typesvec: Vec<(&String, &DataItem)> = types.iter().map(|(key, val)| (key, val)).collect();
     typesvec.sort_by(|a, b| a.0.partial_cmp(b.0).unwrap());
 
     // generate each type in the list
     for (typename, a2mltype) in typesvec {
-        match a2mltype {
+        if let Some(comment) = &a2mltype.comment {
+            result.extend(quote!{#[doc=#comment]});
+        }
+
+        match &a2mltype.basetype {
             BaseType::Enum(enumitems) => {
                 result.extend(generate_enum_data_structure(typename, enumitems));
             }
@@ -244,7 +248,7 @@ fn generate_bare_typename(typename: &Option<String>, item: &BaseType) -> TokenSt
 // generate_parser
 // entry point for externe use (by users of the a2ml_specification! macro) of the parser generator
 // functions will be prefixed with "a2lfile::"
-pub(crate) fn generate_parser(types: &HashMap<String, BaseType>) -> TokenStream {
+pub(crate) fn generate_parser(types: &HashMap<String, DataItem>) -> TokenStream {
     let cratename = format_ident!("a2lfile");
     generate_parser_impl(&cratename, types)
 }
@@ -253,7 +257,7 @@ pub(crate) fn generate_parser(types: &HashMap<String, BaseType>) -> TokenStream 
 // generate_parser_internal
 // entry point for internal use (within the crate) of the parser generator
 // functions will be prefixed with "crate::"
-pub(crate) fn generate_parser_internal(types: &HashMap<String, BaseType>) -> TokenStream {
+pub(crate) fn generate_parser_internal(types: &HashMap<String, DataItem>) -> TokenStream {
     let cratename = format_ident!("crate");
     generate_parser_impl(&cratename, types)
 }
@@ -261,13 +265,13 @@ pub(crate) fn generate_parser_internal(types: &HashMap<String, BaseType>) -> Tok
 
 // generate_parser_impl
 // generate a full set of parser function implementations for the set of types
-fn generate_parser_impl(cratename: &Ident, types: &HashMap<String, BaseType>) -> TokenStream {
+fn generate_parser_impl(cratename: &Ident, types: &HashMap<String, DataItem>) -> TokenStream {
     let mut result = quote!{};
-    let mut typesvec: Vec<(&String, &BaseType)> = types.iter().map(|(key, val)| (key, val)).collect();
+    let mut typesvec: Vec<(&String, &DataItem)> = types.iter().map(|(key, val)| (key, val)).collect();
     typesvec.sort_by(|a, b| a.0.partial_cmp(b.0).unwrap());
 
     for (typename, a2mltype) in typesvec {
-        match a2mltype {
+        match &a2mltype.basetype {
             BaseType::Enum(enumitems) => {
                 result.extend(generate_enum_parser(cratename, typename, enumitems));
             }
@@ -304,7 +308,7 @@ fn generate_enum_parser(cratename: &Ident, typename: &str, enumitems: &Vec<EnumI
                 let enumname = parser.get_identifier(context)?;
                 match &*enumname {
                     #(#match_branches)*
-                    _ => Err(#cratename::ParseError::InvalidEnumValue(context.copy(), enumname))
+                    _ => Err(#cratename::ParseError::InvalidEnumValue(context.clone(), enumname))
                 }
             }
         }
@@ -378,14 +382,15 @@ fn generate_block_parser(cratename: &Ident, typename: &str, structitems: &Vec<Da
 fn generate_struct_item_fragments(structitems: &Vec<DataItem>, cratename: &Ident) -> (Vec<Ident>, Vec<TokenStream>) {
     let mut itemparsers = Vec::<TokenStream>::new();
     let mut itemnames = Vec::<Ident>::new();
-    for sitem in structitems {
+    for (idx, sitem) in structitems.iter().enumerate() {
+        let is_last = idx == (structitems.len() - 1);
         match &sitem.basetype {
             BaseType::TaggedStruct(tg_items) => {
-                itemparsers.push(generate_taggeditem_parser(cratename, tg_items, false));
+                itemparsers.push(generate_taggeditem_parser(cratename, tg_items, false, is_last));
                 itemnames.extend(generate_tagged_item_names(tg_items));
             }
             BaseType::TaggedUnion(tg_items) => {
-                itemparsers.push(generate_taggeditem_parser(cratename, tg_items, true));
+                itemparsers.push(generate_taggeditem_parser(cratename, tg_items, true, is_last));
                 itemnames.extend(generate_tagged_item_names(tg_items));
             }
             BaseType::Sequence(seqitem) => {
@@ -477,15 +482,53 @@ fn generate_sequence_parser(cratename: &Ident, itemname: &Ident, typename: &Opti
 
 // generate_taggeditem_parser
 // Generate a TokenStream representing code to parse all the tagged items of a TaggedStruct or TaggedUnion
-fn generate_taggeditem_parser(cratename: &Ident, tg_items: &Vec<TaggedItem>, is_taggedunion: bool) -> TokenStream {
+fn generate_taggeditem_parser(cratename: &Ident, tg_items: &Vec<TaggedItem>, is_taggedunion: bool, is_last: bool) -> TokenStream {
     // result: the TokenStream that ultimately collcts all the code fragements in this function
     let mut result = quote!{};
+
+    // item_match_arms: the match arms of the while loop that passes each set of input tokens to the appropriate item parser
+    // multiplicity_check: code fragemnts that check if references marked as required are present
+    let (var_definitions, item_match_arms, multiplicity_check) = generate_taggeditem_match_arms(cratename, tg_items);
+    result.extend(var_definitions);
+
+
+    // generate the full match statement that has one arm for each tgitem
+    let parser_core = generate_taggeditem_parser_core(cratename, tg_items, is_taggedunion, is_last, &item_match_arms);
+
+    // wrap the match statement inside an if or a while loop
+    if is_taggedunion {
+        result.extend(quote!{
+            let mut tag_peek = parser.peek_next_tag(context)?;
+            if tag_peek.is_some() {
+                #parser_core
+            }
+        });
+    } else {
+        result.extend(quote!{
+            let mut tag_peek = parser.peek_next_tag(context)?;
+            while tag_peek.is_some() {
+                #parser_core
+                tag_peek = parser.peek_next_tag(context)?;
+            }
+        });
+    }
+
+    // now that all items have been parsed, the check if all required items are present can be performed
+    result.extend(quote!{
+        #multiplicity_check
+    });
+
+    result
+}
+
+
+fn generate_taggeditem_match_arms(cratename: &Ident, tg_items: &Vec<TaggedItem>) -> (TokenStream, Vec<TokenStream>, TokenStream) {
+    let mut var_definitions = quote!{};
     // item_match_arms: the match arms of the while loop that passes each set of input tokens to the appropriate item parser
     let mut item_match_arms = Vec::new();
     // multiplicity_check: code fragemnts that check if references marked as required are present
     let mut multiplicity_check = quote!{};
 
-    // generate for each tagged item
     for item in tg_items {
         let tmp_itemname = format_ident!("tmp_required__{}", make_varname(&item.tag));
         let itemname = format_ident!("{}", make_varname(&item.tag));
@@ -495,7 +538,7 @@ fn generate_taggeditem_parser(cratename: &Ident, tg_items: &Vec<TaggedItem>, is_
 
         if item.repeat {
             // repeated items are represented as Vec<TypeName>
-            result.extend(quote!{let mut #itemname: Vec<#typename> = Vec::new();});
+            var_definitions.extend(quote!{let mut #itemname: Vec<#typename> = Vec::new();});
             store_item = quote!{
                 #itemname.push(newitem);
             };
@@ -511,7 +554,7 @@ fn generate_taggeditem_parser(cratename: &Ident, tg_items: &Vec<TaggedItem>, is_
             // they are represented directly as Typename if they are required
             if item.required {
                 // required items are first stored into a temporary variable of type Option<T>
-                result.extend(quote!{let mut #tmp_itemname: Option<#typename> = None;});
+                var_definitions.extend(quote!{let mut #tmp_itemname: Option<#typename> = None;});
                 store_item = quote!{
                     if #tmp_itemname.is_none() {
                         #tmp_itemname = Some(newitem);
@@ -529,7 +572,7 @@ fn generate_taggeditem_parser(cratename: &Ident, tg_items: &Vec<TaggedItem>, is_
                 });
             } else {
                 // an non-repeating item that is not required
-                result.extend(quote!{let mut #itemname: Option<#typename> = None;});
+                var_definitions.extend(quote!{let mut #itemname: Option<#typename> = None;});
                 store_item = quote!{
                     if #itemname.is_none() {
                         #itemname = Some(newitem);
@@ -553,52 +596,53 @@ fn generate_taggeditem_parser(cratename: &Ident, tg_items: &Vec<TaggedItem>, is_
                 }
             }
         );
-
     }
 
-    // collect all the match arms of the separate statements into the full match statement
-    let parser_core = quote!{
+    (var_definitions, item_match_arms, multiplicity_check)
+}
+
+
+fn generate_taggeditem_parser_core(cratename: &Ident, tg_items: &Vec<TaggedItem>, is_taggedunion: bool, is_last: bool, item_match_arms: &Vec<TokenStream>) -> TokenStream {
+    // default action if a tag is not recognized: step back in the tokenstream and let it be handled somewhere else
+    let mut default_match_arm = quote!{
+        if is_block {
+            parser.undo_get_token();
+        }
+        parser.undo_get_token();
+    };
+
+    if !is_taggedunion {
+        // taggedstructs use a while loop; if parsing fails the loop needs to end
+        default_match_arm.extend(quote!{break;});
+    }
+
+    // if this taggedstruct / taggedunion is the last element in the block
+    // and this block (at runtime) is actually inside /begin ...  /end, then there is no way to let the unknown tag to be handled somewhere else
+    if is_last {
+        default_match_arm = quote!{
+            if context.inside_block {
+                parser.handle_unknown_taggedstruct_tag(context, &tag, is_block, &TAG_LIST)?;
+            } else {
+                #default_match_arm
+            }
+        };
+    }
+
+    let taglist: Vec<String> = tg_items.iter().map(|item| item.tag.clone() ).collect();
+    let taglist_len = taglist.len();
+    // generate the full match statement
+    quote!{
         let (tag, is_block) = tag_peek.unwrap();
         let token = parser.get_token(context)?;
         let newcontext = #cratename::ParseContext::from_token(token, is_block);
+        const TAG_LIST: [&str; #taglist_len] = [#(#taglist),*];
         match &*tag {
             #(#item_match_arms)*
             _ => {
-                if is_block {
-                    parser.undo_get_token();
-                }
-                parser.undo_get_token();
-                break;
+                #default_match_arm
             }
         }
-    };
-
-
-    // wrap the match statement inside a while loop
-    if is_taggedunion {
-        result.extend(quote!{
-            let mut tag_peek = parser.peek_next_tag(context)?;
-            while tag_peek.is_some() { // must use while instead of if here, because the match arms of parser_core can use break
-                #parser_core
-                tag_peek = None; // never loop
-            }
-        });
-    } else {
-        result.extend(quote!{
-            let mut tag_peek = parser.peek_next_tag(context)?;
-            while tag_peek.is_some() {
-                #parser_core
-                tag_peek = parser.peek_next_tag(context)?;
-            }
-        });
     }
-
-    // now that all items have been parsed, the check if all required items are present can be performed
-    result.extend(quote!{
-        #multiplicity_check
-    });
-
-    result
 }
 
 
