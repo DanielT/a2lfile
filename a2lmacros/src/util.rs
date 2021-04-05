@@ -39,7 +39,18 @@ pub(crate) fn get_integer(token_iter: &mut TokenStreamIter) -> i32 {
         TokenTree::Literal(literal) => {
             literal.to_string().parse().unwrap()
         }
-        _ => panic!("Expected a string in this position, got: {:#?}", tok.to_string())
+        _ => panic!("Expected a literal in this position, got: {:#?}", tok.to_string())
+    }
+}
+
+
+pub(crate) fn get_float(token_iter: &mut TokenStreamIter) -> f32 {
+    let tok: TokenTree = token_iter.next().unwrap();
+    match tok {
+        TokenTree::Literal(literal) => {
+            literal.to_string().parse().unwrap()
+        }
+        _ => panic!("Expected a literal in this position, got: {:#?}", tok.to_string())
     }
 }
 

@@ -102,7 +102,9 @@ fn parse_struct(token_iter: &mut TokenStreamIter, comment: Option<String>, is_ke
                         // a reference to another block ([-> BLOCK_NAME])
                         references.append(&mut parse_optitem(&mut block_token_iter));
                     }
-                    _ => {}
+                    other => {
+                        panic!("unknown token group inside delimiter '{:?}' in A2l block {}", other, namelist[0]);
+                    }
                 }
             }
             _ => panic!("{:#?} is not allowed in this position while parsing the definition of {}", nexttok.to_string(), namelist[0])
@@ -239,21 +241,21 @@ fn parse_optitem(block_token_iter: &mut TokenStreamIter) -> Vec<TaggedItem> {
         |bn| make_varname(&bn.to_ascii_lowercase())
     ).collect();
 
+    // check if there is an additional *, +, or ! to mark this reference as repeating or required
     let mut required = false;
     let mut repeat = false;
-    if block_token_iter.peek().is_some() {
-        let nextitem = block_token_iter.peek().unwrap().clone();
-        if let TokenTree::Punct(punctitem) = nextitem {
-            block_token_iter.next();
-            match punctitem.as_char() {
-                '!' => { required = true; }
-                '+' => { required = true; repeat = true; }
-                '*' => { repeat = true; },
-                _ => panic!("multiplicity constraints must be one of !+*")
-            }
+    if let Some(TokenTree::Punct(_)) = block_token_iter.peek() {
+        match get_punct(block_token_iter) {
+            '!' => { required = true; }
+            '+' => { required = true; repeat = true; }
+            '*' => { repeat = true; },
+            c => panic!("multiplicity constraints must be one of !+*, got '{}'", c)
         }
     }
 
+    // finally, there can also be a version range, e.g (1.0 .. 1.61), or (.. 1.50), or (1.70 ..)
+    let version_range = get_optional_version_range(block_token_iter);
+    
     let ref_typename = typename_from_names(&blocknames);
     for (idx, blockname) in blocknames.iter().enumerate() {
         blocks.push(TaggedItem {
@@ -262,15 +264,46 @@ fn parse_optitem(block_token_iter: &mut TokenStreamIter) -> Vec<TaggedItem> {
                 typename: Some(ref_typename.to_owned()),
                 basetype: BaseType::StructRef,
                 varname: Some(varnames[idx].to_owned()),
-                comment: None,
+                comment: None
             },
             is_block: false, // don't know that yet, it will be fixed later
             repeat,
-            required
+            required,
+            version_range
         });
     }
 
     blocks
+}
+
+
+fn get_optional_version_range(token_iter: &mut TokenStreamIter) -> Option<(f32, f32)> {
+    let mut version_range = None;
+    if let Some(TokenTree::Group(g)) = token_iter.peek().clone() {
+        if g.delimiter() == Delimiter::Parenthesis {
+            let range_tokens = get_group(token_iter, Delimiter::Parenthesis);
+            let mut range_token_iter = range_tokens.into_iter().peekable();
+
+            // get the minimum version
+            let mut min_ver = 0.0;
+            if let Some(TokenTree::Literal(_)) = range_token_iter.peek() {
+                min_ver = get_float(&mut range_token_iter);
+            }
+
+            // min and max versions are separated by ".."
+            require_punct(&mut range_token_iter, '.');
+            require_punct(&mut range_token_iter, '.');
+
+            // get the maximum version
+            let mut max_ver = std::f32::MAX;
+            if let Some(TokenTree::Literal(_)) = range_token_iter.peek() {
+                max_ver = get_float(&mut range_token_iter);
+            }
+            version_range = Some((min_ver, max_ver));
+        }
+    }
+
+    version_range
 }
 
 
@@ -282,11 +315,18 @@ fn parse_enum(token_iter: &mut TokenStreamIter, comment: Option<String>) -> Data
     let mut enum_token_iter = enum_tokens.into_iter().peekable();
 
     while enum_token_iter.peek().is_some() {
+        let name = get_ident(&mut enum_token_iter);
+
+        // there can also be a version range, e.g (1.0 .. 1.61), or (.. 1.50), or (1.70 ..)
+        let version_range = get_optional_version_range(&mut enum_token_iter);
+
         items.push(EnumItem {
-            name: get_ident(&mut enum_token_iter),
+            name,
             value: None,
-            comment: None
+            comment: None,
+            version_range
         });
+
         /* if thee are further items in the enum, there must be a ',' as a separator */
         if enum_token_iter.peek().is_some() {
             require_punct(&mut enum_token_iter, ',');

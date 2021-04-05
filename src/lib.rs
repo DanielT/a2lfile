@@ -18,7 +18,7 @@ a2l_specification! {
     /// An instance of this struct is returned when an a2l file is loaded successfully
     block A2L_FILE {
         [-> ASAP2_VERSION]!
-        [-> A2ML_VERSION]
+        [-> A2ML_VERSION]   
         [-> PROJECT]!
     }
 
@@ -29,6 +29,7 @@ a2l_specification! {
         PBYTE,
         PWORD,
         PLONG,
+        PLONGLONG   (1.70 ..),
         DIRECT
     }
 
@@ -51,8 +52,9 @@ a2l_specification! {
         SWORD,
         ULONG,
         SLONG,
-        A_UINT64,
-        A_INT64,
+        A_UINT64       (1.60 ..),
+        A_INT64        (1.60 ..),
+        FLOAT16_IEEE   (1.71 ..),
         FLOAT32_IEEE,
         FLOAT64_IEEE
     }
@@ -217,9 +219,9 @@ a2l_specification! {
         [-> FORMAT]
         [-> MAX_GRAD]
         [-> MONOTONY]
-        [-> PHYS_UNIT]
+        [-> PHYS_UNIT]    (1.60 ..)
         [-> READ_ONLY]
-        [-> STEP_SIZE]
+        [-> STEP_SIZE]    (1.60 ..)
     }
 
     /// Parameters for the handling of an axis points distribution
@@ -248,10 +250,10 @@ a2l_specification! {
         [-> GUARD_RAILS]
         [-> IF_DATA]*
         [-> MONOTONY]
-        [-> PHYS_UNIT]
+        [-> PHYS_UNIT]     (1.60 ..)
         [-> READ_ONLY]
         [-> REF_MEMORY_SEGMENT]
-        [-> STEP_SIZE]
+        [-> STEP_SIZE]     (1.60 ..)
         [-> SYMBOL_LINK]
     }
 
@@ -303,10 +305,12 @@ a2l_specification! {
     ///
     /// Specification: 3.5.24
     enum ByteOrderEnum {
-        LITTLE_ENDIAN,
-        BIG_ENDIAN,
+        LITTLE_ENDIAN        (.. 1.51),
+        BIG_ENDIAN           (.. 1.51),
         MSB_LAST,
-        MSB_FIRST
+        MSB_FIRST,
+        MSB_FIRST_MSW_LAST   (1.70 ..),
+        MSB_LAST_MSW_FIRST   (1.70 ..)
     }
 
     /// Where the standard value does not apply this parameter can be used to specify the byte order
@@ -338,7 +342,7 @@ a2l_specification! {
     /// Specification: 3.5.26
     block CALIBRATION_HANDLE {
         {long handle}* handle_list
-        [-> CALIBRATION_HANDLE_TEXT]
+        [-> CALIBRATION_HANDLE_TEXT] (1.60 ..)
     }
 
     /// Additional text for a calibration handle
@@ -367,8 +371,8 @@ a2l_specification! {
         CURVE,
         MAP,
         CUBOID,
-        CUBE_4,
-        CUBE_5,
+        CUBE_4  (1.60 ..),
+        CUBE_5  (1.60 ..),
         VAL_BLK,
         VALUE
     }
@@ -393,9 +397,10 @@ a2l_specification! {
         [-> CALIBRATION_ACCESS]
         [-> COMPARISON_QUANTITY]
         [-> DEPENDENT_CHARACTERISTIC]
-        [-> DISCRETE]
+        [-> DISCRETE]   (1.60 ..)
         [-> DISPLAY_IDENTIFIER]
         [-> ECU_ADDRESS_EXTENSION]
+        [-> ENCODING]   (1.70 ..)
         [-> EXTENDED_LIMITS]
         [-> FORMAT]
         [-> FUNCTION_LIST]
@@ -404,12 +409,13 @@ a2l_specification! {
         [-> MAP_LIST]
         [-> MATRIX_DIM]
         [-> MAX_REFRESH]
+        [-> MODEL_LINK]  (1.70 ..)
         [-> NUMBER]
-        [-> PHYS_UNIT]
+        [-> PHYS_UNIT]   (1.60 ..)
         [-> READ_ONLY]
         [-> REF_MEMORY_SEGMENT]
-        [-> STEP_SIZE]
-        [-> SYMBOL_LINK]
+        [-> STEP_SIZE]   (1.60 ..)
+        [-> SYMBOL_LINK] (1.60 ..)
         [-> VIRTUAL_CHARACTERISTIC]
     }
 
@@ -444,9 +450,9 @@ a2l_specification! {
     ///
     /// Specification: 3.5.33
     enum ConversionType {
-        IDENTICAL,
+        IDENTICAL  (1.60 ..),
         FORM,
-        LINEAR,
+        LINEAR  (1.60 ..),
         RAT_FUNC,
         TAB_INTP,
         TAB_NOINTP,
@@ -467,7 +473,7 @@ a2l_specification! {
         [-> COMPU_TAB_REF]
         [-> FORMULA]
         [-> REF_UNIT]
-        [-> STATUS_STRING_REF]
+        [-> STATUS_STRING_REF]    (1.60 ..)
     }
 
     /// Conversion table for conversions that cannot be represented as a function
@@ -483,7 +489,7 @@ a2l_specification! {
             float out_val
         }* tab_entry
         [-> DEFAULT_VALUE]
-        [-> DEFAULT_VALUE_NUMERIC]
+        [-> DEFAULT_VALUE_NUMERIC]  (1.60 ..)
     }
 
     /// reference to a conversion table
@@ -773,9 +779,10 @@ a2l_specification! {
         ident name
         string long_identifier
         [-> ANNOTATION]*
+        [-> AR_COMPONENT]   (1.70 ..)
         [-> DEF_CHARACTERISTIC]
         [-> FUNCTION_VERSION]
-        [-> IF_DATA]*
+        [-> IF_DATA]*    (1.60 ..)
         [-> IN_MEASUREMENT]
         [-> LOC_MEASUREMENT]
         [-> OUT_MEASUREMENT]
@@ -805,7 +812,7 @@ a2l_specification! {
         string group_long_identifier
         [-> ANNOTATION]*
         [-> FUNCTION_LIST]
-        [-> IF_DATA]*
+        [-> IF_DATA]*     (1.60 ..)
         [-> REF_CHARACTERISTIC]
         [-> REF_MEASUREMENT]
         [-> ROOT]
@@ -916,7 +923,7 @@ a2l_specification! {
         [-> BIT_MASK]
         [-> BIT_OPERATION]
         [-> BYTE_ORDER]
-        [-> DISCRETE]
+        [-> DISCRETE]  (1.60 ..)
         [-> DISPLAY_IDENTIFIER]
         [-> ECU_ADDRESS]
         [-> ECU_ADDRESS_EXTENSION]
@@ -924,13 +931,13 @@ a2l_specification! {
         [-> FORMAT]
         [-> FUNCTION_LIST]
         [-> IF_DATA]*
-        [-> LAYOUT]
+        [-> LAYOUT]   (1.60 ..)
         [-> MATRIX_DIM]
         [-> MAX_REFRESH]
-        [-> PHYS_UNIT]
+        [-> PHYS_UNIT]   (1.60 ..)
         [-> READ_WRITE]
         [-> REF_MEMORY_SEGMENT]
-        [-> SYMBOL_LINK]
+        [-> SYMBOL_LINK]   (1.60 ..)
         [-> VIRTUAL]
     }
 
@@ -977,7 +984,8 @@ a2l_specification! {
         FLASH,
         RAM,
         ROM,
-        REGISTER
+        REGISTER,
+        NOT_IN_ECU   (1.70 ..)
     }
 
     /// specifies if a given memory region is internal or external
@@ -1009,15 +1017,16 @@ a2l_specification! {
     block MOD_COMMON {
         string comment
         [-> ALIGNMENT_BYTE]
+        [-> ALIGNMENT_FLOAT16_IEEE]   (1.71 ..)
         [-> ALIGNMENT_FLOAT32_IEEE]
         [-> ALIGNMENT_FLOAT64_IEEE]
-        [-> ALIGNMENT_INT64]
+        [-> ALIGNMENT_INT64]    (1.60 ..)
         [-> ALIGNMENT_LONG]
         [-> ALIGNMENT_WORD]
         [-> BYTE_ORDER]
         [-> DATA_SIZE]
         [-> DEPOSIT]
-        [-> S_REC_LAYOUT]
+        [-> S_REC_LAYOUT] (.. 1.60) // deprecated in 1.61: RECORD_LAYOUT is always mandatory
     }
 
     /// defines system information and management data for the module
@@ -1053,6 +1062,7 @@ a2l_specification! {
         string long_identifier
         [-> A2ML]
         [-> AXIS_PTS]*
+        [-> BLOB]*                     (1.70 ..)
         [-> CHARACTERISTIC]*
         [-> COMPU_METHOD]*
         [-> COMPU_TAB]*
@@ -1062,10 +1072,17 @@ a2l_specification! {
         [-> FUNCTION]*
         [-> GROUP]*
         [-> IF_DATA]*
+        [-> INSTANCE]*                 (1.70 ..)
         [-> MEASUREMENT]*
         [-> MOD_COMMON]
         [-> MOD_PAR]
         [-> RECORD_LAYOUT]*
+        [-> TRANSFORMER]*              (1.70 ..)
+        [-> TYPEDEF_BLOB]*             (1.70 ..)
+        [-> TYPEDEF_AXIS]*             (1.70 ..)
+        [-> TYPEDEF_CHARACTERISTIC]*   (1.70 ..)
+        [-> TYPEDEF_MEASUREMENT]*      (1.70 ..)
+        [-> TYPEDEF_STRUCTURE]*        (1.70 ..)
         [-> UNIT]*
         [-> USER_RIGHTS]*
         [-> VARIANT_CODING]
@@ -1079,9 +1096,9 @@ a2l_specification! {
         MON_INCREASE,
         STRICT_DECREASE,
         STRICT_INCREASE,
-        MONOTONOUS,
-        STRICT_MON,
-        NOT_MON
+        MONOTONOUS    (1.60 ..),
+        STRICT_MON    (1.60 ..),
+        NOT_MON       (1.60 ..)
     }
 
 
@@ -1184,6 +1201,7 @@ a2l_specification! {
     block RECORD_LAYOUT {
         ident name
         [-> ALIGNMENT_BYTE]
+        [-> ALIGNMENT_FLOAT16_IEEE]  (1.71 ..)
         [-> ALIGNMENT_FLOAT32_IEEE]
         [-> ALIGNMENT_FLOAT64_IEEE]
         [-> ALIGNMENT_INT64]
@@ -1202,7 +1220,8 @@ a2l_specification! {
         [-> RIP_ADDR_W/_X/_Y/_Z/_4/_5]
         [-> SRC_ADDR_X/_Y/_Z/_4/_5]
         [-> SHIFT_OP_X/_Y/_Z/_4/_5]
-        [-> STATIC_RECORD_LAYOUT]
+        [-> STATIC_RECORD_LAYOUT]    (1.60 ..)
+        [-> STATIC_ADDRESS_OFFSETS]  (1.70 ..)
     }
 
     /// defines a list of adjustable objects that can be referenced by a function or group
@@ -1514,6 +1533,172 @@ a2l_specification! {
         string formula
         {ident characteristic }* characteristic_list
     }
+
+
+    // ----------------------------------------------------------
+    // new elements as of 1.7.0
+    // ----------------------------------------------------------
+
+    enum CharacterEncoding {
+        UTF8,
+        UTF16,
+        UTF32
+    }
+
+    keyword ADDRESS_TYPE {
+        AddrType address_type
+    }
+
+    /// Defines the alignment of 16bit floats in complex objects (maps and axis)
+    keyword ALIGNMENT_FLOAT16_IEEE {
+        uint alignment_border
+    }
+
+    /// describes the Autosar component type of a function
+    keyword AR_COMPONENT {
+        string component_type
+    }
+
+    /// Special data object that can be used to handle domain specific data, which are processed inside the ECU in a dedicated way
+    block BLOB {
+        ident name
+        string long_identifier
+        ulong start_address
+        ulong size
+        [-> CALIBRATION_ACCESS]
+    }
+
+    /// a CHARACTERISTIC of type ASCII can be configured to use a multi-byte encoding instead
+    keyword ENCODING {
+        CharacterEncoding encoding
+    }
+
+    /// Creates an instance of a type defined using TYPEDEF_STRUCTURE
+    block INSTANCE {
+        ident name
+        string long_identifier
+        ident type_ref
+        ulong start_address
+        [-> ADDRESS_TYPE]  (1.71 ..)
+        [-> DISPLAY_IDENTIFIER]
+        [-> MATRIX_DIM]
+        [-> OVERWRITE]
+    }
+
+    /// add a string to a CHARACTERISTIC linking it to a name in the model
+    keyword MODEL_LINK {
+        string model_link
+    }
+
+    // override some default attributes of a type definition
+    keyword OVERWRITE {
+        // TODO
+    }
+
+    /// indicates that the start addresses of axes and function values of an adjustable object do not change when removing or inserting axis points
+    keyword STATIC_ADDRESS_OFFSETS {}
+
+    /// defines a single component of a TYPEDEF_STRUCTURE
+    block STRUCTURE_COMPONENT {
+        ident component_name
+        ident component_type
+        ulong size
+        [-> ADDRESS_TYPE]  (1.71 ..)
+        [-> MATRIX_DIM]
+        [-> SYMBOL_TYPE_LINK]
+    }
+
+    /// Specifies the name of a symbol within a linker map file or debug file that describes a class, class member, structure or structure component
+    keyword SYMBOL_TYPE_LINK {
+        ident symbol_type
+    }
+
+    keyword THIS {
+        // TODO - the release notes mention this keyword, but where is it used?
+    }
+
+    enum TransformerTrigger {
+        ON_USER_REQUEST,
+        ON_CHANGE
+    }
+
+    /// Definition of call to an external function (32-bit or 64-bit DLL) for converting calibration object values between their implementation format and physical format
+    block TRANSFORMER {
+        ident transformer_name
+        string version
+        string dllname_32bit
+        string dllname_64bit
+        uint timeout
+        TransformerTrigger trigger
+        ident inverse_transformer
+        [-> TRANSFORMER_IN_OBJECTS]
+        [-> TRANSFORMER_OUT_OBJECTS]
+    }
+
+    /// provides a list of inputs for a TRANSFORMER
+    block TRANSFORMER_IN_OBJECTS {
+        {ident identifier}* identifier_list
+    }
+
+    /// provides a list of outputs for a TRANSFORMER
+    block TRANSFORMER_OUT_OBJECTS {
+        {ident identifier}* identifier_list
+    }
+
+    /// Type definition of an axis object
+    block TYPEDEF_AXIS {
+        ident name
+        string long_identifier
+        ident input_quantity
+        ident record_layout
+        float max_diff
+        ident conversion
+        uint max_axis_points
+        float lower_limit
+        float upper_limit
+
+    }
+
+    /// Type definition of a BLOB
+    block TYPEDEF_BLOB {
+        ident name
+        string long_identifier
+        ulong size
+        // TODO
+    }
+
+    /// Type definition of a calibration object
+    block TYPEDEF_CHARACTERISTIC {
+        ident name
+        string long_identifier
+        CharacteristicType characteristic_type
+        ident record_layout
+        float max_diff
+        ident conversion
+        float lower_limit
+        float upper_limit
+        [-> AXIS_DESCR]*
+        [-> EXTENDED_LIMITS]
+        [-> FORMAT]
+        [-> NUMBER]
+        [-> PHYS_UNIT]
+    }
+
+    /// Type definition of a measurement object
+    block TYPEDEF_MEASUREMENT {
+        ident name
+        string long_identifier
+        // TODO
+    }
+
+    /// Definition of structured data types similar to the "typedef" command in C
+    block TYPEDEF_STRUCTURE {
+        ident name
+        string long_identifier
+        ulong total_size
+        [-> STRUCTURE_COMPONENT]*
+        [-> SYMBOL_TYPE_LINK]
+    }
 }
 
 
@@ -1530,9 +1715,10 @@ fn get_version(parser: &mut ParserState, context: &ParseContext) -> Result<Asap2
         if let Ok(tag) = ident {
             if tag == "ASAP2_VERSION" {
                 let version = Asap2Version::parse(parser, &ver_context);
-                if version.is_ok() {
+                if let Ok(version) = version {
                     parser.set_tokenpos(0);
-                    return Ok(version.unwrap());
+                    parser.set_file_version(version.version_no, version.upgrade_no)?;
+                    return Ok(version);
                 }
             }
         }

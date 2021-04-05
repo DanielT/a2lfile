@@ -9,7 +9,8 @@ pub struct ParserState<'a> {
     token_cursor: TokenIter<'a>,
     currentline: u32,
     logger: &'a mut dyn super::Logger,
-    strict: bool
+    strict: bool,
+    file_ver: f32
 }
 
 /// describes the current parser context, giving the name of the current element and its file and line number
@@ -33,7 +34,11 @@ pub enum ParseError {
     IncorrectEndTag(ParseContext, String),
     UnknownSubBlock(ParseContext, String),
     UnexpectedEOF(ParseContext),
-    StringTooLong(ParseContext, String, usize, usize)
+    StringTooLong(ParseContext, String, usize, usize),
+    BlockRefDeprecated(ParseContext, String, f32, f32),
+    BlockRefTooNew(ParseContext, String, f32, f32),
+    EnumRefDeprecated(ParseContext, String, f32, f32),
+    EnumRefTooNew(ParseContext, String, f32, f32)
 }
 
 
@@ -70,7 +75,8 @@ impl<'a> ParserState<'a> {
             token_cursor: TokenIter{ tokens, pos: 0},
             currentline: 0,
             logger,
-            strict
+            strict,
+            file_ver: 0f32
         }
     }
 
@@ -119,6 +125,32 @@ impl<'a> ParserState<'a> {
 
     pub fn set_tokenpos(self: &mut ParserState<'a>, newpos: usize) {
         self.token_cursor.pos = newpos;
+    }
+
+
+    pub fn set_file_version(&mut self, major: u16, minor: u16) -> Result<(), String> {
+        self.file_ver = major as f32 + (minor as f32 / 100.0);
+        Ok(())
+    }
+
+
+    pub fn check_block_version(&mut self, context: &ParseContext, tag: &str, min_ver: f32, max_ver: f32) -> Result<(), ParseError> {
+        if self.file_ver < min_ver {
+            self.error_or_log(ParseError::BlockRefTooNew(context.clone(), tag.to_string(), self.file_ver, min_ver))?;
+        } else if self.file_ver > max_ver {
+            self.log_warning(ParseError::BlockRefDeprecated(context.clone(), tag.to_string(), self.file_ver, max_ver));
+        }
+        Ok(())
+    }
+
+
+    pub fn check_enumitem_version(&mut self, context: &ParseContext, tag: &str, min_ver: f32, max_ver: f32) -> Result<(), ParseError> {
+        if self.file_ver < min_ver {
+            self.error_or_log(ParseError::EnumRefTooNew(context.clone(), tag.to_string(), self.file_ver, min_ver))?;
+        } else if self.file_ver > max_ver {
+            self.log_warning(ParseError::EnumRefDeprecated(context.clone(), tag.to_string(), self.file_ver, max_ver));
+        }
+        Ok(())
     }
 
 
@@ -294,6 +326,39 @@ impl<'a> ParserState<'a> {
             }
         }
     }
+    
+
+    pub fn get_integer_u64(&mut self, context: &ParseContext) -> Result<u64, ParseError> {
+        let token = self.expect_token(context, A2lTokenType::Number)?;
+        if token.text.len() > 2 && (token.text.starts_with("0x") || token.text.starts_with("0X")) {
+            match u64::from_str_radix(&token.text[2..], 16) {
+                Ok(num) => Ok(num),
+                Err(_) => Err(ParseError::MalformedNumber(context.clone(), token.text.clone()))
+            }        
+        } else {
+            match token.text.parse() {
+                Ok(num) => Ok(num),
+                Err(_) => Err(ParseError::MalformedNumber(context.clone(), token.text.clone()))
+            }
+        }
+    }
+
+
+    pub fn get_integer_i64(&mut self, context: &ParseContext) -> Result<i64, ParseError> {
+        let token = self.expect_token(context, A2lTokenType::Number)?;
+        if token.text.len() > 2 && (token.text.starts_with("0x") || token.text.starts_with("0X")) {
+            match u64::from_str_radix(&token.text[2..], 16) {
+                Ok(num) => Ok(num as i64),
+                Err(_) => Err(ParseError::MalformedNumber(context.clone(), token.text.clone()))
+            }        
+        } else {
+            match token.text.parse() {
+                Ok(num) => Ok(num),
+                Err(_) => Err(ParseError::MalformedNumber(context.clone(), token.text.clone()))
+            }
+        }
+    }
+
 
 
     // peek_next_tag()
@@ -431,6 +496,18 @@ impl<'a> ParserState<'a> {
             }
             ParseError::StringTooLong(context, text, maxlen, actual_len) => {
                 format!("{} on line {}: String \"{}\" in block {} is {} bytes long, but the maximum allowed length is {}", prefix, self.currentline, text, context.element, actual_len, maxlen)
+            }
+            ParseError::BlockRefTooNew(context, tag, file_version, min_version) => {
+                format!("{} on line {}: Sub-block \"{}\" in block {} is available from version {:.2}, but the file declares version {:.2}", prefix, self.currentline, tag, context.element, min_version, file_version)
+            }
+            ParseError::BlockRefDeprecated(context, tag, file_version, max_version) => {
+                format!("{} on line {}: Sub-block \"{}\" in block {} is deprecated after version {:.2}, but the file declares version {:.2}", prefix, self.currentline, tag, context.element, max_version, file_version)
+            }
+            ParseError::EnumRefTooNew(context, tag, file_version, min_version) => {
+                format!("{} on line {}: enum item \"{}\" in block {} is available from version {:.2}, but the file declares version {:.2}", prefix, self.currentline, tag, context.element, min_version, file_version)
+            }
+            ParseError::EnumRefDeprecated(context, tag, file_version, max_version) => {
+                format!("{} on line {}: enum item \"{}\" in block {} is deprecated after version {:.2}, but the file declares version {:.2}", prefix, self.currentline, tag, context.element, max_version, file_version)
             }
         }
     }

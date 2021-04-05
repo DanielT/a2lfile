@@ -11,7 +11,8 @@ use super::util::*;
 pub(crate) struct EnumItem {
     pub(crate) name: String,
     pub(crate) value: Option<i32>,
-    pub(crate) comment: Option<String>
+    pub(crate) comment: Option<String>,
+    pub(crate) version_range: Option<(f32, f32)>
 }
 
 #[derive(Debug)]
@@ -29,7 +30,8 @@ pub(crate) struct TaggedItem {
     pub(crate) item: DataItem,
     pub(crate) is_block: bool,
     pub(crate) repeat: bool,
-    pub(crate) required: bool
+    pub(crate) required: bool,
+    pub(crate) version_range: Option<(f32, f32)>
 }
 
 
@@ -39,9 +41,11 @@ pub(crate) enum BaseType {
     Char,
     Int,
     Long,
+    Int64,
     Uchar,
     Uint,
     Ulong,
+    Uint64,
     Double,
     Float,
     Ident,  // text without double quotes, obeying the rules for identifiers (no spaces, etc)
@@ -202,9 +206,11 @@ fn generate_bare_typename(typename: &Option<String>, item: &BaseType) -> TokenSt
         BaseType::Char => { quote!{i8} }
         BaseType::Int => { quote!{i16} }
         BaseType::Long => { quote!{i32} }
+        BaseType::Int64 => { quote!{i64} }
         BaseType::Uchar => { quote!{u8} }
         BaseType::Uint => { quote!{u16} }
         BaseType::Ulong => { quote!{u32} }
+        BaseType::Uint64 => { quote!{u64} }
         BaseType::Double => { quote!{f64} }
         BaseType::Float => { quote!{f32} }
         BaseType::Ident => { quote!{String} }
@@ -299,7 +305,18 @@ fn generate_enum_parser(cratename: &Ident, typename: &str, enumitems: &Vec<EnumI
     for enitem in enumitems {
         let enident = format_ident!("{}", ucname_to_typename(&enitem.name));
         let entag = &enitem.name;
-        match_branches.push(quote!{#entag => Ok(Self::#enident),});
+
+        let mut version_check = quote! {};
+        if let Some((min_ver, max_ver)) = enitem.version_range {
+            version_check = quote!{
+                parser.check_enumitem_version(context, #entag, #min_ver, #max_ver)?;
+            };
+        }
+
+        match_branches.push(quote!{#entag => {
+            #version_check
+            Ok(Self::#enident)
+        }});
     }
 
     quote!{
@@ -418,9 +435,11 @@ fn generate_item_parser_call(cratename: &Ident, typename: &Option<String>, item:
         BaseType::Char => { quote!{parser.get_integer_i8(context)} }
         BaseType::Int => { quote!{parser.get_integer_i16(context)} }
         BaseType::Long => { quote!{parser.get_integer_i32(context)} }
+        BaseType::Int64 => { quote!{parser.get_integer_i64(context)} }
         BaseType::Uchar => { quote!{parser.get_integer_u8(context)} }
         BaseType::Uint => { quote!{parser.get_integer_u16(context)} }
         BaseType::Ulong => { quote!{parser.get_integer_u32(context)} }
+        BaseType::Uint64 => { quote!{parser.get_integer_u64(context)} }
         BaseType::Double => { quote!{parser.get_double(context)} }
         BaseType::Float => { quote!{parser.get_float(context)} }
         BaseType::Ident => { quote!{parser.get_identifier(context)} }
@@ -534,7 +553,7 @@ fn generate_taggeditem_match_arms(cratename: &Ident, tg_items: &Vec<TaggedItem>)
         let itemname = format_ident!("{}", make_varname(&item.tag));
         let typename = generate_bare_typename(&item.item.typename, &item.item.basetype);
         let store_item; // a code fragment that stores the parsed item into an Option<T> or a Vec<T>
-        let tag_string = item.tag.clone();
+        let tag_string = &item.tag;
 
         if item.repeat {
             // repeated items are represented as Vec<TypeName>
@@ -583,15 +602,22 @@ fn generate_taggeditem_match_arms(cratename: &Ident, tg_items: &Vec<TaggedItem>)
             }
         }
 
+        let mut version_check = quote!{};
+        if let Some((min_ver, max_ver)) = item.version_range {
+            version_check.extend(quote!{
+                parser.check_block_version(context, #tag_string, #min_ver, #max_ver)?;
+            });
+        }
+
         let is_block_item = item.is_block;
-        let keyword = &item.tag;
         item_match_arms.push(
             quote!{
-                #keyword => {
+                #tag_string => {
+                    #version_check
                     let newitem = #typename::parse(parser, &newcontext)?;
                     #store_item
                     if #is_block_item != is_block {
-                        parser.error_or_log(#cratename::ParseError::IncorrectElemType(context.clone(), #keyword.to_string(), #is_block_item))?;
+                        parser.error_or_log(#cratename::ParseError::IncorrectElemType(context.clone(), #tag_string.to_string(), #is_block_item))?;
                     }
                 }
             }

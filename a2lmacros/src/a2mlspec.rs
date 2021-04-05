@@ -134,9 +134,11 @@ fn parse_a2ml_type(token_iter: &mut TokenStreamIter, types: &A2mlTypeList, tok_s
         "char" => (None, BaseType::Char),
         "int" => (None, BaseType::Int),
         "long" => (None, BaseType::Long),
+        "int64" => (None, BaseType::Int64),
         "uchar" => (None, BaseType::Uchar),
         "uint" => (None, BaseType::Uint),
         "ulong" => (None, BaseType::Ulong),
+        "uin64" => (None, BaseType::Uint64),
         "float" => (None, BaseType::Float),
         "double" => (None, BaseType::Double),
         "ident" => (None, BaseType::Ident),
@@ -188,7 +190,7 @@ fn parse_a2ml_type_enum(token_iter: &mut TokenStreamIter, types: &A2mlTypeList) 
             if lastvalue && enum_token_iter.peek().is_some() {
                 panic!("additional items ({:#?}, ...) found in enum; missing ','?", enum_token_iter.peek().unwrap());
             }
-            enumvalues.push(EnumItem {name: tag, value, comment});
+            enumvalues.push(EnumItem {name: tag, value, comment, version_range: None});
         }
         (name, BaseType::Enum(enumvalues))
     } else {
@@ -366,7 +368,7 @@ fn parse_a2ml_taggeditem(token_iter: &mut TokenStreamIter, types: &A2mlTypeList,
                 // case 3: not at the end of the iterator and not followed by ';' immediately, so there is an item to parse
                 dataitem = parse_a2ml_tagged_def(ts_item_iter, &types);
             };
-            TaggedItem { tag, item: dataitem, is_block, repeat: multi, required: false }
+            TaggedItem { tag, item: dataitem, is_block, repeat: multi, required: false, version_range: None }
         }
         tok => {
             panic!("got {:#?} while attempting to parse tagged item", tok);
@@ -519,9 +521,11 @@ fn generate_a2ml_constant_of_item(outstring: &mut String, typename: &Option<Stri
         BaseType::Char => { write!(outstring, "char").unwrap(); }
         BaseType::Int => { write!(outstring, "int").unwrap(); }
         BaseType::Long => { write!(outstring, "long").unwrap(); }
+        BaseType::Int64 => { write!(outstring, "int64").unwrap(); }
         BaseType::Uchar => { write!(outstring, "uchar").unwrap(); }
         BaseType::Uint => { write!(outstring, "uint").unwrap(); }
         BaseType::Ulong => { write!(outstring, "ulong").unwrap(); }
+        BaseType::Uint64 => { write!(outstring, "uint64").unwrap(); }
         BaseType::Double => { write!(outstring, "double").unwrap(); }
         BaseType::Float => { write!(outstring, "float").unwrap(); }
         BaseType::Ident =>  { write!(outstring, "ident").unwrap(); }
@@ -842,9 +846,11 @@ fn fixup_data_type(spec: &A2mlSpec, typename: &Option<String>, basetype: &BaseTy
         BaseType::Char => (None, BaseType::Char),
         BaseType::Int => (None, BaseType::Int),
         BaseType::Long => (None, BaseType::Long),
+        BaseType::Int64 => (None, BaseType::Int64),
         BaseType::Uchar => (None, BaseType::Uchar),
         BaseType::Uint => (None, BaseType::Uint),
         BaseType::Ulong => (None, BaseType::Ulong),
+        BaseType::Uint64 => (None, BaseType::Uint64),
         BaseType::Double => (None, BaseType::Double),
         BaseType::Float => (None, BaseType::Float),
         BaseType::Ident => (None, BaseType::Ident),
@@ -876,7 +882,8 @@ fn fixup_taggeditems(taggeditems: &Vec<TaggedItem>, spec: &A2mlSpec, defined_typ
             item: DataItem { typename: Some(new_typename.clone()), basetype: BaseType::StructRef, varname: None, comment: None },
             is_block: tgitem.is_block,
             repeat: tgitem.repeat,
-            required: false
+            required: false,
+            version_range: None
         });
     }
 
