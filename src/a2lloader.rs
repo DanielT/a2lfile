@@ -9,6 +9,7 @@ pub fn load(filename: &str) -> Result<String, String> {
         Ok(file) => file,
         Err(error) => return Err(format!("could not open file: {}", error))
     };
+
     let filedata = read_data(&mut file)?;
     let utf8data = decode_raw_bytes(filedata);
 
@@ -80,29 +81,26 @@ fn decode_raw_bytes(filedata: Vec<u8>) -> String {
             } else { 
                 None
             };
-        if u16conversion.is_some() {
+        if let Some(conversion) = u16conversion {
             let mut filedata_u16 = Vec::with_capacity(filedata.len() / 2);
             for i in 0..(filedata.len()/2) {
                 let u16bytes: [u8; 2] = [filedata[i*2], filedata[i*2+1]];
-                filedata_u16.push(u16conversion.unwrap()(u16bytes));
+                filedata_u16.push(conversion(u16bytes));
             }
-            let converted_u16 = String::from_utf16(&filedata_u16);
-            if converted_u16.is_ok() {
-                return converted_u16.unwrap();
+            if let Ok(converted_u16) = String::from_utf16(&filedata_u16) {
+                return converted_u16;
             }
         }
     }
 
     /* try to handle the data as pure utf-8 */
-    let converted = String::from_utf8(filedata.clone());
-    if converted.is_ok() {
-        return converted.unwrap();
+    if let Ok(converted) = String::from_utf8(filedata.clone()) {
+        return converted;
     }
 
     /* try to handle the data as ISO8859-1 */
-    let converted = ISO_8859_1.decode(&filedata, encoding::DecoderTrap::Strict);
-    if converted.is_ok() {
-        return converted.unwrap().to_owned();
+    if let Ok(converted) = ISO_8859_1.decode(&filedata, encoding::DecoderTrap::Strict) {
+        return converted;
     }
 
     /* fallback: decode the data as UTF-8 while discarding invalid bytes.

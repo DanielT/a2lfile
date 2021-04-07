@@ -660,7 +660,8 @@ fn generate_taggeditem_parser_core(cratename: &Ident, tg_items: &Vec<TaggedItem>
     quote!{
         let (tag, is_block) = tag_peek.unwrap();
         let token = parser.get_token(context)?;
-        let newcontext = #cratename::ParseContext::from_token(token, is_block);
+        let text = parser.get_token_text(token);
+        let newcontext = #cratename::ParseContext::from_token(text, token, is_block);
         const TAG_LIST: [&str; #taglist_len] = [#(#taglist),*];
         match &*tag {
             #(#item_match_arms)*

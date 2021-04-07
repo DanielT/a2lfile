@@ -1711,7 +1711,7 @@ pub trait Logger {
 fn get_version(parser: &mut ParserState, context: &ParseContext) -> Result<Asap2Version, String> {
     if let Some(token) = parser.peek_token() {
         let ident = parser.get_identifier(context);
-        let ver_context = ParseContext::from_token(token, false);
+        let ver_context = ParseContext::from_token("", token, false);
         if let Ok(tag) = ident {
             if tag == "ASAP2_VERSION" {
                 let version = Asap2Version::parse(parser, &ver_context);
@@ -1732,8 +1732,8 @@ pub fn load(filename: &str, logger: &mut dyn Logger, strict_parsing: bool) -> Re
     let mut tokenresult = a2ltokenizer::tokenize(String::from(filename), 0, &filedata)?;
     tokenresult.finalize();
 
-    let mut parser = ParserState::new(&tokenresult.tokens, logger, strict_parsing);
-    let context = &ParseContext::from_token(&A2lToken {ttype: A2lTokenType::Identifier, text: "A2L_FILE".to_string(), fileid: 0, line: 1}, true);
+    let mut parser = ParserState::new(&tokenresult.tokens, &tokenresult.filedata, &tokenresult.filenames, logger, strict_parsing);
+    let context = &ParseContext::from_token("", &A2lToken {ttype: A2lTokenType::Identifier, startpos: 0, endpos: 0, fileid: 0, line: 1}, true);
 
     let _version = get_version(&mut parser, &context)?;
     let a2lfile = A2lFile::parse(&mut parser, &context);
@@ -1759,8 +1759,8 @@ pub fn tokenize_ifdata(ifdata: &IfData) -> Vec<A2lToken> {
             tok.line += ifdata.line - 1;
             lastline = tok.line;
         }
-        ifdata_tokens.push(A2lToken {fileid: ifdata.fileid, line: lastline, ttype: A2lTokenType::End, text: "".to_string()});
-        ifdata_tokens.push(A2lToken {fileid: ifdata.fileid, line: lastline, ttype: A2lTokenType::Identifier, text: "IF_DATA".to_string()});
+        ifdata_tokens.push(A2lToken {fileid: ifdata.fileid, line: lastline, ttype: A2lTokenType::End, startpos: 0, endpos: 0});
+        ifdata_tokens.push(A2lToken {fileid: ifdata.fileid, line: lastline, ttype: A2lTokenType::Identifier, startpos: 0, endpos: 0});
     }
 
     ifdata_tokens
