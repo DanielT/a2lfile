@@ -36,7 +36,9 @@ pub(crate) fn a2ml_specification(tokens: TokenStream) -> TokenStream {
 
     result.extend(generate_data_structures(&outtypes));
 
-    result.extend(generate_parser(&outtypes));
+    result.extend(generate_indirect_parser(&outtypes));
+
+    result.extend(generate_interface(&spec));
 
     result
 }
@@ -689,7 +691,6 @@ fn get_indent_string(indent_level: usize) -> String {
 // - types can be nested to an arbitrary depth, but the code generator needs a flat list
 // - items are not required to have names and need to be named
 // - there is nothing that prevents the spec from using one type name with different meanings in different places, so some disambiguation might be needed
-// - a2ml is often excessivly complex, e.g. struct {a, b, struct {c, d}} can be flattened to struct {a, b, c, d}
 
 
 // fixup_output_datatypes
@@ -728,7 +729,8 @@ fn fixup_add_data_to_struct(spec: &A2mlSpec, item: &DataItem, defined_types: &mu
     match &item.basetype {
         BaseType::Struct(structitems) => {
             for sitem in structitems {
-                new_structitems.extend(fixup_add_data_to_struct(spec, sitem, defined_types));
+                // new_structitems.extend(fixup_add_data_to_struct(spec, sitem, defined_types));
+                new_structitems.push(fixup_make_dataitem(spec, sitem, defined_types));
             }
         }
         BaseType::StructRef => {
@@ -736,7 +738,8 @@ fn fixup_add_data_to_struct(spec: &A2mlSpec, item: &DataItem, defined_types: &mu
             let refstruct = spec.types.get_struct(typename);
                 if let Some(BaseType::Struct(structitems)) = refstruct {
                     for sitem in structitems {
-                        new_structitems.extend(fixup_add_data_to_struct(spec, sitem, defined_types));
+                        // new_structitems.extend(fixup_add_data_to_struct(spec, sitem, defined_types));
+                        new_structitems.push(fixup_make_dataitem(spec, sitem, defined_types));
                     }
                 } else {
                 panic!("invalid struct reference {} in a2ml spec", typename);
@@ -746,18 +749,23 @@ fn fixup_add_data_to_struct(spec: &A2mlSpec, item: &DataItem, defined_types: &mu
             // items with the type None shouldn't be added to the output struct
         }
         _ => {
-            let (new_typename, new_basetype) = fixup_data_type(spec, &item.typename, &item.basetype, &item.comment, defined_types);
-            let varname = make_itemname(&item.varname, &new_typename);
-            new_structitems.push(DataItem {
-                typename: new_typename,
-                basetype: new_basetype,
-                varname: Some(varname),
-                comment: item.comment.clone()
-            });
+            new_structitems.push(fixup_make_dataitem(spec, item, defined_types));
         }
     }
 
     new_structitems
+}
+
+
+fn fixup_make_dataitem(spec: &A2mlSpec, item: &DataItem, defined_types: &mut HashMap<String, BaseType>) -> DataItem {
+    let (new_typename, new_basetype) = fixup_data_type(spec, &item.typename, &item.basetype, &item.comment, defined_types);
+    let varname = make_itemname(&item.varname, &new_typename);
+    DataItem {
+        typename: new_typename,
+        basetype: new_basetype,
+        varname: Some(varname),
+        comment: item.comment.clone()
+    }
 }
 
 
@@ -1009,6 +1017,208 @@ fn typename_to_varname(varname: &str) -> String {
 //-----------------------------------------------------------------------------
 
 
+fn generate_indirect_parser(types: &HashMap<String, DataItem>) -> TokenStream {
+    let mut result = quote!{};
+    let mut typesvec: Vec<(&String, &DataItem)> = types.iter().map(|(key, val)| (key, val)).collect();
+    typesvec.sort_by(|a, b| a.0.partial_cmp(b.0).unwrap());
+
+    for (typename, a2mltype) in typesvec {
+        match &a2mltype.basetype {
+            BaseType::Enum(enumitems) => {
+                result.extend(generate_indirect_enum_parser(typename, enumitems));
+            }
+            BaseType::Struct(structitems) => {
+                result.extend(generate_indirect_struct_parser(typename, structitems));
+            }
+            BaseType::Block(structitems) => {
+                result.extend(generate_indirect_block_parser(typename, structitems));
+            }
+            _ => {
+                panic!("only block, struct and enum are allowed as top-level types, but {} = {:#?} was encountered", typename, a2mltype);
+            }
+        }
+    }
+
+    result
+}
+
+
+fn generate_indirect_enum_parser(typename: &str, enumitems: &Vec<EnumItem>) -> TokenStream {
+    let name = format_ident!("{}", typename);
+
+    let mut match_branches = Vec::new();
+    for enitem in enumitems {
+        let enident = format_ident!("{}", ucname_to_typename(&enitem.name));
+        let entag = &enitem.name;
+
+        match_branches.push(quote!{#entag => {
+            Ok(Self::#enident)
+        }});
+    }
+
+    quote!{
+        impl #name {
+            fn parse(data: &a2lfile::GenericIfData) -> Result<Self, ()> {
+                if let a2lfile::GenericIfData::EnumItem(item) = data {
+                    match &**item {
+                        #(#match_branches)*
+                        _ => Err(())
+                    }
+                } else {
+                    Err(())
+                }
+            }
+        }
+    }
+}
+
+
+fn generate_indirect_struct_parser(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+    let name = format_ident!("{}", typename);
+    let structfields = generate_struct_field_intializers(structitems);
+
+    quote!{
+        impl #name {
+            fn parse(data: &a2lfile::GenericIfData) -> Result<Self, ()> {
+                let input_items = data.get_struct_items()?;
+
+                Ok(#name {
+                    #(#structfields),*
+                })
+            }
+        }
+    }
+}
+
+
+fn generate_indirect_block_parser(typename: &str, blockitems: &Vec<DataItem>) -> TokenStream {
+    let name = format_ident!("{}", typename);
+    let structfields = generate_struct_field_intializers(blockitems);
+
+    quote!{
+        impl #name {
+            fn parse(data: &a2lfile::GenericIfData) -> Result<Self, ()> {
+                let (fileid, line, input_items) = data.get_block_items()?;
+
+                Ok(#name {
+                    fileid,
+                    line,
+                    #(#structfields),*
+                })
+            }
+        }
+    }
+}
+
+
+fn generate_struct_field_intializers(items: &Vec<DataItem>) -> Vec<TokenStream> {
+    let mut parsers = Vec::new();
+    for (idx, item) in items.iter().enumerate() {
+        match &item.basetype {
+            BaseType::Sequence(seqitemtype) => {
+                let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
+                let itemparser = generate_item_parser_call(quote!{seqitem}, &item.typename, seqitemtype);
+                parsers.push(quote!{
+                    #itemname: {
+                        let seqitems = input_items[#idx].get_sequence()?;
+                        let mut outitems = Vec::new();
+                        for seqitem in seqitems {
+                            outitems.push(#itemparser?);
+                        }
+                        outitems
+                    }
+                });
+            }
+            BaseType::TaggedUnion(taggeditems) |
+            BaseType::TaggedStruct(taggeditems) => {
+                for tgitem in taggeditems {
+                    let tag = &tgitem.tag;
+                    let tgitemname = format_ident!("{}", make_varname(&tag));
+                    let typename = format_ident!("{}", tgitem.item.typename.as_ref().unwrap());
+                    if tgitem.repeat {
+                        parsers.push(quote!{#tgitemname: input_items[#idx].get_multiple_optitems(#tag, #typename::parse)?});
+                    } else {
+                        parsers.push(quote!{#tgitemname: input_items[#idx].get_single_optitem(#tag, #typename::parse)?});
+                    }
+                }
+            }
+            _ => {
+                let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
+                let itemparser = generate_item_parser_call(quote!{input_items[#idx]}, &item.typename, &item.basetype);
+                parsers.push(quote!{#itemname: #itemparser?});
+            }
+        }
+    }
+
+    parsers
+}
+
+
+fn generate_item_parser_call(item_ident: TokenStream, typename: &Option<String>, basetype: &BaseType) -> TokenStream {
+    match basetype {
+        BaseType::Char => quote!{#item_ident.get_integer_i8()},
+        BaseType::Int => quote!{#item_ident.get_integer_i16()},
+        BaseType::Long => quote!{#item_ident.get_integer_i32()},
+        BaseType::Int64 => quote!{#item_ident.get_integer_i64()},
+        BaseType::Uchar => quote!{#item_ident.get_integer_u8()},
+        BaseType::Uint => quote!{#item_ident.get_integer_u16()},
+        BaseType::Ulong => quote!{#item_ident.get_integer_u32()},
+        BaseType::Uint64 => quote!{#item_ident.get_integer_u64()},
+        BaseType::Double => quote!{#item_ident.get_double()},
+        BaseType::Float => quote!{#item_ident.get_float()},
+        BaseType::Ident => quote!{#item_ident.get_ident()},
+        BaseType::String => quote!{#item_ident.get_stringval()},
+        BaseType::Array(arraytype, dim) => {
+            if let BaseType::Char = arraytype.basetype {
+                quote!{#item_ident.get_stringval()}
+            } else {
+                let mut arrayelements = Vec::new();
+                for arrayidx in 0..*dim {
+                    arrayelements.push(generate_item_parser_call(quote!{arrayitems[#arrayidx]}, &arraytype.typename, &arraytype.basetype));
+                }
+                quote!{ {|| {
+                    let arrayitems = #item_ident.get_array()?;
+                    Ok([ #(#arrayelements?),* ])
+                }}() }
+            }
+        }
+        BaseType::EnumRef |
+        BaseType::StructRef => {
+            let typename = format_ident!("{}", typename.as_ref().unwrap());
+            quote!{#typename::parse(&#item_ident)}
+        }
+        _ => panic!("impossible type {:?} in generate_item_parser_call", basetype)
+    }
+}
+
+
+//-----------------------------------------------------------------------------
+
+
+fn generate_interface(spec: &A2mlSpec) -> TokenStream {
+    let name = format_ident!("{}", spec.name);
+
+    quote!{
+        impl #name {
+            fn load_from_ifdata(ifdata: &a2lfile::IfData) -> Option<Self> {
+                let mut result = None;
+                if let Some(ifdata_items) = &ifdata.ifdata_items {
+                    if let Ok(parsed_items) = Self::parse(ifdata_items) {
+                        result = Some(parsed_items);
+                    }
+                }
+
+                result
+            }
+        }
+    }
+}
+
+
+//-----------------------------------------------------------------------------
+
+
+
 #[cfg(test)]
 mod test {
     use crate::a2mlspec::*;
@@ -1099,5 +1309,4 @@ mod test {
         generate_data_structures(&outtypes);
         generate_parser(&outtypes);
     }
-
 }

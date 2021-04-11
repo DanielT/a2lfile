@@ -132,6 +132,21 @@ fn generate_struct_data_structure(typename: &str, structitems: &Vec<DataItem>) -
 
 
 fn generate_block_data_structure(typename: &str, structitems: &Vec<DataItem>) ->  TokenStream {
+    match typename {
+        "A2ml" => {
+            generate_block_data_structure_a2ml()
+        }
+        "IfData" => {
+            generate_block_data_structure_ifdata()
+        }
+        _ => {
+            generate_block_data_structure_generic(typename, structitems)
+        }
+    }
+}
+
+
+fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataItem>) ->  TokenStream {
     let typeident = format_ident!("{}", typename);
     let mut definitions = Vec::new();
 
@@ -146,6 +161,32 @@ fn generate_block_data_structure(typename: &str, structitems: &Vec<DataItem>) ->
             pub line: u32,
 
             #(#definitions),*
+        }
+    }
+}
+
+
+fn generate_block_data_structure_a2ml() ->  TokenStream {
+    quote!{
+        #[derive(Debug)]
+        pub struct A2ml {
+            pub fileid: usize,
+            pub line: u32,
+
+            pub a2ml_text: String
+        }
+    }
+}
+
+
+fn generate_block_data_structure_ifdata() ->  TokenStream {
+    quote!{
+        #[derive(Debug)]
+        pub struct IfData {
+            pub fileid: usize,
+            pub line: u32,
+
+            pub ifdata_items: Option<a2ml::GenericIfData>
         }
     }
 }
@@ -172,15 +213,15 @@ fn generate_struct_item_definition(item: &DataItem) -> TokenStream {
                 if let Some(comment) = &tgitem.item.comment {
                     curr_def.extend(quote!{#[doc=#comment]});
                 }
-                let tuitemname = format_ident!("{}", make_varname(&tgitem.tag));
+                let tgitemname = format_ident!("{}", make_varname(&tgitem.tag));
                 let typename = generate_bare_typename(&tgitem.item.typename, &tgitem.item.basetype);
                 if tgitem.repeat {
-                    curr_def.extend(quote!{pub #tuitemname: Vec<#typename>});
+                    curr_def.extend(quote!{pub #tgitemname: Vec<#typename>});
                 } else {
                     if tgitem.required {
-                        curr_def.extend(quote!{pub #tuitemname: #typename});
+                        curr_def.extend(quote!{pub #tgitemname: #typename});
                     } else {
-                        curr_def.extend(quote!{pub #tuitemname: Option<#typename>});
+                        curr_def.extend(quote!{pub #tgitemname: Option<#typename>});
                     }
                 }
 
@@ -254,10 +295,10 @@ fn generate_bare_typename(typename: &Option<String>, item: &BaseType) -> TokenSt
 // generate_parser
 // entry point for externe use (by users of the a2ml_specification! macro) of the parser generator
 // functions will be prefixed with "a2lfile::"
-pub(crate) fn generate_parser(types: &HashMap<String, DataItem>) -> TokenStream {
-    let cratename = format_ident!("a2lfile");
-    generate_parser_impl(&cratename, types)
-}
+// pub(crate) fn generate_parser(types: &HashMap<String, DataItem>) -> TokenStream {
+//     let cratename = format_ident!("a2lfile");
+//     generate_parser_impl(&cratename, types)
+// }
 
 
 // generate_parser_internal
@@ -270,7 +311,7 @@ pub(crate) fn generate_parser_internal(types: &HashMap<String, DataItem>) -> Tok
 
 
 // generate_parser_impl
-// generate a full set of parser function implementations for the set of types
+// generate parser function implementations for the set of types
 fn generate_parser_impl(cratename: &Ident, types: &HashMap<String, DataItem>) -> TokenStream {
     let mut result = quote!{};
     let mut typesvec: Vec<(&String, &DataItem)> = types.iter().map(|(key, val)| (key, val)).collect();
@@ -363,8 +404,23 @@ fn generate_struct_parser(cratename: &Ident, typename: &str, structitems: &Vec<D
 // blocks are structs which occur after a tag in a TaggedUnion or TaggedStruc.
 // This means that they also need the fileid and line elements, so that the position within the file can be preserved when writing the data structure
 fn generate_block_parser(cratename: &Ident, typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
-    let name = format_ident!("{}", typename);
+    match typename {
+        "A2ml" => {
+            generate_block_parser_a2ml(cratename)
+        }
+        "IfData" => {
+            generate_block_parser_ifdata(cratename)
+        }
+        _ => {
+            generate_block_parser_generic(cratename, typename, structitems)
+        }
 
+    }
+}
+
+
+fn generate_block_parser_generic(cratename: &Ident, typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+    let name = format_ident!("{}", typename);
     let (itemnames, itemparsers) = generate_struct_item_fragments(structitems, cratename);
 
     quote! {
@@ -385,6 +441,67 @@ fn generate_block_parser(cratename: &Ident, typename: &str, structitems: &Vec<Da
                     if ident != context.element {
                         parser.error_or_log(#cratename::ParseError::IncorrectEndTag(context.clone(), ident))?;
                     }
+                }
+
+                Ok(blk)
+            }
+        }
+    }
+}
+
+
+fn generate_block_parser_a2ml(cratename: &Ident) -> TokenStream {
+    quote! {
+        impl A2ml {
+            fn parse(parser: &mut #cratename::ParserState, context: &#cratename::ParseContext) -> Result<Self, #cratename::ParseError> {
+                let fileid = context.fileid;
+                let line = context.line;
+
+                let token = parser.expect_token(context, A2lTokenType::String)?;
+                let a2ml_text = parser.get_token_text(token).to_string();
+
+                if let Ok(a2mlspec) = a2ml::parse_a2ml(&a2ml_text) {
+                    parser.file_a2mlspec = Some(a2mlspec);
+                }
+
+                let blk = A2ml {
+                    fileid,
+                    line,
+                    a2ml_text
+                };
+
+                parser.expect_token(context, #cratename::A2lTokenType::End)?;
+                let ident = parser.get_identifier(context)?;
+                if ident != "A2ML" {
+                    parser.error_or_log(#cratename::ParseError::IncorrectEndTag(context.clone(), ident))?;
+                }
+
+                Ok(blk)
+            }
+        }
+    }
+}
+
+
+fn generate_block_parser_ifdata(cratename: &Ident) -> TokenStream {
+    quote! {
+        impl IfData {
+            fn parse(parser: &mut #cratename::ParserState, context: &#cratename::ParseContext) -> Result<Self, #cratename::ParseError> {
+                let fileid = context.fileid;
+                let line = context.line;
+
+                let ifdata_items = parser.parse_ifdata(context)?;
+
+                let blk = IfData {
+                    fileid,
+                    line,
+                    ifdata_items
+                };
+
+                parser.expect_token(context, #cratename::A2lTokenType::End)?;
+                let ident = parser.get_identifier(context)?;
+                if ident != "IF_DATA" {
+                    parser.error_or_log(#cratename::ParseError::IncorrectEndTag(context.clone(), ident))?;
                 }
 
                 Ok(blk)
@@ -461,11 +578,7 @@ fn generate_item_parser_call(cratename: &Ident, typename: &Option<String>, item:
                 }
             }
         }
-        BaseType::EnumRef => {
-            let typename = typename.as_ref().unwrap();
-            let name = format_ident!("{}", typename);
-            quote!{#name::parse(parser, context)}
-        }
+        BaseType::EnumRef |
         BaseType::StructRef => {
             let typename = typename.as_ref().unwrap();
             let name = format_ident!("{}", typename);
@@ -517,17 +630,17 @@ fn generate_taggeditem_parser(cratename: &Ident, tg_items: &Vec<TaggedItem>, is_
     // wrap the match statement inside an if or a while loop
     if is_taggedunion {
         result.extend(quote!{
-            let mut tag_peek = parser.peek_next_tag(context)?;
-            if tag_peek.is_some() {
+            let mut next_tag = parser.get_next_tag(context)?;
+            if next_tag.is_some() {
                 #parser_core
             }
         });
     } else {
         result.extend(quote!{
-            let mut tag_peek = parser.peek_next_tag(context)?;
-            while tag_peek.is_some() {
+            let mut next_tag = parser.get_next_tag(context)?;
+            while next_tag.is_some() {
                 #parser_core
-                tag_peek = parser.peek_next_tag(context)?;
+                next_tag = parser.get_next_tag(context)?;
             }
         });
     }
@@ -578,7 +691,7 @@ fn generate_taggeditem_match_arms(cratename: &Ident, tg_items: &Vec<TaggedItem>)
                     if #tmp_itemname.is_none() {
                         #tmp_itemname = Some(newitem);
                     } else {
-                        parser.error_or_log(#cratename::ParseError::InvalidMultiplicityTooMany(context.clone(), tag.clone()))?;
+                        parser.error_or_log(#cratename::ParseError::InvalidMultiplicityTooMany(context.clone(), #tag_string.to_string()))?;
                     }
                 };
                 // during the mutliplicity check the required item can be unwrapped from the Option
@@ -596,7 +709,7 @@ fn generate_taggeditem_match_arms(cratename: &Ident, tg_items: &Vec<TaggedItem>)
                     if #itemname.is_none() {
                         #itemname = Some(newitem);
                     } else {
-                        parser.error_or_log(#cratename::ParseError::InvalidMultiplicityTooMany(context.clone(), tag.clone()))?;
+                        parser.error_or_log(#cratename::ParseError::InvalidMultiplicityTooMany(context.clone(), #tag_string.to_string()))?;
                     }
                 };
             }
@@ -647,7 +760,7 @@ fn generate_taggeditem_parser_core(cratename: &Ident, tg_items: &Vec<TaggedItem>
     if is_last {
         default_match_arm = quote!{
             if context.inside_block {
-                parser.handle_unknown_taggedstruct_tag(context, &tag, is_block, &TAG_LIST)?;
+                parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
             } else {
                 #default_match_arm
             }
@@ -658,12 +771,11 @@ fn generate_taggeditem_parser_core(cratename: &Ident, tg_items: &Vec<TaggedItem>
     let taglist_len = taglist.len();
     // generate the full match statement
     quote!{
-        let (tag, is_block) = tag_peek.unwrap();
-        let token = parser.get_token(context)?;
-        let text = parser.get_token_text(token);
-        let newcontext = #cratename::ParseContext::from_token(text, token, is_block);
+        let (token, is_block) = next_tag.unwrap();
+        let tag = parser.get_token_text(token);
+        let newcontext = #cratename::ParseContext::from_token(tag, token, is_block);
         const TAG_LIST: [&str; #taglist_len] = [#(#taglist),*];
-        match &*tag {
+        match tag {
             #(#item_match_arms)*
             _ => {
                 #default_match_arm

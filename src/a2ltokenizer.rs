@@ -32,6 +32,9 @@ pub(crate) struct A2lTokenResult {
 
 // tokenize()
 // Convert the text of an a2l file to tokens.
+// During tokenization the text is treated as ASCII, even though it is actually UTF-8. It is
+// possible to do this because characters outside of basic ASCII can actually only occur in
+// strings and comments. UTF-8 in strings is directly copied to the output, while comments are discarded.
 // An important extra goal of the tokenizer is to attach the source line number to each token so that error messages can give accurate location info
 pub(crate) fn tokenize(filename: String, fileid: usize, filedata: &str) -> Result<A2lTokenResult, String> {
     let mut filenames: Vec<String> = vec![filename];
@@ -92,7 +95,7 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filedata: &str) -> Resul
         } else if filebytes[bytepos] == b'"' {
             // a string
             separator_check(separated, line)?;
-            bytepos = skip_string(filebytes, bytepos + 1, line)?;
+            bytepos = find_string_end(filebytes, bytepos + 1, line)?;
             line += count_newlines(&filebytes[startpos .. bytepos]);
             tokens.push(A2lToken{ttype: A2lTokenType::String, startpos, endpos: bytepos, fileid, line});
             separated = false;
@@ -105,7 +108,7 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filedata: &str) -> Resul
             tokens.push(A2lToken{ttype: A2lTokenType::Identifier, startpos, endpos: bytepos, fileid, line});
             separated = false;
 
-            let (new_bytepos, new_line) = handle_a2ml_ifdata(filedata, bytepos, line, fileid, &mut tokens);
+            let (new_bytepos, new_line) = handle_a2ml(filedata, bytepos, line, fileid, &mut tokens);
             if bytepos != new_bytepos {
                 separated = true;
             }
@@ -170,6 +173,8 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filedata: &str) -> Resul
 }
 
 
+// skip_block_comment
+// finds the first byte position after the end of a block comment
 fn skip_block_comment(filebytes: &[u8], mut bytepos: usize, line: u32) -> Result<usize, String> {
     let datalen = filebytes.len();
 
@@ -189,7 +194,9 @@ fn skip_block_comment(filebytes: &[u8], mut bytepos: usize, line: u32) -> Result
 }
 
 
-fn skip_string(filebytes: &[u8],  mut bytepos: usize, line: u32) -> Result<usize, String> {
+// find_string_end
+// finds the end of a string
+fn find_string_end(filebytes: &[u8],  mut bytepos: usize, line: u32) -> Result<usize, String> {
     let datalen = filebytes.len();
     let mut end_found = false;
     let mut prev_quote = false;
@@ -235,7 +242,10 @@ fn skip_string(filebytes: &[u8],  mut bytepos: usize, line: u32) -> Result<usize
 }
 
 
-fn handle_a2ml_ifdata(filedata: &str, mut bytepos: usize, mut line: u32, fileid: usize, tokens: &mut Vec<A2lToken>) -> (usize, u32) {
+// handle_a2ml()
+// the data inside the A2ML block can't be tokenized according to the rules for A2L, because it is a completely different format
+// handle_a2ml finds the end of the A2ML block and stores its content as a string
+fn handle_a2ml(filedata: &str, mut bytepos: usize, mut line: u32, fileid: usize, tokens: &mut Vec<A2lToken>) -> (usize, u32) {
     let tokcount = tokens.len();
     if tokcount >= 2 {
         if tokens[tokcount-2].ttype == A2lTokenType::Begin {
@@ -248,15 +258,10 @@ fn handle_a2ml_ifdata(filedata: &str, mut bytepos: usize, mut line: u32, fileid:
                 while bytepos < datalen && !(filebytes[bytepos] == b'/' && filedata[bytepos .. ].starts_with("/end A2ML")) {
                     bytepos += 1;
                 }
-            } else if tag == "IF_DATA" {
-                while bytepos < datalen && !(filebytes[bytepos] == b'/' && filedata[bytepos .. ].starts_with("/end IF_DATA")) {
-                    bytepos += 1;
-                }
             }
 
             if bytepos > startpos {
                 tokens.push(A2lToken{ttype: A2lTokenType::String, startpos, endpos: bytepos, fileid, line});
-                tokens.push(A2lToken{ttype: A2lTokenType::String, startpos: bytepos, endpos: bytepos, fileid, line});
 
                 line += count_newlines(&filebytes[startpos .. bytepos]);
             }
@@ -267,6 +272,8 @@ fn handle_a2ml_ifdata(filedata: &str, mut bytepos: usize, mut line: u32, fileid:
 }
 
 
+// separator_check
+// generate an error message if there is no whitespace (or a block comment) separating two tokens
 fn separator_check(separated: bool, line: u32) -> Result<(), String> {
     if !separated {
         return Err(format!("There is no whitespace separating the input tokens on line {} ", line))

@@ -1,11 +1,14 @@
 mod a2lloader;
 mod a2ltokenizer;
 mod a2lparser;
+mod a2ml;
 
 use a2lmacros::a2l_specification;
 pub use a2lmacros::a2ml_specification;
 pub use a2ltokenizer::{A2lToken, A2lTokenType};
 pub use a2lparser::{ParseContext, ParseError, ParserState};
+pub use a2ml::GenericIfData;
+pub use a2ml::GenericIfDataTaggedItem;
 
 trait A2lObject {
     fn parse(parser: &mut a2lparser::ParserState) -> Result<Box<Self>, ParseError>;
@@ -71,8 +74,7 @@ a2l_specification! {
     ///
     /// Specification: 3.5.2
     block A2ML {
-        string a2ml_text
-        string filename
+        // the A2ML block gets special treatment in the code generator based on the block name
     }
 
     /// A2ML_VERSION is currently ignored
@@ -845,8 +847,7 @@ a2l_specification! {
     ///
     /// Specification: 3.5.75
     block IF_DATA {
-        string ifdata_text
-        string ifdata_filename
+        // the A2ML block gets special treatment in the code generator based on the block name
     }
 
     /// A list of measurement objects that are used as the inputs of a function
@@ -1727,12 +1728,18 @@ fn get_version(parser: &mut ParserState, context: &ParseContext) -> Result<Asap2
 }
 
 
-pub fn load(filename: &str, logger: &mut dyn Logger, strict_parsing: bool) -> Result<A2lFile, String> {
+pub fn load(filename: &str, a2ml_spec: Option<String>, logger: &mut dyn Logger, strict_parsing: bool) -> Result<A2lFile, String> {
     let filedata = a2lloader::load(filename)?;
     let mut tokenresult = a2ltokenizer::tokenize(String::from(filename), 0, &filedata)?;
     tokenresult.finalize();
 
     let mut parser = ParserState::new(&tokenresult.tokens, &tokenresult.filedata, &tokenresult.filenames, logger, strict_parsing);
+    if let Some(spec) = a2ml_spec {
+        if let Ok(parsed_spec) = a2ml::parse_a2ml(&spec) {
+            parser.builtin_a2mlspec = Some(parsed_spec);
+        }
+    }
+
     let context = &ParseContext::from_token("", &A2lToken {ttype: A2lTokenType::Identifier, startpos: 0, endpos: 0, fileid: 0, line: 1}, true);
 
     let _version = get_version(&mut parser, &context)?;
@@ -1746,22 +1753,22 @@ pub fn load(filename: &str, logger: &mut dyn Logger, strict_parsing: bool) -> Re
 }
 
 
-pub fn tokenize_ifdata(ifdata: &IfData) -> Vec<A2lToken> {
-    let tokenresult = a2ltokenizer::tokenize(ifdata.ifdata_filename.clone(), ifdata.fileid, &ifdata.ifdata_text);
-    let mut ifdata_tokens;
+// pub fn tokenize_ifdata(ifdata: &IfData) -> Vec<A2lToken> {
+//     let tokenresult = a2ltokenizer::tokenize(ifdata.ifdata_filename.clone(), ifdata.fileid, &ifdata.ifdata_text);
+//     let mut ifdata_tokens;
 
-    if tokenresult.is_err() {
-        ifdata_tokens = Vec::new();
-    } else {
-        ifdata_tokens = tokenresult.unwrap().tokens;
-        let mut lastline = ifdata.line;
-        for tok in &mut ifdata_tokens {
-            tok.line += ifdata.line - 1;
-            lastline = tok.line;
-        }
-        ifdata_tokens.push(A2lToken {fileid: ifdata.fileid, line: lastline, ttype: A2lTokenType::End, startpos: 0, endpos: 0});
-        ifdata_tokens.push(A2lToken {fileid: ifdata.fileid, line: lastline, ttype: A2lTokenType::Identifier, startpos: 0, endpos: 0});
-    }
+//     if tokenresult.is_err() {
+//         ifdata_tokens = Vec::new();
+//     } else {
+//         ifdata_tokens = tokenresult.unwrap().tokens;
+//         let mut lastline = ifdata.line;
+//         for tok in &mut ifdata_tokens {
+//             tok.line += ifdata.line - 1;
+//             lastline = tok.line;
+//         }
+//         ifdata_tokens.push(A2lToken {fileid: ifdata.fileid, line: lastline, ttype: A2lTokenType::End, startpos: 0, endpos: 0});
+//         ifdata_tokens.push(A2lToken {fileid: ifdata.fileid, line: lastline, ttype: A2lTokenType::Identifier, startpos: 0, endpos: 0});
+//     }
 
-    ifdata_tokens
-}
+//     ifdata_tokens
+// }
