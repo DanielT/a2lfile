@@ -37,6 +37,7 @@ pub(crate) fn a2ml_specification(tokens: TokenStream) -> TokenStream {
     result.extend(generate_data_structures(&outtypes));
 
     result.extend(generate_indirect_parser(&outtypes));
+    result.extend(generate_indirect_writer(&outtypes));
 
     result.extend(generate_interface(&spec));
 
@@ -1015,7 +1016,7 @@ fn typename_to_varname(varname: &str) -> String {
 
 
 //-----------------------------------------------------------------------------
-
+// "indirect" parsing of IF_DATA -> parsing genericIF_DATA in GenericIfData structures into application-specific data structures
 
 fn generate_indirect_parser(types: &HashMap<String, DataItem>) -> TokenStream {
     let mut result = quote!{};
@@ -1194,9 +1195,206 @@ fn generate_item_parser_call(item_ident: TokenStream, typename: &Option<String>,
 
 //-----------------------------------------------------------------------------
 
+fn generate_indirect_writer(types: &HashMap<String, DataItem>) -> TokenStream {
+    let mut result = quote!{};
+    let mut typesvec: Vec<(&String, &DataItem)> = types.iter().map(|(key, val)| (key, val)).collect();
+    typesvec.sort_by(|a, b| a.0.partial_cmp(b.0).unwrap());
+
+    for (typename, a2mltype) in typesvec {
+        match &a2mltype.basetype {
+            BaseType::Enum(enumitems) => {
+                result.extend(generate_indirect_enum_writer(typename, enumitems));
+            }
+            BaseType::Struct(structitems) => {
+                result.extend(generate_indirect_struct_writer(typename, structitems));
+            }
+            BaseType::Block(structitems) => {
+                result.extend(generate_indirect_block_writer(typename, structitems));
+            }
+            _ => {
+                panic!("only block, struct and enum are allowed as top-level types, but {} = {:#?} was encountered", typename, a2mltype);
+            }
+        }
+    }
+
+    result
+}
+
+
+fn generate_indirect_enum_writer(typename: &str, enumitems: &Vec<EnumItem>) -> TokenStream {
+    let name = format_ident!("{}", typename);
+
+    let mut match_branches = Vec::new();
+    for enitem in enumitems {
+        let enident = format_ident!("{}", ucname_to_typename(&enitem.name));
+        let entag = &enitem.name;
+
+        match_branches.push(quote!{Self::#enident => #entag});
+    }
+
+    quote!{
+        impl #name {
+            fn store(&self) -> a2lfile::GenericIfData {
+                a2lfile::GenericIfData::EnumItem(match self {
+                    #(#match_branches),*
+                }.to_string())
+            }
+        }
+    }
+}
+
+
+fn generate_indirect_struct_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+    let name = format_ident!("{}", typename);
+
+    let mut stored_structitems = Vec::new();
+    for item in structitems {
+        stored_structitems.push(generate_indirect_store_item(&item));
+    }
+
+    quote!{
+        impl #name {
+            fn store(&self) -> a2lfile::GenericIfData {
+                a2lfile::GenericIfData::Struct(vec![ #(#stored_structitems),* ])
+            }
+        }
+    }
+}
+
+
+fn generate_indirect_block_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+    let name = format_ident!("{}", typename);
+
+    let mut stored_structitems = Vec::new();
+    for item in structitems {
+        stored_structitems.push(generate_indirect_store_item(&item));
+    }
+
+    quote!{
+        impl #name {
+            fn store(&self) -> a2lfile::GenericIfData {
+
+                a2lfile::GenericIfData::Block(self.fileid, self.line, vec![ #(#stored_structitems),* ])
+            }
+        }
+    }
+}
+
+
+fn generate_indirect_store_item(item: &DataItem) -> TokenStream {
+    match &item.basetype {
+        BaseType::Sequence(seqitemtype) => {
+            let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
+            let parsercall = generate_indirect_store_simple_item(quote!{item}, &seqitemtype);
+            quote!{a2lfile::GenericIfData::Sequence({
+                let mut sequence_content = Vec::new();
+                for item in &self.#itemname {
+                    sequence_content.push(#parsercall);
+                }
+                sequence_content})
+            }
+    }
+        BaseType::TaggedUnion(tuitems) => {
+            let taggeditem_generator = generate_indirect_store_taggeditems(tuitems);
+            quote!{a2lfile::GenericIfData::TaggedUnion({#taggeditem_generator})}
+        }
+        BaseType::TaggedStruct(tsitems) => {
+            let taggeditem_generator = generate_indirect_store_taggeditems(tsitems);
+            quote!{a2lfile::GenericIfData::TaggedStruct({#taggeditem_generator})}
+        }
+        _ => {
+            let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
+            generate_indirect_store_simple_item(quote!{self.#itemname}, &item.basetype)
+        }
+    }
+}
+
+
+fn generate_indirect_store_simple_item(itemname: TokenStream, basetype: &BaseType) -> TokenStream {
+    match basetype {
+        BaseType::None => quote!{a2lfile::GenericIfData::None},
+        BaseType::Char => quote!{a2lfile::GenericIfData::Char(#itemname)},
+        BaseType::Int =>  quote!{a2lfile::GenericIfData::Int(#itemname)},
+        BaseType::Long => quote!{a2lfile::GenericIfData::Long(#itemname)},
+        BaseType::Int64 => quote!{a2lfile::GenericIfData::Int64(#itemname)},
+        BaseType::Uchar => quote!{a2lfile::GenericIfData::UChar(#itemname)},
+        BaseType::Uint =>  quote!{a2lfile::GenericIfData::UInt(#itemname)},
+        BaseType::Ulong => quote!{a2lfile::GenericIfData::ULong(#itemname)},
+        BaseType::Uint64 => quote!{a2lfile::GenericIfData::UInt64(#itemname)},
+        BaseType::Double => quote!{a2lfile::GenericIfData::Double(#itemname)},
+        BaseType::Float =>  quote!{a2lfile::GenericIfData::Float(#itemname)},
+        BaseType::String => quote!{a2lfile::GenericIfData::String(#itemname.to_owned())},
+        BaseType::Array(arraydata, _) => {
+            if arraydata.basetype == BaseType::Char {
+                quote!{a2lfile::GenericIfData::String(#itemname.to_owned())}
+            } else {
+                let parsercall = generate_indirect_store_simple_item(quote!{item}, &arraydata.basetype);
+                quote!{a2lfile::GenericIfData::Array({
+                    let arraycontent = Vec::new();
+                    for item in #itemname {
+                        arraycontent.push(#parsercall);
+                    }
+                    arraycontent})
+                }
+            }
+        }
+        BaseType::EnumRef |
+        BaseType::StructRef => {
+            quote!{#itemname.store()}
+        }
+        BaseType::Sequence(_) |
+        BaseType::TaggedUnion(_) |
+        BaseType::TaggedStruct(_) => {
+            panic!("should no be able to reach this function with type {:?}", basetype)
+        }
+        _ => { quote!{} }
+    }
+
+}
+
+
+fn generate_indirect_store_taggeditems(tgitems: &Vec<TaggedItem>) -> TokenStream {
+    let mut insert_items = Vec::new();
+    for tgitem in tgitems {
+        let tgname = format_ident!("{}", make_varname(&tgitem.tag));
+        let tag = &tgitem.tag;
+        let is_block = tgitem.is_block;
+
+        if tgitem.repeat {
+            insert_items.push(quote!{
+                let mut tgvec = Vec::new();
+                for taggeditem in &self.#tgname {
+                    tgvec.push(a2lfile::GenericIfDataTaggedItem {tag: #tag.to_string(), data: taggeditem.store(), is_block: #is_block, fileid: taggeditem.fileid, line: taggeditem.line});
+                }
+                if tgvec.len() > 0 {
+                    output.insert(#tag.to_string(), tgvec);
+                }
+            });
+        } else {
+            insert_items.push(quote!{
+                if let Some(taggeditem) = &self.#tgname {
+                    let outitem = a2lfile::GenericIfDataTaggedItem{tag: #tag.to_string(), data: taggeditem.store(), is_block: #is_block, fileid: taggeditem.fileid, line: taggeditem.line};
+                    output.insert(#tag.to_string(), vec![outitem]);
+                }
+            });
+        }
+    }
+
+    quote!{
+        let mut output = HashMap::new();
+        #(#insert_items)*
+        output
+    }
+}
+
+
+//-----------------------------------------------------------------------------
+
+
 
 fn generate_interface(spec: &A2mlSpec) -> TokenStream {
     let name = format_ident!("{}", spec.name);
+    let constname = format_ident!("{}_TEXT", spec.name.to_ascii_uppercase());
 
     quote!{
         impl #name {
@@ -1209,6 +1407,19 @@ fn generate_interface(spec: &A2mlSpec) -> TokenStream {
                 }
 
                 result
+            }
+
+            fn store_to_ifdata(&self, ifdata: &mut a2lfile::IfData) {
+                ifdata.ifdata_items = Some(self.store());
+            }
+
+            fn update_a2ml(file: &mut a2lfile::A2lFile) {
+                for module in &mut file.project.module {
+                    if module.a2ml.is_none() {
+                        module.a2ml = Some(a2lfile::A2ml {fileid: 0, line: 0, a2ml_text: "".to_string()});
+                    }
+                    module.a2ml.as_mut().unwrap().a2ml_text = #constname.to_string();
+                }
             }
         }
     }

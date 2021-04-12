@@ -233,7 +233,7 @@ fn generate_struct_item_definition(item: &DataItem) -> TokenStream {
             if item.varname.is_none() {
                 panic!("bad varname of {:#?}", item);
             }
-            let itemname = format_ident!("{}", item.varname.to_owned().unwrap());
+            let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
             let typename = generate_bare_typename(&item.typename, &item.basetype);
             def.extend(quote!{pub #itemname: #typename});
         }
