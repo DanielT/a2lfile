@@ -12,7 +12,7 @@ pub struct ParserState<'a> {
     token_cursor: TokenIter<'a>,
     filedata: &'a Vec<String>,
     _filenames: &'a Vec<String>,
-    currentline: u32,
+    last_token_position: u32,
     logger: &'a mut dyn super::Logger,
     strict: bool,
     file_ver: f32,
@@ -82,7 +82,7 @@ impl<'a> ParserState<'a> {
             token_cursor: TokenIter{ tokens, pos: 0},
             filedata,
             _filenames: filenames,
-            currentline: 0,
+            last_token_position: 0,
             logger,
             strict,
             file_ver: 0f32,
@@ -96,7 +96,7 @@ impl<'a> ParserState<'a> {
     // get one token from the list of tokens and unwrap it
     pub fn get_token(&mut self, context: &ParseContext) -> Result<&'a A2lToken, ParseError> {
         if let Some(token) = self.token_cursor.next() {
-            self.currentline = token.line;
+            self.last_token_position = token.line;
             Ok(token)
         } else {
             Err(ParseError::UnexpectedEOF(context.clone()))
@@ -142,6 +142,19 @@ impl<'a> ParserState<'a> {
     pub fn get_token_text(self: &ParserState<'a>, token: &'a A2lToken) -> &'a str {
         let data = &self.filedata[token.fileid];
         &data[token.startpos .. token.endpos]
+    }
+
+
+    pub fn get_current_line(&self) -> u32 {
+        if self.token_cursor.pos < self.token_cursor.tokens.len() {
+            self.token_cursor.tokens[self.token_cursor.pos].line
+        } else {
+            if self.token_cursor.tokens.len() > 0 {
+                self.token_cursor.tokens[self.token_cursor.tokens.len() - 1].line
+            } else {
+                0
+            }
+        }
     }
 
 
@@ -396,7 +409,6 @@ impl<'a> ParserState<'a> {
     }
 
 
-
     // get_next_tag()
     // get the tag of the next item of a taggedstruct or taggedunion
     pub fn get_next_tag(&mut self, context: &ParseContext) -> Result<Option<(&'a A2lToken, bool)>, ParseError> {
@@ -506,49 +518,49 @@ impl<'a> ParserState<'a> {
         let prefix = if is_err { "Error"} else {"Warning"};
         match err {
             ParseError::UnexpectedTokenType(context, actual_ttype, actual_text, expected_ttype) => {
-                format!("{} on line {}: expected token of type {:?}, got {:?} (\"{}\") inside block {} starting on line {}", prefix, self.currentline, expected_ttype, actual_ttype, actual_text, context.element, context.line)
+                format!("{} on line {}: expected token of type {:?}, got {:?} (\"{}\") inside block {} starting on line {}", prefix, self.last_token_position, expected_ttype, actual_ttype, actual_text, context.element, context.line)
             }
             ParseError::MalformedNumber(_context, numstr) => {
-                format!("{} on line {}: string \"{}\" could not be interpreted as a number", prefix, self.currentline, numstr)
+                format!("{} on line {}: string \"{}\" could not be interpreted as a number", prefix, self.last_token_position, numstr)
             }
             ParseError::InvalidEnumValue(context, enval) => {
-                format!("{} on line {}: expected an enum value, but \"{}\" is not part of the enum (located inside block {} starting on line {})", prefix, self.currentline, enval, context.element, context.line)
+                format!("{} on line {}: expected an enum value, but \"{}\" is not part of the enum (located inside block {} starting on line {})", prefix, self.last_token_position, enval, context.element, context.line)
             }
             ParseError::InvalidMultiplicityTooMany(context, tag) => {
-                format!("{} on line {}: optional element {} occurs too often within block {} starting on line {}", prefix, self.currentline, tag, context.element, context.line)
+                format!("{} on line {}: optional element {} occurs too often within block {} starting on line {}", prefix, self.last_token_position, tag, context.element, context.line)
             }
             ParseError::InvalidMultiplicityNotPresent(context, tag) => {
-                format!("{} on line {}: element {} is missing in block {} starting on line {}", prefix, self.currentline, tag, context.element, context.line)
+                format!("{} on line {}: element {} is missing in block {} starting on line {}", prefix, self.last_token_position, tag, context.element, context.line)
             }
             ParseError::IncorrectElemType(context, tag, is_block) => {
                 match is_block {
-                    true => format!("{} on line {}: element {} in block {} starting on line {} must be enclosed in /begin and /end", prefix, self.currentline, tag, context.element, context.line),
-                    false => format!("{} on line {}: element {} in block {} starting on line {} must not be enclosed in /begin and /end", prefix, self.currentline, tag, context.element, context.line)
+                    true => format!("{} on line {}: element {} in block {} starting on line {} must be enclosed in /begin and /end", prefix, self.last_token_position, tag, context.element, context.line),
+                    false => format!("{} on line {}: element {} in block {} starting on line {} must not be enclosed in /begin and /end", prefix, self.last_token_position, tag, context.element, context.line)
                 }
             }
             ParseError::UnexpectedEOF(context) => {
-                format!("{} on line {}: encountered end of input while not done parsing block {} starting on line {}", prefix, self.currentline, context.element, context.line)
+                format!("{} on line {}: encountered end of input while not done parsing block {} starting on line {}", prefix, self.last_token_position, context.element, context.line)
             }
             ParseError::UnknownSubBlock(context, tag) => {
-                format!("{} on line {}: Unknown sub-block {} found inside block {} starting on line {}", prefix, self.currentline, tag, context.element, context.line)
+                format!("{} on line {}: Unknown sub-block {} found inside block {} starting on line {}", prefix, self.last_token_position, tag, context.element, context.line)
             }
             ParseError::IncorrectEndTag(context, tag) => {
-                format!("{} on line {}: Wrong end tag {} found at the end of block {} starting on line {}", prefix, self.currentline, tag, context.element, context.line)
+                format!("{} on line {}: Wrong end tag {} found at the end of block {} starting on line {}", prefix, self.last_token_position, tag, context.element, context.line)
             }
             ParseError::StringTooLong(context, text, maxlen, actual_len) => {
-                format!("{} on line {}: String \"{}\" in block {} is {} bytes long, but the maximum allowed length is {}", prefix, self.currentline, text, context.element, actual_len, maxlen)
+                format!("{} on line {}: String \"{}\" in block {} is {} bytes long, but the maximum allowed length is {}", prefix, self.last_token_position, text, context.element, actual_len, maxlen)
             }
             ParseError::BlockRefTooNew(context, tag, file_version, min_version) => {
-                format!("{} on line {}: Sub-block \"{}\" in block {} is available from version {:.2}, but the file declares version {:.2}", prefix, self.currentline, tag, context.element, min_version, file_version)
+                format!("{} on line {}: Sub-block \"{}\" in block {} is available from version {:.2}, but the file declares version {:.2}", prefix, self.last_token_position, tag, context.element, min_version, file_version)
             }
             ParseError::BlockRefDeprecated(context, tag, file_version, max_version) => {
-                format!("{} on line {}: Sub-block \"{}\" in block {} is deprecated after version {:.2}, but the file declares version {:.2}", prefix, self.currentline, tag, context.element, max_version, file_version)
+                format!("{} on line {}: Sub-block \"{}\" in block {} is deprecated after version {:.2}, but the file declares version {:.2}", prefix, self.last_token_position, tag, context.element, max_version, file_version)
             }
             ParseError::EnumRefTooNew(context, tag, file_version, min_version) => {
-                format!("{} on line {}: enum item \"{}\" in block {} is available from version {:.2}, but the file declares version {:.2}", prefix, self.currentline, tag, context.element, min_version, file_version)
+                format!("{} on line {}: enum item \"{}\" in block {} is available from version {:.2}, but the file declares version {:.2}", prefix, self.last_token_position, tag, context.element, min_version, file_version)
             }
             ParseError::EnumRefDeprecated(context, tag, file_version, max_version) => {
-                format!("{} on line {}: enum item \"{}\" in block {} is deprecated after version {:.2}, but the file declares version {:.2}", prefix, self.currentline, tag, context.element, max_version, file_version)
+                format!("{} on line {}: enum item \"{}\" in block {} is deprecated after version {:.2}, but the file declares version {:.2}", prefix, self.last_token_position, tag, context.element, max_version, file_version)
             }
         }
     }
@@ -618,38 +630,40 @@ impl<'a> ParserState<'a> {
     fn parse_ifdata_item(&mut self, context: &ParseContext, spec: &A2mlTypeSpec) -> Result<GenericIfData, ParseError> {
         Ok(match spec {
             A2mlTypeSpec::None => { GenericIfData::None }
-            A2mlTypeSpec::Char => { GenericIfData::Char(self.get_integer_i8(context)?) }
-            A2mlTypeSpec::Int => { GenericIfData::Int(self.get_integer_i16(context)?) }
-            A2mlTypeSpec::Long => { GenericIfData::Long(self.get_integer_i32(context)?) }
-            A2mlTypeSpec::Int64 => { GenericIfData::Int64(self.get_integer_i64(context)?) }
-            A2mlTypeSpec::UChar => { GenericIfData::UChar(self.get_integer_u8(context)?) }
-            A2mlTypeSpec::UInt => { GenericIfData::UInt(self.get_integer_u16(context)?) }
-            A2mlTypeSpec::ULong => { GenericIfData::ULong(self.get_integer_u32(context)?) }
-            A2mlTypeSpec::UInt64 => { GenericIfData::UInt64(self.get_integer_u64(context)?) }
-            A2mlTypeSpec::Float => { GenericIfData::Float(self.get_float(context)?) }
-            A2mlTypeSpec::Double => { GenericIfData::Double(self.get_double(context)?) }
-            A2mlTypeSpec::String => { GenericIfData::String(self.get_string(context)?) }
+            A2mlTypeSpec::Char => { GenericIfData::Char(self.get_current_line(), self.get_integer_i8(context)?) }
+            A2mlTypeSpec::Int => { GenericIfData::Int(self.get_current_line(), self.get_integer_i16(context)?) }
+            A2mlTypeSpec::Long => { GenericIfData::Long(self.get_current_line(), self.get_integer_i32(context)?) }
+            A2mlTypeSpec::Int64 => { GenericIfData::Int64(self.get_current_line(), self.get_integer_i64(context)?) }
+            A2mlTypeSpec::UChar => { GenericIfData::UChar(self.get_current_line(), self.get_integer_u8(context)?) }
+            A2mlTypeSpec::UInt => { GenericIfData::UInt(self.get_current_line(), self.get_integer_u16(context)?) }
+            A2mlTypeSpec::ULong => { GenericIfData::ULong(self.get_current_line(), self.get_integer_u32(context)?) }
+            A2mlTypeSpec::UInt64 => { GenericIfData::UInt64(self.get_current_line(), self.get_integer_u64(context)?) }
+            A2mlTypeSpec::Float => { GenericIfData::Float(self.get_current_line(), self.get_float(context)?) }
+            A2mlTypeSpec::Double => { GenericIfData::Double(self.get_current_line(), self.get_double(context)?) }
+            A2mlTypeSpec::String => { GenericIfData::String(self.get_current_line(), self.get_string(context)?) }
             A2mlTypeSpec::Array(arraytype, dim) => {
                 let mut arrayitems = Vec::new();
+                let line = self.get_current_line();
                 for _ in 0..*dim {
                     arrayitems.push(self.parse_ifdata_item(context, arraytype)?);
                 }
-                GenericIfData::Array(arrayitems)
+                GenericIfData::Array(line, arrayitems)
             }
             A2mlTypeSpec::Enum(enumspec) => {
                 let enumitem = self.get_identifier(context)?;
                 if let Some(_) = enumspec.get(&enumitem) {
-                    GenericIfData::EnumItem(enumitem)
+                    GenericIfData::EnumItem(self.get_current_line(), enumitem)
                 } else {
                     return Err(ParseError::InvalidEnumValue(context.clone(), enumitem));
                 }
             }
             A2mlTypeSpec::Struct(structspec) => {
                 let mut structitems = Vec::new();
+                let line = self.get_current_line();
                 for itemspec in structspec {
                     structitems.push(self.parse_ifdata_item(context, itemspec)?);
                 }
-                GenericIfData::Struct(structitems)
+                GenericIfData::Struct(context.fileid, line, structitems)
             }
             A2mlTypeSpec::Sequence(seqspec) => {
                 let mut seqitems = Vec::new();
@@ -740,7 +754,7 @@ impl<'a> ParserState<'a> {
     // turn the GenericIfData contained in a TaggedItem into a block.
     fn parse_ifdata_make_block(data: GenericIfData, fileid: usize, line: u32) -> GenericIfData {
         match data {
-            GenericIfData::Struct(structitems) => GenericIfData::Block(fileid, line, structitems),
+            GenericIfData::Struct(_, _, structitems) => GenericIfData::Block(fileid, line, structitems),
             _ => GenericIfData::Block(fileid, line, vec![data])
         }
     }
@@ -754,6 +768,7 @@ impl<'a> ParserState<'a> {
     // it so that is can be written out to a file again later.
     pub(crate) fn parse_unknown_ifdata(&mut self, context: &ParseContext, is_block: bool) -> Result<GenericIfData, ParseError> {
         let mut items: Vec<GenericIfData> = Vec::new();
+        let line = self.get_current_line();
 
         loop {
             let token_peek = self.token_cursor.peek();
@@ -765,19 +780,19 @@ impl<'a> ParserState<'a> {
             match token.ttype {
                 A2lTokenType::Identifier => {
                     // an arbitrary identifier; it could be a tag of a taggedstruct, but we don't know that here. The other option is an enum value.
-                    items.push(GenericIfData::EnumItem(self.get_identifier(context)?));
+                    items.push(GenericIfData::EnumItem(token.line, self.get_identifier(context)?));
                 }
                 A2lTokenType::String => {
-                    items.push(GenericIfData::String(self.get_string(context)?));
+                    items.push(GenericIfData::String(token.line, self.get_string(context)?));
                 }
                 A2lTokenType::Number => {
                     match self.get_integer_i32(context) {
-                        Ok(num) => { items.push(GenericIfData::Long(num)); }
+                        Ok(num) => { items.push(GenericIfData::Long(token.line, num)); }
                         Err(_) => {
                             // try again, looks like the number is a float instead
                             self.token_cursor.back();
                             let floatnum = self.get_float(context)?; // if this also returns an error, it is neither int nor float, which is a genuine parse error
-                            items.push(GenericIfData::Float(floatnum));
+                            items.push(GenericIfData::Float(token.line, floatnum));
                         }
                     }
                 }
@@ -801,7 +816,7 @@ impl<'a> ParserState<'a> {
             }
         }
 
-        Ok(GenericIfData::Struct(items))
+        Ok(GenericIfData::Struct(context.fileid, line, items))
     }
 
 

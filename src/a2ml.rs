@@ -89,20 +89,20 @@ pub struct GenericIfDataTaggedItem {
 #[derive(Debug, PartialEq)]
 pub enum GenericIfData {
     None,
-    Char(i8),
-    Int(i16),
-    Long(i32),
-    Int64(i64),
-    UChar(u8),
-    UInt(u16),
-    ULong(u32),
-    UInt64(u64),
-    Float(f32),
-    Double(f64),
-    String(String),
-    Array(Vec<GenericIfData>),
-    EnumItem(String),
-    Struct(Vec<GenericIfData>),
+    Char(u32, i8),
+    Int(u32, i16),
+    Long(u32, i32),
+    Int64(u32, i64),
+    UChar(u32, u8),
+    UInt(u32, u16),
+    ULong(u32, u32),
+    UInt64(u32, u64),
+    Float(u32, f32),
+    Double(u32, f64),
+    String(u32, String),
+    Array(u32, Vec<GenericIfData>),
+    EnumItem(u32, String),
+    Struct(usize, u32, Vec<GenericIfData>),
     Sequence(Vec<GenericIfData>),
     TaggedStruct(HashMap<String, Vec<GenericIfDataTaggedItem>>),
     TaggedUnion(HashMap<String, Vec<GenericIfDataTaggedItem>>),
@@ -708,15 +708,15 @@ impl GenericIfData {
         }
     }
 
-    pub fn get_struct_items(&self) -> Result<&Vec<GenericIfData>, ()> {
+    pub fn get_struct_items(&self) -> Result<(usize, u32, &Vec<GenericIfData>), ()> {
         match self {
-            GenericIfData::Struct(blockitems) => Ok(blockitems),
+            GenericIfData::Struct(fileid, line, blockitems) => Ok((*fileid, *line, blockitems)),
             _ => Err(())
         }
     }
 
     pub fn get_integer_u8(&self) -> Result<u8, ()> {
-        if let GenericIfData::UChar(val) = self {
+        if let GenericIfData::UChar(_, val) = self {
             Ok(*val)
         } else {
             Err(())
@@ -724,7 +724,7 @@ impl GenericIfData {
     }
 
     pub fn get_integer_u16(&self) -> Result<u16, ()> {
-        if let GenericIfData::UInt(val) = self {
+        if let GenericIfData::UInt(_, val) = self {
             Ok(*val)
         } else {
             Err(())
@@ -732,7 +732,7 @@ impl GenericIfData {
     }
 
     pub fn get_integer_u32(&self) -> Result<u32, ()> {
-        if let GenericIfData::ULong(val) = self {
+        if let GenericIfData::ULong(_, val) = self {
             Ok(*val)
         } else {
             Err(())
@@ -740,7 +740,7 @@ impl GenericIfData {
     }
 
     pub fn get_integer_u64(&self) -> Result<u64, ()> {
-        if let GenericIfData::UInt64(val) = self {
+        if let GenericIfData::UInt64(_, val) = self {
             Ok(*val)
         } else {
             Err(())
@@ -748,7 +748,7 @@ impl GenericIfData {
     }
 
     pub fn get_integer_i8(&self) -> Result<i8, ()> {
-        if let GenericIfData::Char(val) = self {
+        if let GenericIfData::Char(_, val) = self {
             Ok(*val)
         } else {
             Err(())
@@ -756,7 +756,7 @@ impl GenericIfData {
     }
 
     pub fn get_integer_i16(&self) -> Result<i16, ()> {
-        if let GenericIfData::Int(val) = self {
+        if let GenericIfData::Int(_, val) = self {
             Ok(*val)
         } else {
             Err(())
@@ -764,7 +764,7 @@ impl GenericIfData {
     }
 
     pub fn get_integer_i32(&self) -> Result<i32, ()> {
-        if let GenericIfData::Long(val) = self {
+        if let GenericIfData::Long(_, val) = self {
             Ok(*val)
         } else {
             Err(())
@@ -772,7 +772,7 @@ impl GenericIfData {
     }
 
     pub fn get_integer_i64(&self) -> Result<i64, ()> {
-        if let GenericIfData::Int64(val) = self {
+        if let GenericIfData::Int64(_, val) = self {
             Ok(*val)
         } else {
             Err(())
@@ -780,7 +780,7 @@ impl GenericIfData {
     }
 
     pub fn get_float(&self) -> Result<f32, ()> {
-        if let GenericIfData::Float(val) = self {
+        if let GenericIfData::Float(_, val) = self {
             Ok(*val)
         } else {
             Err(())
@@ -788,7 +788,7 @@ impl GenericIfData {
     }
 
     pub fn get_double(&self) -> Result<f64, ()> {
-        if let GenericIfData::Double(val) = self {
+        if let GenericIfData::Double(_, val) = self {
             Ok(*val)
         } else {
             Err(())
@@ -796,7 +796,7 @@ impl GenericIfData {
     }
 
     pub fn get_stringval(&self) -> Result<String, ()> {
-        if let GenericIfData::String(val) = self {
+        if let GenericIfData::String(_, val) = self {
             Ok(val.to_owned())
         } else {
             Err(())
@@ -804,7 +804,7 @@ impl GenericIfData {
     }
 
     pub fn get_array(&self) -> Result<&Vec<GenericIfData>, ()> {
-        if let GenericIfData::Array(arrayitems) = self {
+        if let GenericIfData::Array(_, arrayitems) = self {
             Ok(arrayitems)
         } else {
             Err(())
@@ -816,6 +816,27 @@ impl GenericIfData {
             Ok(seqitems)
         } else {
             Err(())
+        }
+    }
+
+    pub fn get_line(&self) -> Result<u32, ()> {
+        match self {
+            GenericIfData::Char(line, _) |
+            GenericIfData::Int(line, _) |
+            GenericIfData::Long(line, _) |
+            GenericIfData::Int64(line, _) |
+            GenericIfData::UChar(line, _) |
+            GenericIfData::UInt(line, _) |
+            GenericIfData::ULong(line, _) |
+            GenericIfData::UInt64(line, _) |
+            GenericIfData::Float(line, _) |
+            GenericIfData::Double(line, _) |
+            GenericIfData::String(line, _) |
+            GenericIfData::Array(line, _) |
+            GenericIfData::EnumItem(line, _) |
+            GenericIfData::Struct(_, line, _) |
+            GenericIfData::Block(_, line, _) => Ok(*line),
+            _ => Err(())
         }
     }
 

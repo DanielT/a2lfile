@@ -4,6 +4,7 @@ use proc_macro2::TokenStream;
 use proc_macro2::TokenTree;
 use proc_macro2::Delimiter;
 use proc_macro2::Ident;
+use proc_macro2::Literal;
 use quote::quote;
 use quote::format_ident;
 use super::util::*;
@@ -1060,7 +1061,7 @@ fn generate_indirect_enum_parser(typename: &str, enumitems: &Vec<EnumItem>) -> T
     quote!{
         impl #name {
             fn parse(data: &a2lfile::GenericIfData) -> Result<Self, ()> {
-                if let a2lfile::GenericIfData::EnumItem(item) = data {
+                if let a2lfile::GenericIfData::EnumItem(_, item) = data {
                     match &**item {
                         #(#match_branches)*
                         _ => Err(())
@@ -1081,7 +1082,7 @@ fn generate_indirect_struct_parser(typename: &str, structitems: &Vec<DataItem>) 
     quote!{
         impl #name {
             fn parse(data: &a2lfile::GenericIfData) -> Result<Self, ()> {
-                let input_items = data.get_struct_items()?;
+                let (fileid, line, input_items) = data.get_struct_items()?;
 
                 Ok(#name {
                     #(#structfields),*
@@ -1102,8 +1103,6 @@ fn generate_indirect_block_parser(typename: &str, blockitems: &Vec<DataItem>) ->
                 let (fileid, line, input_items) = data.get_block_items()?;
 
                 Ok(#name {
-                    fileid,
-                    line,
                     #(#structfields),*
                 })
             }
@@ -1114,6 +1113,7 @@ fn generate_indirect_block_parser(typename: &str, blockitems: &Vec<DataItem>) ->
 
 fn generate_struct_field_intializers(items: &Vec<DataItem>) -> Vec<TokenStream> {
     let mut parsers = Vec::new();
+    let mut location_info = vec![quote!{ fileid, line }];
     for (idx, item) in items.iter().enumerate() {
         match &item.basetype {
             BaseType::Sequence(seqitemtype) => {
@@ -1127,6 +1127,16 @@ fn generate_struct_field_intializers(items: &Vec<DataItem>) -> Vec<TokenStream> 
                             outitems.push(#itemparser?);
                         }
                         outitems
+                    }
+                });
+                location_info.push(quote!{
+                    {
+                        let seqitems = input_items[#idx].get_sequence()?;
+                        let mut lines = Vec::new();
+                        for seqitem in seqitems {
+                            lines.push(seqitem.get_line()?);
+                        }
+                        lines
                     }
                 });
             }
@@ -1147,9 +1157,12 @@ fn generate_struct_field_intializers(items: &Vec<DataItem>) -> Vec<TokenStream> 
                 let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
                 let itemparser = generate_item_parser_call(quote!{input_items[#idx]}, &item.typename, &item.basetype);
                 parsers.push(quote!{#itemname: #itemparser?});
+                location_info.push(quote!{input_items[#idx].get_line()?});
             }
         }
     }
+
+    parsers.push(quote! {__location_info: ( #(#location_info),* )});
 
     parsers
 }
@@ -1234,8 +1247,8 @@ fn generate_indirect_enum_writer(typename: &str, enumitems: &Vec<EnumItem>) -> T
 
     quote!{
         impl #name {
-            fn store(&self) -> a2lfile::GenericIfData {
-                a2lfile::GenericIfData::EnumItem(match self {
+            fn store(&self, line: u32) -> a2lfile::GenericIfData {
+                a2lfile::GenericIfData::EnumItem(line, match self {
                     #(#match_branches),*
                 }.to_string())
             }
@@ -1247,15 +1260,12 @@ fn generate_indirect_enum_writer(typename: &str, enumitems: &Vec<EnumItem>) -> T
 fn generate_indirect_struct_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
     let name = format_ident!("{}", typename);
 
-    let mut stored_structitems = Vec::new();
-    for item in structitems {
-        stored_structitems.push(generate_indirect_store_item(&item));
-    }
+    let stored_structitems = generate_indirect_store_item(structitems);
 
     quote!{
         impl #name {
             fn store(&self) -> a2lfile::GenericIfData {
-                a2lfile::GenericIfData::Struct(vec![ #(#stored_structitems),* ])
+                a2lfile::GenericIfData::Struct(self.__location_info.0, self.__location_info.1, vec![ #(#stored_structitems),* ])
             }
         }
     }
@@ -1265,71 +1275,77 @@ fn generate_indirect_struct_writer(typename: &str, structitems: &Vec<DataItem>) 
 fn generate_indirect_block_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
     let name = format_ident!("{}", typename);
 
-    let mut stored_structitems = Vec::new();
-    for item in structitems {
-        stored_structitems.push(generate_indirect_store_item(&item));
-    }
+    let stored_structitems = generate_indirect_store_item(structitems);
 
     quote!{
         impl #name {
             fn store(&self) -> a2lfile::GenericIfData {
-
-                a2lfile::GenericIfData::Block(self.fileid, self.line, vec![ #(#stored_structitems),* ])
+                a2lfile::GenericIfData::Block(self.__location_info.0, self.__location_info.1, vec![ #(#stored_structitems),* ])
             }
         }
     }
 }
 
 
-fn generate_indirect_store_item(item: &DataItem) -> TokenStream {
-    match &item.basetype {
-        BaseType::Sequence(seqitemtype) => {
-            let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
-            let parsercall = generate_indirect_store_simple_item(quote!{item}, &seqitemtype);
-            quote!{a2lfile::GenericIfData::Sequence({
-                let mut sequence_content = Vec::new();
-                for item in &self.#itemname {
-                    sequence_content.push(#parsercall);
+fn generate_indirect_store_item(structitems: &Vec<DataItem>) -> Vec<TokenStream> {
+    let mut stored_structitems = Vec::new();
+    let mut storageidx: usize = 2;
+    for item in structitems {
+        let sidx_literal = Literal::usize_unsuffixed(storageidx);
+        let location = quote! {self.__location_info.#sidx_literal};
+        stored_structitems.push(match &item.basetype {
+            BaseType::Sequence(seqitemtype) => {
+                let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
+                let locationinfo = quote! {(*#location.get(idx).unwrap_or_else(|| &0))};
+                let parsercall = generate_indirect_store_simple_item(quote!{item}, locationinfo, &seqitemtype);
+                storageidx += 1;
+                quote!{a2lfile::GenericIfData::Sequence({
+                    let mut sequence_content = Vec::new();
+                    for (idx, item) in self.#itemname.iter().enumerate() {
+                        sequence_content.push(#parsercall);
+                    }
+                    sequence_content})
                 }
-                sequence_content})
             }
+            BaseType::TaggedUnion(tuitems) => {
+                let taggeditem_generator = generate_indirect_store_taggeditems(tuitems);
+                quote!{a2lfile::GenericIfData::TaggedUnion({#taggeditem_generator})}
+            }
+            BaseType::TaggedStruct(tsitems) => {
+                let taggeditem_generator = generate_indirect_store_taggeditems(tsitems);
+                quote!{a2lfile::GenericIfData::TaggedStruct({#taggeditem_generator})}
+            }
+            _ => {
+                let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
+                storageidx += 1;
+                generate_indirect_store_simple_item(quote!{self.#itemname}, location, &item.basetype)
+            }
+        });
     }
-        BaseType::TaggedUnion(tuitems) => {
-            let taggeditem_generator = generate_indirect_store_taggeditems(tuitems);
-            quote!{a2lfile::GenericIfData::TaggedUnion({#taggeditem_generator})}
-        }
-        BaseType::TaggedStruct(tsitems) => {
-            let taggeditem_generator = generate_indirect_store_taggeditems(tsitems);
-            quote!{a2lfile::GenericIfData::TaggedStruct({#taggeditem_generator})}
-        }
-        _ => {
-            let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
-            generate_indirect_store_simple_item(quote!{self.#itemname}, &item.basetype)
-        }
-    }
+    stored_structitems
 }
 
 
-fn generate_indirect_store_simple_item(itemname: TokenStream, basetype: &BaseType) -> TokenStream {
+fn generate_indirect_store_simple_item(itemname: TokenStream, locationinfo: TokenStream, basetype: &BaseType) -> TokenStream {
     match basetype {
         BaseType::None => quote!{a2lfile::GenericIfData::None},
-        BaseType::Char => quote!{a2lfile::GenericIfData::Char(#itemname)},
-        BaseType::Int =>  quote!{a2lfile::GenericIfData::Int(#itemname)},
-        BaseType::Long => quote!{a2lfile::GenericIfData::Long(#itemname)},
-        BaseType::Int64 => quote!{a2lfile::GenericIfData::Int64(#itemname)},
-        BaseType::Uchar => quote!{a2lfile::GenericIfData::UChar(#itemname)},
-        BaseType::Uint =>  quote!{a2lfile::GenericIfData::UInt(#itemname)},
-        BaseType::Ulong => quote!{a2lfile::GenericIfData::ULong(#itemname)},
-        BaseType::Uint64 => quote!{a2lfile::GenericIfData::UInt64(#itemname)},
-        BaseType::Double => quote!{a2lfile::GenericIfData::Double(#itemname)},
-        BaseType::Float =>  quote!{a2lfile::GenericIfData::Float(#itemname)},
-        BaseType::String => quote!{a2lfile::GenericIfData::String(#itemname.to_owned())},
+        BaseType::Char => quote!{a2lfile::GenericIfData::Char(#locationinfo, #itemname)},
+        BaseType::Int =>  quote!{a2lfile::GenericIfData::Int(#locationinfo, #itemname)},
+        BaseType::Long => quote!{a2lfile::GenericIfData::Long(#locationinfo, #itemname)},
+        BaseType::Int64 => quote!{a2lfile::GenericIfData::Int64(#locationinfo, #itemname)},
+        BaseType::Uchar => quote!{a2lfile::GenericIfData::UChar(#locationinfo, #itemname)},
+        BaseType::Uint =>  quote!{a2lfile::GenericIfData::UInt(#locationinfo, #itemname)},
+        BaseType::Ulong => quote!{a2lfile::GenericIfData::ULong(#locationinfo, #itemname)},
+        BaseType::Uint64 => quote!{a2lfile::GenericIfData::UInt64(#locationinfo, #itemname)},
+        BaseType::Double => quote!{a2lfile::GenericIfData::Double(#locationinfo, #itemname)},
+        BaseType::Float =>  quote!{a2lfile::GenericIfData::Float(#locationinfo, #itemname)},
+        BaseType::String => quote!{a2lfile::GenericIfData::String(#locationinfo, #itemname.to_owned())},
         BaseType::Array(arraydata, _) => {
             if arraydata.basetype == BaseType::Char {
-                quote!{a2lfile::GenericIfData::String(#itemname.to_owned())}
+                quote!{a2lfile::GenericIfData::String(#locationinfo, #itemname.to_owned())}
             } else {
-                let parsercall = generate_indirect_store_simple_item(quote!{item}, &arraydata.basetype);
-                quote!{a2lfile::GenericIfData::Array({
+                let parsercall = generate_indirect_store_simple_item(quote!{item}, locationinfo.clone(), &arraydata.basetype);
+                quote!{a2lfile::GenericIfData::Array(#locationinfo, {
                     let arraycontent = Vec::new();
                     for item in #itemname {
                         arraycontent.push(#parsercall);
@@ -1338,7 +1354,9 @@ fn generate_indirect_store_simple_item(itemname: TokenStream, basetype: &BaseTyp
                 }
             }
         }
-        BaseType::EnumRef |
+        BaseType::EnumRef => {
+            quote!{#itemname.store(#locationinfo)}
+        }
         BaseType::StructRef => {
             quote!{#itemname.store()}
         }
@@ -1364,7 +1382,7 @@ fn generate_indirect_store_taggeditems(tgitems: &Vec<TaggedItem>) -> TokenStream
             insert_items.push(quote!{
                 let mut tgvec = Vec::new();
                 for taggeditem in &self.#tgname {
-                    tgvec.push(a2lfile::GenericIfDataTaggedItem {tag: #tag.to_string(), data: taggeditem.store(), is_block: #is_block, fileid: taggeditem.fileid, line: taggeditem.line});
+                    tgvec.push(a2lfile::GenericIfDataTaggedItem {tag: #tag.to_string(), data: taggeditem.store(), is_block: #is_block, fileid: taggeditem.__location_info.0, line: taggeditem.__location_info.1});
                 }
                 if tgvec.len() > 0 {
                     output.insert(#tag.to_string(), tgvec);
@@ -1373,7 +1391,7 @@ fn generate_indirect_store_taggeditems(tgitems: &Vec<TaggedItem>) -> TokenStream
         } else {
             insert_items.push(quote!{
                 if let Some(taggeditem) = &self.#tgname {
-                    let outitem = a2lfile::GenericIfDataTaggedItem{tag: #tag.to_string(), data: taggeditem.store(), is_block: #is_block, fileid: taggeditem.fileid, line: taggeditem.line};
+                    let outitem = a2lfile::GenericIfDataTaggedItem{tag: #tag.to_string(), data: taggeditem.store(), is_block: #is_block, fileid: taggeditem.__location_info.0, line: taggeditem.__location_info.1};
                     output.insert(#tag.to_string(), vec![outitem]);
                 }
             });
@@ -1381,7 +1399,7 @@ fn generate_indirect_store_taggeditems(tgitems: &Vec<TaggedItem>) -> TokenStream
     }
 
     quote!{
-        let mut output = HashMap::new();
+        let mut output = std::collections::HashMap::new();
         #(#insert_items)*
         output
     }
@@ -1414,12 +1432,12 @@ fn generate_interface(spec: &A2mlSpec) -> TokenStream {
             }
 
             fn update_a2ml(file: &mut a2lfile::A2lFile) {
-                for module in &mut file.project.module {
-                    if module.a2ml.is_none() {
-                        module.a2ml = Some(a2lfile::A2ml {fileid: 0, line: 0, a2ml_text: "".to_string()});
-                    }
-                    module.a2ml.as_mut().unwrap().a2ml_text = #constname.to_string();
-                }
+                 for module in &mut file.project.module {
+                     if module.a2ml.is_none() {
+                         module.a2ml = Some(a2lfile::A2ml::new("".to_string()));
+                     }
+                     module.a2ml.as_mut().unwrap().a2ml_text = #constname.to_string();
+                 }
             }
         }
     }
