@@ -11,7 +11,7 @@ struct TokenIter<'a> {
 pub struct ParserState<'a> {
     token_cursor: TokenIter<'a>,
     filedata: &'a Vec<String>,
-    _filenames: &'a Vec<String>,
+    filenames: &'a Vec<String>,
     last_token_position: u32,
     logger: &'a mut dyn super::Logger,
     strict: bool,
@@ -81,7 +81,7 @@ impl<'a> ParserState<'a> {
         ParserState {
             token_cursor: TokenIter{ tokens, pos: 0},
             filedata,
-            _filenames: filenames,
+            filenames: filenames,
             last_token_position: 0,
             logger,
             strict,
@@ -154,6 +154,15 @@ impl<'a> ParserState<'a> {
             } else {
                 0
             }
+        }
+    }
+
+
+    pub fn get_incfilename(&self, fileid: usize) -> Option<String> {
+        if fileid == 0 || fileid >= self.filenames.len() {
+            None
+        } else {
+            Some(self.filenames[fileid].to_owned())
         }
     }
 
@@ -616,7 +625,7 @@ impl<'a> ParserState<'a> {
     fn parse_ifdata_from_spec(&mut self, context: &ParseContext, spec: &A2mlTypeSpec) -> Option<GenericIfData> {
         let pos = self.get_tokenpos();
         if let Ok(ifdata) = self.parse_ifdata_item(context, spec) {
-            Some(ParserState::parse_ifdata_make_block(ifdata, context.fileid, context.line))
+            Some(ParserState::parse_ifdata_make_block(ifdata, self.get_incfilename(context.fileid), context.line))
         } else {
             // put the token_cursor back at the beginning of the IF_DATA input
             self.set_tokenpos(pos);
@@ -663,7 +672,7 @@ impl<'a> ParserState<'a> {
                 for itemspec in structspec {
                     structitems.push(self.parse_ifdata_item(context, itemspec)?);
                 }
-                GenericIfData::Struct(context.fileid, line, structitems)
+                GenericIfData::Struct(self.get_incfilename(context.fileid), line, structitems)
             }
             A2mlTypeSpec::Sequence(seqspec) => {
                 let mut seqitems = Vec::new();
@@ -726,7 +735,8 @@ impl<'a> ParserState<'a> {
 
                 // parse the content of the tagged item
                 let newcontext = ParseContext::from_token(tag, token, is_block);
-                let parsed_item = ParserState::parse_ifdata_make_block(self.parse_ifdata_item(&newcontext, &taggedspec.item)?,  newcontext.fileid, newcontext.line);
+                let data = self.parse_ifdata_item(&newcontext, &taggedspec.item)?;
+                let parsed_item = ParserState::parse_ifdata_make_block(data, self.get_incfilename(newcontext.fileid), newcontext.line);
 
                 // make sure that blocks that started with /begin end with /end
                 if is_block {
@@ -738,7 +748,13 @@ impl<'a> ParserState<'a> {
                     }
                 }
 
-                Ok(Some(GenericIfDataTaggedItem {fileid: newcontext.fileid, line: newcontext.line, tag: tag.to_string(), data: parsed_item, is_block}))
+                Ok(Some(GenericIfDataTaggedItem {
+                    incfile: self.get_incfilename(newcontext.fileid),
+                    line: newcontext.line,
+                    tag: tag.to_string(),
+                    data: parsed_item,
+                    is_block
+                }))
             } else {
                 self.set_tokenpos(checkpoint);
                 Ok(None)
@@ -752,10 +768,10 @@ impl<'a> ParserState<'a> {
 
     // parse_ifdata_make_block()
     // turn the GenericIfData contained in a TaggedItem into a block.
-    fn parse_ifdata_make_block(data: GenericIfData, fileid: usize, line: u32) -> GenericIfData {
+    fn parse_ifdata_make_block(data: GenericIfData, incfile: Option<String>, line: u32) -> GenericIfData {
         match data {
-            GenericIfData::Struct(_, _, structitems) => GenericIfData::Block(fileid, line, structitems),
-            _ => GenericIfData::Block(fileid, line, vec![data])
+            GenericIfData::Struct(_, _, structitems) => GenericIfData::Block(incfile, line, structitems),
+            _ => GenericIfData::Block(incfile, line, vec![data])
         }
     }
 
@@ -816,7 +832,7 @@ impl<'a> ParserState<'a> {
             }
         }
 
-        Ok(GenericIfData::Struct(context.fileid, line, items))
+        Ok(GenericIfData::Struct(self.get_incfilename(context.fileid), line, items))
     }
 
 
@@ -840,8 +856,8 @@ impl<'a> ParserState<'a> {
                 }
             }
 
-            let taggeditem = GenericIfDataTaggedItem{
-                fileid: newcontext.fileid,
+            let taggeditem = GenericIfDataTaggedItem {
+                incfile: self.get_incfilename(newcontext.fileid),
                 line: newcontext.line,
                 tag: tag.to_string(),
                 data: result,

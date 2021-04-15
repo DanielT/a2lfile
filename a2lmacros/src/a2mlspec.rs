@@ -1082,7 +1082,7 @@ fn generate_indirect_struct_parser(typename: &str, structitems: &Vec<DataItem>) 
     quote!{
         impl #name {
             fn parse(data: &a2lfile::GenericIfData) -> Result<Self, ()> {
-                let (fileid, line, input_items) = data.get_struct_items()?;
+                let (incfile, line, input_items) = data.get_struct_items()?;
 
                 Ok(#name {
                     #(#structfields),*
@@ -1100,7 +1100,7 @@ fn generate_indirect_block_parser(typename: &str, blockitems: &Vec<DataItem>) ->
     quote!{
         impl #name {
             fn parse(data: &a2lfile::GenericIfData) -> Result<Self, ()> {
-                let (fileid, line, input_items) = data.get_block_items()?;
+                let (incfile, line, input_items) = data.get_block_items()?;
 
                 Ok(#name {
                     #(#structfields),*
@@ -1113,7 +1113,7 @@ fn generate_indirect_block_parser(typename: &str, blockitems: &Vec<DataItem>) ->
 
 fn generate_struct_field_intializers(items: &Vec<DataItem>) -> Vec<TokenStream> {
     let mut parsers = Vec::new();
-    let mut location_info = vec![quote!{ fileid, line }];
+    let mut location_info = vec![quote!{ incfile, line }];
     for (idx, item) in items.iter().enumerate() {
         match &item.basetype {
             BaseType::Sequence(seqitemtype) => {
@@ -1265,7 +1265,7 @@ fn generate_indirect_struct_writer(typename: &str, structitems: &Vec<DataItem>) 
     quote!{
         impl #name {
             fn store(&self) -> a2lfile::GenericIfData {
-                a2lfile::GenericIfData::Struct(self.__location_info.0, self.__location_info.1, vec![ #(#stored_structitems),* ])
+                a2lfile::GenericIfData::Struct(self.__location_info.0.clone(), self.__location_info.1, vec![ #(#stored_structitems),* ])
             }
         }
     }
@@ -1280,7 +1280,7 @@ fn generate_indirect_block_writer(typename: &str, structitems: &Vec<DataItem>) -
     quote!{
         impl #name {
             fn store(&self) -> a2lfile::GenericIfData {
-                a2lfile::GenericIfData::Block(self.__location_info.0, self.__location_info.1, vec![ #(#stored_structitems),* ])
+                a2lfile::GenericIfData::Block(self.__location_info.0.clone(), self.__location_info.1, vec![ #(#stored_structitems),* ])
             }
         }
     }
@@ -1382,7 +1382,13 @@ fn generate_indirect_store_taggeditems(tgitems: &Vec<TaggedItem>) -> TokenStream
             insert_items.push(quote!{
                 let mut tgvec = Vec::new();
                 for taggeditem in &self.#tgname {
-                    tgvec.push(a2lfile::GenericIfDataTaggedItem {tag: #tag.to_string(), data: taggeditem.store(), is_block: #is_block, fileid: taggeditem.__location_info.0, line: taggeditem.__location_info.1});
+                    tgvec.push(a2lfile::GenericIfDataTaggedItem {
+                        tag: #tag.to_string(),
+                        data: taggeditem.store(),
+                        is_block: #is_block,
+                        incfile: taggeditem.__location_info.0.clone(),
+                        line: taggeditem.__location_info.1
+                    });
                 }
                 if tgvec.len() > 0 {
                     output.insert(#tag.to_string(), tgvec);
@@ -1391,7 +1397,13 @@ fn generate_indirect_store_taggeditems(tgitems: &Vec<TaggedItem>) -> TokenStream
         } else {
             insert_items.push(quote!{
                 if let Some(taggeditem) = &self.#tgname {
-                    let outitem = a2lfile::GenericIfDataTaggedItem{tag: #tag.to_string(), data: taggeditem.store(), is_block: #is_block, fileid: taggeditem.__location_info.0, line: taggeditem.__location_info.1};
+                    let outitem = a2lfile::GenericIfDataTaggedItem{
+                        tag: #tag.to_string(),
+                        data: taggeditem.store(),
+                        is_block: #is_block,
+                        incfile: taggeditem.__location_info.0.clone(),
+                        line: taggeditem.__location_info.1
+                    };
                     output.insert(#tag.to_string(), vec![outitem]);
                 }
             });

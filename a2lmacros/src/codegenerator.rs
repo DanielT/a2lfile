@@ -158,7 +158,7 @@ fn generate_block_data_structure_a2ml() ->  TokenStream {
     quote!{
         pub struct A2ml {
             pub a2ml_text: String,
-            pub __location_info: (usize, u32)
+            pub __location_info: (Option<String>, u32)
         }
 
         impl std::fmt::Debug for A2ml {
@@ -173,7 +173,7 @@ fn generate_block_data_structure_a2ml() ->  TokenStream {
             pub fn new(a2ml_text: String) -> Self {
                 Self {
                     a2ml_text,
-                    __location_info: (0, 0)
+                    __location_info: (None, 0)
                 }
             }
         }
@@ -187,7 +187,7 @@ fn generate_block_data_structure_ifdata() ->  TokenStream {
     quote!{
         pub struct IfData {
             pub ifdata_items: Option<a2ml::GenericIfData>,
-            pub __location_info: (usize, u32)
+            pub __location_info: (Option<String>, u32)
         }
 
         impl std::fmt::Debug for IfData {
@@ -202,7 +202,7 @@ fn generate_block_data_structure_ifdata() ->  TokenStream {
             pub fn new() -> Self {
                 Self {
                     ifdata_items: None,
-                    __location_info: (0, 0)
+                    __location_info: (None, 0)
                 }
             }
         }
@@ -313,7 +313,7 @@ fn generate_bare_typename(typename: &Option<String>, item: &BaseType) -> TokenSt
 // This function generates the definition of the __location_info tuple that stores these locations
 fn generate_struct_location_info(structitems: &Vec<DataItem>) -> TokenStream {
     let mut locationtypes = Vec::new();
-    locationtypes.push(quote!{usize, u32});
+    locationtypes.push(quote!{Option<String>, u32});
     for item in structitems {
         match item.basetype {
             BaseType::Char |
@@ -387,7 +387,7 @@ fn generate_block_data_structure_constructor(typename: &str, structitems: &Vec<D
     let typeident = format_ident!("{}", typename);
     let mut newargs = Vec::<TokenStream>::new();
     let mut fieldinit = Vec::<TokenStream>::new();
-    let mut locationinfo = vec![quote!{0}, quote!{0}];
+    let mut locationinfo = vec![quote!{None}, quote!{0}];
 
     for item in structitems {
         match &item.basetype {
@@ -525,7 +525,6 @@ fn generate_enum_parser(cratename: &Ident, typename: &str, enumitems: &Vec<EnumI
 // generate_block_parser
 // generates the full parser function for a block
 // blocks are structs which occur after a tag in a TaggedUnion or TaggedStruc.
-// This means that they also need the fileid and line elements, so that the position within the file can be preserved when writing the data structure
 fn generate_block_parser(cratename: &Ident, typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
     match typename {
         "A2ml" => {
@@ -549,7 +548,7 @@ fn generate_struct_parser(cratename: &Ident, typename: &str, structitems: &Vec<D
     quote! {
         impl #name {
             fn parse(parser: &mut #cratename::ParserState, context: &#cratename::ParseContext) -> Result<Self, #cratename::ParseError> {
-                let (__location_file, __location_line) = (context.fileid, parser.get_current_line());
+                let (__location_incfile, __location_line) = (parser.get_incfilename(context.fileid), parser.get_current_line());
                 #(#itemparsers)*
                 Ok(Self {
                     #(#itemnames),*
@@ -567,7 +566,7 @@ fn generate_block_parser_generic(cratename: &Ident, typename: &str, structitems:
     quote! {
         impl #name {
             fn parse(parser: &mut #cratename::ParserState, context: &#cratename::ParseContext) -> Result<Self, #cratename::ParseError> {
-                let (__location_file, __location_line) = (context.fileid, context.line);
+                let (__location_incfile, __location_line) = (parser.get_incfilename(context.fileid), context.line);
                 #(#itemparsers)*
                 let blk = Self {
                     #(#itemnames),*
@@ -592,7 +591,7 @@ fn generate_block_parser_a2ml(cratename: &Ident) -> TokenStream {
     quote! {
         impl A2ml {
             fn parse(parser: &mut #cratename::ParserState, context: &#cratename::ParseContext) -> Result<Self, #cratename::ParseError> {
-                let fileid = context.fileid;
+                let fileid = parser.get_incfilename(context.fileid);
                 let line = context.line;
 
                 let token = parser.expect_token(context, A2lTokenType::String)?;
@@ -624,7 +623,7 @@ fn generate_block_parser_ifdata(cratename: &Ident) -> TokenStream {
     quote! {
         impl IfData {
             fn parse(parser: &mut #cratename::ParserState, context: &#cratename::ParseContext) -> Result<Self, #cratename::ParseError> {
-                let fileid = context.fileid;
+                let fileid = parser.get_incfilename(context.fileid);
                 let line = context.line;
 
                 let ifdata_items = parser.parse_ifdata(context)?;
@@ -652,7 +651,7 @@ fn generate_block_parser_ifdata(cratename: &Ident) -> TokenStream {
 fn generate_struct_item_fragments(structitems: &Vec<DataItem>, cratename: &Ident) -> (Vec<Ident>, Vec<TokenStream>) {
     let mut itemparsers = Vec::<TokenStream>::new();
     let mut itemnames = Vec::<Ident>::new();
-    let mut location_names = vec![format_ident!("__location_file"), format_ident!("__location_line")];
+    let mut location_names = vec![format_ident!("__location_incfile"), format_ident!("__location_line")];
     for (idx, sitem) in structitems.iter().enumerate() {
         let is_last = idx == (structitems.len() - 1);
         match &sitem.basetype {

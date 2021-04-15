@@ -79,7 +79,7 @@ type AmlTokenIter<'a> = std::iter::Peekable<std::slice::Iter<'a, A2MlTokenType<'
 // parser output types (generic IF_DATA)
 #[derive(Debug, PartialEq)]
 pub struct GenericIfDataTaggedItem {
-    pub fileid: usize,
+    pub incfile: Option<String>,
     pub line: u32,
     pub tag: String,
     pub data: GenericIfData,
@@ -102,11 +102,11 @@ pub enum GenericIfData {
     String(u32, String),
     Array(u32, Vec<GenericIfData>),
     EnumItem(u32, String),
-    Struct(usize, u32, Vec<GenericIfData>),
+    Struct(Option<String>, u32, Vec<GenericIfData>),
     Sequence(Vec<GenericIfData>),
     TaggedStruct(HashMap<String, Vec<GenericIfDataTaggedItem>>),
     TaggedUnion(HashMap<String, Vec<GenericIfDataTaggedItem>>),
-    Block(usize, u32, Vec<GenericIfData>)
+    Block(Option<String>, u32, Vec<GenericIfData>)
 }
 
 
@@ -701,16 +701,16 @@ fn nexttoken<'a>(tok_iter: &mut AmlTokenIter<'a>) -> Result<&'a A2MlTokenType<'a
 
 
 impl GenericIfData {
-    pub fn get_block_items(&self) -> Result<(usize, u32, &Vec<GenericIfData>), ()> {
+    pub fn get_block_items(&self) -> Result<(Option<String>, u32, &Vec<GenericIfData>), ()> {
         match self {
-            GenericIfData::Block(fileid, line, blockitems) => Ok((*fileid, *line, blockitems)),
+            GenericIfData::Block(file, line, blockitems) => Ok((file.clone(), *line, blockitems)),
             _ => Err(())
         }
     }
 
-    pub fn get_struct_items(&self) -> Result<(usize, u32, &Vec<GenericIfData>), ()> {
+    pub fn get_struct_items(&self) -> Result<(Option<String>, u32, &Vec<GenericIfData>), ()> {
         match self {
-            GenericIfData::Struct(fileid, line, blockitems) => Ok((*fileid, *line, blockitems)),
+            GenericIfData::Struct(file, line, blockitems) => Ok((file.clone(), *line, blockitems)),
             _ => Err(())
         }
     }
