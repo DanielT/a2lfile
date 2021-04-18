@@ -13,7 +13,7 @@ pub struct ParserState<'a> {
     filedata: &'a Vec<String>,
     filenames: &'a Vec<String>,
     last_token_position: u32,
-    logger: &'a mut dyn super::Logger,
+    pub(crate) logger: &'a mut dyn super::Logger,
     strict: bool,
     file_ver: f32,
     pub(crate) builtin_a2mlspec: Option<A2mlTypeSpec>,
@@ -659,9 +659,10 @@ impl<'a> ParserState<'a> {
                 GenericIfData::Array(line, arrayitems)
             }
             A2mlTypeSpec::Enum(enumspec) => {
+                let pos = self.get_current_line();
                 let enumitem = self.get_identifier(context)?;
                 if let Some(_) = enumspec.get(&enumitem) {
-                    GenericIfData::EnumItem(self.get_current_line(), enumitem)
+                    GenericIfData::EnumItem(pos, enumitem)
                 } else {
                     return Err(ParseError::InvalidEnumValue(context.clone(), enumitem));
                 }

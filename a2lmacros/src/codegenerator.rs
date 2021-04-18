@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use proc_macro2::TokenStream;
+use proc_macro2::{Literal, TokenStream};
 use proc_macro2::Ident;
 use quote::format_ident;
 use quote::quote;
@@ -70,7 +70,7 @@ pub(crate) fn generate_data_structures(types: &HashMap<String, DataItem>) -> Tok
 
     // Convert the hashmap of types to a vec and sort it. This gives stable output ordering
     let mut typesvec: Vec<(&String, &DataItem)> = types.iter().map(|(key, val)| (key, val)).collect();
-    typesvec.sort_by(|a, b| a.0.partial_cmp(b.0).unwrap());
+    typesvec.sort_by(|a, b| a.0.cmp(b.0));
 
     // generate each type in the list
     for (typename, a2mltype) in typesvec {
@@ -158,7 +158,7 @@ fn generate_block_data_structure_a2ml() ->  TokenStream {
     quote!{
         pub struct A2ml {
             pub a2ml_text: String,
-            pub __location_info: (Option<String>, u32)
+            pub __location_info: (Option<String>, u32, u32)
         }
 
         impl std::fmt::Debug for A2ml {
@@ -173,7 +173,7 @@ fn generate_block_data_structure_a2ml() ->  TokenStream {
             pub fn new(a2ml_text: String) -> Self {
                 Self {
                     a2ml_text,
-                    __location_info: (None, 0)
+                    __location_info: (None, 0, 0)
                 }
             }
         }
@@ -440,41 +440,24 @@ fn generate_block_data_structure_constructor(typename: &str, structitems: &Vec<D
 
 //-----------------------------------------------------------------------------
 
-// generate_parser
-// entry point for externe use (by users of the a2ml_specification! macro) of the parser generator
-// functions will be prefixed with "a2lfile::"
-// pub(crate) fn generate_parser(types: &HashMap<String, DataItem>) -> TokenStream {
-//     let cratename = format_ident!("a2lfile");
-//     generate_parser_impl(&cratename, types)
-// }
-
-
-// generate_parser_internal
-// entry point for internal use (within the crate) of the parser generator
-// functions will be prefixed with "crate::"
-pub(crate) fn generate_parser_internal(types: &HashMap<String, DataItem>) -> TokenStream {
-    let cratename = format_ident!("crate");
-    generate_parser_impl(&cratename, types)
-}
-
-
 // generate_parser_impl
-// generate parser function implementations for the set of types
-fn generate_parser_impl(cratename: &Ident, types: &HashMap<String, DataItem>) -> TokenStream {
+// generate parser function implementations for the set of types of A2l
+// A2ml does not use this code, since it parses its data from intermediate GenericIfData structures
+pub(crate) fn generate_parser(types: &HashMap<String, DataItem>) -> TokenStream {
     let mut result = quote!{};
     let mut typesvec: Vec<(&String, &DataItem)> = types.iter().map(|(key, val)| (key, val)).collect();
-    typesvec.sort_by(|a, b| a.0.partial_cmp(b.0).unwrap());
+    typesvec.sort_by(|a, b| a.0.cmp(b.0));
 
     for (typename, a2mltype) in typesvec {
         match &a2mltype.basetype {
             BaseType::Enum(enumitems) => {
-                result.extend(generate_enum_parser(cratename, typename, enumitems));
+                result.extend(generate_enum_parser(typename, enumitems));
             }
             BaseType::Struct(structitems) => {
-                result.extend(generate_struct_parser(cratename, typename, structitems));
+                result.extend(generate_struct_parser(typename, structitems));
             }
             BaseType::Block(structitems) => {
-                result.extend(generate_block_parser(cratename, typename, structitems));
+                result.extend(generate_block_parser(typename, structitems));
             }
             _ => {
                 panic!("only block, struct and enum are allowed as top-level types, but {} = {:#?} was encountered", typename, a2mltype);
@@ -487,7 +470,7 @@ fn generate_parser_impl(cratename: &Ident, types: &HashMap<String, DataItem>) ->
 
 // generate_enum_parser
 // generates a parser function that returns the enum variant matching the text of the current input token
-fn generate_enum_parser(cratename: &Ident, typename: &str, enumitems: &Vec<EnumItem>) -> TokenStream {
+fn generate_enum_parser(typename: &str, enumitems: &Vec<EnumItem>) -> TokenStream {
     let name = format_ident!("{}", typename);
 
     let mut match_branches = Vec::new();
@@ -510,11 +493,11 @@ fn generate_enum_parser(cratename: &Ident, typename: &str, enumitems: &Vec<EnumI
 
     quote!{
         impl #name {
-            fn parse(parser: &mut #cratename::ParserState, context: &#cratename::ParseContext) -> Result<Self, #cratename::ParseError> {
+            fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParseError> {
                 let enumname = parser.get_identifier(context)?;
                 match &*enumname {
                     #(#match_branches)*
-                    _ => Err(#cratename::ParseError::InvalidEnumValue(context.clone(), enumname))
+                    _ => Err(ParseError::InvalidEnumValue(context.clone(), enumname))
                 }
             }
         }
@@ -525,29 +508,29 @@ fn generate_enum_parser(cratename: &Ident, typename: &str, enumitems: &Vec<EnumI
 // generate_block_parser
 // generates the full parser function for a block
 // blocks are structs which occur after a tag in a TaggedUnion or TaggedStruc.
-fn generate_block_parser(cratename: &Ident, typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+fn generate_block_parser(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
     match typename {
         "A2ml" => {
-            generate_block_parser_a2ml(cratename)
+            generate_block_parser_a2ml()
         }
         "IfData" => {
-            generate_block_parser_ifdata(cratename)
+            generate_block_parser_ifdata()
         }
         _ => {
-            generate_block_parser_generic(cratename, typename, structitems)
+            generate_block_parser_generic(typename, structitems)
         }
 
     }
 }
 
 
-fn generate_struct_parser(cratename: &Ident, typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+fn generate_struct_parser(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
     let name = format_ident!("{}", typename);
-    let (itemnames, itemparsers) = generate_struct_item_fragments(structitems, cratename);
+    let (itemnames, itemparsers) = generate_struct_item_fragments(structitems);
 
     quote! {
         impl #name {
-            fn parse(parser: &mut #cratename::ParserState, context: &#cratename::ParseContext) -> Result<Self, #cratename::ParseError> {
+            fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParseError> {
                 let (__location_incfile, __location_line) = (parser.get_incfilename(context.fileid), parser.get_current_line());
                 #(#itemparsers)*
                 Ok(Self {
@@ -559,13 +542,13 @@ fn generate_struct_parser(cratename: &Ident, typename: &str, structitems: &Vec<D
 }
 
 
-fn generate_block_parser_generic(cratename: &Ident, typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+fn generate_block_parser_generic(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
     let name = format_ident!("{}", typename);
-    let (itemnames, itemparsers) = generate_struct_item_fragments(structitems, cratename);
+    let (itemnames, itemparsers) = generate_struct_item_fragments(structitems);
 
     quote! {
         impl #name {
-            fn parse(parser: &mut #cratename::ParserState, context: &#cratename::ParseContext) -> Result<Self, #cratename::ParseError> {
+            fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParseError> {
                 let (__location_incfile, __location_line) = (parser.get_incfilename(context.fileid), context.line);
                 #(#itemparsers)*
                 let blk = Self {
@@ -573,10 +556,10 @@ fn generate_block_parser_generic(cratename: &Ident, typename: &str, structitems:
                 };
                 
                 if context.inside_block {
-                    parser.expect_token(context, #cratename::A2lTokenType::End)?;
+                    parser.expect_token(context, A2lTokenType::End)?;
                     let ident = parser.get_identifier(context)?;
                     if ident != context.element {
-                        parser.error_or_log(#cratename::ParseError::IncorrectEndTag(context.clone(), ident))?;
+                        parser.error_or_log(ParseError::IncorrectEndTag(context.clone(), ident))?;
                     }
                 }
 
@@ -587,14 +570,15 @@ fn generate_block_parser_generic(cratename: &Ident, typename: &str, structitems:
 }
 
 
-fn generate_block_parser_a2ml(cratename: &Ident) -> TokenStream {
+fn generate_block_parser_a2ml() -> TokenStream {
     quote! {
         impl A2ml {
-            fn parse(parser: &mut #cratename::ParserState, context: &#cratename::ParseContext) -> Result<Self, #cratename::ParseError> {
+            fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParseError> {
                 let fileid = parser.get_incfilename(context.fileid);
                 let line = context.line;
 
                 let token = parser.expect_token(context, A2lTokenType::String)?;
+                let __a2ml_text_location = token.line;
                 let a2ml_text = parser.get_token_text(token).to_string();
 
                 if let Ok(a2mlspec) = a2ml::parse_a2ml(&a2ml_text) {
@@ -603,13 +587,13 @@ fn generate_block_parser_a2ml(cratename: &Ident) -> TokenStream {
 
                 let blk = A2ml {
                     a2ml_text,
-                    __location_info: (fileid, line)
+                    __location_info: (fileid, line, __a2ml_text_location)
                 };
 
-                parser.expect_token(context, #cratename::A2lTokenType::End)?;
+                parser.expect_token(context, A2lTokenType::End)?;
                 let ident = parser.get_identifier(context)?;
                 if ident != "A2ML" {
-                    parser.error_or_log(#cratename::ParseError::IncorrectEndTag(context.clone(), ident))?;
+                    parser.error_or_log(ParseError::IncorrectEndTag(context.clone(), ident))?;
                 }
 
                 Ok(blk)
@@ -619,10 +603,10 @@ fn generate_block_parser_a2ml(cratename: &Ident) -> TokenStream {
 }
 
 
-fn generate_block_parser_ifdata(cratename: &Ident) -> TokenStream {
+fn generate_block_parser_ifdata() -> TokenStream {
     quote! {
         impl IfData {
-            fn parse(parser: &mut #cratename::ParserState, context: &#cratename::ParseContext) -> Result<Self, #cratename::ParseError> {
+            fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParseError> {
                 let fileid = parser.get_incfilename(context.fileid);
                 let line = context.line;
 
@@ -633,10 +617,10 @@ fn generate_block_parser_ifdata(cratename: &Ident) -> TokenStream {
                     __location_info: (fileid, line)
                 };
 
-                parser.expect_token(context, #cratename::A2lTokenType::End)?;
+                parser.expect_token(context, A2lTokenType::End)?;
                 let ident = parser.get_identifier(context)?;
                 if ident != "IF_DATA" {
-                    parser.error_or_log(#cratename::ParseError::IncorrectEndTag(context.clone(), ident))?;
+                    parser.error_or_log(ParseError::IncorrectEndTag(context.clone(), ident))?;
                 }
 
                 Ok(blk)
@@ -648,7 +632,7 @@ fn generate_block_parser_ifdata(cratename: &Ident) -> TokenStream {
 
 // generate_struct_item_fragments
 // generate a list of struct elements as well as TokenStreams with code to parse these elements
-fn generate_struct_item_fragments(structitems: &Vec<DataItem>, cratename: &Ident) -> (Vec<Ident>, Vec<TokenStream>) {
+fn generate_struct_item_fragments(structitems: &Vec<DataItem>) -> (Vec<Ident>, Vec<TokenStream>) {
     let mut itemparsers = Vec::<TokenStream>::new();
     let mut itemnames = Vec::<Ident>::new();
     let mut location_names = vec![format_ident!("__location_incfile"), format_ident!("__location_line")];
@@ -656,23 +640,23 @@ fn generate_struct_item_fragments(structitems: &Vec<DataItem>, cratename: &Ident
         let is_last = idx == (structitems.len() - 1);
         match &sitem.basetype {
             BaseType::TaggedStruct(tg_items) => {
-                itemparsers.push(generate_taggeditem_parser(cratename, tg_items, false, is_last));
+                itemparsers.push(generate_taggeditem_parser(tg_items, false, is_last));
                 itemnames.extend(generate_tagged_item_names(tg_items));
             }
             BaseType::TaggedUnion(tg_items) => {
-                itemparsers.push(generate_taggeditem_parser(cratename, tg_items, true, is_last));
+                itemparsers.push(generate_taggeditem_parser(tg_items, true, is_last));
                 itemnames.extend(generate_tagged_item_names(tg_items));
             }
             BaseType::Sequence(seqitem) => {
                 let itemname = format_ident!("{}", sitem.varname.clone().unwrap());
-                itemparsers.push(generate_sequence_parser(cratename, &itemname, &sitem.typename, seqitem));
+                itemparsers.push(generate_sequence_parser(&itemname, &sitem.typename, seqitem));
                 location_names.push(format_ident!("__{}_location", itemname));
                 itemnames.push(itemname);
             }
             _ => {
                 let itemname = format_ident!("{}", sitem.varname.clone().unwrap());
                 let itemname_location = format_ident!("__{}_location", itemname);
-                let itemparser = generate_item_parser_call(cratename, &sitem.typename, &sitem.basetype);
+                let itemparser = generate_item_parser_call(&sitem.typename, &sitem.basetype);
                 itemparsers.push(quote!{let (#itemname_location, #itemname) = #itemparser?;});
                 location_names.push(itemname_location);
                 itemnames.push(itemname);
@@ -691,7 +675,7 @@ fn generate_struct_item_fragments(structitems: &Vec<DataItem>, cratename: &Ident
 
 // generate_item_parser_call
 // generates code to call an existing item parser function
-fn generate_item_parser_call(cratename: &Ident, typename: &Option<String>, item: &BaseType) -> TokenStream {
+fn generate_item_parser_call(typename: &Option<String>, item: &BaseType) -> TokenStream {
     let call = match item {
         BaseType::Char => { quote!{parser.get_integer_i8(context)} }
         BaseType::Int => { quote!{parser.get_integer_i16(context)} }
@@ -709,7 +693,7 @@ fn generate_item_parser_call(cratename: &Ident, typename: &Option<String>, item:
             if let BaseType::Char = arraytype.basetype {
                 quote!{parser.get_string_maxlen(context, #dim)}
             } else {
-                let itemparser = generate_item_parser_call(cratename, &arraytype.typename, &arraytype.basetype);
+                let itemparser = generate_item_parser_call(&arraytype.typename, &arraytype.basetype);
                 let parsercalls = (0..(*dim)).into_iter().map(|_| quote!{#itemparser?.1});
                 // this looks complicated, but is actually the simplest solution I could come up with
                 // The intent is to propagate the Err from any single array element. Since this is a code
@@ -717,7 +701,7 @@ fn generate_item_parser_call(cratename: &Ident, typename: &Option<String>, item:
                 // Wrapping it all in the closure and calling that immediately works.
                 quote!{
                     {
-                        |parser: &mut #cratename::ParserState, context: &#cratename::ParseContext| { Ok([ #(#parsercalls),*]) }
+                        |parser: &mut ParserState, context: &ParseContext| { Ok([ #(#parsercalls),*]) }
                     }(parser, context)
                 }
             }
@@ -739,8 +723,8 @@ fn generate_item_parser_call(cratename: &Ident, typename: &Option<String>, item:
 // generate_sequence_parser
 // Generates a TokenStream with code to greedily parse elements of a sequence
 // Parsing of sequence items continues until the parser function for the current sequence item returns an error
-fn generate_sequence_parser(cratename: &Ident, itemname: &Ident, typename: &Option<String>, seqitem: &BaseType) -> TokenStream {
-    let parserfunc = generate_item_parser_call(cratename, typename, seqitem);
+fn generate_sequence_parser(itemname: &Ident, typename: &Option<String>, seqitem: &BaseType) -> TokenStream {
+    let parserfunc = generate_item_parser_call(typename, seqitem);
     let itemname_location = format_ident!("__{}_location", itemname);
     quote!{
         let mut #itemname = Vec::new();
@@ -765,18 +749,18 @@ fn generate_sequence_parser(cratename: &Ident, itemname: &Ident, typename: &Opti
 
 // generate_taggeditem_parser
 // Generate a TokenStream representing code to parse all the tagged items of a TaggedStruct or TaggedUnion
-fn generate_taggeditem_parser(cratename: &Ident, tg_items: &Vec<TaggedItem>, is_taggedunion: bool, is_last: bool) -> TokenStream {
+fn generate_taggeditem_parser(tg_items: &Vec<TaggedItem>, is_taggedunion: bool, is_last: bool) -> TokenStream {
     // result: the TokenStream that ultimately collcts all the code fragements in this function
     let mut result = quote!{};
 
     // item_match_arms: the match arms of the while loop that passes each set of input tokens to the appropriate item parser
     // multiplicity_check: code fragemnts that check if references marked as required are present
-    let (var_definitions, item_match_arms, multiplicity_check) = generate_taggeditem_match_arms(cratename, tg_items);
+    let (var_definitions, item_match_arms, multiplicity_check) = generate_taggeditem_match_arms(tg_items);
     result.extend(var_definitions);
 
 
     // generate the full match statement that has one arm for each tgitem
-    let parser_core = generate_taggeditem_parser_core(cratename, tg_items, is_taggedunion, is_last, &item_match_arms);
+    let parser_core = generate_taggeditem_parser_core(tg_items, is_taggedunion, is_last, &item_match_arms);
 
     // wrap the match statement inside an if or a while loop
     if is_taggedunion {
@@ -805,7 +789,7 @@ fn generate_taggeditem_parser(cratename: &Ident, tg_items: &Vec<TaggedItem>, is_
 }
 
 
-fn generate_taggeditem_match_arms(cratename: &Ident, tg_items: &Vec<TaggedItem>) -> (TokenStream, Vec<TokenStream>, TokenStream) {
+fn generate_taggeditem_match_arms(tg_items: &Vec<TaggedItem>) -> (TokenStream, Vec<TokenStream>, TokenStream) {
     let mut var_definitions = quote!{};
     // item_match_arms: the match arms of the while loop that passes each set of input tokens to the appropriate item parser
     let mut item_match_arms = Vec::new();
@@ -828,7 +812,7 @@ fn generate_taggeditem_match_arms(cratename: &Ident, tg_items: &Vec<TaggedItem>)
             if item.required {
                 multiplicity_check.extend(quote!{
                     if #itemname.len() == 0 {
-                        parser.error_or_log(#cratename::ParseError::InvalidMultiplicityNotPresent(context.clone(), #tag_string.to_string()))?;
+                        parser.error_or_log(ParseError::InvalidMultiplicityNotPresent(context.clone(), #tag_string.to_string()))?;
                     }
                 });
             }
@@ -842,7 +826,7 @@ fn generate_taggeditem_match_arms(cratename: &Ident, tg_items: &Vec<TaggedItem>)
                     if #tmp_itemname.is_none() {
                         #tmp_itemname = Some(newitem);
                     } else {
-                        parser.error_or_log(#cratename::ParseError::InvalidMultiplicityTooMany(context.clone(), #tag_string.to_string()))?;
+                        parser.error_or_log(ParseError::InvalidMultiplicityTooMany(context.clone(), #tag_string.to_string()))?;
                     }
                 };
                 // during the mutliplicity check the required item can be unwrapped from the Option
@@ -850,7 +834,7 @@ fn generate_taggeditem_match_arms(cratename: &Ident, tg_items: &Vec<TaggedItem>)
                     let #itemname = if let Some(value) = #tmp_itemname {
                         value
                     } else {
-                        return Err(#cratename::ParseError::InvalidMultiplicityNotPresent(context.clone(), #tag_string.to_string()));
+                        return Err(ParseError::InvalidMultiplicityNotPresent(context.clone(), #tag_string.to_string()));
                     };
                 });
             } else {
@@ -860,7 +844,7 @@ fn generate_taggeditem_match_arms(cratename: &Ident, tg_items: &Vec<TaggedItem>)
                     if #itemname.is_none() {
                         #itemname = Some(newitem);
                     } else {
-                        parser.error_or_log(#cratename::ParseError::InvalidMultiplicityTooMany(context.clone(), #tag_string.to_string()))?;
+                        parser.error_or_log(ParseError::InvalidMultiplicityTooMany(context.clone(), #tag_string.to_string()))?;
                     }
                 };
             }
@@ -881,7 +865,7 @@ fn generate_taggeditem_match_arms(cratename: &Ident, tg_items: &Vec<TaggedItem>)
                     let newitem = #typename::parse(parser, &newcontext)?;
                     #store_item
                     if #is_block_item != is_block {
-                        parser.error_or_log(#cratename::ParseError::IncorrectElemType(context.clone(), #tag_string.to_string(), #is_block_item))?;
+                        parser.error_or_log(ParseError::IncorrectElemType(context.clone(), #tag_string.to_string(), #is_block_item))?;
                     }
                 }
             }
@@ -892,7 +876,7 @@ fn generate_taggeditem_match_arms(cratename: &Ident, tg_items: &Vec<TaggedItem>)
 }
 
 
-fn generate_taggeditem_parser_core(cratename: &Ident, tg_items: &Vec<TaggedItem>, is_taggedunion: bool, is_last: bool, item_match_arms: &Vec<TokenStream>) -> TokenStream {
+fn generate_taggeditem_parser_core(tg_items: &Vec<TaggedItem>, is_taggedunion: bool, is_last: bool, item_match_arms: &Vec<TokenStream>) -> TokenStream {
     // default action if a tag is not recognized: step back in the tokenstream and let it be handled somewhere else
     let mut default_match_arm = quote!{
         if is_block {
@@ -924,7 +908,7 @@ fn generate_taggeditem_parser_core(cratename: &Ident, tg_items: &Vec<TaggedItem>
     quote!{
         let (token, is_block) = next_tag.unwrap();
         let tag = parser.get_token_text(token);
-        let newcontext = #cratename::ParseContext::from_token(tag, token, is_block);
+        let newcontext = ParseContext::from_token(tag, token, is_block);
         const TAG_LIST: [&str; #taglist_len] = [#(#taglist),*];
         match tag {
             #(#item_match_arms)*
@@ -951,6 +935,261 @@ fn generate_tagged_item_names(tg_items: &Vec<TaggedItem>) -> Vec<Ident> {
 
 //-----------------------------------------------------------------------------
 
+pub(crate) fn generate_writer(types: &HashMap<String, DataItem>) -> TokenStream {
+    let mut result = quote!{};
+    let mut typesvec: Vec<(&String, &DataItem)> = types.iter().map(|(key, val)| (key, val)).collect();
+    typesvec.sort_by(|a, b| a.0.cmp(b.0));
+
+    for (typename, a2mltype) in typesvec {
+        match &a2mltype.basetype {
+            BaseType::Enum(enumitems) => {
+                result.extend(generate_enum_writer(typename, enumitems));
+            }
+            BaseType::Struct(structitems) => {
+                result.extend(generate_struct_writer(typename, structitems));
+            }
+            BaseType::Block(structitems) => {
+                result.extend(generate_block_writer(typename, structitems));
+            }
+            _ => {
+                panic!("only block, struct and enum are allowed as top-level types, but {} = {:#?} was encountered", typename, a2mltype);
+            }
+        }
+    }
+    result
+}
+
+
+fn generate_enum_writer(typename: &str, enumitems: &Vec<EnumItem>) -> TokenStream {
+    let typeident = format_ident!("{}", typename);
+    let mut match_arms = Vec::new();
+    for item in enumitems {
+        let enident = format_ident!("{}", ucname_to_typename(&item.name));
+        let entag = &item.name;
+        match_arms.push(quote!{Self::#enident => #entag});
+    }
+
+    quote! {
+        impl std::fmt::Display for #typeident {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let tag = match &self {
+                    #(#match_arms),*
+                };
+                write!(f, "{}", tag)
+            }
+        }
+    }
+}
+
+fn generate_block_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+    match typename {
+        "A2ml" => {
+            generate_block_writer_a2ml()
+        }
+        "IfData" => {
+            generate_block_writer_ifdata()
+        }
+        _ => {
+            generate_block_writer_generic(typename, structitems)
+        }
+    }
+}
+
+
+fn generate_block_writer_a2ml() -> TokenStream {
+    quote!{
+        impl A2ml {
+            fn write(&self) -> a2lwriter::A2lWriter {
+                let mut writer = a2lwriter::A2lWriter::new(&self.__location_info.0, self.__location_info.1);
+                writer.add_fixed_item(self.a2ml_text.to_owned(), self.__location_info.2);
+                writer
+            }
+        }
+    }
+}
+
+
+fn generate_block_writer_ifdata() -> TokenStream {
+    quote!{
+        impl IfData {
+            fn write(&self) -> a2lwriter::A2lWriter {
+                if let Some(ifdata_items) = &self.ifdata_items {
+                    //println!("{:#?}", ifdata_items);
+                    let outval = ifdata_items.write(&self.__location_info.0, self.__location_info.1);
+                    //println!("{:#?}", outval);
+                    outval
+                } else {
+                    a2lwriter::A2lWriter::new(&self.__location_info.0, self.__location_info.1)
+                }
+            }
+        }
+    }
+}
+
+
+fn generate_block_writer_generic(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+    let typeident = format_ident!("{}", typename);
+
+    let write_items = generate_block_item_writer(structitems);
+
+    quote! {
+        impl #typeident {
+            fn write(&self) -> a2lwriter::A2lWriter {
+                let mut writer = a2lwriter::A2lWriter::new(&self.__location_info.0, self.__location_info.1);
+
+                #(#write_items)*
+
+                writer
+            }
+        }
+    }
+}
+
+
+fn generate_struct_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+    let typeident = format_ident!("{}", typename);
+
+    let write_items = generate_block_item_writer(structitems);
+
+    quote! {
+        impl #typeident {
+            fn write(&self, writer: &mut a2lwriter::A2lWriter) {
+                #(#write_items)*
+            }
+        }
+    }
+}
+
+
+fn generate_block_item_writer(structitems: &Vec<DataItem>) -> Vec<TokenStream> {
+    let mut write_items = Vec::<TokenStream>::new();
+    let mut posidx: usize = 2;
+
+    for item in structitems {
+        let posliteral = Literal::usize_unsuffixed(posidx);
+        let location = quote! {self.__location_info.#posliteral};
+        match &item.basetype {
+            BaseType::TaggedUnion(taggeditems) |
+            BaseType::TaggedStruct(taggeditems) => {
+                let mut tgwriters = Vec::new();
+                for tgitem in taggeditems {
+                    let tag = &tgitem.tag;
+                    let tgname = format_ident!("{}", make_varname(&tgitem.tag));
+                    let tgname_out = format_ident!("{}_out", tgname);
+                    let is_block = tgitem.is_block;
+                    if tgitem.repeat {
+                        tgwriters.push(quote!{
+                            for #tgname in &self.#tgname {
+                                let #tgname_out = #tgname.write();
+                                tgroup.add_tagged_item(#tag, #tgname_out, #is_block);
+                            }
+                        });
+                    } else {
+                        if tgitem.required {
+                            tgwriters.push(quote!{
+                                let #tgname_out = self.#tgname.write();
+                                tgroup.add_tagged_item(#tag, #tgname_out, #is_block);
+                            });
+                        } else {
+                            tgwriters.push(quote!{
+                                if let Some(#tgname) = &self.#tgname {
+                                    let #tgname_out = #tgname.write();
+                                    tgroup.add_tagged_item(#tag, #tgname_out, #is_block);
+                                }
+                            });
+                        }
+                    }
+                   
+                }
+                write_items.push(quote!{
+                    let mut tgroup = writer.add_tagged_group();
+                    #(#tgwriters)*
+                });
+            }
+            _ => {
+                let itemident = format_ident!("{}", item.varname.as_ref().unwrap() );
+                let write_cmd = generate_block_item_write_cmd(&item.basetype, quote!{self.#itemident}, location, 0);
+                write_items.push(write_cmd);
+                posidx += 1;
+            }
+        }
+    }
+
+    write_items
+}
+
+
+fn  generate_block_item_write_cmd(basetype: &BaseType, itemname: TokenStream, location: TokenStream, calldepth: usize) -> TokenStream {
+    match basetype {
+        BaseType::Uchar => { quote!{ writer.add_fixed_item(a2lwriter::format_u8(#itemname), #location); } }
+        BaseType::Char => { quote!{ writer.add_fixed_item(a2lwriter::format_i8(#itemname), #location); } }
+        BaseType::Uint => { quote!{ writer.add_fixed_item(a2lwriter::format_u16(#itemname), #location); } }
+        BaseType::Int => { quote!{ writer.add_fixed_item(a2lwriter::format_i16(#itemname), #location); } }
+        BaseType::Ulong => { quote!{ writer.add_fixed_item(a2lwriter::format_u32(#itemname), #location); } }
+        BaseType::Long => { quote!{ writer.add_fixed_item(a2lwriter::format_i32(#itemname), #location); } }
+        BaseType::Uint64 => { quote!{ writer.add_fixed_item(a2lwriter::format_u64(#itemname), #location); } }
+        BaseType::Int64 => { quote!{ writer.add_fixed_item(a2lwriter::format_i64(#itemname), #location); } }
+        BaseType::Double => { quote!{ writer.add_fixed_item(a2lwriter::format_double(#itemname), #location); } }
+        BaseType::Float => { quote!{ writer.add_fixed_item(a2lwriter::format_float(#itemname), #location); } }
+        BaseType::Ident => { quote!{
+            writer.add_fixed_item(format!("{}", #itemname), #location);
+        } }
+        BaseType::String => { quote!{
+            writer.add_fixed_item(format!("\"{}\"", a2lwriter::escape_string(&#itemname)), #location);
+        } }
+        BaseType::EnumRef => { quote!{
+            writer.add_fixed_item(#itemname.to_string(), #location);
+        } }
+        BaseType::StructRef => { quote!{
+            #itemname.write(&mut writer);
+        } }
+        BaseType::Array(arraytype, dim) => {
+            if let BaseType::Char = arraytype.basetype {
+                generate_block_item_write_cmd(&BaseType::String, itemname, location, calldepth)
+            } else {
+                let idxident = format_ident!("idx{}", calldepth);
+                let arrayelemname = quote!{ #itemname[#idxident] };
+                let write_cmd = generate_block_item_write_cmd(&arraytype.basetype, arrayelemname, location, calldepth + 1);
+                quote!{
+                    for #idxident in 0..#dim {
+                        #write_cmd
+                    }
+                }
+            }
+        }
+        BaseType::Sequence(seqtype) => {
+            let seqitemident = format_ident!("seqitem{}", calldepth);
+            let seqidxident = format_ident!("seqidx{}", calldepth);
+            let seqlocation = quote!{#location[#seqidxident]};
+
+            // in the write_cmd all the integer basetypes need an additional dereference, because .iter().enumerate() gives us references
+            let write_cmd = match **seqtype {
+                BaseType::Double |
+                BaseType::Float |
+                BaseType::Char |
+                BaseType::Uchar |
+                BaseType::Int |
+                BaseType::Uint |
+                BaseType::Long |
+                BaseType::Ulong |
+                BaseType::Int64 |
+                BaseType::Uint64 => generate_block_item_write_cmd(&seqtype, quote!{*#seqitemident}, seqlocation, calldepth + 1),
+                _                => generate_block_item_write_cmd(&seqtype, quote!{#seqitemident}, seqlocation, calldepth + 1),
+            };
+            quote!{
+                for (#seqidxident, #seqitemident) in #itemname.iter().enumerate() {
+                    #write_cmd
+                }
+            }
+        }
+        _ => {
+            panic!("generate_block_item_to_string_cmd can't be called for type {:#?}", basetype);
+        }
+    }
+}
+
+
+//-----------------------------------------------------------------------------
 
 // manual implementation of PartialEq to ignore comments when comparing for equality
 impl PartialEq for DataItem {

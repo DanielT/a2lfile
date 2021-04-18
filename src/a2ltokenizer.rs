@@ -141,7 +141,13 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filedata: &str) -> Resul
             if tokens[tokens.len() - 2].ttype == A2lTokenType::Include &&
               (tokens[tokens.len() - 1].ttype == A2lTokenType::String || tokens[tokens.len() - 1].ttype == A2lTokenType::Identifier) {
                 let prevtok = &tokens[tokens.len() - 1];
-                let incname = &filedata[prevtok.startpos .. prevtok.endpos];
+                let mut filename_start = prevtok.startpos;
+                let mut filename_end = prevtok.endpos;
+                if filebytes[filename_start] == b'"' && filebytes[filename_end-1] == b'"' {
+                    filename_start += 1;
+                    filename_end -= 1;
+                }
+                let incname = &filedata[filename_start .. filename_end];
 
                 let incfilename = make_include_filename(&incname, &filenames[0]);
 
@@ -258,6 +264,17 @@ fn handle_a2ml(filedata: &str, mut bytepos: usize, mut line: u32, fileid: usize,
                 while bytepos < datalen && !(filebytes[bytepos] == b'/' && filedata[bytepos .. ].starts_with("/end A2ML")) {
                     bytepos += 1;
                 }
+
+                // trim off trailing whitespace up to and including the last newline - this newline and the
+                // following indentation will be written together with /end A2ML
+                while filebytes[bytepos-1].is_ascii_whitespace() && filebytes[bytepos-1] != b'\r' && filebytes[bytepos-1] != b'\n' {
+                    bytepos -= 1;
+                }
+                if filebytes[bytepos-1] == b'\r' && filebytes[bytepos-1] == b'\n' {
+                    bytepos -= 2;
+                } else if filebytes[bytepos-1] == b'\n' {
+                    bytepos -= 1;
+                }
             }
 
             if bytepos > startpos {
@@ -315,25 +332,6 @@ fn make_include_filename(incname: &str, base_filename: &str) -> String {
 
     incname.to_string()
 }
-
-
-impl A2lTokenResult {
-    pub fn finalize(&mut self) {
-        if self.tokens.len() > 0 {
-            let final_line = self.tokens[self.tokens.len() - 1].line;
-
-            // in the parser, parse_block_elements() expects each block to end with (End) (Blockname).
-            // In order to use the same function at the top level, the ending sequence needs to be faked.
-            // This is done by inserting (End) (FILE_ROOT) before the (Eof) marker at the end of the token sequence */
-            self.tokens.push(A2lToken {ttype: A2lTokenType::End, startpos: 0, endpos: 0, line: final_line, fileid: 0});
-            self.tokens.push(A2lToken {ttype: A2lTokenType::Identifier, startpos: 0, endpos: 0, line: final_line, fileid: 0});
-
-            // add an end of file token to signal that there is no more input during parsing
-            self.tokens.push(A2lToken{ttype: A2lTokenType::Eof, startpos: 0, endpos: 0, line: final_line, fileid: 0});
-        }
-    }
-}
-
 
 
 /*************************************************************************************************/

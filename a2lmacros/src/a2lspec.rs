@@ -24,7 +24,8 @@ pub(crate) fn a2l_specification(tokens: TokenStream) -> TokenStream {
     let types = build_typelist(structs, enums);
 
     let mut result = generate_data_structures(&types);
-    result.extend(generate_parser_internal(&types));
+    result.extend(generate_parser(&types));
+    result.extend(generate_writer(&types));
     result.into()
 }
 
@@ -369,7 +370,7 @@ fn get_basetype(typename: &str) -> BaseType {
         "uint" => BaseType::Uint,
         "ulong" => BaseType::Ulong,
         "double" => BaseType::Double,
-        "float" => BaseType::Float,
+        "float" => BaseType::Double, /* use double for greater precision even when float is requested by the spec. Other programs also do this */
         "ident" => BaseType::Ident,
         "string" => BaseType::String,
         _ => BaseType::EnumRef,

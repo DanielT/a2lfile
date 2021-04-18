@@ -1115,13 +1115,14 @@ fn generate_struct_field_intializers(items: &Vec<DataItem>) -> Vec<TokenStream> 
     let mut parsers = Vec::new();
     let mut location_info = vec![quote!{ incfile, line }];
     for (idx, item) in items.iter().enumerate() {
+        let item_getter = quote!{input_items.get(#idx).unwrap_or_else(|| &a2lfile::GenericIfData::None)};
         match &item.basetype {
             BaseType::Sequence(seqitemtype) => {
                 let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
                 let itemparser = generate_item_parser_call(quote!{seqitem}, &item.typename, seqitemtype);
                 parsers.push(quote!{
                     #itemname: {
-                        let seqitems = input_items[#idx].get_sequence()?;
+                        let seqitems = #item_getter.get_sequence()?;
                         let mut outitems = Vec::new();
                         for seqitem in seqitems {
                             outitems.push(#itemparser?);
@@ -1131,7 +1132,7 @@ fn generate_struct_field_intializers(items: &Vec<DataItem>) -> Vec<TokenStream> 
                 });
                 location_info.push(quote!{
                     {
-                        let seqitems = input_items[#idx].get_sequence()?;
+                        let seqitems = #item_getter.get_sequence()?;
                         let mut lines = Vec::new();
                         for seqitem in seqitems {
                             lines.push(seqitem.get_line()?);
@@ -1147,17 +1148,17 @@ fn generate_struct_field_intializers(items: &Vec<DataItem>) -> Vec<TokenStream> 
                     let tgitemname = format_ident!("{}", make_varname(&tag));
                     let typename = format_ident!("{}", tgitem.item.typename.as_ref().unwrap());
                     if tgitem.repeat {
-                        parsers.push(quote!{#tgitemname: input_items[#idx].get_multiple_optitems(#tag, #typename::parse)?});
+                        parsers.push(quote!{#tgitemname: #item_getter.get_multiple_optitems(#tag, #typename::parse)?});
                     } else {
-                        parsers.push(quote!{#tgitemname: input_items[#idx].get_single_optitem(#tag, #typename::parse)?});
+                        parsers.push(quote!{#tgitemname: #item_getter.get_single_optitem(#tag, #typename::parse)?});
                     }
                 }
             }
             _ => {
                 let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
-                let itemparser = generate_item_parser_call(quote!{input_items[#idx]}, &item.typename, &item.basetype);
+                let itemparser = generate_item_parser_call(quote!{#item_getter}, &item.typename, &item.basetype);
                 parsers.push(quote!{#itemname: #itemparser?});
-                location_info.push(quote!{input_items[#idx].get_line()?});
+                location_info.push(quote!{#item_getter.get_line()?});
             }
         }
     }

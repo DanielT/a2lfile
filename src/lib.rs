@@ -2,6 +2,7 @@ mod a2lloader;
 mod a2ltokenizer;
 mod a2lparser;
 mod a2ml;
+mod a2lwriter;
 
 use a2lmacros::a2l_specification;
 pub use a2lmacros::a2ml_specification;
@@ -10,17 +11,13 @@ pub use a2lparser::{ParseContext, ParseError, ParserState};
 pub use a2ml::GenericIfData;
 pub use a2ml::GenericIfDataTaggedItem;
 
-trait A2lObject {
-    fn parse(parser: &mut a2lparser::ParserState) -> Result<Box<Self>, ParseError>;
-}
-
 
 a2l_specification! {
     /// Contains all the objects of an A2lfile
     ///
     /// An instance of this struct is returned when an a2l file is loaded successfully
     block A2L_FILE {
-        [-> ASAP2_VERSION]!
+        [-> ASAP2_VERSION]
         [-> A2ML_VERSION]   
         [-> PROJECT]!
     }
@@ -1724,51 +1721,79 @@ fn get_version(parser: &mut ParserState, context: &ParseContext) -> Result<Asap2
             }
         }
     }
+    // for compatibility with 1.50 and earlier, also make it possible to catch the error and continue
+    parser.set_tokenpos(0);
+    parser.set_file_version(1, 50)?;
     Err("File is not recognized as an a2l file. Mandatory version information is missing.".to_string())
 }
 
 
+
+
+
 pub fn load(filename: &str, a2ml_spec: Option<String>, logger: &mut dyn Logger, strict_parsing: bool) -> Result<A2lFile, String> {
     let filedata = a2lloader::load(filename)?;
-    let mut tokenresult = a2ltokenizer::tokenize(String::from(filename), 0, &filedata)?;
-    tokenresult.finalize();
+    load_impl(filename, filedata, logger, strict_parsing, a2ml_spec)
+}
 
+
+pub fn load_from_string(a2ldata: &str, a2ml_spec: Option<String>, logger: &mut dyn Logger, strict_parsing: bool) -> Result<A2lFile, String> {
+    load_impl("", a2ldata.to_string(), logger, strict_parsing, a2ml_spec)
+}
+
+
+fn load_impl(filename: &str, filedata: String, logger: &mut dyn Logger, strict_parsing: bool, a2ml_spec: Option<String>) -> Result<A2lFile, String> {
+    // tokenize the input data
+    let tokenresult = a2ltokenizer::tokenize(String::from(filename), 0, &filedata)?;
+
+    // create a context for the parser. Ensure that the current line of the context is set to the first line that actually contains a token
+    let mut fake_token = A2lToken {ttype: A2lTokenType::Identifier, startpos: 0, endpos: 0, fileid: 0, line: 1};
+    let firstline = tokenresult.tokens.get(0).unwrap_or_else(|| &fake_token).line;
+    fake_token.line = firstline;
+    let context = &ParseContext::from_token("", &fake_token, false);
+
+    // create the parser state object
     let mut parser = ParserState::new(&tokenresult.tokens, &tokenresult.filedata, &tokenresult.filenames, logger, strict_parsing);
+
+    // if a built-in A2ml specification was passed as a string, then it is parsed here
     if let Some(spec) = a2ml_spec {
         if let Ok(parsed_spec) = a2ml::parse_a2ml(&spec) {
             parser.builtin_a2mlspec = Some(parsed_spec);
         }
     }
 
-    let context = &ParseContext::from_token("", &A2lToken {ttype: A2lTokenType::Identifier, startpos: 0, endpos: 0, fileid: 0, line: 1}, true);
-
-    let _version = get_version(&mut parser, &context)?;
+    // try to get the file version. Starting with 1.60, the ASAP2_VERSION element is mandatory. For
+    // compatibility with old files, a missing version is only an error if strict parsing is requested
+    if let Err(version_error) = get_version(&mut parser, &context) {
+        if !strict_parsing {
+            parser.logger.log_message(version_error);
+        } else {
+            return Err(version_error)
+        }
+    }
+    // build the a2l data structures from the tokens
     let a2lfile = A2lFile::parse(&mut parser, &context);
     if let Err(parse_error) = a2lfile {
         return Err(parser.stringify_parse_error(&parse_error, true));
     }
     let a2lfile = a2lfile.unwrap();
-
     Ok(a2lfile)
 }
 
 
-// pub fn tokenize_ifdata(ifdata: &IfData) -> Vec<A2lToken> {
-//     let tokenresult = a2ltokenizer::tokenize(ifdata.ifdata_filename.clone(), ifdata.fileid, &ifdata.ifdata_text);
-//     let mut ifdata_tokens;
+pub fn write(a2lstruct: &A2lFile, filename: &str) -> Result<(), String> {
+    let write_string = write_to_string(a2lstruct);
 
-//     if tokenresult.is_err() {
-//         ifdata_tokens = Vec::new();
-//     } else {
-//         ifdata_tokens = tokenresult.unwrap().tokens;
-//         let mut lastline = ifdata.line;
-//         for tok in &mut ifdata_tokens {
-//             tok.line += ifdata.line - 1;
-//             lastline = tok.line;
-//         }
-//         ifdata_tokens.push(A2lToken {fileid: ifdata.fileid, line: lastline, ttype: A2lTokenType::End, startpos: 0, endpos: 0});
-//         ifdata_tokens.push(A2lToken {fileid: ifdata.fileid, line: lastline, ttype: A2lTokenType::Identifier, startpos: 0, endpos: 0});
-//     }
+    if let Err(err) = std::fs::write(filename, write_string) {
+        return Err(err.to_string())
+    }
 
-//     ifdata_tokens
-// }
+    Ok(())
+}
+
+
+pub fn write_to_string(a2lstruct: &A2lFile) -> String {
+    let file_text = a2lstruct.write().finish();
+    // add a banner on the first line, but only if it is empty
+    format!("/* written by a2ltool */\n{}", file_text)
+}

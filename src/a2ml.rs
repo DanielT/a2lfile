@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use super::a2lwriter;
+use super::a2lwriter::A2lWriter;
 
 
 // tokenizer types
@@ -870,6 +872,87 @@ impl GenericIfData {
             }
             _ => {
                 Err(())
+            }
+        }
+    }
+}
+
+
+impl GenericIfData {
+    pub(crate) fn write(&self, file: &Option<String>, line: u32) -> A2lWriter {
+        match self {
+            GenericIfData::Struct(file, line, items) |
+            GenericIfData::Block(file, line, items) => {
+                let mut writer = A2lWriter::new(file, *line);
+                for item in items {
+                    item.write_item(&mut writer);
+                }
+                writer
+            }
+            _ => {
+                let mut writer = A2lWriter::new(file, line);
+                self.write_item(&mut writer);
+                writer
+            }
+        }
+    }
+
+    fn write_item(&self, writer: &mut A2lWriter) {
+        match self {
+            Self::Char(line, value) => {
+                writer.add_fixed_item(a2lwriter::format_i8(*value), *line);
+            }
+            Self::Int(line, value) => {
+                writer.add_fixed_item(a2lwriter::format_i16(*value), *line);
+            }
+            Self::Long(line, value) => {
+                writer.add_fixed_item(a2lwriter::format_i32(*value), *line);
+            }
+            Self::Int64(line, value) => {
+                writer.add_fixed_item(a2lwriter::format_i64(*value), *line);
+            }
+            Self::UChar(line, value) => {
+                writer.add_fixed_item(a2lwriter::format_u8(*value), *line);
+            }
+            Self::UInt(line, value) => {
+                writer.add_fixed_item(a2lwriter::format_u16(*value), *line);
+            }
+            Self::ULong(line, value) => {
+                writer.add_fixed_item(a2lwriter::format_u32(*value), *line);
+            }
+            Self::UInt64(line, value) => {
+                writer.add_fixed_item(a2lwriter::format_u64(*value), *line);
+            }
+            Self::Float(line, value) => {
+                writer.add_fixed_item(a2lwriter::format_float(*value), *line);
+            }
+            Self::Double(line, value) => {
+                writer.add_fixed_item(a2lwriter::format_double(*value), *line);
+            }
+            Self::String(line, value) => {
+                writer.add_fixed_item(format!("\"{}\"", a2lwriter::escape_string(value)), *line);
+            }
+            Self::EnumItem(line, enitem) => {
+                writer.add_fixed_item(enitem.to_owned(), *line);
+            }
+            Self::Array(_, items) |
+            Self::Sequence(items) |
+            Self::Struct(_, _, items) => {
+                for item in items {
+                    item.write_item(writer);
+                }
+            }
+            Self::TaggedStruct(taggeditems) |
+            Self::TaggedUnion(taggeditems) => {
+                let mut tgroup = writer.add_tagged_group();
+                for (tag, tgitemlist) in taggeditems {
+                    for tgitem in tgitemlist {
+                        tgroup.add_tagged_item(tag, tgitem.data.write(&tgitem.incfile, tgitem.line), tgitem.is_block);
+                    }
+                }
+            }
+            _ => {
+                /* no need to do anything for Self::None and Self::Block */
             }
         }
     }
