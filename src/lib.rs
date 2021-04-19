@@ -1563,8 +1563,18 @@ a2l_specification! {
         string long_identifier
         ulong start_address
         ulong size
+        [-> ADDRESS_TYPE]
+        [-> ANNOTATION]*
         [-> CALIBRATION_ACCESS]
+        [-> DISPLAY_IDENTIFIER]
+        [-> ECU_ADDRESS_EXTENSION]
+        [-> IF_DATA]
+        [-> MAX_REFRESH]
+        [-> MODEL_LINK]
+        [-> SYMBOL_LINK]
     }
+
+    keyword CONSISTENT_EXCHANGE {}
 
     /// a CHARACTERISTIC of type ASCII can be configured to use a multi-byte encoding instead
     keyword ENCODING {
@@ -1578,9 +1588,17 @@ a2l_specification! {
         ident type_ref
         ulong start_address
         [-> ADDRESS_TYPE]  (1.71 ..)
+        [-> ANNOTATION]*
+        [-> CALIBRATION_ACCESS]
         [-> DISPLAY_IDENTIFIER]
+        [-> ECU_ADDRESS_EXTENSION]
+        [-> IF_DATA]*
         [-> MATRIX_DIM]
+        [-> MAX_REFRESH]
+        [-> MODEL_LINK]
         [-> OVERWRITE]
+        [-> READ_ONLY]
+        [-> SYMBOL_LINK]
     }
 
     /// add a string to a CHARACTERISTIC linking it to a name in the model
@@ -1602,13 +1620,14 @@ a2l_specification! {
         ident component_type
         ulong size
         [-> ADDRESS_TYPE]  (1.71 ..)
+        [-> LAYOUT]
         [-> MATRIX_DIM]
         [-> SYMBOL_TYPE_LINK]
     }
 
     /// Specifies the name of a symbol within a linker map file or debug file that describes a class, class member, structure or structure component
     keyword SYMBOL_TYPE_LINK {
-        ident symbol_type
+        string symbol_type
     }
 
     keyword THIS {
@@ -1654,7 +1673,13 @@ a2l_specification! {
         uint max_axis_points
         float lower_limit
         float upper_limit
-
+        [-> BYTE_ORDER]
+        [-> DEPOSIT]
+        [-> EXTENDED_LIMITS]
+        [-> FORMAT]
+        [-> MONOTONY]
+        [-> PHYS_UNIT]
+        [-> STEP_SIZE]
     }
 
     /// Type definition of a BLOB
@@ -1662,7 +1687,7 @@ a2l_specification! {
         ident name
         string long_identifier
         ulong size
-        // TODO
+        [-> ADDRESS_TYPE]  (1.71 ..)
     }
 
     /// Type definition of a calibration object
@@ -1676,17 +1701,37 @@ a2l_specification! {
         float lower_limit
         float upper_limit
         [-> AXIS_DESCR]*
+        [-> BIT_MASK]
+        [-> BYTE_ORDER]
+        [-> DISCRETE]
+        [-> ENCODING]
         [-> EXTENDED_LIMITS]
         [-> FORMAT]
+        [-> MATRIX_DIM]
         [-> NUMBER]
         [-> PHYS_UNIT]
+        [-> STEP_SIZE]
     }
 
     /// Type definition of a measurement object
     block TYPEDEF_MEASUREMENT {
         ident name
         string long_identifier
-        // TODO
+        DataType datatype
+        ident conversion
+        uint resolution
+        float accuracy
+        float lower_limit
+        float upper_limit
+        [-> BIT_MASK]
+        [-> BIT_OPERATION]
+        [-> BYTE_ORDER]
+        [-> ERROR_MASK]
+        [-> DISCRETE]
+        [-> FORMAT]
+        [-> LAYOUT]
+        [-> MATRIX_DIM]
+        [-> PHYS_UNIT]
     }
 
     /// Definition of structured data types similar to the "typedef" command in C
@@ -1694,6 +1739,8 @@ a2l_specification! {
         ident name
         string long_identifier
         ulong total_size
+        [-> ADDRESS_TYPE]
+        [-> CONSISTENT_EXCHANGE]
         [-> STRUCTURE_COMPONENT]*
         [-> SYMBOL_TYPE_LINK]
     }
