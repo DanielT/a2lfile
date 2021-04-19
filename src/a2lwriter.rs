@@ -195,8 +195,17 @@ impl<'a> TaggedGroupHandle<'a> {
 
 
 pub fn escape_string(value: &str) -> String {
-    // todo
-    value.to_string()
+    let input_chars: Vec<char> = value.chars().collect();
+    let mut output_chars: Vec<char> = Vec::new();
+
+    for c in input_chars {
+        if c == '\'' || c == '"' || c == '\\' || c == '\n' || c == '\t' {
+            output_chars.push('\\');
+        }
+        output_chars.push(c);
+    }
+
+    output_chars.iter().collect()
 }
 
 
@@ -217,111 +226,67 @@ fn make_whitespace(current_line: u32, item_line: u32, indent: usize) -> String {
 
 
 pub(crate) fn format_u8(value: u8) -> String {
-    if value > 100 {
-        format!("0x{:02X}", value)
-    } else {
+    if value < 10 {
         format!("{}", value)
+    } else {
+        format!("0x{:0X}", value)
     }
 }
 
 pub(crate) fn format_u16(value: u16) -> String {
-    if value > 0xFF {
-        format!("0x{:04X}", value)
-    } else if value > 100 {
-        format!("0x{:02X}", value)
-    } else {
+    if value < 10 {
         format!("{}", value)
+    } else {
+        format!("0x{:0X}", value)
     }
 }
 
 pub(crate) fn format_u32(value: u32) -> String {
-    if value > 0xFFFFFF {
-        format!("0x{:08X}", value)
-    } else if value > 0xFFFF {
-        format!("0x{:06X}", value)
-    } else if value > 0xFF {
-        format!("0x{:04X}", value)
-    } else if value > 100 {
-        format!("0x{:02X}", value)
-    } else {
+    if value < 10 {
         format!("{}", value)
+    } else {
+        format!("0x{:0X}", value)
     }
 }
 
 pub(crate) fn format_u64(value: u64) -> String {
-    if value > 0xFFFFFFFFFFFFFF {
-        format!("0x{:016X}", value)
-    } else if value > 0xFFFFFFFFFFFF {
-        format!("0x{:014X}", value)
-    } else if value > 0xFFFFFFFFFF {
-        format!("0x{:012X}", value)
-    } else if value > 0xFFFFFFFF {
-        format!("0x{:010X}", value)
-    } else if value > 0xFFFFFF {
-        format!("0x{:08X}", value)
-    } else if value > 0xFFFF {
-        format!("0x{:06X}", value)
-    } else if value > 0xFF {
-        format!("0x{:04X}", value)
-    } else if value > 100 {
-        format!("0x{:02X}", value)
-    } else {
+    if value < 10 {
         format!("{}", value)
+    } else {
+        format!("0x{:0X}", value)
     }
 }
 
 
 pub(crate) fn format_i8(value: i8) -> String {
-    if value < -100 || value > 100 {
-        format!("0x{:02X}", value)
-    } else {
+    if -10 < value || value < 10 {
         format!("{}", value)
+    } else {
+        format!("0x{:0X}", value)
     }
 }
 
 pub(crate) fn format_i16(value: i16) -> String {
-    if value < -0x7f || value > 0x7F {
-        format!("0x{:04X}", value)
-    } else if value < -100 || value > 100 {
-        format!("0x{:02X}", value)
-    } else {
+    if -10 < value || value < 10 {
         format!("{}", value)
+    } else {
+        format!("0x{:0X}", value)
     }
 }
 
 pub(crate) fn format_i32(value: i32) -> String {
-    if value < -0x7FFFFF || value > 0x7FFFFF {
-        format!("0x{:08X}", value)
-    } else if value < -0x7FFF || value > 0x7FFF {
-        format!("0x{:06X}", value)
-    } else if value < -0x7F || value > 0x7F {
-        format!("0x{:04X}", value)
-    } else if value < -100 || value > 100 {
-        format!("0x{:02X}", value)
-    } else {
+    if -10 < value || value < 10 {
         format!("{}", value)
+    } else {
+        format!("0x{:0X}", value)
     }
 }
 
 pub(crate) fn format_i64(value: i64) -> String {
-    if value < -0x7FFFFFFFFFFFFF || value > 0x7FFFFFFFFFFFFF {
-        format!("0x{:016X}", value)
-    } else if value < -0x7FFFFFFFFFFF || value > 0x7FFFFFFFFFFF {
-        format!("0x{:014X}", value)
-    } else if value < -0x7FFFFFFFFF || value > 0x7FFFFFFFFF {
-        format!("0x{:012X}", value)
-    } else if value < -0x7FFFFFFF || value > 0x7FFFFFFF {
-        format!("0x{:010X}", value)
-    } else if value < -0x7FFFFF || value > 0x7FFFFF {
-        format!("0x{:08X}", value)
-    } else if value < -0x7FFF || value > 0x7FFF {
-        format!("0x{:06X}", value)
-    } else if value < -0x7F || value > 0x7F {
-        format!("0x{:04X}", value)
-    } else if value < -100 || value > 100 {
-        format!("0x{:02X}", value)
-    } else {
+    if -10 < value || value < 10 {
         format!("{}", value)
+    } else {
+        format!("0x{:0X}", value)
     }
 }
 

@@ -223,7 +223,7 @@ impl<'a> ParserState<'a> {
                 text = &text[1..text.len() - 1];
             }
 
-            text.to_string()
+            unescape_string(text)
         };
         
         Ok(text)
@@ -884,3 +884,43 @@ impl ParseContext {
     }
 }
 
+
+fn unescape_string(text: &str) -> String {
+    let input_chars: Vec<char> = text.chars().collect();
+    let mut output_chars = Vec::<char>::new();
+
+    let mut idx = 1;
+    while idx < input_chars.len() {
+        if input_chars[idx-1] == '"' && input_chars[idx] == '"' {
+            output_chars.push('"');
+            idx += 1;
+        } else if input_chars[idx-1] == '\\' && input_chars[idx] == '"' {
+            output_chars.push('"');
+            idx += 1;
+        } else if input_chars[idx-1] == '\\' && input_chars[idx] == '\'' {
+            output_chars.push('\'');
+            idx += 1;
+        } else if input_chars[idx-1] == '\\' && input_chars[idx] == '\\' {
+            output_chars.push('\\');
+            idx += 1;
+        } else if input_chars[idx-1] == '\\' && input_chars[idx] == 'n' {
+            output_chars.push('\n');
+            idx += 1;
+        } else if input_chars[idx-1] == '\\' && input_chars[idx] == 'r' {
+            output_chars.push('\r');
+            idx += 1;
+        } else if input_chars[idx-1] == '\\' && input_chars[idx] == 't' {
+            output_chars.push('\t');
+            idx += 1;
+        } else {
+            output_chars.push(input_chars[idx-1]);
+        }
+
+        idx += 1;
+    }
+    if idx == input_chars.len() {
+        output_chars.push(input_chars[idx-1]);
+    }
+
+    output_chars.iter().collect()
+}
