@@ -138,9 +138,12 @@ fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataI
     }
     definitions.push(generate_struct_location_info(structitems));
 
+    // generate all of the utility functions together with the data structure
+    // only write and parse are excluded here, because they are not shared between A2l and A2ml
     let debug = generate_block_data_structure_debug(typename, structitems);
     let constructor = generate_block_data_structure_constructor(typename, structitems);
     let partialeq = generate_block_data_structure_partialeq(typename, structitems);
+    let mergeinc = generate_block_data_structure_mergeincludes(typename, structitems);
 
     quote!{
         pub struct #typeident {
@@ -150,6 +153,7 @@ fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataI
         #debug
         #constructor
         #partialeq
+        #mergeinc
     }
 }
 
@@ -177,6 +181,10 @@ fn generate_block_data_structure_a2ml() ->  TokenStream {
                     a2ml_text,
                     __location_info: (None, 0, 0)
                 }
+            }
+
+            pub fn merge_includes(&mut self) {
+                self.__location_info.0 = None;
             }
         }
 
@@ -211,6 +219,13 @@ fn generate_block_data_structure_ifdata() ->  TokenStream {
                 Self {
                     ifdata_items: None,
                     __location_info: (None, 0)
+                }
+            }
+
+            pub fn merge_includes(&mut self) {
+                self.__location_info.0 = None;
+                if let Some(ifdata_items) = &mut self.ifdata_items {
+                    ifdata_items.merge_includes();
                 }
             }
         }
@@ -442,7 +457,7 @@ fn generate_block_data_structure_constructor(typename: &str, structitems: &Vec<D
 
     quote!{
         impl #typeident {
-            fn new(#(#newargs),*) -> Self {
+            pub fn new(#(#newargs),*) -> Self {
                 Self {
                     #(#fieldinit),*
                 }
@@ -493,6 +508,66 @@ fn generate_block_data_structure_partialeq(typename: &str, structitems: &Vec<Dat
     }
 }
 
+
+fn generate_block_data_structure_mergeincludes(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+    let typeident = format_ident!("{}", typename);
+    let merge_commands = make_merge_commands(quote!{self}, structitems);
+
+    quote!{
+        impl #typeident {
+            pub fn merge_includes(&mut self) {
+                self.__location_info.0 = None;
+                #(#merge_commands)*
+            }
+        }
+    }
+}
+
+
+fn make_merge_commands(name_prefix: TokenStream, structitems: &Vec<DataItem>) -> Vec<TokenStream> {
+    let mut merge_commands = Vec::<TokenStream>::new();
+    for item in structitems {
+        match &item.basetype {
+            BaseType::TaggedUnion(taggeditems) |
+            BaseType::TaggedStruct(taggeditems) => {
+                for tgitem in taggeditems {
+                    let tgitemname = format_ident!("{}", make_varname(&tgitem.tag));
+                    if tgitem.repeat {
+                        merge_commands.push(quote!{
+                            for #tgitemname in &mut #name_prefix.#tgitemname {
+                                #tgitemname.merge_includes();
+                            }
+                        });
+                    } else {
+                        if tgitem.required {
+                            merge_commands.push(quote!{
+                                #name_prefix.#tgitemname.merge_includes();
+                            });
+                        } else {
+                            merge_commands.push(quote!{
+                                if let Some(#tgitemname) = &mut #name_prefix.#tgitemname {
+                                    #tgitemname.merge_includes();
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+            BaseType::Block(structitems) |
+            BaseType::Struct(structitems) => {
+                let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
+                let newprefix = quote!{#name_prefix.#itemname};
+                merge_commands.push(quote!{
+                    #newprefix.__location_info.0 = None;
+                });
+                merge_commands.extend(make_merge_commands(newprefix, structitems));
+            }
+            _ => {}
+        }
+    }
+
+    merge_commands
+}
 
 //-----------------------------------------------------------------------------
 
@@ -549,7 +624,7 @@ fn generate_enum_parser(typename: &str, enumitems: &Vec<EnumItem>) -> TokenStrea
 
     quote!{
         impl #name {
-            fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParseError> {
+            pub(crate) fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParseError> {
                 let enumname = parser.get_identifier(context)?;
                 match &*enumname {
                     #(#match_branches)*
@@ -586,7 +661,7 @@ fn generate_struct_parser(typename: &str, structitems: &Vec<DataItem>) -> TokenS
 
     quote! {
         impl #name {
-            fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParseError> {
+            pub(crate) fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParseError> {
                 let (__location_incfile, __location_line) = (parser.get_incfilename(context.fileid), parser.get_current_line());
                 #(#itemparsers)*
                 Ok(Self {
@@ -604,7 +679,7 @@ fn generate_block_parser_generic(typename: &str, structitems: &Vec<DataItem>) ->
 
     quote! {
         impl #name {
-            fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParseError> {
+            pub(crate) fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParseError> {
                 let (__location_incfile, __location_line) = (parser.get_incfilename(context.fileid), context.line);
                 #(#itemparsers)*
                 let blk = Self {
@@ -629,7 +704,7 @@ fn generate_block_parser_generic(typename: &str, structitems: &Vec<DataItem>) ->
 fn generate_block_parser_a2ml() -> TokenStream {
     quote! {
         impl A2ml {
-            fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParseError> {
+            pub(crate) fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParseError> {
                 let fileid = parser.get_incfilename(context.fileid);
                 let line = context.line;
 
@@ -662,7 +737,7 @@ fn generate_block_parser_a2ml() -> TokenStream {
 fn generate_block_parser_ifdata() -> TokenStream {
     quote! {
         impl IfData {
-            fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParseError> {
+            pub(crate) fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParseError> {
                 let fileid = parser.get_incfilename(context.fileid);
                 let line = context.line;
 
@@ -1055,7 +1130,7 @@ fn generate_block_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenSt
 fn generate_block_writer_a2ml() -> TokenStream {
     quote!{
         impl A2ml {
-            fn write(&self) -> a2lwriter::Writer {
+            pub(crate) fn write(&self) -> a2lwriter::Writer {
                 let mut writer = a2lwriter::Writer::new(&self.__location_info.0, self.__location_info.1);
                 writer.add_fixed_item(self.a2ml_text.to_owned(), self.__location_info.2);
                 writer
@@ -1068,7 +1143,7 @@ fn generate_block_writer_a2ml() -> TokenStream {
 fn generate_block_writer_ifdata() -> TokenStream {
     quote!{
         impl IfData {
-            fn write(&self) -> a2lwriter::Writer {
+            pub(crate) fn write(&self) -> a2lwriter::Writer {
                 if let Some(ifdata_items) = &self.ifdata_items {
                     //println!("{:#?}", ifdata_items);
                     let outval = ifdata_items.write(&self.__location_info.0, self.__location_info.1);
@@ -1090,7 +1165,7 @@ fn generate_block_writer_generic(typename: &str, structitems: &Vec<DataItem>) ->
 
     quote! {
         impl #typeident {
-            fn write(&self) -> a2lwriter::Writer {
+            pub(crate) fn write(&self) -> a2lwriter::Writer {
                 let mut writer = a2lwriter::Writer::new(&self.__location_info.0, self.__location_info.1);
 
                 #(#write_items)*
@@ -1109,7 +1184,7 @@ fn generate_struct_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenS
 
     quote! {
         impl #typeident {
-            fn write(&self, writer: &mut a2lwriter::Writer) {
+            pub(crate) fn write(&self, writer: &mut a2lwriter::Writer) {
                 #(#write_items)*
             }
         }

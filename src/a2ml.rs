@@ -947,6 +947,33 @@ impl GenericIfData {
             }
         }
     }
+
+
+    // merge_includes()
+    // items that originate in an included file will have theit incfile member set to Some("filename")
+    // this function strips that information, which will cause these included items to be written with all
+    // the elements that were part of this file originally
+    pub(crate) fn merge_includes(&mut self) {
+        match self {
+            Self::Block(incfile, _, items) |
+            Self::Struct(incfile, _, items) => {
+                *incfile = None;
+                for item in items {
+                    item.merge_includes();
+                }
+            }
+            Self::TaggedStruct(taggeditems) |
+            Self::TaggedUnion(taggeditems) => {
+                for (_, tgitemlist) in taggeditems {
+                    for tgitem in tgitemlist {
+                        tgitem.incfile = None;
+                        tgitem.data.merge_includes();
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 
