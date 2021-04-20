@@ -8,9 +8,6 @@ pub enum A2lTokenType {
     Include,
     String,
     Number,
-    // LineComment,
-    // BlockComment,
-    Eof,
 }
 
 #[derive(Debug, Clone)]
@@ -23,7 +20,7 @@ pub struct A2lToken {
 }
 
 #[derive(Debug)]
-pub(crate) struct A2lTokenResult {
+pub(crate) struct TokenResult {
     pub(crate) tokens: Vec<A2lToken>,
     pub(crate) filedata: Vec<String>,
     pub(crate) filenames: Vec<String>
@@ -36,7 +33,7 @@ pub(crate) struct A2lTokenResult {
 // possible to do this because characters outside of basic ASCII can actually only occur in
 // strings and comments. UTF-8 in strings is directly copied to the output, while comments are discarded.
 // An important extra goal of the tokenizer is to attach the source line number to each token so that error messages can give accurate location info
-pub(crate) fn tokenize(filename: String, fileid: usize, filedata: &str) -> Result<A2lTokenResult, String> {
+pub(crate) fn tokenize(filename: String, fileid: usize, filedata: &str) -> Result<TokenResult, String> {
     let mut filenames: Vec<String> = vec![filename];
     let filebytes = filedata.as_bytes();
     let mut tokens: Vec<A2lToken> = Vec::with_capacity(filedata.len() / 20);
@@ -175,7 +172,7 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filedata: &str) -> Resul
         }
     }
 
-    Ok(A2lTokenResult { tokens, filenames, filedata: filedatas })
+    Ok(TokenResult { tokens, filenames, filedata: filedatas })
 }
 
 

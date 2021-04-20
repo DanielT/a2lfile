@@ -669,6 +669,7 @@ fn generate_a2ml_constant_of_taggeditems(outstring: &mut String, taggeditems: &V
 fn generate_a2ml_constant_of_ifdata_block(outstring: &mut String, blockitem: &DataItem, indent_level: usize) {
     write!(outstring, "{}block \"IF_DATA\" ", get_indent_string(indent_level)).unwrap();
     generate_a2ml_constant_of_item(outstring, &blockitem.typename, &blockitem.basetype, indent_level, false);
+    write!(outstring, ";").unwrap();
 }
 
 

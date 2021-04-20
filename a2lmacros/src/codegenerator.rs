@@ -106,7 +106,7 @@ fn generate_enum_data_structure(typename: &str, enumitems: &Vec<EnumItem>) -> To
     ).collect();
 
     quote!{
-        #[derive(Debug, PartialEq, Clone)]
+        #[derive(Debug, PartialEq, Eq, Clone)]
         pub enum #typeident {
             #(#enumidents),*
         }
@@ -140,6 +140,7 @@ fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataI
 
     let debug = generate_block_data_structure_debug(typename, structitems);
     let constructor = generate_block_data_structure_constructor(typename, structitems);
+    let partialeq = generate_block_data_structure_partialeq(typename, structitems);
 
     quote!{
         pub struct #typeident {
@@ -148,6 +149,7 @@ fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataI
 
         #debug
         #constructor
+        #partialeq
     }
 }
 
@@ -177,6 +179,12 @@ fn generate_block_data_structure_a2ml() ->  TokenStream {
                 }
             }
         }
+
+        impl PartialEq for A2ml {
+            fn eq(&self, other: &Self) -> bool {
+                self.a2ml_text == other.a2ml_text
+            }
+        }
     }
 }
 
@@ -204,6 +212,12 @@ fn generate_block_data_structure_ifdata() ->  TokenStream {
                     ifdata_items: None,
                     __location_info: (None, 0)
                 }
+            }
+        }
+
+        impl PartialEq for IfData {
+            fn eq(&self, other: &Self) -> bool {
+                self.ifdata_items == other.ifdata_items
             }
         }
     }
@@ -432,6 +446,48 @@ fn generate_block_data_structure_constructor(typename: &str, structitems: &Vec<D
                 Self {
                     #(#fieldinit),*
                 }
+            }
+        }
+    }
+}
+
+
+// generate_block_data_structure_partialeq
+// generate an impl of partialeq which compares all the regular struct members but ignores
+// the line number information in self.__location_info
+fn generate_block_data_structure_partialeq(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+    let typeident = format_ident!("{}", typename);
+    let mut comparisons = Vec::<TokenStream>::new();
+
+    for item in structitems {
+        match &item.basetype {
+            BaseType::TaggedUnion(taggeditems) |
+            BaseType::TaggedStruct(taggeditems) => {
+                for tgitem in taggeditems {
+                    let tgitemname = format_ident!("{}", make_varname(&tgitem.tag));
+                    comparisons.push(quote!{
+                        (self.#tgitemname == other.#tgitemname)
+                    });
+                }
+            }
+            _ => {
+                let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
+                comparisons.push(quote!{
+                    (self.#itemname == other.#itemname)
+                });
+            }
+        }
+    }
+
+    // some structs, e.g. DISCRETE and READ_ONLY have no content. They are always equal.
+    if comparisons.len() == 0 {
+        comparisons.push(quote!{true});
+    }
+
+    quote!{
+        impl PartialEq for #typeident {
+            fn eq(&self, other: &Self) -> bool {
+                #(#comparisons)&&*
             }
         }
     }
@@ -999,8 +1055,8 @@ fn generate_block_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenSt
 fn generate_block_writer_a2ml() -> TokenStream {
     quote!{
         impl A2ml {
-            fn write(&self) -> a2lwriter::A2lWriter {
-                let mut writer = a2lwriter::A2lWriter::new(&self.__location_info.0, self.__location_info.1);
+            fn write(&self) -> a2lwriter::Writer {
+                let mut writer = a2lwriter::Writer::new(&self.__location_info.0, self.__location_info.1);
                 writer.add_fixed_item(self.a2ml_text.to_owned(), self.__location_info.2);
                 writer
             }
@@ -1012,14 +1068,14 @@ fn generate_block_writer_a2ml() -> TokenStream {
 fn generate_block_writer_ifdata() -> TokenStream {
     quote!{
         impl IfData {
-            fn write(&self) -> a2lwriter::A2lWriter {
+            fn write(&self) -> a2lwriter::Writer {
                 if let Some(ifdata_items) = &self.ifdata_items {
                     //println!("{:#?}", ifdata_items);
                     let outval = ifdata_items.write(&self.__location_info.0, self.__location_info.1);
                     //println!("{:#?}", outval);
                     outval
                 } else {
-                    a2lwriter::A2lWriter::new(&self.__location_info.0, self.__location_info.1)
+                    a2lwriter::Writer::new(&self.__location_info.0, self.__location_info.1)
                 }
             }
         }
@@ -1034,8 +1090,8 @@ fn generate_block_writer_generic(typename: &str, structitems: &Vec<DataItem>) ->
 
     quote! {
         impl #typeident {
-            fn write(&self) -> a2lwriter::A2lWriter {
-                let mut writer = a2lwriter::A2lWriter::new(&self.__location_info.0, self.__location_info.1);
+            fn write(&self) -> a2lwriter::Writer {
+                let mut writer = a2lwriter::Writer::new(&self.__location_info.0, self.__location_info.1);
 
                 #(#write_items)*
 
@@ -1053,7 +1109,7 @@ fn generate_struct_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenS
 
     quote! {
         impl #typeident {
-            fn write(&self, writer: &mut a2lwriter::A2lWriter) {
+            fn write(&self, writer: &mut a2lwriter::Writer) {
                 #(#write_items)*
             }
         }

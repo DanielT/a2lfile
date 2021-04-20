@@ -625,7 +625,14 @@ impl<'a> ParserState<'a> {
     fn parse_ifdata_from_spec(&mut self, context: &ParseContext, spec: &A2mlTypeSpec) -> Option<GenericIfData> {
         let pos = self.get_tokenpos();
         if let Ok(ifdata) = self.parse_ifdata_item(context, spec) {
-            Some(ParserState::parse_ifdata_make_block(ifdata, self.get_incfilename(context.fileid), context.line))
+            if let Some(A2lToken {ttype: A2lTokenType::End, ..}) = self.peek_token() {
+                Some(ParserState::parse_ifdata_make_block(ifdata, self.get_incfilename(context.fileid), context.line))
+            } else {
+                // parsed some (or maybe none if the spec allows this!), but not all elements of the IF_DATA.
+                // put the token_cursor back at the beginning of the IF_DATA input
+                self.set_tokenpos(pos);
+                None
+            }
         } else {
             // put the token_cursor back at the beginning of the IF_DATA input
             self.set_tokenpos(pos);
@@ -649,14 +656,17 @@ impl<'a> ParserState<'a> {
             A2mlTypeSpec::UInt64 => { GenericIfData::UInt64(self.get_current_line(), self.get_integer_u64(context)?) }
             A2mlTypeSpec::Float => { GenericIfData::Float(self.get_current_line(), self.get_float(context)?) }
             A2mlTypeSpec::Double => { GenericIfData::Double(self.get_current_line(), self.get_double(context)?) }
-            A2mlTypeSpec::String => { GenericIfData::String(self.get_current_line(), self.get_string(context)?) }
             A2mlTypeSpec::Array(arraytype, dim) => {
-                let mut arrayitems = Vec::new();
-                let line = self.get_current_line();
-                for _ in 0..*dim {
-                    arrayitems.push(self.parse_ifdata_item(context, arraytype)?);
+                if **arraytype == A2mlTypeSpec::Char {
+                    GenericIfData::String(self.get_current_line(), self.get_string_maxlen(context, *dim)?)
+                } else {
+                    let mut arrayitems = Vec::new();
+                    let line = self.get_current_line();
+                    for _ in 0..*dim {
+                        arrayitems.push(self.parse_ifdata_item(context, arraytype)?);
+                    }
+                    GenericIfData::Array(line, arrayitems)
                 }
-                GenericIfData::Array(line, arrayitems)
             }
             A2mlTypeSpec::Enum(enumspec) => {
                 let pos = self.get_current_line();
@@ -825,9 +835,6 @@ impl<'a> ParserState<'a> {
                 A2lTokenType::End => {
                     // the end of this unknown block. Contained unknown blocks are handled recursively, so we don't see their /end tags in this loop
                     break;
-                }
-                A2lTokenType::Eof => {
-                    return Err(ParseError::UnexpectedEOF(context.clone()));
                 }
                 _ => { /* A2lTokenType::Include doesn't matter here */}
             }

@@ -3,28 +3,28 @@ use std::fmt::Write;
 use std::collections::HashSet;
 
 #[derive(Debug)]
-enum A2lWriterItem{
+enum WriterItem{
     StaticItem(u32, String),
-    TaggedGroup(Vec<(String, A2lWriter, bool)>),
+    TaggedGroup(Vec<(String, Writer, bool)>),
 }
 
 #[derive(Debug)]
-pub(crate) struct A2lWriter {
+pub(crate) struct Writer {
     file: Option<String>,
     pub(crate) line: u32,
-    items: Vec<A2lWriterItem>,
+    items: Vec<WriterItem>,
 }
 
 #[derive(Debug)]
 pub struct TaggedGroupHandle<'a> {
-    owner: &'a mut A2lWriter,
+    owner: &'a mut Writer,
     tagged_group_idx: usize
 }
 
 
 const INDENT_WIDTH: usize = 2;
 
-impl A2lWriter {
+impl Writer {
     pub(crate) fn new(file: &Option<String>, line: u32) -> Self {
         Self {
             file: file.clone(),
@@ -34,13 +34,13 @@ impl A2lWriter {
     }
 
     pub(crate) fn add_fixed_item(&mut self, item: String, position: u32) -> &mut Self {
-        self.items.push(A2lWriterItem::StaticItem(position, item));
+        self.items.push(WriterItem::StaticItem(position, item));
 
         self
     }
 
     pub(crate) fn add_tagged_group(&mut self) -> TaggedGroupHandle {
-        self.items.push(A2lWriterItem::TaggedGroup(Vec::new()));
+        self.items.push(WriterItem::TaggedGroup(Vec::new()));
         let idx = self.items.len() - 1;
         TaggedGroupHandle {
             owner: self,
@@ -69,12 +69,12 @@ impl A2lWriter {
         let mut empty_block = true;
         for item in self.items {
             match item {
-                A2lWriterItem::StaticItem(item_line, text) => {
+                WriterItem::StaticItem(item_line, text) => {
                     // add the text of static items, while inserting linebreaks with indentation as needed
                     write!(outstring, "{}{}", make_whitespace(current_line, item_line, indent), text).unwrap();
                     current_line = item_line;
                 }
-                A2lWriterItem::TaggedGroup(mut group) => {
+                WriterItem::TaggedGroup(mut group) => {
                     // sort the items in this group according to the sorting function
                     group.sort_by(Self::sort_function);
                     // build the text containing all of the group items and append it to the string for this block
@@ -90,7 +90,7 @@ impl A2lWriter {
     }
 
 
-    fn finish_group(start_line: u32, group: Vec<(String, A2lWriter, bool)>, indent: usize, empty_block: bool) -> (u32, String) {
+    fn finish_group(start_line: u32, group: Vec<(String, Writer, bool)>, indent: usize, empty_block: bool) -> (u32, String) {
         let mut outstring = "".to_string();
         let mut current_line = start_line;
         let mut included_files = HashSet::<String>::new();
@@ -135,7 +135,7 @@ impl A2lWriter {
     }
 
 
-    fn sort_function(a: &(String, A2lWriter, bool), b: &(String, A2lWriter, bool)) -> Ordering {
+    fn sort_function(a: &(String, Writer, bool), b: &(String, Writer, bool)) -> Ordering {
         let (tag_a, item_a, _) = a;
         let (tag_b, item_b, _) = b;
 
@@ -181,8 +181,8 @@ impl A2lWriter {
 
 
 impl<'a> TaggedGroupHandle<'a> {
-    pub(crate) fn add_tagged_item(&mut self, tag: &str, item: A2lWriter, is_block: bool) -> &mut Self {
-        if let A2lWriterItem::TaggedGroup(tagmap) = &mut self.owner.items[self.tagged_group_idx] {
+    pub(crate) fn add_tagged_item(&mut self, tag: &str, item: Writer, is_block: bool) -> &mut Self {
+        if let WriterItem::TaggedGroup(tagmap) = &mut self.owner.items[self.tagged_group_idx] {
             // if item.line != 0 && self.owner.first_line < item.line {
             //     self.owner.first_line = item.line;
             // }
