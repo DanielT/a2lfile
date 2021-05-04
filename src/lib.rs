@@ -102,7 +102,7 @@ pub fn write(a2lstruct: &A2lFile, filename: &str) -> Result<(), String> {
     let write_string = write_to_string(a2lstruct);
 
     if let Err(err) = std::fs::write(filename, write_string) {
-        return Err(err.to_string())
+        return Err(format!("Error while writing output {}: {}\n", filename, err.to_string()))
     }
 
     Ok(())
@@ -118,4 +118,9 @@ pub fn write_to_string(a2lstruct: &A2lFile) -> String {
 
 pub fn merge_includes(a2lstruct: &mut A2lFile) {
     a2lstruct.merge_includes();
+}
+
+
+pub fn merge_modules(_a2lstruct: &mut A2lFile, _merge_data: A2lFile) {
+
 }

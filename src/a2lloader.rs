@@ -7,7 +7,7 @@ use encoding::Encoding;
 pub fn load(filename: &str) -> Result<String, String> {
     let mut file = match File::open(filename) {
         Ok(file) => file,
-        Err(error) => return Err(format!("could not open file: {}", error))
+        Err(error) => return Err(format!("Error while loading {}: {}\n", filename, error))
     };
 
     let filedata = read_data(&mut file)?;
@@ -28,10 +28,10 @@ fn read_data(file: &mut File) -> Result<Vec<u8>, String> {
     let filesize = file.metadata().unwrap().len();
     let mut buffer = Vec::with_capacity(filesize as usize);
     let read_result = file.read_to_end(&mut buffer);
-    if read_result.is_err() {
-        return Err(format!("failed to read from file: {}", read_result.err().unwrap()));
+    match read_result {
+        Ok(_) => Ok(buffer),
+        Err(err) => Err(format!("Error: failed to read from file: {}", err))
     }
-    Ok(buffer)
 }
 
 

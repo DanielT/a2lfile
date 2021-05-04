@@ -507,7 +507,7 @@ fn generate_a2ml_constant(spec: &A2mlSpec) -> proc_macro2::TokenStream {
     generate_a2ml_constant_of_ifdata_block(&mut definition, &spec.ifdata_item, A2ML_INITIAL_INDENT_LEVEL);
 
     let def_literal = proc_macro2::Literal::string(&definition);
-    result.extend(quote!{const #constname: &str = #def_literal;});
+    result.extend(quote!{pub(crate) const #constname: &str = #def_literal;});
 
     result
 }
@@ -1061,7 +1061,7 @@ fn generate_indirect_enum_parser(typename: &str, enumitems: &Vec<EnumItem>) -> T
 
     quote!{
         impl #name {
-            fn parse(data: &a2lfile::GenericIfData) -> Result<Self, ()> {
+            pub(crate) fn parse(data: &a2lfile::GenericIfData) -> Result<Self, ()> {
                 if let a2lfile::GenericIfData::EnumItem(_, item) = data {
                     match &**item {
                         #(#match_branches)*
@@ -1082,7 +1082,7 @@ fn generate_indirect_struct_parser(typename: &str, structitems: &Vec<DataItem>) 
 
     quote!{
         impl #name {
-            fn parse(data: &a2lfile::GenericIfData) -> Result<Self, ()> {
+            pub(crate) fn parse(data: &a2lfile::GenericIfData) -> Result<Self, ()> {
                 let (incfile, line, input_items) = data.get_struct_items()?;
 
                 Ok(#name {
@@ -1100,7 +1100,7 @@ fn generate_indirect_block_parser(typename: &str, blockitems: &Vec<DataItem>) ->
 
     quote!{
         impl #name {
-            fn parse(data: &a2lfile::GenericIfData) -> Result<Self, ()> {
+            pub(crate) fn parse(data: &a2lfile::GenericIfData) -> Result<Self, ()> {
                 let (incfile, line, input_items) = data.get_block_items()?;
 
                 Ok(#name {
@@ -1249,7 +1249,7 @@ fn generate_indirect_enum_writer(typename: &str, enumitems: &Vec<EnumItem>) -> T
 
     quote!{
         impl #name {
-            fn store(&self, line: u32) -> a2lfile::GenericIfData {
+            pub(crate) fn store(&self, line: u32) -> a2lfile::GenericIfData {
                 a2lfile::GenericIfData::EnumItem(line, match self {
                     #(#match_branches),*
                 }.to_string())
@@ -1266,7 +1266,7 @@ fn generate_indirect_struct_writer(typename: &str, structitems: &Vec<DataItem>) 
 
     quote!{
         impl #name {
-            fn store(&self) -> a2lfile::GenericIfData {
+            pub(crate) fn store(&self) -> a2lfile::GenericIfData {
                 a2lfile::GenericIfData::Struct(self.__location_info.0.clone(), self.__location_info.1, vec![ #(#stored_structitems),* ])
             }
         }
@@ -1281,7 +1281,7 @@ fn generate_indirect_block_writer(typename: &str, structitems: &Vec<DataItem>) -
 
     quote!{
         impl #name {
-            fn store(&self) -> a2lfile::GenericIfData {
+            pub(crate) fn store(&self) -> a2lfile::GenericIfData {
                 a2lfile::GenericIfData::Block(self.__location_info.0.clone(), self.__location_info.1, vec![ #(#stored_structitems),* ])
             }
         }
@@ -1430,7 +1430,7 @@ fn generate_interface(spec: &A2mlSpec) -> TokenStream {
 
     quote!{
         impl #name {
-            fn load_from_ifdata(ifdata: &a2lfile::IfData) -> Option<Self> {
+            pub(crate) fn load_from_ifdata(ifdata: &a2lfile::IfData) -> Option<Self> {
                 let mut result = None;
                 if let Some(ifdata_items) = &ifdata.ifdata_items {
                     if let Ok(parsed_items) = Self::parse(ifdata_items) {
@@ -1441,11 +1441,11 @@ fn generate_interface(spec: &A2mlSpec) -> TokenStream {
                 result
             }
 
-            fn store_to_ifdata(&self, ifdata: &mut a2lfile::IfData) {
+            pub(crate) fn store_to_ifdata(&self, ifdata: &mut a2lfile::IfData) {
                 ifdata.ifdata_items = Some(self.store());
             }
 
-            fn update_a2ml(file: &mut a2lfile::A2lFile) {
+            pub(crate) fn update_a2ml(file: &mut a2lfile::A2lFile) {
                  for module in &mut file.project.module {
                      if module.a2ml.is_none() {
                          module.a2ml = Some(a2lfile::A2ml::new("".to_string()));
