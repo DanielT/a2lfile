@@ -282,136 +282,136 @@ impl<'a> ParserState<'a> {
     // I did not manage to decode this in a generic manner.
 
 
-    pub fn get_integer_i8(&mut self, context: &ParseContext) -> Result<i8, ParseError> {
+    pub fn get_integer_i8(&mut self, context: &ParseContext) -> Result<(i8, bool), ParseError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
             match u8::from_str_radix(&text[2..], 16) {
-                Ok(num) => Ok(num as i8),
+                Ok(num) => Ok((num as i8, true)),
                 Err(_) => Err(ParseError::MalformedNumber(context.clone(), text.to_string()))
             }        
         } else {
             match text.parse() {
-                Ok(num) => Ok(num),
+                Ok(num) => Ok((num, false)),
                 Err(_) => Err(ParseError::MalformedNumber(context.clone(), text.to_string()))
             }
         }
     }
 
 
-    pub fn get_integer_u8(&mut self, context: &ParseContext) -> Result<u8, ParseError> {
+    pub fn get_integer_u8(&mut self, context: &ParseContext) -> Result<(u8, bool), ParseError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
             match u8::from_str_radix(&text[2..], 16) {
-                Ok(num) => Ok(num),
+                Ok(num) => Ok((num, true)),
                 Err(_) => Err(ParseError::MalformedNumber(context.clone(), text.to_string()))
             }        
         } else {
             match text.parse() {
-                Ok(num) => Ok(num),
+                Ok(num) => Ok((num, false)),
                 Err(_) => Err(ParseError::MalformedNumber(context.clone(), text.to_string()))
             }
         }
     }
 
 
-    pub fn get_integer_i16(&mut self, context: &ParseContext) -> Result<i16, ParseError> {
+    pub fn get_integer_i16(&mut self, context: &ParseContext) -> Result<(i16, bool), ParseError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
             match u16::from_str_radix(&text[2..], 16) {
-                Ok(num) => Ok(num as i16),
+                Ok(num) => Ok((num as i16, true)),
                 Err(_) => Err(ParseError::MalformedNumber(context.clone(), text.to_string()))
             }        
         } else {
             match text.parse() {
-                Ok(num) => Ok(num),
+                Ok(num) => Ok((num, false)),
                 Err(_) => Err(ParseError::MalformedNumber(context.clone(), text.to_string()))
             }
         }
     }
 
 
-    pub fn get_integer_u16(&mut self, context: &ParseContext) -> Result<u16, ParseError> {
+    pub fn get_integer_u16(&mut self, context: &ParseContext) -> Result<(u16, bool), ParseError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
             match u16::from_str_radix(&text[2..], 16) {
-                Ok(num) => Ok(num),
+                Ok(num) => Ok((num, true)),
                 Err(_) => Err(ParseError::MalformedNumber(context.clone(), text.to_string()))
             }        
         } else {
             match text.parse() {
-                Ok(num) => Ok(num),
+                Ok(num) => Ok((num, false)),
                 Err(_) => Err(ParseError::MalformedNumber(context.clone(), text.to_string()))
             }
         }
     }
 
 
-    pub fn get_integer_i32(&mut self, context: &ParseContext) -> Result<i32, ParseError> {
+    pub fn get_integer_i32(&mut self, context: &ParseContext) -> Result<(i32, bool), ParseError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
             match u32::from_str_radix(&text[2..], 16) {
-                Ok(num) => Ok(num as i32),
+                Ok(num) => Ok((num as i32, true)),
                 Err(_) => Err(ParseError::MalformedNumber(context.clone(), text.to_string()))
             }        
         } else {
             match text.parse() {
-                Ok(num) => Ok(num),
+                Ok(num) => Ok((num, false)),
                 Err(_) => Err(ParseError::MalformedNumber(context.clone(), text.to_string()))
             }
         }
     }
 
 
-    pub fn get_integer_u32(&mut self, context: &ParseContext) -> Result<u32, ParseError> {
+    pub fn get_integer_u32(&mut self, context: &ParseContext) -> Result<(u32, bool), ParseError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
             match u32::from_str_radix(&text[2..], 16) {
-                Ok(num) => Ok(num),
+                Ok(num) => Ok((num, true)),
                 Err(_) => Err(ParseError::MalformedNumber(context.clone(), text.to_string()))
             }        
         } else {
             match text.parse() {
-                Ok(num) => Ok(num),
+                Ok(num) => Ok((num, false)),
                 Err(_) => Err(ParseError::MalformedNumber(context.clone(), text.to_string()))
             }
         }
     }
     
 
-    pub fn get_integer_u64(&mut self, context: &ParseContext) -> Result<u64, ParseError> {
+    pub fn get_integer_u64(&mut self, context: &ParseContext) -> Result<(u64, bool), ParseError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
             match u64::from_str_radix(&text[2..], 16) {
-                Ok(num) => Ok(num),
+                Ok(num) => Ok((num, true)),
                 Err(_) => Err(ParseError::MalformedNumber(context.clone(), text.to_string()))
             }        
         } else {
             match text.parse() {
-                Ok(num) => Ok(num),
+                Ok(num) => Ok((num, false)),
                 Err(_) => Err(ParseError::MalformedNumber(context.clone(), text.to_string()))
             }
         }
     }
 
 
-    pub fn get_integer_i64(&mut self, context: &ParseContext) -> Result<i64, ParseError> {
+    pub fn get_integer_i64(&mut self, context: &ParseContext) -> Result<(i64, bool), ParseError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
             match u64::from_str_radix(&text[2..], 16) {
-                Ok(num) => Ok(num as i64),
+                Ok(num) => Ok((num as i64, true)),
                 Err(_) => Err(ParseError::MalformedNumber(context.clone(), text.to_string()))
             }        
         } else {
             match text.parse() {
-                Ok(num) => Ok(num),
+                Ok(num) => Ok((num, false)),
                 Err(_) => Err(ParseError::MalformedNumber(context.clone(), text.to_string()))
             }
         }
@@ -661,11 +661,10 @@ impl<'a> ParserState<'a> {
                     GenericIfData::String(self.get_current_line(), self.get_string_maxlen(context, *dim)?)
                 } else {
                     let mut arrayitems = Vec::new();
-                    let line = self.get_current_line();
                     for _ in 0..*dim {
                         arrayitems.push(self.parse_ifdata_item(context, arraytype)?);
                     }
-                    GenericIfData::Array(line, arrayitems)
+                    GenericIfData::Array(arrayitems)
                 }
             }
             A2mlTypeSpec::Enum(enumspec) => {

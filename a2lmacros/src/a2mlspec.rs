@@ -571,7 +571,7 @@ fn generate_a2ml_constant_of_item(outstring: &mut String, typename: &Option<Stri
             write!(outstring, "taggedstruct {}", typename).unwrap();
         }
         BaseType::String => panic!("type String not possible in A2ml"),
-        BaseType::Block(_) => panic!("type Block is not allowed here")
+        BaseType::Block(_, _) => panic!("type Block is not allowed here")
     }
 }
 
@@ -700,7 +700,7 @@ fn get_indent_string(indent_level: usize) -> String {
 // The entry point for data type fixup. Recursively adds the "IF_DATA" block and all data types referenced by or defined within it
 fn fixup_output_datatypes(spec: &A2mlSpec) -> HashMap<String, DataItem> {
     let mut tmp_datatypes = HashMap::<String, BaseType>::new();
-    fixup_output_block(spec, &spec.name, &spec.ifdata_item, &mut tmp_datatypes);
+    fixup_output_block(spec, &spec.name, &spec.ifdata_item, &mut tmp_datatypes, true);
 
     let mut datatypes = HashMap::<String, DataItem>::new();
     for (typename, basetype) in tmp_datatypes {
@@ -712,14 +712,14 @@ fn fixup_output_datatypes(spec: &A2mlSpec) -> HashMap<String, DataItem> {
 
 // fixup_output_block
 // fixup of one "block". A block is a struct, which occurs at the top level as "IF_DATA" or after a tag in a TaggedStruct or TaggedUnion
-fn fixup_output_block(spec: &A2mlSpec, tag: &str, item: &DataItem, defined_types: &mut HashMap<String, BaseType>) -> String {
+fn fixup_output_block(spec: &A2mlSpec, tag: &str, item: &DataItem, defined_types: &mut HashMap<String, BaseType>, is_block: bool) -> String {
     let structname = ucname_to_typename(tag);
 
     // add the top level datatype to a new struct. If the datatype is also a struct, its elements will be merged
     let mut structitems = fixup_add_data_to_struct(spec, item, defined_types);
     fixup_make_varnames_unique(&mut structitems);
 
-    let newstruct = BaseType::Block(structitems);
+    let newstruct = BaseType::Block(structitems, is_block);
     fixup_add_type(&structname, newstruct, defined_types)
 }
 
@@ -866,7 +866,7 @@ fn fixup_data_type(spec: &A2mlSpec, typename: &Option<String>, basetype: &BaseTy
         BaseType::Float => (None, BaseType::Float),
         BaseType::Ident => (None, BaseType::Ident),
         BaseType::String => (None, BaseType::String),
-        BaseType::Block(_) => panic!("type block is not allowed as an input of the fixup function")
+        BaseType::Block(_, _) => panic!("type block is not allowed as an input of the fixup function")
     }
 }
 
@@ -887,7 +887,7 @@ fn fixup_struct(structname: &str, structitems: &Vec<DataItem>, spec: &A2mlSpec, 
 fn fixup_taggeditems(taggeditems: &Vec<TaggedItem>, spec: &A2mlSpec, defined_types: &mut HashMap<String, BaseType>) -> Vec<TaggedItem> {
     let mut new_tuitems = Vec::<TaggedItem>::new();
     for tgitem in taggeditems {
-        let new_typename = fixup_output_block(spec, &tgitem.tag, &tgitem.item, defined_types);
+        let new_typename = fixup_output_block(spec, &tgitem.tag, &tgitem.item, defined_types, tgitem.is_block);
         new_tuitems.push(TaggedItem {
             tag: tgitem.tag.clone(),
             item: DataItem { typename: Some(new_typename.clone()), basetype: BaseType::StructRef, varname: None, comment: None },
@@ -1033,7 +1033,7 @@ fn generate_indirect_parser(types: &HashMap<String, DataItem>) -> TokenStream {
             BaseType::Struct(structitems) => {
                 result.extend(generate_indirect_struct_parser(typename, structitems));
             }
-            BaseType::Block(structitems) => {
+            BaseType::Block(structitems, _) => {
                 result.extend(generate_indirect_block_parser(typename, structitems));
             }
             _ => {
@@ -1121,12 +1121,13 @@ fn generate_struct_field_intializers(items: &Vec<DataItem>) -> Vec<TokenStream> 
             BaseType::Sequence(seqitemtype) => {
                 let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
                 let itemparser = generate_item_parser_call(quote!{seqitem}, &item.typename, seqitemtype);
+                let itemlocation = generate_item_location(quote!{seqitem}, seqitemtype);
                 parsers.push(quote!{
                     #itemname: {
                         let seqitems = #item_getter.get_sequence()?;
                         let mut outitems = Vec::new();
                         for seqitem in seqitems {
-                            outitems.push(#itemparser?);
+                            outitems.push(#itemparser);
                         }
                         outitems
                     }
@@ -1136,7 +1137,7 @@ fn generate_struct_field_intializers(items: &Vec<DataItem>) -> Vec<TokenStream> 
                         let seqitems = #item_getter.get_sequence()?;
                         let mut lines = Vec::new();
                         for seqitem in seqitems {
-                            lines.push(seqitem.get_line()?);
+                            lines.push(#itemlocation);
                         }
                         lines
                     }
@@ -1158,8 +1159,9 @@ fn generate_struct_field_intializers(items: &Vec<DataItem>) -> Vec<TokenStream> 
             _ => {
                 let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
                 let itemparser = generate_item_parser_call(quote!{#item_getter}, &item.typename, &item.basetype);
-                parsers.push(quote!{#itemname: #itemparser?});
-                location_info.push(quote!{#item_getter.get_line()?});
+                let itemlocation = generate_item_location(quote!{#item_getter}, &item.basetype);
+                parsers.push(quote!{#itemname: #itemparser});
+                location_info.push(itemlocation);
             }
         }
     }
@@ -1172,38 +1174,68 @@ fn generate_struct_field_intializers(items: &Vec<DataItem>) -> Vec<TokenStream> 
 
 fn generate_item_parser_call(item_ident: TokenStream, typename: &Option<String>, basetype: &BaseType) -> TokenStream {
     match basetype {
-        BaseType::Char => quote!{#item_ident.get_integer_i8()},
-        BaseType::Int => quote!{#item_ident.get_integer_i16()},
-        BaseType::Long => quote!{#item_ident.get_integer_i32()},
-        BaseType::Int64 => quote!{#item_ident.get_integer_i64()},
-        BaseType::Uchar => quote!{#item_ident.get_integer_u8()},
-        BaseType::Uint => quote!{#item_ident.get_integer_u16()},
-        BaseType::Ulong => quote!{#item_ident.get_integer_u32()},
-        BaseType::Uint64 => quote!{#item_ident.get_integer_u64()},
-        BaseType::Double => quote!{#item_ident.get_double()},
-        BaseType::Float => quote!{#item_ident.get_float()},
-        BaseType::Ident => quote!{#item_ident.get_ident()},
-        BaseType::String => quote!{#item_ident.get_stringval()},
+        BaseType::Char => quote!{#item_ident.get_integer_i8()?},
+        BaseType::Int => quote!{#item_ident.get_integer_i16()?},
+        BaseType::Long => quote!{#item_ident.get_integer_i32()?},
+        BaseType::Int64 => quote!{#item_ident.get_integer_i64()?},
+        BaseType::Uchar => quote!{#item_ident.get_integer_u8()?},
+        BaseType::Uint => quote!{#item_ident.get_integer_u16()?},
+        BaseType::Ulong => quote!{#item_ident.get_integer_u32()?},
+        BaseType::Uint64 => quote!{#item_ident.get_integer_u64()?},
+        BaseType::Double => quote!{#item_ident.get_double()?},
+        BaseType::Float => quote!{#item_ident.get_float()?},
+        BaseType::Ident => quote!{#item_ident.get_ident()?},
+        BaseType::String => quote!{#item_ident.get_stringval()?},
         BaseType::Array(arraytype, dim) => {
             if let BaseType::Char = arraytype.basetype {
-                quote!{#item_ident.get_stringval()}
+                quote!{#item_ident.get_stringval()?}
             } else {
                 let mut arrayelements = Vec::new();
                 for arrayidx in 0..*dim {
                     arrayelements.push(generate_item_parser_call(quote!{arrayitems[#arrayidx]}, &arraytype.typename, &arraytype.basetype));
                 }
-                quote!{ {|| {
+                quote!{ {
                     let arrayitems = #item_ident.get_array()?;
-                    Ok([ #(#arrayelements?),* ])
-                }}() }
+                    [ #(#arrayelements),* ]
+                }}
+                //quote!{foo}
             }
         }
         BaseType::EnumRef |
         BaseType::StructRef => {
             let typename = format_ident!("{}", typename.as_ref().unwrap());
-            quote!{#typename::parse(&#item_ident)}
+            quote!{#typename::parse(&#item_ident)?}
         }
         _ => panic!("impossible type {:?} in generate_item_parser_call", basetype)
+    }
+}
+
+
+fn generate_item_location(item_ident: TokenStream, basetype: &BaseType) -> TokenStream {
+    match basetype {
+        BaseType::Char |
+        BaseType::Int |
+        BaseType::Long |
+        BaseType::Int64 |
+        BaseType::Uchar |
+        BaseType::Uint |
+        BaseType::Ulong |
+        BaseType::Uint64 => quote!{(#item_ident.get_line()?, #item_ident.get_int_is_hex()?)},
+        BaseType::Array(arraytype, dim) => {
+            if arraytype.basetype == BaseType::Char {
+                quote!{ #item_ident.get_line()? }
+            } else {
+                let mut arraylocations = Vec::new();
+                for arrayidx in 0..*dim {
+                    arraylocations.push(generate_item_location(quote!{arrayitems[#arrayidx]}, &arraytype.basetype));
+                }
+                quote!{ {
+                    let arrayitems = #item_ident.get_array()?;
+                    [ #(#arraylocations),* ]
+                }}
+            }
+        }
+        _ => quote!{ #item_ident.get_line()? }
     }
 }
 
@@ -1223,7 +1255,7 @@ fn generate_indirect_writer(types: &HashMap<String, DataItem>) -> TokenStream {
             BaseType::Struct(structitems) => {
                 result.extend(generate_indirect_struct_writer(typename, structitems));
             }
-            BaseType::Block(structitems) => {
+            BaseType::Block(structitems, _) => {
                 result.extend(generate_indirect_block_writer(typename, structitems));
             }
             _ => {
@@ -1331,14 +1363,14 @@ fn generate_indirect_store_item(structitems: &Vec<DataItem>) -> Vec<TokenStream>
 fn generate_indirect_store_simple_item(itemname: TokenStream, locationinfo: TokenStream, basetype: &BaseType) -> TokenStream {
     match basetype {
         BaseType::None => quote!{a2lfile::GenericIfData::None},
-        BaseType::Char => quote!{a2lfile::GenericIfData::Char(#locationinfo, #itemname)},
-        BaseType::Int =>  quote!{a2lfile::GenericIfData::Int(#locationinfo, #itemname)},
-        BaseType::Long => quote!{a2lfile::GenericIfData::Long(#locationinfo, #itemname)},
-        BaseType::Int64 => quote!{a2lfile::GenericIfData::Int64(#locationinfo, #itemname)},
-        BaseType::Uchar => quote!{a2lfile::GenericIfData::UChar(#locationinfo, #itemname)},
-        BaseType::Uint =>  quote!{a2lfile::GenericIfData::UInt(#locationinfo, #itemname)},
-        BaseType::Ulong => quote!{a2lfile::GenericIfData::ULong(#locationinfo, #itemname)},
-        BaseType::Uint64 => quote!{a2lfile::GenericIfData::UInt64(#locationinfo, #itemname)},
+        BaseType::Char => quote!{a2lfile::GenericIfData::Char(#locationinfo.0, (#itemname, #locationinfo.1))},
+        BaseType::Int =>  quote!{a2lfile::GenericIfData::Int(#locationinfo.0, (#itemname, #locationinfo.1))},
+        BaseType::Long => quote!{a2lfile::GenericIfData::Long(#locationinfo.0, (#itemname, #locationinfo.1))},
+        BaseType::Int64 => quote!{a2lfile::GenericIfData::Int64(#locationinfo.0, (#itemname, #locationinfo.1))},
+        BaseType::Uchar => quote!{a2lfile::GenericIfData::UChar(#locationinfo.0, (#itemname, #locationinfo.1))},
+        BaseType::Uint =>  quote!{a2lfile::GenericIfData::UInt(#locationinfo.0, (#itemname, #locationinfo.1))},
+        BaseType::Ulong => quote!{a2lfile::GenericIfData::ULong(#locationinfo.0, (#itemname, #locationinfo.1))},
+        BaseType::Uint64 => quote!{a2lfile::GenericIfData::UInt64(#locationinfo.0, (#itemname, #locationinfo.1))},
         BaseType::Double => quote!{a2lfile::GenericIfData::Double(#locationinfo, #itemname)},
         BaseType::Float =>  quote!{a2lfile::GenericIfData::Float(#locationinfo, #itemname)},
         BaseType::String => quote!{a2lfile::GenericIfData::String(#locationinfo, #itemname.to_owned())},
@@ -1346,10 +1378,11 @@ fn generate_indirect_store_simple_item(itemname: TokenStream, locationinfo: Toke
             if arraydata.basetype == BaseType::Char {
                 quote!{a2lfile::GenericIfData::String(#locationinfo, #itemname.to_owned())}
             } else {
-                let parsercall = generate_indirect_store_simple_item(quote!{item}, locationinfo.clone(), &arraydata.basetype);
-                quote!{a2lfile::GenericIfData::Array(#locationinfo, {
-                    let arraycontent = Vec::new();
-                    for item in #itemname {
+                let arrayitem_locinfo = quote!{#locationinfo[idx]};
+                let parsercall = generate_indirect_store_simple_item(quote!{item}, arrayitem_locinfo, &arraydata.basetype);
+                quote!{a2lfile::GenericIfData::Array({
+                    let mut arraycontent = Vec::new();
+                    for (idx, item) in #itemname.iter().enumerate() {
                         arraycontent.push(#parsercall);
                     }
                     arraycontent})

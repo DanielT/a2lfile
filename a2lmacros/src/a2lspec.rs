@@ -328,7 +328,7 @@ fn parse_enum(token_iter: &mut TokenStreamIter, comment: Option<String>) -> Data
             version_range
         });
 
-        /* if thee are further items in the enum, there must be a ',' as a separator */
+        /* if there are further items in the enum, there must be a ',' as a separator */
         if enum_token_iter.peek().is_some() {
             require_punct(&mut enum_token_iter, ',');
         }
@@ -400,7 +400,7 @@ fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<Str
         }
     }
 
-    for StructInfo{taglist, dataitem, ..} in structs {
+    for StructInfo{taglist, dataitem, is_block} in structs {
         // the structs on the list can't be passed directly to the code generator:
         // where there are repeated sequences of the form
         // {
@@ -435,7 +435,7 @@ fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<Str
             }
     
             let typename = dataitem.typename.unwrap();
-            if typelist.insert(typename.clone(), DataItem {typename: Some(typename.clone()), basetype: BaseType::Block(output_structitems), varname: None, comment: dataitem.comment }) != None {
+            if typelist.insert(typename.clone(), DataItem {typename: Some(typename.clone()), basetype: BaseType::Block(output_structitems, is_block), varname: None, comment: dataitem.comment }) != None {
                 panic!("type {} for block {} altready exists", typename, taglist[0]);
             }
         }

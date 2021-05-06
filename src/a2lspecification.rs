@@ -10,7 +10,7 @@ a2l_specification! {
     /// Contains all the objects of an A2lfile
     ///
     /// An instance of this struct is returned when an a2l file is loaded successfully
-    block A2L_FILE {
+    keyword A2L_FILE {
         [-> ASAP2_VERSION]
         [-> A2ML_VERSION]   
         [-> PROJECT]!

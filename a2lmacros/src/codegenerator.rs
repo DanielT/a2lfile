@@ -60,11 +60,14 @@ pub(crate) enum BaseType {
     TaggedUnionRef,
     TaggedStruct(Vec<TaggedItem>),
     TaggedStructRef,
-    Block(Vec<DataItem>)
+    Block(Vec<DataItem>, bool)
 }
 
 
 
+// generate_data_structures()
+// generate the struct and enum definitions for all inputs in types
+// Also generate a new() for each type as well as functions for impl Debug and impl PartialEq
 pub(crate) fn generate_data_structures(types: &HashMap<String, DataItem>) -> TokenStream {
     let mut result = quote!{};
 
@@ -83,10 +86,10 @@ pub(crate) fn generate_data_structures(types: &HashMap<String, DataItem>) -> Tok
                 result.extend(generate_enum_data_structure(typename, enumitems));
             }
             BaseType::Struct(structitems) => {
-                result.extend(generate_block_data_structure_generic(typename, structitems));
+                result.extend(generate_block_data_structure_generic(typename, structitems, false));
             }
-            BaseType::Block(structitems) => {
-                result.extend(generate_block_data_structure(typename, structitems));
+            BaseType::Block(structitems, is_block) => {
+                result.extend(generate_block_data_structure(typename, structitems, *is_block));
             }
             _ => {
                 panic!("only block, struct and enum are allowed as top-level types, but {} = {:#?} was encountered", typename, a2mltype);
@@ -98,6 +101,8 @@ pub(crate) fn generate_data_structures(types: &HashMap<String, DataItem>) -> Tok
 }
 
 
+// generate_enum_data_structure()
+// generate an enum with the given name and items
 fn generate_enum_data_structure(typename: &str, enumitems: &Vec<EnumItem>) -> TokenStream {
     let typeident = format_ident!("{}", typename);
 
@@ -114,7 +119,10 @@ fn generate_enum_data_structure(typename: &str, enumitems: &Vec<EnumItem>) -> To
 }
 
 
-fn generate_block_data_structure(typename: &str, structitems: &Vec<DataItem>) ->  TokenStream {
+// generate_block_data_structure()
+// Generate the data structure of a block (if is_block is false it is a keyword instead, but still almost the same)
+// The A2ml and IfData blocks are special in the specification and this is reflected here
+fn generate_block_data_structure(typename: &str, structitems: &Vec<DataItem>, is_block: bool) ->  TokenStream {
     match typename {
         "A2ml" => {
             generate_block_data_structure_a2ml()
@@ -123,13 +131,15 @@ fn generate_block_data_structure(typename: &str, structitems: &Vec<DataItem>) ->
             generate_block_data_structure_ifdata()
         }
         _ => {
-            generate_block_data_structure_generic(typename, structitems)
+            generate_block_data_structure_generic(typename, structitems, is_block)
         }
     }
 }
 
 
-fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataItem>) ->  TokenStream {
+// generate_block_data_structure_generic()
+// generate the data structure and associated functions for all except A2ml and IfData
+fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataItem>, is_block: bool) ->  TokenStream {
     let typeident = format_ident!("{}", typename);
     let mut definitions = Vec::new();
 
@@ -141,7 +151,7 @@ fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataI
     // generate all of the utility functions together with the data structure
     // only write and parse are excluded here, because they are not shared between A2l and A2ml
     let debug = generate_block_data_structure_debug(typename, structitems);
-    let constructor = generate_block_data_structure_constructor(typename, structitems);
+    let constructor = generate_block_data_structure_constructor(typename, structitems, is_block);
     let partialeq = generate_block_data_structure_partialeq(typename, structitems);
     let mergeinc = generate_block_data_structure_mergeincludes(typename, structitems);
 
@@ -225,6 +235,7 @@ fn generate_block_data_structure_ifdata() ->  TokenStream {
             pub fn merge_includes(&mut self) {
                 self.__location_info.0 = None;
                 if let Some(ifdata_items) = &mut self.ifdata_items {
+                    // ifdata_items is an un-decoded GenericIfData. It can directly handle merge_includes()
                     ifdata_items.merge_includes();
                 }
             }
@@ -240,10 +251,13 @@ fn generate_block_data_structure_ifdata() ->  TokenStream {
 
 
 // generate_struct_item_definition()
-// generate the full definition of a struct item, e.g. "pub foo: u32"
+// Generate the full definition of an input struct item, e.g. "pub foo: u32"
+// In the case of TaggedStructs/TaggedUnions, the output TokenStream consists
+// of several definitions - one for each TaggedItem
 fn generate_struct_item_definition(item: &DataItem) -> TokenStream {
     let mut def = quote!{};
 
+    // preserve documentation comments from the specification into the output
     if let Some(comment) = &item.comment {
         def.extend(quote!{#[doc=#comment]});
     }
@@ -257,13 +271,16 @@ fn generate_struct_item_definition(item: &DataItem) -> TokenStream {
         BaseType::TaggedUnion(tgitems) |
         BaseType::TaggedStruct(tgitems) => {
             let mut tgdefs = Vec::new();
+            // output each TaggedItem
             for tgitem in tgitems {
                 let mut curr_def = quote!{};
+                // documentation comments are also possible on individual TaggedItems and are also output per item
                 if let Some(comment) = &tgitem.item.comment {
                     curr_def.extend(quote!{#[doc=#comment]});
                 }
                 let tgitemname = format_ident!("{}", make_varname(&tgitem.tag));
                 let typename = generate_bare_typename(&tgitem.item.typename, &tgitem.item.basetype);
+                // The container type for the TaggedItems varies depending on the options
                 if tgitem.repeat {
                     curr_def.extend(quote!{pub #tgitemname: Vec<#typename>});
                 } else {
@@ -280,7 +297,7 @@ fn generate_struct_item_definition(item: &DataItem) -> TokenStream {
         }
         _ => {
             if item.varname.is_none() {
-                panic!("bad varname of {:#?}", item);
+                panic!("bad varname for struct item {:#?}", item);
             }
             let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
             let typename = generate_bare_typename(&item.typename, &item.basetype);
@@ -292,7 +309,7 @@ fn generate_struct_item_definition(item: &DataItem) -> TokenStream {
 
 
 // generate_bare_typename()
-// generates a bare typename (i.e. "u32" instead of "foo: u32") for a given struct item
+// generates the typename without other tokens (i.e. "u32" instead of "foo: u32") for a given struct item
 fn generate_bare_typename(typename: &Option<String>, item: &BaseType) -> TokenStream {
     match item {
         BaseType::Char => { quote!{i8} }
@@ -340,6 +357,8 @@ fn generate_bare_typename(typename: &Option<String>, item: &BaseType) -> TokenSt
 // the location of each item needs to be tracked in order to be able to write elements on an
 // a2l file in the same order they were in the input file.
 // This function generates the definition of the __location_info tuple that stores these locations
+// For example a struct with 3 items of type (enum, String, int) the generated tuple would look like this:
+//    pub __location_info: ( Option<String>, u32, u32, u32, (u32, bool) )
 fn generate_struct_location_info(structitems: &Vec<DataItem>) -> TokenStream {
     let mut locationtypes = Vec::new();
     locationtypes.push(quote!{Option<String>, u32});
@@ -359,14 +378,62 @@ fn generate_struct_location_info(structitems: &Vec<DataItem>) -> TokenStream {
             BaseType::StructRef |
             BaseType::EnumRef |
             BaseType::Array(_, _) |
-            BaseType::String => { locationtypes.push(quote!{u32}) }
-            BaseType::Sequence(_) => {locationtypes.push(quote!{Vec<u32>})}
+            BaseType::String |
+            BaseType::Sequence(_) => {
+                let item_location_info = generate_item_location_info(&item.basetype);
+                locationtypes.push(item_location_info);
+            }
             _ => {} // nothing to do for the other variants
         }
     }
 
     quote!{
         pub __location_info: ( #(#locationtypes),* )
+    }
+}
+
+
+// generate_item_location_info()
+// generate the part of the location info tuple that corresponds to one struct item
+fn generate_item_location_info(item_basetype: &BaseType) -> TokenStream {
+    match item_basetype {
+        BaseType::Char |
+        BaseType::Int |
+        BaseType::Long |
+        BaseType::Int64 |
+        BaseType::Uchar |
+        BaseType::Uint |
+        BaseType::Ulong |
+        BaseType::Uint64 => {
+            // for integers the location info tracks a boolean flag that indicates if
+            // the value should be displayed in hex format in addition to the line number
+            quote!{ (u32, bool) }
+        }
+        BaseType::Double |
+        BaseType::Float |
+        BaseType::Ident |
+        BaseType::StructRef |
+        BaseType::EnumRef |
+        BaseType::String => {
+            quote!{u32}
+        }
+        BaseType::Array(arraytype, dim) => {
+            if arraytype.basetype == BaseType::Char {
+                // as usual, array of char is just treated as String
+                quote!{u32}
+            } else {
+                let item_loc_info = generate_item_location_info(&arraytype.basetype);
+                quote!{ [#item_loc_info; #dim] }
+            }
+        }
+        BaseType::Sequence(seqtype) => {
+            let item_loc_info = generate_item_location_info(seqtype);
+            quote!{ Vec<#item_loc_info> }
+        }
+        _ => {
+            // other variants have no location info
+            quote!{}
+        }
     }
 }
 
@@ -410,13 +477,24 @@ fn generate_block_data_structure_debug(typename: &str, structitems: &Vec<DataIte
 
 
 // generate_block_data_structure_constructor()
-// generate a constructor new(...) for a struct - all of the required elements become
-// arguments of new(), while the optional ones are automatically set to None or Vec::new()
-fn generate_block_data_structure_constructor(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+// Generate a constructor new(...) for a struct.
+// All of the required elements become arguments of new(), while the
+// optional ones are automatically set to None or Vec::new()
+fn generate_block_data_structure_constructor(typename: &str, structitems: &Vec<DataItem>, is_block: bool) -> TokenStream {
     let typeident = format_ident!("{}", typename);
     let mut newargs = Vec::<TokenStream>::new();
     let mut fieldinit = Vec::<TokenStream>::new();
-    let mut locationinfo = vec![quote!{None}, quote!{0}];
+
+    // initialize the line numbers of all elements with 0 for blocks, but with u32::MAX for keywords and structs
+    // both values can't occur for elements loaded from a file and have special menings in the writer code
+    let locationinfo_line = if is_block {
+        // initialize line numbers as 0: place each element on a separate line
+        0
+    } else {
+        // initialize line numbers as u32::MAX: place all elements on one line
+        u32::MAX
+    };
+    let mut locationinfo = vec![quote!{None}, quote!{#locationinfo_line}];
 
     for item in structitems {
         match &item.basetype {
@@ -424,10 +502,11 @@ fn generate_block_data_structure_constructor(typename: &str, structitems: &Vec<D
                 let membername = item.varname.as_ref().unwrap();
                 let memberident = format_ident!("{}", membername);
                 fieldinit.push(quote!{#memberident: Vec::new()});
-                locationinfo.push(quote!{Vec::<u32>::new()});
+                locationinfo.push(generate_item_locationinfo_init(&item.basetype, locationinfo_line));
             }
             BaseType::TaggedUnion(taggeditems) |
             BaseType::TaggedStruct(taggeditems) => {
+                // TaggedItems are optional items and have no initializers in the argument list of the new() function
                 for tgitem in taggeditems {
                     let tgitemname = format_ident!("{}", make_varname(&tgitem.tag));
                     let typename = generate_bare_typename(&tgitem.item.typename, &tgitem.item.basetype);
@@ -444,12 +523,15 @@ fn generate_block_data_structure_constructor(typename: &str, structitems: &Vec<D
                 }
             }
             _ => {
+                // all required struct fields are initialized from arguments of new()
+                // to enable that, the name of the field is pushed to the list of function arguments (e.g. "addess: u32")
+                // then the struct can be initialized using the compact form (e.g. Self { .., address, ..})
                 let membername = item.varname.as_ref().unwrap();
                 let memberident = format_ident!("{}", membername);
                 let membertype = generate_bare_typename(&item.typename, &item.basetype);
                 newargs.push(quote!{#memberident: #membertype});
                 fieldinit.push(quote!{#memberident});
-                locationinfo.push(quote!{0});
+                locationinfo.push(generate_item_locationinfo_init(&item.basetype, locationinfo_line));
             }
         }
     }
@@ -467,7 +549,53 @@ fn generate_block_data_structure_constructor(typename: &str, structitems: &Vec<D
 }
 
 
-// generate_block_data_structure_partialeq
+// generate_item_locationinfo_init()
+// generate the initializer for one struct item in the location_info tuple of the new() function
+fn generate_item_locationinfo_init(item_basetype: &BaseType, initline: u32) -> TokenStream {
+    match item_basetype {
+        BaseType::Char |
+        BaseType::Int |
+        BaseType::Long |
+        BaseType::Int64 |
+        BaseType::Uchar |
+        BaseType::Uint |
+        BaseType::Ulong |
+        BaseType::Uint64 => {
+            // for integers we track both the current line and the formatting of the number (hex or not)
+            // by default no number will be output as hex
+            quote!{ (#initline, false) }
+        }
+        BaseType::Double |
+        BaseType::Float |
+        BaseType::Ident |
+        BaseType::StructRef |
+        BaseType::EnumRef |
+        BaseType::String => {
+            // all other single items only need to track the line
+            quote!{#initline}
+        }
+        BaseType::Array(arraytype, dim) => {
+            if arraytype.basetype == BaseType::Char {
+                quote!{#initline}
+            } else {
+                let item_loc_info_init = generate_item_locationinfo_init(&arraytype.basetype, initline);
+                let loc_info_init_list: Vec<TokenStream> = (0..(*dim)).into_iter().map(|_| quote!{ #item_loc_info_init }).collect();
+                quote!{ [#(#loc_info_init_list),*] }
+            }
+        }
+        BaseType::Sequence(seqtype) => {
+            let item_loc_info = generate_item_location_info(seqtype);
+            quote!{ Vec::<#item_loc_info>::new() }
+        }
+        _ => {
+            // other variants don't get here (panic?) and have no location info
+            quote!{}
+        }
+    }
+}
+
+
+// generate_block_data_structure_partialeq()
 // generate an impl of partialeq which compares all the regular struct members but ignores
 // the line number information in self.__location_info
 fn generate_block_data_structure_partialeq(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
@@ -509,6 +637,10 @@ fn generate_block_data_structure_partialeq(typename: &str, structitems: &Vec<Dat
 }
 
 
+// generate_block_data_structure_mergeincludes()
+// generate fn merge_includes to merge included data into the main file
+// merging included data is simple: set the origin of the block and all of it's optional
+// children to None, as an origin that is Some(filename) indicates that the data comes from an include
 fn generate_block_data_structure_mergeincludes(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
     let typeident = format_ident!("{}", typename);
     let merge_commands = make_merge_commands(quote!{self}, structitems);
@@ -524,6 +656,10 @@ fn generate_block_data_structure_mergeincludes(typename: &str, structitems: &Vec
 }
 
 
+// make_merge_commands()
+// generate the function calls inside a structs merge_includes() function that also merge the child elements
+// this is only a concern for structs and optional elements, because other items do not track an include location
+// and are always assumed to be inside the same file
 fn make_merge_commands(name_prefix: TokenStream, structitems: &Vec<DataItem>) -> Vec<TokenStream> {
     let mut merge_commands = Vec::<TokenStream>::new();
     for item in structitems {
@@ -553,7 +689,7 @@ fn make_merge_commands(name_prefix: TokenStream, structitems: &Vec<DataItem>) ->
                     }
                 }
             }
-            BaseType::Block(structitems) |
+            BaseType::Block(structitems, _) |
             BaseType::Struct(structitems) => {
                 let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
                 let newprefix = quote!{#name_prefix.#itemname};
@@ -585,10 +721,10 @@ pub(crate) fn generate_parser(types: &HashMap<String, DataItem>) -> TokenStream 
                 result.extend(generate_enum_parser(typename, enumitems));
             }
             BaseType::Struct(structitems) => {
-                result.extend(generate_struct_parser(typename, structitems));
+                result.extend(generate_block_parser(typename, structitems, false));
             }
-            BaseType::Block(structitems) => {
-                result.extend(generate_block_parser(typename, structitems));
+            BaseType::Block(structitems, is_block) => {
+                result.extend(generate_block_parser(typename, structitems, *is_block));
             }
             _ => {
                 panic!("only block, struct and enum are allowed as top-level types, but {} = {:#?} was encountered", typename, a2mltype);
@@ -599,7 +735,7 @@ pub(crate) fn generate_parser(types: &HashMap<String, DataItem>) -> TokenStream 
 }
 
 
-// generate_enum_parser
+// generate_enum_parser()
 // generates a parser function that returns the enum variant matching the text of the current input token
 fn generate_enum_parser(typename: &str, enumitems: &Vec<EnumItem>) -> TokenStream {
     let name = format_ident!("{}", typename);
@@ -637,9 +773,9 @@ fn generate_enum_parser(typename: &str, enumitems: &Vec<EnumItem>) -> TokenStrea
 
 
 // generate_block_parser
-// generates the full parser function for a block
-// blocks are structs which occur after a tag in a TaggedUnion or TaggedStruc.
-fn generate_block_parser(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+// generates the full parser function for a block or keyword
+// for elements derived from an a2ml spec, blocks are structs which occur after a tag in a TaggedUnion or TaggedStruct.
+fn generate_block_parser(typename: &str, structitems: &Vec<DataItem>, is_block: bool) -> TokenStream {
     match typename {
         "A2ml" => {
             generate_block_parser_a2ml()
@@ -648,59 +784,15 @@ fn generate_block_parser(typename: &str, structitems: &Vec<DataItem>) -> TokenSt
             generate_block_parser_ifdata()
         }
         _ => {
-            generate_block_parser_generic(typename, structitems)
+            generate_block_parser_generic(typename, structitems, is_block)
         }
 
     }
 }
 
 
-fn generate_struct_parser(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
-    let name = format_ident!("{}", typename);
-    let (itemnames, itemparsers) = generate_struct_item_fragments(structitems);
-
-    quote! {
-        impl #name {
-            pub(crate) fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParseError> {
-                let (__location_incfile, __location_line) = (parser.get_incfilename(context.fileid), parser.get_current_line());
-                #(#itemparsers)*
-                Ok(Self {
-                    #(#itemnames),*
-                })
-            }
-        }
-    }
-}
-
-
-fn generate_block_parser_generic(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
-    let name = format_ident!("{}", typename);
-    let (itemnames, itemparsers) = generate_struct_item_fragments(structitems);
-
-    quote! {
-        impl #name {
-            pub(crate) fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParseError> {
-                let (__location_incfile, __location_line) = (parser.get_incfilename(context.fileid), context.line);
-                #(#itemparsers)*
-                let blk = Self {
-                    #(#itemnames),*
-                };
-                
-                if context.inside_block {
-                    parser.expect_token(context, A2lTokenType::End)?;
-                    let ident = parser.get_identifier(context)?;
-                    if ident != context.element {
-                        parser.error_or_log(ParseError::IncorrectEndTag(context.clone(), ident))?;
-                    }
-                }
-
-                Ok(blk)
-            }
-        }
-    }
-}
-
-
+// generate_block_parser_a2ml()
+// generate a parser function for the A2ml block
 fn generate_block_parser_a2ml() -> TokenStream {
     quote! {
         impl A2ml {
@@ -734,6 +826,8 @@ fn generate_block_parser_a2ml() -> TokenStream {
 }
 
 
+// generate_block_parser_ifdata()
+// generate a parser function for the IfData block
 fn generate_block_parser_ifdata() -> TokenStream {
     quote! {
         impl IfData {
@@ -753,6 +847,43 @@ fn generate_block_parser_ifdata() -> TokenStream {
                 if ident != "IF_DATA" {
                     parser.error_or_log(ParseError::IncorrectEndTag(context.clone(), ident))?;
                 }
+
+                Ok(blk)
+            }
+        }
+    }
+}
+
+
+// generate_block_parser_generic()
+// generate a parser function for a block, keyword or struct
+fn generate_block_parser_generic(typename: &str, structitems: &Vec<DataItem>, is_block: bool) -> TokenStream {
+    let name = format_ident!("{}", typename);
+    let (itemnames, itemparsers) = generate_struct_item_fragments(structitems);
+
+    // check the block /end tag - blocks only, not for keywords or structs
+    let blockcheck = if is_block {
+        quote! {
+            parser.expect_token(context, A2lTokenType::End)?;
+            let ident = parser.get_identifier(context)?;
+            if ident != context.element {
+                parser.error_or_log(ParseError::IncorrectEndTag(context.clone(), ident))?;
+            }
+        }
+    } else {
+        quote!{}
+    };
+
+    quote! {
+        impl #name {
+            pub(crate) fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParseError> {
+                let (__location_incfile, __location_line) = (parser.get_incfilename(context.fileid), context.line);
+                #(#itemparsers)*
+                let blk = Self {
+                    #(#itemnames),*
+                };
+
+                #blockcheck
 
                 Ok(blk)
             }
@@ -788,7 +919,7 @@ fn generate_struct_item_fragments(structitems: &Vec<DataItem>) -> (Vec<Ident>, V
                 let itemname = format_ident!("{}", sitem.varname.clone().unwrap());
                 let itemname_location = format_ident!("__{}_location", itemname);
                 let itemparser = generate_item_parser_call(&sitem.typename, &sitem.basetype);
-                itemparsers.push(quote!{let (#itemname_location, #itemname) = #itemparser?;});
+                itemparsers.push(quote!{let (#itemname_location, #itemname) = #itemparser;});
                 location_names.push(itemname_location);
                 itemnames.push(itemname);
             }
@@ -806,47 +937,69 @@ fn generate_struct_item_fragments(structitems: &Vec<DataItem>) -> (Vec<Ident>, V
 
 // generate_item_parser_call
 // generates code to call an existing item parser function
+// each item parser fragment evaluates as a tuple (locationinfo, value)
 fn generate_item_parser_call(typename: &Option<String>, item: &BaseType) -> TokenStream {
-    let call = match item {
-        BaseType::Char => { quote!{parser.get_integer_i8(context)} }
-        BaseType::Int => { quote!{parser.get_integer_i16(context)} }
-        BaseType::Long => { quote!{parser.get_integer_i32(context)} }
-        BaseType::Int64 => { quote!{parser.get_integer_i64(context)} }
-        BaseType::Uchar => { quote!{parser.get_integer_u8(context)} }
-        BaseType::Uint => { quote!{parser.get_integer_u16(context)} }
-        BaseType::Ulong => { quote!{parser.get_integer_u32(context)} }
-        BaseType::Uint64 => { quote!{parser.get_integer_u64(context)} }
-        BaseType::Double => { quote!{parser.get_double(context)} }
-        BaseType::Float => { quote!{parser.get_float(context)} }
-        BaseType::Ident => { quote!{parser.get_identifier(context)} }
-        BaseType::String => { quote!{parser.get_string(context)} }
+    match item {
+        BaseType::Char |
+        BaseType::Int |
+        BaseType::Long |
+        BaseType::Int64 |
+        BaseType::Uchar |
+        BaseType::Uint |
+        BaseType::Ulong |
+        BaseType::Uint64 => {
+            let intparser = get_int_parser(item);
+            quote!{{
+                let line = parser.get_current_line();
+                let (value, is_hex) = #intparser(context)?;
+                ((line, is_hex), value)
+            }}
+        }
+        BaseType::Double => { quote!{(parser.get_current_line(), parser.get_double(context)?)} }
+        BaseType::Float => { quote!{(parser.get_current_line(), parser.get_float(context)?)} }
+        BaseType::Ident => { quote!{(parser.get_current_line(), parser.get_identifier(context)?)} }
+        BaseType::String => { quote!{(parser.get_current_line(), parser.get_string(context)?)} }
         BaseType::Array(arraytype, dim) => {
             if let BaseType::Char = arraytype.basetype {
-                quote!{parser.get_string_maxlen(context, #dim)}
+                quote!{parser.get_string_maxlen(context, #dim)?}
             } else {
                 let itemparser = generate_item_parser_call(&arraytype.typename, &arraytype.basetype);
-                let parsercalls = (0..(*dim)).into_iter().map(|_| quote!{#itemparser?.1});
-                // this looks complicated, but is actually the simplest solution I could come up with
-                // The intent is to propagate the Err from any single array element. Since this is a code
-                // fragment that will be inserted elsewhere, using the '?' operator directly does not work as intended.
-                // Wrapping it all in the closure and calling that immediately works.
-                quote!{
-                    {
-                        |parser: &mut ParserState, context: &ParseContext| { Ok([ #(#parsercalls),*]) }
-                    }(parser, context)
-                }
+                let names: Vec<Ident> = (0..(*dim)).into_iter().map(
+                    |x| format_ident!("__arrayitem_{}", x)
+                ).collect();
+                let parsercalls = names.iter().map(
+                    |name| quote!{let #name = #itemparser;}
+                );
+                quote!{{
+                    #(#parsercalls)*
+                    ([ #(#names.0),* ], [ #(#names.1),*])
+                }}
             }
         }
         BaseType::EnumRef |
         BaseType::StructRef => {
             let typename = typename.as_ref().unwrap();
             let name = format_ident!("{}", typename);
-            quote!{#name::parse(parser, context)}
+            quote!{ (parser.get_current_line(), #name::parse(parser, context)?) }
         }
         _ => { panic!("forbidden type: {:#?}", item); }
-    };
-    quote!{
-        {|| { Ok((parser.get_current_line(), #call?)) }}()
+    }
+}
+
+
+// get_int_parser()
+// simplify the handling of the integer case in generate_item_parser_call
+fn get_int_parser(item: &BaseType) -> TokenStream {
+    match item {
+        BaseType::Char => { quote!{parser.get_integer_i8} }
+        BaseType::Int => { quote!{parser.get_integer_i16} }
+        BaseType::Long => { quote!{parser.get_integer_i32} }
+        BaseType::Int64 => { quote!{parser.get_integer_i64} }
+        BaseType::Uchar => { quote!{parser.get_integer_u8} }
+        BaseType::Uint => { quote!{parser.get_integer_u16} }
+        BaseType::Ulong => { quote!{parser.get_integer_u32} }
+        BaseType::Uint64 => { quote!{parser.get_integer_u64} }
+        _ => panic!("call of get_int_parser only allowed for integer types")
     }
 }
 
@@ -863,7 +1016,7 @@ fn generate_sequence_parser(itemname: &Ident, typename: &Option<String>, seqitem
         let mut done = false;
         while done == false {
             let current_token = parser.get_tokenpos();
-            let sequence_item = #parserfunc;
+            let sequence_item = {|parser: &mut ParserState, context: &ParseContext| {Ok(#parserfunc)}}(parser, context);
             if sequence_item.is_err() {
                 parser.set_tokenpos(current_token);
                 done = true;
@@ -920,6 +1073,10 @@ fn generate_taggeditem_parser(tg_items: &Vec<TaggedItem>, is_taggedunion: bool, 
 }
 
 
+// generate_taggeditem_match_arms()
+// a match statement is used in order to parse the taggeditems of a TaggedStruct / TaggedUnion
+// This function generates all of the match arms of the match expression
+// In order to use the result of the match arms, we also need the definition of the generated variables.
 fn generate_taggeditem_match_arms(tg_items: &Vec<TaggedItem>) -> (TokenStream, Vec<TokenStream>, TokenStream) {
     let mut var_definitions = quote!{};
     // item_match_arms: the match arms of the while loop that passes each set of input tokens to the appropriate item parser
@@ -1007,6 +1164,8 @@ fn generate_taggeditem_match_arms(tg_items: &Vec<TaggedItem>) -> (TokenStream, V
 }
 
 
+// generate_taggeditem_parser_core()
+// generate the match statement for parsing TaggedStructs and TaggedUnions
 fn generate_taggeditem_parser_core(tg_items: &Vec<TaggedItem>, is_taggedunion: bool, is_last: bool, item_match_arms: &Vec<TokenStream>) -> TokenStream {
     // default action if a tag is not recognized: step back in the tokenstream and let it be handled somewhere else
     let mut default_match_arm = quote!{
@@ -1066,6 +1225,9 @@ fn generate_tagged_item_names(tg_items: &Vec<TaggedItem>) -> Vec<Ident> {
 
 //-----------------------------------------------------------------------------
 
+
+// generate_writer()
+// Generate a pub fn write() function for all data types in the specification
 pub(crate) fn generate_writer(types: &HashMap<String, DataItem>) -> TokenStream {
     let mut result = quote!{};
     let mut typesvec: Vec<(&String, &DataItem)> = types.iter().map(|(key, val)| (key, val)).collect();
@@ -1079,7 +1241,7 @@ pub(crate) fn generate_writer(types: &HashMap<String, DataItem>) -> TokenStream 
             BaseType::Struct(structitems) => {
                 result.extend(generate_struct_writer(typename, structitems));
             }
-            BaseType::Block(structitems) => {
+            BaseType::Block(structitems, _) => {
                 result.extend(generate_block_writer(typename, structitems));
             }
             _ => {
@@ -1091,12 +1253,15 @@ pub(crate) fn generate_writer(types: &HashMap<String, DataItem>) -> TokenStream 
 }
 
 
+// generate_enum_writer()
+// For enums it actually makes more sense to implement the trait std::fmt::Display, than to have a non-standard write() function
 fn generate_enum_writer(typename: &str, enumitems: &Vec<EnumItem>) -> TokenStream {
     let typeident = format_ident!("{}", typename);
     let mut match_arms = Vec::new();
     for item in enumitems {
         let enident = format_ident!("{}", ucname_to_typename(&item.name));
         let entag = &item.name;
+        // each match arm is something like:  Self::WhateverValue => "WHATEVER_VALUE",
         match_arms.push(quote!{Self::#enident => #entag});
     }
 
@@ -1112,6 +1277,9 @@ fn generate_enum_writer(typename: &str, enumitems: &Vec<EnumItem>) -> TokenStrea
     }
 }
 
+
+// generate_block_writer()
+// Choose between custom handling for A2ml and IfData and generic handling for every other block.
 fn generate_block_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
     match typename {
         "A2ml" => {
@@ -1127,6 +1295,8 @@ fn generate_block_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenSt
 }
 
 
+// generate_block_writer_a2ml()
+// The a2ml contains the full A2ML specification, which can be written as one string
 fn generate_block_writer_a2ml() -> TokenStream {
     quote!{
         impl A2ml {
@@ -1140,14 +1310,14 @@ fn generate_block_writer_a2ml() -> TokenStream {
 }
 
 
+// generate_block_writer_ifdata()
+// Gnerate the write() function for an IfData block, which can contain a GenericIfData item.
 fn generate_block_writer_ifdata() -> TokenStream {
     quote!{
         impl IfData {
             pub(crate) fn write(&self) -> a2lwriter::Writer {
                 if let Some(ifdata_items) = &self.ifdata_items {
-                    //println!("{:#?}", ifdata_items);
                     let outval = ifdata_items.write(&self.__location_info.0, self.__location_info.1);
-                    //println!("{:#?}", outval);
                     outval
                 } else {
                     a2lwriter::Writer::new(&self.__location_info.0, self.__location_info.1)
@@ -1158,10 +1328,13 @@ fn generate_block_writer_ifdata() -> TokenStream {
 }
 
 
+// generate_block_writer_generic()
+// Generate a write() function for a block
+// Each block instantiates its own Writer and uses it to write all of its child elements
 fn generate_block_writer_generic(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
     let typeident = format_ident!("{}", typename);
 
-    let write_items = generate_block_item_writer(structitems);
+    let write_items = generate_block_item_writers(structitems);
 
     quote! {
         impl #typeident {
@@ -1177,14 +1350,20 @@ fn generate_block_writer_generic(typename: &str, structitems: &Vec<DataItem>) ->
 }
 
 
+// generate_struct_writer()
+// Generate a write function for a struct which occurs inside of a block.
+// The struct is written using the parent block's Writer
 fn generate_struct_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
     let typeident = format_ident!("{}", typename);
 
-    let write_items = generate_block_item_writer(structitems);
+    let write_items = generate_block_item_writers(structitems);
 
     quote! {
         impl #typeident {
             pub(crate) fn write(&self, writer: &mut a2lwriter::Writer) {
+                // if this struct is part of a sequence of structs (e.g. inside of COMPU_VTAB), then
+                // the writer needs additional info in order to insert sane line breaks for new items
+                writer.add_break_if_new_item(self.__location_info.1);
                 #(#write_items)*
             }
         }
@@ -1192,7 +1371,9 @@ fn generate_struct_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenS
 }
 
 
-fn generate_block_item_writer(structitems: &Vec<DataItem>) -> Vec<TokenStream> {
+// generate_block_item_writers()
+// Generate a write command for every item in the block.
+fn generate_block_item_writers(structitems: &Vec<DataItem>) -> Vec<TokenStream> {
     let mut write_items = Vec::<TokenStream>::new();
     let mut posidx: usize = 2;
 
@@ -1249,17 +1430,19 @@ fn generate_block_item_writer(structitems: &Vec<DataItem>) -> Vec<TokenStream> {
     write_items
 }
 
-
-fn  generate_block_item_write_cmd(basetype: &BaseType, itemname: TokenStream, location: TokenStream, calldepth: usize) -> TokenStream {
+// generate_block_item_write_cmd()
+// Generate the command to write a single item of a block based on its data type
+// The generated code fragments assume that a Writer called writer is available in the enclosing code
+fn generate_block_item_write_cmd(basetype: &BaseType, itemname: TokenStream, location: TokenStream, calldepth: usize) -> TokenStream {
     match basetype {
-        BaseType::Uchar => { quote!{ writer.add_fixed_item(a2lwriter::format_u8(#itemname), #location); } }
-        BaseType::Char => { quote!{ writer.add_fixed_item(a2lwriter::format_i8(#itemname), #location); } }
-        BaseType::Uint => { quote!{ writer.add_fixed_item(a2lwriter::format_u16(#itemname), #location); } }
-        BaseType::Int => { quote!{ writer.add_fixed_item(a2lwriter::format_i16(#itemname), #location); } }
-        BaseType::Ulong => { quote!{ writer.add_fixed_item(a2lwriter::format_u32(#itemname), #location); } }
-        BaseType::Long => { quote!{ writer.add_fixed_item(a2lwriter::format_i32(#itemname), #location); } }
-        BaseType::Uint64 => { quote!{ writer.add_fixed_item(a2lwriter::format_u64(#itemname), #location); } }
-        BaseType::Int64 => { quote!{ writer.add_fixed_item(a2lwriter::format_i64(#itemname), #location); } }
+        BaseType::Uchar => { quote!{ writer.add_fixed_item(a2lwriter::format_u8((#itemname, #location.1)), #location.0); } }
+        BaseType::Char => { quote!{ writer.add_fixed_item(a2lwriter::format_i8((#itemname, #location.1)), #location.0); } }
+        BaseType::Uint => { quote!{ writer.add_fixed_item(a2lwriter::format_u16((#itemname, #location.1)), #location.0); } }
+        BaseType::Int => { quote!{ writer.add_fixed_item(a2lwriter::format_i16((#itemname, #location.1)), #location.0); } }
+        BaseType::Ulong => { quote!{ writer.add_fixed_item(a2lwriter::format_u32((#itemname, #location.1)), #location.0); } }
+        BaseType::Long => { quote!{ writer.add_fixed_item(a2lwriter::format_i32((#itemname, #location.1)), #location.0); } }
+        BaseType::Uint64 => { quote!{ writer.add_fixed_item(a2lwriter::format_u64((#itemname, #location.1)), #location.0); } }
+        BaseType::Int64 => { quote!{ writer.add_fixed_item(a2lwriter::format_i64((#itemname, #location.1)), #location.0); } }
         BaseType::Double => { quote!{ writer.add_fixed_item(a2lwriter::format_double(#itemname), #location); } }
         BaseType::Float => { quote!{ writer.add_fixed_item(a2lwriter::format_float(#itemname), #location); } }
         BaseType::Ident => { quote!{
@@ -1278,11 +1461,14 @@ fn  generate_block_item_write_cmd(basetype: &BaseType, itemname: TokenStream, lo
             if let BaseType::Char = arraytype.basetype {
                 generate_block_item_write_cmd(&BaseType::String, itemname, location, calldepth)
             } else {
+                // assign an individual idxident based on the calldepth. This enables nested arrays.
                 let idxident = format_ident!("idx{}", calldepth);
                 let arrayelemname = quote!{ #itemname[#idxident] };
-                let write_cmd = generate_block_item_write_cmd(&arraytype.basetype, arrayelemname, location, calldepth + 1);
+                let locationname = quote!{ #location[#idxident] };
+                let write_cmd = generate_block_item_write_cmd(&arraytype.basetype, arrayelemname, locationname, calldepth + 1);
                 quote!{
                     for #idxident in 0..#dim {
+                        // the #write_cmd inside of this loop uses #idxident to index into the array
                         #write_cmd
                     }
                 }

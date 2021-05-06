@@ -6,6 +6,7 @@ use std::collections::HashSet;
 enum WriterItem{
     StaticItem(u32, String),
     TaggedGroup(Vec<(String, Writer, bool)>),
+    Break
 }
 
 #[derive(Debug)]
@@ -39,6 +40,14 @@ impl Writer {
         self
     }
 
+    pub(crate) fn add_break_if_new_item(&mut self, position: u32) -> &mut Self {
+        if position == 0 || position == u32::MAX {
+            self.items.push(WriterItem::Break);
+        }
+
+        self
+    }
+
     pub(crate) fn add_tagged_group(&mut self) -> TaggedGroupHandle {
         self.items.push(WriterItem::TaggedGroup(Vec::new()));
         let idx = self.items.len() - 1;
@@ -67,12 +76,17 @@ impl Writer {
         let mut outstring = "".to_string();
         let mut current_line = self.line;
         let mut empty_block = true;
+        let mut should_break = false;
         for item in self.items {
             match item {
                 WriterItem::StaticItem(item_line, text) => {
                     // add the text of static items, while inserting linebreaks with indentation as needed
-                    write!(outstring, "{}{}", make_whitespace(current_line, item_line, indent), text).unwrap();
+                    write!(outstring, "{}{}", make_whitespace(current_line, item_line, indent, should_break, false), text).unwrap();
+                    should_break = false;
                     current_line = item_line;
+                }
+                WriterItem::Break => {
+                    should_break = true;
                 }
                 WriterItem::TaggedGroup(mut group) => {
                     // sort the items in this group according to the sorting function
@@ -99,7 +113,7 @@ impl Writer {
             // check if the element should be written to this file, or if an /include statement should be generated instead
             if item.file.is_none() {
                 // if needed add whitespace
-                write!(outstring, "{}", make_whitespace(current_line, item.line, indent)).unwrap();
+                write!(outstring, "{}", make_whitespace(current_line, item.line, indent, true, is_block)).unwrap();
 
                 // if the opening block tag shares the line with the previous opening block tag, then (probably) no additional indentation is needed
                 // this is a hacky heuristic that fixes the indentation of IF_DATA blocks
@@ -116,7 +130,7 @@ impl Writer {
                 }
                 write!(outstring, "{}{}", tag, text).unwrap();
                 if is_block {
-                    write!(outstring, "{}/end {}", make_whitespace(current_line, current_line + 1, indent), tag).unwrap();
+                    write!(outstring, "{}/end {}", make_whitespace(current_line, current_line + 1, indent, false, false), tag).unwrap();
                     current_line += 1;
                 }
             } else {
@@ -124,7 +138,7 @@ impl Writer {
                 let incfile = item.file.as_ref().unwrap();
                 // check if the /include has been added yet and add it if needed
                 if included_files.get(incfile).is_none() {
-                    write!(outstring, "{}/include \"{}\"", make_whitespace(current_line, current_line + 1, indent), incfile).unwrap();
+                    write!(outstring, "{}/include \"{}\"", make_whitespace(current_line, current_line + 1, indent, true, true), incfile).unwrap();
                     current_line += 1;
 
                     included_files.insert(incfile.to_owned());
@@ -210,14 +224,21 @@ pub fn escape_string(value: &str) -> String {
 
 
 // make_whitespace()
-// create whitespace between two elements, depending on which lines they are to be placed on:
-// - same line, and both elements actually have line numbers: separate with a space
-// - one line apart, or neither element has a line number, i.e. newly inserted: add a newline and indent
-// - any other case: add two newlines and indent
-fn make_whitespace(current_line: u32, item_line: u32, indent: usize) -> String {
-    if current_line != 0 && current_line == item_line {
+// Create whitespace between two elements.
+// For pre-existing elements, this depends on the line numbers of the elements:
+// - equal line numbers, and both elements have line numbers: separate with a space
+// - line number differs by one: add a newline and indent
+// - if line numbers differ by more than one and the new item is the start of a block element: add two newlines and indent
+// For newly created elements there are blocks in whilch all line numbers are set to zero and keywords where all line numbers are equal to u32::MAX
+// The flag break_new helps to improve the layout in these cases as it is set when formatting begins for a block or keyword
+fn make_whitespace(current_line: u32, item_line: u32, indent: usize, break_new: bool, allow_empty_line: bool) -> String {
+    let must_break = break_new && current_line == item_line && current_line == u32::MAX;
+
+    if current_line != 0 && current_line == item_line && !must_break {
         " ".to_string()
-    } else if current_line + 1 == item_line || (current_line == 0 && item_line == 0) {
+    } else if current_line + 1 == item_line ||
+              (current_line == 0 && item_line == 0) ||
+              !allow_empty_line {
         format!("\n{:1$}", "", indent * INDENT_WIDTH)
     } else {
         format!("\n\n{:1$}", "", indent * INDENT_WIDTH)
@@ -225,32 +246,36 @@ fn make_whitespace(current_line: u32, item_line: u32, indent: usize) -> String {
 }
 
 
-pub(crate) fn format_u8(value: u8) -> String {
-    if value < 10 {
+pub(crate) fn format_u8(val_format: (u8, bool)) -> String {
+    let (value, is_hex) = val_format;
+    if !is_hex {
         format!("{}", value)
     } else {
         format!("0x{:0X}", value)
     }
 }
 
-pub(crate) fn format_u16(value: u16) -> String {
-    if value < 10 {
+pub(crate) fn format_u16(val_format: (u16, bool)) -> String {
+    let (value, is_hex) = val_format;
+    if !is_hex {
         format!("{}", value)
     } else {
         format!("0x{:0X}", value)
     }
 }
 
-pub(crate) fn format_u32(value: u32) -> String {
-    if value < 10 {
+pub(crate) fn format_u32(val_format: (u32, bool)) -> String {
+    let (value, is_hex) = val_format;
+    if !is_hex {
         format!("{}", value)
     } else {
         format!("0x{:0X}", value)
     }
 }
 
-pub(crate) fn format_u64(value: u64) -> String {
-    if value < 10 {
+pub(crate) fn format_u64(val_format: (u64, bool)) -> String {
+    let (value, is_hex) = val_format;
+    if !is_hex {
         format!("{}", value)
     } else {
         format!("0x{:0X}", value)
@@ -258,32 +283,36 @@ pub(crate) fn format_u64(value: u64) -> String {
 }
 
 
-pub(crate) fn format_i8(value: i8) -> String {
-    if -10 < value || value < 10 {
+pub(crate) fn format_i8(val_format: (i8, bool)) -> String {
+    let (value, is_hex) = val_format;
+    if !is_hex {
         format!("{}", value)
     } else {
         format!("0x{:0X}", value)
     }
 }
 
-pub(crate) fn format_i16(value: i16) -> String {
-    if -10 < value || value < 10 {
+pub(crate) fn format_i16(val_format: (i16, bool)) -> String {
+    let (value, is_hex) = val_format;
+    if !is_hex {
         format!("{}", value)
     } else {
         format!("0x{:0X}", value)
     }
 }
 
-pub(crate) fn format_i32(value: i32) -> String {
-    if -10 < value || value < 10 {
+pub(crate) fn format_i32(val_format: (i32, bool)) -> String {
+    let (value, is_hex) = val_format;
+    if !is_hex {
         format!("{}", value)
     } else {
         format!("0x{:0X}", value)
     }
 }
 
-pub(crate) fn format_i64(value: i64) -> String {
-    if -10 < value || value < 10 {
+pub(crate) fn format_i64(val_format: (i64, bool)) -> String {
+    let (value, is_hex) = val_format;
+    if !is_hex {
         format!("{}", value)
     } else {
         format!("0x{:0X}", value)

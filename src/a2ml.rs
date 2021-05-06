@@ -90,18 +90,18 @@ pub struct GenericIfDataTaggedItem {
 #[derive(Debug)]
 pub enum GenericIfData {
     None,
-    Char(u32, i8),
-    Int(u32, i16),
-    Long(u32, i32),
-    Int64(u32, i64),
-    UChar(u32, u8),
-    UInt(u32, u16),
-    ULong(u32, u32),
-    UInt64(u32, u64),
+    Char(u32, (i8, bool)),
+    Int(u32, (i16, bool)),
+    Long(u32, (i32, bool)),
+    Int64(u32, (i64, bool)),
+    UChar(u32, (u8, bool)),
+    UInt(u32, (u16, bool)),
+    ULong(u32, (u32, bool)),
+    UInt64(u32, (u64, bool)),
     Float(u32, f32),
     Double(u32, f64),
     String(u32, String),
-    Array(u32, Vec<GenericIfData>),
+    Array(Vec<GenericIfData>),
     EnumItem(u32, String),
     Struct(Option<String>, u32, Vec<GenericIfData>),
     Sequence(Vec<GenericIfData>),
@@ -708,8 +708,22 @@ impl GenericIfData {
         }
     }
 
+    pub fn get_int_is_hex(&self) -> Result<bool, ()> {
+        match self {
+            GenericIfData::UChar(_, (_, is_hex)) |
+            GenericIfData::UInt(_, (_, is_hex)) |
+            GenericIfData::ULong(_, (_, is_hex)) |
+            GenericIfData::UInt64(_, (_, is_hex)) |
+            GenericIfData::Char(_, (_, is_hex)) |
+            GenericIfData::Int(_, (_, is_hex)) |
+            GenericIfData::Long(_, (_, is_hex)) |
+            GenericIfData::Int64(_, (_, is_hex)) => Ok(*is_hex),
+            _ => Err(())
+        }
+    }
+
     pub fn get_integer_u8(&self) -> Result<u8, ()> {
-        if let GenericIfData::UChar(_, val) = self {
+        if let GenericIfData::UChar(_, (val, _)) = self {
             Ok(*val)
         } else {
             Err(())
@@ -717,7 +731,7 @@ impl GenericIfData {
     }
 
     pub fn get_integer_u16(&self) -> Result<u16, ()> {
-        if let GenericIfData::UInt(_, val) = self {
+        if let GenericIfData::UInt(_, (val, _)) = self {
             Ok(*val)
         } else {
             Err(())
@@ -725,7 +739,7 @@ impl GenericIfData {
     }
 
     pub fn get_integer_u32(&self) -> Result<u32, ()> {
-        if let GenericIfData::ULong(_, val) = self {
+        if let GenericIfData::ULong(_, (val, _)) = self {
             Ok(*val)
         } else {
             Err(())
@@ -733,7 +747,7 @@ impl GenericIfData {
     }
 
     pub fn get_integer_u64(&self) -> Result<u64, ()> {
-        if let GenericIfData::UInt64(_, val) = self {
+        if let GenericIfData::UInt64(_, (val, _)) = self {
             Ok(*val)
         } else {
             Err(())
@@ -741,7 +755,7 @@ impl GenericIfData {
     }
 
     pub fn get_integer_i8(&self) -> Result<i8, ()> {
-        if let GenericIfData::Char(_, val) = self {
+        if let GenericIfData::Char(_, (val, _)) = self {
             Ok(*val)
         } else {
             Err(())
@@ -749,7 +763,7 @@ impl GenericIfData {
     }
 
     pub fn get_integer_i16(&self) -> Result<i16, ()> {
-        if let GenericIfData::Int(_, val) = self {
+        if let GenericIfData::Int(_, (val, _)) = self {
             Ok(*val)
         } else {
             Err(())
@@ -757,7 +771,7 @@ impl GenericIfData {
     }
 
     pub fn get_integer_i32(&self) -> Result<i32, ()> {
-        if let GenericIfData::Long(_, val) = self {
+        if let GenericIfData::Long(_, (val, _)) = self {
             Ok(*val)
         } else {
             Err(())
@@ -765,7 +779,7 @@ impl GenericIfData {
     }
 
     pub fn get_integer_i64(&self) -> Result<i64, ()> {
-        if let GenericIfData::Int64(_, val) = self {
+        if let GenericIfData::Int64(_, (val, _)) = self {
             Ok(*val)
         } else {
             Err(())
@@ -797,7 +811,7 @@ impl GenericIfData {
     }
 
     pub fn get_array(&self) -> Result<&Vec<GenericIfData>, ()> {
-        if let GenericIfData::Array(_, arrayitems) = self {
+        if let GenericIfData::Array(arrayitems) = self {
             Ok(arrayitems)
         } else {
             Err(())
@@ -825,7 +839,6 @@ impl GenericIfData {
             GenericIfData::Float(line, _) |
             GenericIfData::Double(line, _) |
             GenericIfData::String(line, _) |
-            GenericIfData::Array(line, _) |
             GenericIfData::EnumItem(line, _) |
             GenericIfData::Struct(_, line, _) |
             GenericIfData::Block(_, line, _) => Ok(*line),
@@ -926,7 +939,7 @@ impl GenericIfData {
             Self::EnumItem(line, enitem) => {
                 writer.add_fixed_item(enitem.to_owned(), *line);
             }
-            Self::Array(_, items) |
+            Self::Array(items) |
             Self::Sequence(items) |
             Self::Struct(_, _, items) => {
                 for item in items {
@@ -1018,8 +1031,8 @@ impl PartialEq for GenericIfData {
             Self::String(_, val) => {
                 if let Self::String(_, otherval) = other { val == otherval } else { false }
             }
-            Self::Array(_, arr) => {
-                if let Self::Array(_, otherarr) = other { arr == otherarr } else { false }
+            Self::Array(arr) => {
+                if let Self::Array(otherarr) = other { arr == otherarr } else { false }
             }
             Self::EnumItem(_, val) => {
                 if let Self::EnumItem(_, otherval) = other { val == otherval } else { false }
