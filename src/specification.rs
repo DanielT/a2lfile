@@ -1,9 +1,9 @@
 use a2lmacros::a2l_specification;
 
 use crate::a2ml;
-use crate::a2lwriter;
-use crate::a2ltokenizer::A2lTokenType;
-use crate::a2lparser::{ParseContext, ParseError, ParserState};
+use crate::writer;
+use crate::tokenizer::A2lTokenType;
+use crate::parser::{ParseContext, ParseError, ParserState};
 
 
 a2l_specification! {
@@ -403,7 +403,7 @@ a2l_specification! {
         [-> MATRIX_DIM]
         [-> MAX_REFRESH]
         [-> MODEL_LINK]  (1.70 ..)
-        [-> NUMBER]
+        [-> NUMBER]      // (.. 1.51) - causes too many deprecation warnings in real files
         [-> PHYS_UNIT]   (1.60 ..)
         [-> READ_ONLY]
         [-> REF_MEMORY_SEGMENT]
@@ -911,7 +911,7 @@ a2l_specification! {
         float lower_limit
         float upper_limit
         [-> ANNOTATION]*
-        [-> ARRAY_SIZE]
+        [-> ARRAY_SIZE] (.. 1.51)
         [-> BIT_MASK]
         [-> BIT_OPERATION]
         [-> BYTE_ORDER]
@@ -1562,7 +1562,7 @@ a2l_specification! {
         [-> CALIBRATION_ACCESS]
         [-> DISPLAY_IDENTIFIER]
         [-> ECU_ADDRESS_EXTENSION]
-        [-> IF_DATA]
+        [-> IF_DATA]*
         [-> MAX_REFRESH]
         [-> MODEL_LINK]
         [-> SYMBOL_LINK]
@@ -1702,7 +1702,7 @@ a2l_specification! {
         [-> EXTENDED_LIMITS]
         [-> FORMAT]
         [-> MATRIX_DIM]
-        [-> NUMBER]
+        [-> NUMBER]     // (.. 1.51)
         [-> PHYS_UNIT]
         [-> STEP_SIZE]
     }

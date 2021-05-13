@@ -154,6 +154,7 @@ fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataI
     let constructor = generate_block_data_structure_constructor(typename, structitems, is_block);
     let partialeq = generate_block_data_structure_partialeq(typename, structitems);
     let mergeinc = generate_block_data_structure_mergeincludes(typename, structitems);
+    let getline = generate_block_data_structure_get_line(typename);
 
     quote!{
         pub struct #typeident {
@@ -164,6 +165,7 @@ fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataI
         #constructor
         #partialeq
         #mergeinc
+        #getline
     }
 }
 
@@ -195,6 +197,10 @@ fn generate_block_data_structure_a2ml() ->  TokenStream {
 
             pub fn merge_includes(&mut self) {
                 self.__location_info.0 = None;
+            }
+
+            pub fn get_line(&self) -> u32 {
+                self.__location_info.1
             }
         }
 
@@ -238,6 +244,10 @@ fn generate_block_data_structure_ifdata() ->  TokenStream {
                     // ifdata_items is an un-decoded GenericIfData. It can directly handle merge_includes()
                     ifdata_items.merge_includes();
                 }
+            }
+
+            pub fn get_line(&self) -> u32 {
+                self.__location_info.1
             }
         }
 
@@ -704,6 +714,17 @@ fn make_merge_commands(name_prefix: TokenStream, structitems: &Vec<DataItem>) ->
 
     merge_commands
 }
+
+
+fn generate_block_data_structure_get_line(typename: &str) -> TokenStream {
+    let typeident = format_ident!("{}", typename);
+    quote!{
+        impl #typeident {
+            pub fn get_line(&self) -> u32 {
+                self.__location_info.1
+            }
+        }
+    }}
 
 //-----------------------------------------------------------------------------
 
@@ -1300,8 +1321,8 @@ fn generate_block_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenSt
 fn generate_block_writer_a2ml() -> TokenStream {
     quote!{
         impl A2ml {
-            pub(crate) fn write(&self) -> a2lwriter::Writer {
-                let mut writer = a2lwriter::Writer::new(&self.__location_info.0, self.__location_info.1);
+            pub(crate) fn write(&self) -> writer::Writer {
+                let mut writer = writer::Writer::new(&self.__location_info.0, self.__location_info.1);
                 writer.add_fixed_item(self.a2ml_text.to_owned(), self.__location_info.2);
                 writer
             }
@@ -1315,12 +1336,12 @@ fn generate_block_writer_a2ml() -> TokenStream {
 fn generate_block_writer_ifdata() -> TokenStream {
     quote!{
         impl IfData {
-            pub(crate) fn write(&self) -> a2lwriter::Writer {
+            pub(crate) fn write(&self) -> writer::Writer {
                 if let Some(ifdata_items) = &self.ifdata_items {
                     let outval = ifdata_items.write(&self.__location_info.0, self.__location_info.1);
                     outval
                 } else {
-                    a2lwriter::Writer::new(&self.__location_info.0, self.__location_info.1)
+                    writer::Writer::new(&self.__location_info.0, self.__location_info.1)
                 }
             }
         }
@@ -1338,8 +1359,8 @@ fn generate_block_writer_generic(typename: &str, structitems: &Vec<DataItem>) ->
 
     quote! {
         impl #typeident {
-            pub(crate) fn write(&self) -> a2lwriter::Writer {
-                let mut writer = a2lwriter::Writer::new(&self.__location_info.0, self.__location_info.1);
+            pub(crate) fn write(&self) -> writer::Writer {
+                let mut writer = writer::Writer::new(&self.__location_info.0, self.__location_info.1);
 
                 #(#write_items)*
 
@@ -1360,7 +1381,7 @@ fn generate_struct_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenS
 
     quote! {
         impl #typeident {
-            pub(crate) fn write(&self, writer: &mut a2lwriter::Writer) {
+            pub(crate) fn write(&self, writer: &mut writer::Writer) {
                 // if this struct is part of a sequence of structs (e.g. inside of COMPU_VTAB), then
                 // the writer needs additional info in order to insert sane line breaks for new items
                 writer.add_break_if_new_item(self.__location_info.1);
@@ -1435,21 +1456,21 @@ fn generate_block_item_writers(structitems: &Vec<DataItem>) -> Vec<TokenStream> 
 // The generated code fragments assume that a Writer called writer is available in the enclosing code
 fn generate_block_item_write_cmd(basetype: &BaseType, itemname: TokenStream, location: TokenStream, calldepth: usize) -> TokenStream {
     match basetype {
-        BaseType::Uchar => { quote!{ writer.add_fixed_item(a2lwriter::format_u8((#itemname, #location.1)), #location.0); } }
-        BaseType::Char => { quote!{ writer.add_fixed_item(a2lwriter::format_i8((#itemname, #location.1)), #location.0); } }
-        BaseType::Uint => { quote!{ writer.add_fixed_item(a2lwriter::format_u16((#itemname, #location.1)), #location.0); } }
-        BaseType::Int => { quote!{ writer.add_fixed_item(a2lwriter::format_i16((#itemname, #location.1)), #location.0); } }
-        BaseType::Ulong => { quote!{ writer.add_fixed_item(a2lwriter::format_u32((#itemname, #location.1)), #location.0); } }
-        BaseType::Long => { quote!{ writer.add_fixed_item(a2lwriter::format_i32((#itemname, #location.1)), #location.0); } }
-        BaseType::Uint64 => { quote!{ writer.add_fixed_item(a2lwriter::format_u64((#itemname, #location.1)), #location.0); } }
-        BaseType::Int64 => { quote!{ writer.add_fixed_item(a2lwriter::format_i64((#itemname, #location.1)), #location.0); } }
-        BaseType::Double => { quote!{ writer.add_fixed_item(a2lwriter::format_double(#itemname), #location); } }
-        BaseType::Float => { quote!{ writer.add_fixed_item(a2lwriter::format_float(#itemname), #location); } }
+        BaseType::Uchar => { quote!{ writer.add_fixed_item(writer::format_u8((#itemname, #location.1)), #location.0); } }
+        BaseType::Char => { quote!{ writer.add_fixed_item(writer::format_i8((#itemname, #location.1)), #location.0); } }
+        BaseType::Uint => { quote!{ writer.add_fixed_item(writer::format_u16((#itemname, #location.1)), #location.0); } }
+        BaseType::Int => { quote!{ writer.add_fixed_item(writer::format_i16((#itemname, #location.1)), #location.0); } }
+        BaseType::Ulong => { quote!{ writer.add_fixed_item(writer::format_u32((#itemname, #location.1)), #location.0); } }
+        BaseType::Long => { quote!{ writer.add_fixed_item(writer::format_i32((#itemname, #location.1)), #location.0); } }
+        BaseType::Uint64 => { quote!{ writer.add_fixed_item(writer::format_u64((#itemname, #location.1)), #location.0); } }
+        BaseType::Int64 => { quote!{ writer.add_fixed_item(writer::format_i64((#itemname, #location.1)), #location.0); } }
+        BaseType::Double => { quote!{ writer.add_fixed_item(writer::format_double(#itemname), #location); } }
+        BaseType::Float => { quote!{ writer.add_fixed_item(writer::format_float(#itemname), #location); } }
         BaseType::Ident => { quote!{
             writer.add_fixed_item(format!("{}", #itemname), #location);
         } }
         BaseType::String => { quote!{
-            writer.add_fixed_item(format!("\"{}\"", a2lwriter::escape_string(&#itemname)), #location);
+            writer.add_fixed_item(format!("\"{}\"", writer::escape_string(&#itemname)), #location);
         } }
         BaseType::EnumRef => { quote!{
             writer.add_fixed_item(#itemname.to_string(), #location);

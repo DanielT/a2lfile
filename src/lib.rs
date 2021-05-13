@@ -1,19 +1,22 @@
-mod a2lloader;
-mod a2ltokenizer;
-mod a2lparser;
+mod loader;
+mod tokenizer;
+mod parser;
 mod a2ml;
-mod a2lwriter;
-mod a2lspecification;
+mod writer;
+mod specification;
+mod namemap;
+mod merge;
+mod checker;
 
 // used internally
-use a2ltokenizer::{A2lToken, A2lTokenType};
-use a2lparser::{ParseContext, ParserState};
+use tokenizer::{A2lToken, A2lTokenType};
+use parser::{ParseContext, ParserState};
 
 // re-export for the crate user
 pub use a2lmacros::a2ml_specification;
 pub use a2ml::GenericIfData;
 pub use a2ml::GenericIfDataTaggedItem;
-pub use a2lspecification::*;
+pub use specification::*;
 
 
 pub trait Logger {
@@ -23,7 +26,7 @@ pub trait Logger {
 
 
 pub fn load(filename: &str, a2ml_spec: Option<String>, logger: &mut dyn Logger, strict_parsing: bool) -> Result<A2lFile, String> {
-    let filedata = a2lloader::load(filename)?;
+    let filedata = loader::load(filename)?;
     load_impl(filename, filedata, logger, strict_parsing, a2ml_spec)
 }
 
@@ -35,7 +38,7 @@ pub fn load_from_string(a2ldata: &str, a2ml_spec: Option<String>, logger: &mut d
 
 fn load_impl(filename: &str, filedata: String, logger: &mut dyn Logger, strict_parsing: bool, a2ml_spec: Option<String>) -> Result<A2lFile, String> {
     // tokenize the input data
-    let tokenresult = a2ltokenizer::tokenize(String::from(filename), 0, &filedata)?;
+    let tokenresult = tokenizer::tokenize(String::from(filename), 0, &filedata)?;
 
     // create a context for the parser. Ensure that the current line of the context is set to the first line that actually contains a token
     let mut fake_token = A2lToken {ttype: A2lTokenType::Identifier, startpos: 0, endpos: 0, fileid: 0, line: 1};
@@ -121,6 +124,11 @@ pub fn merge_includes(a2lstruct: &mut A2lFile) {
 }
 
 
-pub fn merge_modules(_a2lstruct: &mut A2lFile, _merge_data: A2lFile) {
+pub fn merge_modules(a2l_file: &mut A2lFile, merge_file: A2lFile) {
+    merge::merge_modules(a2l_file, merge_file);
+}
 
+
+pub fn check(a2l_file: &A2lFile, logger: &mut dyn Logger) {
+    checker::check(a2l_file, logger);
 }

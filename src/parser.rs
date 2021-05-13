@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::a2ml::*;
-use super::a2ltokenizer::*;
+use super::tokenizer::*;
 
 struct TokenIter<'a> {
     tokens: &'a Vec<A2lToken>,

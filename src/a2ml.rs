@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use super::a2lwriter;
-use super::a2lwriter::Writer;
+use super::writer;
+use super::writer::Writer;
 
 
 // tokenizer types
@@ -904,37 +904,37 @@ impl GenericIfData {
     fn write_item(&self, writer: &mut Writer) {
         match self {
             Self::Char(line, value) => {
-                writer.add_fixed_item(a2lwriter::format_i8(*value), *line);
+                writer.add_fixed_item(writer::format_i8(*value), *line);
             }
             Self::Int(line, value) => {
-                writer.add_fixed_item(a2lwriter::format_i16(*value), *line);
+                writer.add_fixed_item(writer::format_i16(*value), *line);
             }
             Self::Long(line, value) => {
-                writer.add_fixed_item(a2lwriter::format_i32(*value), *line);
+                writer.add_fixed_item(writer::format_i32(*value), *line);
             }
             Self::Int64(line, value) => {
-                writer.add_fixed_item(a2lwriter::format_i64(*value), *line);
+                writer.add_fixed_item(writer::format_i64(*value), *line);
             }
             Self::UChar(line, value) => {
-                writer.add_fixed_item(a2lwriter::format_u8(*value), *line);
+                writer.add_fixed_item(writer::format_u8(*value), *line);
             }
             Self::UInt(line, value) => {
-                writer.add_fixed_item(a2lwriter::format_u16(*value), *line);
+                writer.add_fixed_item(writer::format_u16(*value), *line);
             }
             Self::ULong(line, value) => {
-                writer.add_fixed_item(a2lwriter::format_u32(*value), *line);
+                writer.add_fixed_item(writer::format_u32(*value), *line);
             }
             Self::UInt64(line, value) => {
-                writer.add_fixed_item(a2lwriter::format_u64(*value), *line);
+                writer.add_fixed_item(writer::format_u64(*value), *line);
             }
             Self::Float(line, value) => {
-                writer.add_fixed_item(a2lwriter::format_float(*value), *line);
+                writer.add_fixed_item(writer::format_float(*value), *line);
             }
             Self::Double(line, value) => {
-                writer.add_fixed_item(a2lwriter::format_double(*value), *line);
+                writer.add_fixed_item(writer::format_double(*value), *line);
             }
             Self::String(line, value) => {
-                writer.add_fixed_item(format!("\"{}\"", a2lwriter::escape_string(value)), *line);
+                writer.add_fixed_item(format!("\"{}\"", writer::escape_string(value)), *line);
             }
             Self::EnumItem(line, enitem) => {
                 writer.add_fixed_item(enitem.to_owned(), *line);

@@ -1,4 +1,4 @@
-use super::a2lloader;
+use super::loader;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum A2lTokenType {
@@ -149,7 +149,7 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filedata: &str) -> Resul
                 let incfilename = make_include_filename(&incname, &filenames[0]);
 
                 // check if incname is an accessible file
-                let loadresult = a2lloader::load(&incfilename);
+                let loadresult = loader::load(&incfilename);
                 if let Ok(incfiledata) = loadresult {
                     let mut tokresult = tokenize(incname.to_string(), next_fileid, &incfiledata)?;
 
