@@ -8,6 +8,7 @@ mod namemap;
 mod merge;
 mod checker;
 
+use std::fmt::Write;
 // used internally
 use tokenizer::{A2lToken, A2lTokenType};
 use parser::{ParseContext, ParserState};
@@ -113,9 +114,9 @@ pub fn write(a2lstruct: &A2lFile, filename: &str) -> Result<(), String> {
 
 
 pub fn write_to_string(a2lstruct: &A2lFile) -> String {
-    let file_text = a2lstruct.write().finish();
-    // add a banner on the first line, but only if it is empty
-    format!("/* written by a2ltool */\n{}", file_text)
+    let mut file_text = "/* written by a2ltool */\n".to_string();
+    file_text.write_str(&a2lstruct.write().finish()).unwrap();
+    file_text
 }
 
 
@@ -124,8 +125,19 @@ pub fn merge_includes(a2lstruct: &mut A2lFile) {
 }
 
 
-pub fn merge_modules(a2l_file: &mut A2lFile, merge_file: A2lFile) {
-    merge::merge_modules(a2l_file, merge_file);
+pub fn merge_modules(a2l_file: &mut A2lFile, merge_file: &mut A2lFile) {
+    merge::merge_modules(&mut a2l_file.project.module[0], &mut merge_file.project.module[0]);
+
+    // if the merge file uses a newer file version, then the file version is upgraded by the merge
+    if let Some(file_ver) = &mut a2l_file.asap2_version {
+        if let Some(merge_ver) = &merge_file.asap2_version {
+            if file_ver.version_no < merge_ver.version_no ||
+                ((file_ver.version_no == merge_ver.version_no) && (file_ver.upgrade_no < merge_ver.upgrade_no)) {
+                file_ver.version_no = merge_ver.version_no;
+                file_ver.upgrade_no = merge_ver.upgrade_no;
+            }
+        }
+    }
 }
 
 

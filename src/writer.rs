@@ -34,22 +34,18 @@ impl Writer {
         }
     }
 
-    pub(crate) fn add_fixed_item(&mut self, item: String, position: u32) -> &mut Self {
+    pub(crate) fn add_fixed_item(&mut self, item: String, position: u32) {
         self.items.push(WriterItem::StaticItem(position, item));
-
-        self
     }
 
-    pub(crate) fn add_break_if_new_item(&mut self, position: u32) -> &mut Self {
+    pub(crate) fn add_break_if_new_item(&mut self, position: u32) {
         if position == 0 || position == u32::MAX {
             self.items.push(WriterItem::Break);
         }
-
-        self
     }
 
-    pub(crate) fn add_tagged_group(&mut self) -> TaggedGroupHandle {
-        self.items.push(WriterItem::TaggedGroup(Vec::new()));
+    pub(crate) fn add_tagged_group(&mut self, size: usize) -> TaggedGroupHandle {
+        self.items.push(WriterItem::TaggedGroup(Vec::with_capacity(size)));
         let idx = self.items.len() - 1;
         TaggedGroupHandle {
             owner: self,
@@ -81,7 +77,8 @@ impl Writer {
             match item {
                 WriterItem::StaticItem(item_line, text) => {
                     // add the text of static items, while inserting linebreaks with indentation as needed
-                    write!(outstring, "{}{}", make_whitespace(current_line, item_line, indent, should_break, false), text).unwrap();
+                    outstring.write_str(&make_whitespace(current_line, item_line, indent, should_break, false)).unwrap();
+                    outstring.write_str(&text).unwrap();
                     should_break = false;
                     current_line = item_line;
                 }
@@ -93,7 +90,7 @@ impl Writer {
                     group.sort_by(Self::sort_function);
                     // build the text containing all of the group items and append it to the string for this block
                     let (last_line, text) = Self::finish_group(current_line, group, indent, empty_block);
-                    write!(outstring, "{}", text).unwrap();
+                    outstring.write_str(&text).unwrap();
                     current_line = last_line;
                 }
             }
@@ -113,7 +110,7 @@ impl Writer {
             // check if the element should be written to this file, or if an /include statement should be generated instead
             if item.file.is_none() {
                 // if needed add whitespace
-                write!(outstring, "{}", make_whitespace(current_line, item.line, indent, true, is_block)).unwrap();
+                outstring.write_str(&make_whitespace(current_line, item.line, indent, true, is_block)).unwrap();
 
                 // if the opening block tag shares the line with the previous opening block tag, then (probably) no additional indentation is needed
                 // this is a hacky heuristic that fixes the indentation of IF_DATA blocks
@@ -126,11 +123,14 @@ impl Writer {
                 let (endline, text) = item.finish_internal(newindent);
                 current_line = endline;
                 if is_block {
-                    write!(outstring, "/begin ").unwrap();
+                    outstring.write_str("/begin ").unwrap();
                 }
-                write!(outstring, "{}{}", tag, text).unwrap();
+                outstring.write_str(&tag).unwrap();
+                outstring.write_str(&text).unwrap();
                 if is_block {
-                    write!(outstring, "{}/end {}", make_whitespace(current_line, current_line + 1, indent, false, false), tag).unwrap();
+                    outstring.write_str(&make_whitespace(current_line, current_line + 1, indent, false, false)).unwrap();
+                    outstring.write_str("/end ").unwrap();
+                    outstring.write_str(&tag).unwrap();
                     current_line += 1;
                 }
             } else {
@@ -138,7 +138,10 @@ impl Writer {
                 let incfile = item.file.as_ref().unwrap();
                 // check if the /include has been added yet and add it if needed
                 if included_files.get(incfile).is_none() {
-                    write!(outstring, "{}/include \"{}\"", make_whitespace(current_line, current_line + 1, indent, true, true), incfile).unwrap();
+                    outstring.write_str(&make_whitespace(current_line, current_line + 1, indent, true, true)).unwrap();
+                    outstring.write_str("/include \"").unwrap();
+                    outstring.write_str(&incfile).unwrap();
+                    outstring.write_str("\"").unwrap();
                     current_line += 1;
 
                     included_files.insert(incfile.to_owned());
@@ -195,31 +198,31 @@ impl Writer {
 
 
 impl<'a> TaggedGroupHandle<'a> {
-    pub(crate) fn add_tagged_item(&mut self, tag: &str, item: Writer, is_block: bool) -> &mut Self {
+    pub(crate) fn add_tagged_item(&mut self, tag: &str, item: Writer, is_block: bool) {
         if let WriterItem::TaggedGroup(tagmap) = &mut self.owner.items[self.tagged_group_idx] {
-            // if item.line != 0 && self.owner.first_line < item.line {
-            //     self.owner.first_line = item.line;
-            // }
-
             tagmap.push((tag.to_string(), item, is_block));
         }
-        self
     }
 }
 
 
 pub fn escape_string(value: &str) -> String {
-    let input_chars: Vec<char> = value.chars().collect();
-    let mut output_chars: Vec<char> = Vec::new();
+    // escaping is an expensive operation, so check if anything needs to be done first
+    if value.contains(|c| c == '\'' || c == '"' || c == '\\' || c == '\n' || c == '\t') {
+        let input_chars: Vec<char> = value.chars().collect();
+        let mut output_chars: Vec<char> = Vec::new();
 
-    for c in input_chars {
-        if c == '\'' || c == '"' || c == '\\' || c == '\n' || c == '\t' {
-            output_chars.push('\\');
+        for c in input_chars {
+            if c == '\'' || c == '"' || c == '\\' || c == '\n' || c == '\t' {
+                output_chars.push('\\');
+            }
+            output_chars.push(c);
         }
-        output_chars.push(c);
-    }
 
-    output_chars.iter().collect()
+        output_chars.iter().collect()
+    } else {
+        value.to_string()
+    }
 }
 
 
@@ -231,17 +234,29 @@ pub fn escape_string(value: &str) -> String {
 // - if line numbers differ by more than one and the new item is the start of a block element: add two newlines and indent
 // For newly created elements there are blocks in whilch all line numbers are set to zero and keywords where all line numbers are equal to u32::MAX
 // The flag break_new helps to improve the layout in these cases as it is set when formatting begins for a block or keyword
-fn make_whitespace(current_line: u32, item_line: u32, indent: usize, break_new: bool, allow_empty_line: bool) -> String {
+fn make_whitespace(current_line: u32, item_line: u32, indent: usize, break_new: bool, allow_empty_line: bool) -> &'static str {
     let must_break = break_new && current_line == item_line && current_line == u32::MAX;
+    // generate indents by returning slices of base_str. The goal is to avoid the extra allocations of making Strings instead of &str.
+    // This limits indents to the length of this string, which should not be a limit that matters in practice.
+    let base_str: &'static str = // must contain 120 spaces
+        "\n\n                                                                                                                        ";
 
     if current_line != 0 && current_line == item_line && !must_break {
-        " ".to_string()
+        " "
     } else if current_line + 1 == item_line ||
               (current_line == 0 && item_line == 0) ||
               !allow_empty_line {
-        format!("\n{:1$}", "", indent * INDENT_WIDTH)
+        if indent < 120 / INDENT_WIDTH {
+            &base_str[1..(indent * INDENT_WIDTH + 2)]
+        } else {
+            &base_str[1..120+2]
+        }
     } else {
-        format!("\n\n{:1$}", "", indent * INDENT_WIDTH)
+        if indent < 120 / INDENT_WIDTH {
+            &base_str[..(indent * INDENT_WIDTH + 2)]
+        } else {
+            &base_str[..120+2]
+        }
     }
 }
 

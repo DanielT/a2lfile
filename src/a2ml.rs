@@ -948,7 +948,7 @@ impl GenericIfData {
             }
             Self::TaggedStruct(taggeditems) |
             Self::TaggedUnion(taggeditems) => {
-                let mut tgroup = writer.add_tagged_group();
+                let mut tgroup = writer.add_tagged_group(taggeditems.len());
                 for (tag, tgitemlist) in taggeditems {
                     for tgitem in tgitemlist {
                         tgroup.add_tagged_item(tag, tgitem.data.write(&tgitem.incfile, tgitem.line), tgitem.is_block);

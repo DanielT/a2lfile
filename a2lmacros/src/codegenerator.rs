@@ -155,6 +155,7 @@ fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataI
     let partialeq = generate_block_data_structure_partialeq(typename, structitems);
     let mergeinc = generate_block_data_structure_mergeincludes(typename, structitems);
     let getline = generate_block_data_structure_get_line(typename);
+    let resetlocation = generate_block_data_structure_reset_location(typename, is_block);
 
     quote!{
         pub struct #typeident {
@@ -166,6 +167,7 @@ fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataI
         #partialeq
         #mergeinc
         #getline
+        #resetlocation
     }
 }
 
@@ -201,6 +203,11 @@ fn generate_block_data_structure_a2ml() ->  TokenStream {
 
             pub fn get_line(&self) -> u32 {
                 self.__location_info.1
+            }
+
+            pub fn reset_location(&mut self) {
+                self.merge_includes();
+                self.__location_info.1 = 0;
             }
         }
 
@@ -248,6 +255,11 @@ fn generate_block_data_structure_ifdata() ->  TokenStream {
 
             pub fn get_line(&self) -> u32 {
                 self.__location_info.1
+            }
+
+            pub fn reset_location(&mut self) {
+                self.merge_includes();
+                self.__location_info.1 = 0;
             }
         }
 
@@ -716,6 +728,7 @@ fn make_merge_commands(name_prefix: TokenStream, structitems: &Vec<DataItem>) ->
 }
 
 
+// generate the function to get the line number of the object
 fn generate_block_data_structure_get_line(typename: &str) -> TokenStream {
     let typeident = format_ident!("{}", typename);
     quote!{
@@ -724,7 +737,31 @@ fn generate_block_data_structure_get_line(typename: &str) -> TokenStream {
                 self.__location_info.1
             }
         }
-    }}
+    }
+}
+
+
+// generate the function to clear the location info (include filename and line number) of an object
+// unlike merge_includes() this function does not operate recursively
+fn generate_block_data_structure_reset_location(typename: &str, is_block: bool) -> TokenStream {
+    let typeident = format_ident!("{}", typename);
+    let locationinfo_line = if is_block {
+        // initialize line numbers as 0: place each element on a separate line
+        0
+    } else {
+        // initialize line numbers as u32::MAX: place all elements on one line
+        u32::MAX
+    };
+
+    quote!{
+        impl #typeident {
+            pub fn reset_location(&mut self) {
+                self.merge_includes();
+                self.__location_info.1 = #locationinfo_line;
+            }
+        }
+    }
+}
 
 //-----------------------------------------------------------------------------
 
@@ -1405,6 +1442,7 @@ fn generate_block_item_writers(structitems: &Vec<DataItem>) -> Vec<TokenStream> 
             BaseType::TaggedUnion(taggeditems) |
             BaseType::TaggedStruct(taggeditems) => {
                 let mut tgwriters = Vec::new();
+                let mut tgcount = Vec::new();
                 for tgitem in taggeditems {
                     let tag = &tgitem.tag;
                     let tgname = format_ident!("{}", make_varname(&tgitem.tag));
@@ -1417,6 +1455,7 @@ fn generate_block_item_writers(structitems: &Vec<DataItem>) -> Vec<TokenStream> 
                                 tgroup.add_tagged_item(#tag, #tgname_out, #is_block);
                             }
                         });
+                        tgcount.push(quote!{self.#tgname.len()});
                     } else {
                         if tgitem.required {
                             tgwriters.push(quote!{
@@ -1431,11 +1470,12 @@ fn generate_block_item_writers(structitems: &Vec<DataItem>) -> Vec<TokenStream> 
                                 }
                             });
                         }
+                        tgcount.push(quote!{1});
                     }
                    
                 }
                 write_items.push(quote!{
-                    let mut tgroup = writer.add_tagged_group();
+                    let mut tgroup = writer.add_tagged_group(#(#tgcount)+*);
                     #(#tgwriters)*
                 });
             }
@@ -1467,7 +1507,7 @@ fn generate_block_item_write_cmd(basetype: &BaseType, itemname: TokenStream, loc
         BaseType::Double => { quote!{ writer.add_fixed_item(writer::format_double(#itemname), #location); } }
         BaseType::Float => { quote!{ writer.add_fixed_item(writer::format_float(#itemname), #location); } }
         BaseType::Ident => { quote!{
-            writer.add_fixed_item(format!("{}", #itemname), #location);
+            writer.add_fixed_item(#itemname.to_owned(), #location);
         } }
         BaseType::String => { quote!{
             writer.add_fixed_item(format!("\"{}\"", writer::escape_string(&#itemname)), #location);

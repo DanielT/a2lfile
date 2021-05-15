@@ -1060,7 +1060,7 @@ a2l_specification! {
         [-> COMPU_TAB]*
         [-> COMPU_VTAB]*
         [-> COMPU_VTAB_RANGE]*
-        [-> FRAME]
+        [-> FRAME]*
         [-> FUNCTION]*
         [-> GROUP]*
         [-> IF_DATA]*
@@ -1622,10 +1622,6 @@ a2l_specification! {
     /// Specifies the name of a symbol within a linker map file or debug file that describes a class, class member, structure or structure component
     keyword SYMBOL_TYPE_LINK {
         string symbol_type
-    }
-
-    keyword THIS {
-        // TODO - the release notes mention this keyword, but where is it used?
     }
 
     enum TransformerTrigger {
