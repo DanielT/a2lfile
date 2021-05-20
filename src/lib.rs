@@ -71,12 +71,11 @@ fn load_impl(filename: &str, filedata: String, logger: &mut dyn Logger, strict_p
         }
     }
     // build the a2l data structures from the tokens
-    let a2lfile = A2lFile::parse(&mut parser, &context);
-    if let Err(parse_error) = a2lfile {
+    let a2l_file = A2lFile::parse(&mut parser, &context, 0);
+    if let Err(parse_error) = a2l_file {
         return Err(parser.stringify_parse_error(&parse_error, true));
     }
-    let a2lfile = a2lfile.unwrap();
-    Ok(a2lfile)
+    Ok(a2l_file.unwrap())
 }
 
 
@@ -86,7 +85,7 @@ fn get_version(parser: &mut ParserState, context: &ParseContext) -> Result<Asap2
         let ver_context = ParseContext::from_token("", token, false);
         if let Ok(tag) = ident {
             if tag == "ASAP2_VERSION" {
-                let version = Asap2Version::parse(parser, &ver_context);
+                let version = Asap2Version::parse(parser, &ver_context, 0);
                 if let Ok(version) = version {
                     parser.set_tokenpos(0);
                     parser.set_file_version(version.version_no, version.upgrade_no)?;
@@ -102,10 +101,22 @@ fn get_version(parser: &mut ParserState, context: &ParseContext) -> Result<Asap2
 }
 
 
-pub fn write(a2lstruct: &A2lFile, filename: &str) -> Result<(), String> {
-    let write_string = write_to_string(a2lstruct);
+pub fn write(a2l_file: &A2lFile, filename: &str, banner: Option<&str>) -> Result<(), String> {
+    let mut outstr = "".to_string();
 
-    if let Err(err) = std::fs::write(filename, write_string) {
+    let file_text = write_to_string(a2l_file);
+
+    if let Some(banner_text) = banner {
+        outstr = format!("/* {} */", banner_text);
+        // if the first line is empty (first charachter is \n), then the banner is placed on the empty line
+        // otherwise a newline is added
+        if &file_text[0..1] != "\n" {
+            outstr.write_char('\n').unwrap();
+        }
+    }
+    outstr.write_str(&file_text).unwrap();
+
+    if let Err(err) = std::fs::write(filename, outstr) {
         return Err(format!("Error while writing output {}: {}\n", filename, err.to_string()))
     }
 
@@ -113,15 +124,13 @@ pub fn write(a2lstruct: &A2lFile, filename: &str) -> Result<(), String> {
 }
 
 
-pub fn write_to_string(a2lstruct: &A2lFile) -> String {
-    let mut file_text = "/* written by a2ltool */\n".to_string();
-    file_text.write_str(&a2lstruct.write().finish()).unwrap();
-    file_text
+pub fn write_to_string(a2l_file: &A2lFile) -> String {
+    a2l_file.write(0)
 }
 
 
-pub fn merge_includes(a2lstruct: &mut A2lFile) {
-    a2lstruct.merge_includes();
+pub fn merge_includes(a2l_file: &mut A2lFile) {
+    a2l_file.merge_includes();
 }
 
 

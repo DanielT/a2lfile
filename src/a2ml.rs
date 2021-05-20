@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-use super::writer;
-use super::writer::Writer;
+use super::writer::{Writer, TaggedItemInfo};
 
 
 // tokenizer types
@@ -82,6 +81,9 @@ type A2mlTokenIter<'a> = std::iter::Peekable<std::slice::Iter<'a, TokenType<'a>>
 pub struct GenericIfDataTaggedItem {
     pub incfile: Option<String>,
     pub line: u32,
+    pub uid: u32,
+    pub start_offset: u32,
+    pub end_offset: u32,
     pub tag: String,
     pub data: GenericIfData,
     pub is_block: bool
@@ -103,11 +105,15 @@ pub enum GenericIfData {
     String(u32, String),
     Array(Vec<GenericIfData>),
     EnumItem(u32, String),
-    Struct(Option<String>, u32, Vec<GenericIfData>),
     Sequence(Vec<GenericIfData>),
     TaggedStruct(HashMap<String, Vec<GenericIfDataTaggedItem>>),
     TaggedUnion(HashMap<String, Vec<GenericIfDataTaggedItem>>),
-    Block(Option<String>, u32, Vec<GenericIfData>)
+    Struct(Option<String>, u32, Vec<GenericIfData>),
+    Block {
+        incfile: Option<String>,
+        line: u32,
+        items: Vec<GenericIfData>
+    }
 }
 
 
@@ -696,7 +702,7 @@ fn nexttoken<'a>(tok_iter: &mut A2mlTokenIter<'a>) -> Result<&'a TokenType<'a>, 
 impl GenericIfData {
     pub fn get_block_items(&self) -> Result<(Option<String>, u32, &Vec<GenericIfData>), ()> {
         match self {
-            GenericIfData::Block(file, line, blockitems) => Ok((file.clone(), *line, blockitems)),
+            GenericIfData::Block{incfile, line, items} => Ok((incfile.clone(), *line, items)),
             _ => Err(())
         }
     }
@@ -841,17 +847,17 @@ impl GenericIfData {
             GenericIfData::String(line, _) |
             GenericIfData::EnumItem(line, _) |
             GenericIfData::Struct(_, line, _) |
-            GenericIfData::Block(_, line, _) => Ok(*line),
+            GenericIfData::Block {line, .. } => Ok(*line),
             _ => Err(())
         }
     }
 
-    pub fn get_single_optitem<T>(&self, tag: &str, func: fn (&GenericIfData) -> Result<T, ()>) -> Result<Option<T>, ()> {
+    pub fn get_single_optitem<T>(&self, tag: &str, func: fn (&GenericIfData, u32, u32, u32) -> Result<T, ()>) -> Result<Option<T>, ()> {
         match self {
             GenericIfData::TaggedStruct(taggeditems) |
             GenericIfData::TaggedUnion(taggeditems) => {
                 if let Some(itemlist) = taggeditems.get(tag) {
-                    Ok(Some(func(&itemlist[0].data)?))
+                    Ok(Some(func(&itemlist[0].data, itemlist[0].uid, itemlist[0].start_offset, itemlist[0].end_offset)?))
                 } else {
                     Ok(None)
                 }
@@ -862,14 +868,14 @@ impl GenericIfData {
         }
     }
 
-    pub fn get_multiple_optitems<T>(&self, tag: &str, func: fn (&GenericIfData) -> Result<T, ()>) -> Result<Vec<T>, ()> {
+    pub fn get_multiple_optitems<T>(&self, tag: &str, func: fn (&GenericIfData, u32, u32, u32) -> Result<T, ()>) -> Result<Vec<T>, ()> {
         match self {
             GenericIfData::TaggedStruct(taggeditems) |
             GenericIfData::TaggedUnion(taggeditems) => {
                 let mut resultvec = Vec::new();
                 if let Some(itemlist) = taggeditems.get(tag) {
                     for item in itemlist {
-                        resultvec.push(func(&item.data)?);
+                        resultvec.push(func(&item.data, item.uid, item.start_offset, item.end_offset)?);
                     }
                 }
                 Ok(resultvec)
@@ -883,77 +889,78 @@ impl GenericIfData {
 
 
 impl GenericIfData {
-    pub(crate) fn write(&self, file: &Option<String>, line: u32) -> Writer {
+    pub(crate) fn write(&self, indent: usize) -> String {
         match self {
-            GenericIfData::Struct(file, line, items) |
-            GenericIfData::Block(file, line, items) => {
-                let mut writer = Writer::new(file, *line);
+            GenericIfData::Struct(_, _, items) |
+            GenericIfData::Block{items, ..} => {
+                let mut writer = Writer::new(indent);
                 for item in items {
-                    item.write_item(&mut writer);
+                    item.write_item(&mut writer, indent);
                 }
-                writer
+                writer.finish()
             }
             _ => {
-                let mut writer = Writer::new(file, line);
-                self.write_item(&mut writer);
-                writer
+                let mut writer = Writer::new(indent);
+                self.write_item(&mut writer, indent);
+                writer.finish()
             }
         }
     }
 
-    fn write_item(&self, writer: &mut Writer) {
+    fn write_item(&self, writer: &mut Writer, indent: usize) {
         match self {
-            Self::Char(line, value) => {
-                writer.add_fixed_item(writer::format_i8(*value), *line);
+            Self::Char(offset, value) => {
+                writer.add_integer(value.0, value.1, *offset);
             }
-            Self::Int(line, value) => {
-                writer.add_fixed_item(writer::format_i16(*value), *line);
+            Self::Int(offset, value) => {
+                writer.add_integer(value.0, value.1, *offset);
             }
-            Self::Long(line, value) => {
-                writer.add_fixed_item(writer::format_i32(*value), *line);
+            Self::Long(offset, value) => {
+                writer.add_integer(value.0, value.1, *offset);
             }
-            Self::Int64(line, value) => {
-                writer.add_fixed_item(writer::format_i64(*value), *line);
+            Self::Int64(offset, value) => {
+                writer.add_integer(value.0, value.1, *offset);
             }
-            Self::UChar(line, value) => {
-                writer.add_fixed_item(writer::format_u8(*value), *line);
+            Self::UChar(offset, value) => {
+                writer.add_integer(value.0, value.1, *offset);
             }
-            Self::UInt(line, value) => {
-                writer.add_fixed_item(writer::format_u16(*value), *line);
+            Self::UInt(offset, value) => {
+                writer.add_integer(value.0, value.1, *offset);
             }
-            Self::ULong(line, value) => {
-                writer.add_fixed_item(writer::format_u32(*value), *line);
+            Self::ULong(offset, value) => {
+                writer.add_integer(value.0, value.1, *offset);
             }
-            Self::UInt64(line, value) => {
-                writer.add_fixed_item(writer::format_u64(*value), *line);
+            Self::UInt64(offset, value) => {
+                writer.add_integer(value.0, value.1, *offset);
             }
-            Self::Float(line, value) => {
-                writer.add_fixed_item(writer::format_float(*value), *line);
+            Self::Float(offset, value) => {
+                writer.add_float(*value, *offset);
             }
-            Self::Double(line, value) => {
-                writer.add_fixed_item(writer::format_double(*value), *line);
+            Self::Double(offset, value) => {
+                writer.add_float(*value, *offset);
             }
-            Self::String(line, value) => {
-                writer.add_fixed_item(format!("\"{}\"", writer::escape_string(value)), *line);
+            Self::String(offset, text) => {
+                writer.add_quoted_string(text, *offset);
             }
-            Self::EnumItem(line, enitem) => {
-                writer.add_fixed_item(enitem.to_owned(), *line);
+            Self::EnumItem(offset, enitem) => {
+                writer.add_str(enitem, *offset);
             }
             Self::Array(items) |
             Self::Sequence(items) |
             Self::Struct(_, _, items) => {
                 for item in items {
-                    item.write_item(writer);
+                    item.write_item(writer, indent);
                 }
             }
             Self::TaggedStruct(taggeditems) |
             Self::TaggedUnion(taggeditems) => {
-                let mut tgroup = writer.add_tagged_group(taggeditems.len());
-                for (tag, tgitemlist) in taggeditems {
+                let mut tgroup = Vec::new();
+                for (_, tgitemlist) in taggeditems {
                     for tgitem in tgitemlist {
-                        tgroup.add_tagged_item(tag, tgitem.data.write(&tgitem.incfile, tgitem.line), tgitem.is_block);
+                        tgroup.push(TaggedItemInfo::build_generic(tgitem.data.write(indent + 1), tgitem));
                     }
                 }
+                writer.add_group(tgroup);
             }
             _ => {
                 /* no need to do anything for Self::None and Self::Block */
@@ -968,7 +975,7 @@ impl GenericIfData {
     // the elements that were part of this file originally
     pub(crate) fn merge_includes(&mut self) {
         match self {
-            Self::Block(incfile, _, items) |
+            Self::Block{incfile, items, ..} |
             Self::Struct(incfile, _, items) => {
                 *incfile = None;
                 for item in items {
@@ -1049,8 +1056,8 @@ impl PartialEq for GenericIfData {
             Self::TaggedUnion(tgitems) => {
                 if let Self::TaggedUnion(othertgi) = other { tgitems == othertgi } else { false }
             }
-            Self::Block(_, _, items) => {
-                if let Self::Block(_, _, otheritems) = other { items == otheritems } else { false }
+            Self::Block{items, ..} => {
+                if let Self::Block{items: otheritems, ..} = other { items == otheritems } else { false }
             }
         }
     }

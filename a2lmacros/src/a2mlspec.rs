@@ -1084,6 +1084,9 @@ fn generate_indirect_struct_parser(typename: &str, structitems: &Vec<DataItem>) 
         impl #name {
             pub(crate) fn parse(data: &a2lfile::GenericIfData) -> Result<Self, ()> {
                 let (incfile, line, input_items) = data.get_struct_items()?;
+                let __uid: u32 = 0;
+                let __start_offset: u32 = 0;
+                let __end_offset: u32 = 0;
 
                 Ok(#name {
                     #(#structfields),*
@@ -1100,7 +1103,7 @@ fn generate_indirect_block_parser(typename: &str, blockitems: &Vec<DataItem>) ->
 
     quote!{
         impl #name {
-            pub(crate) fn parse(data: &a2lfile::GenericIfData) -> Result<Self, ()> {
+            pub(crate) fn parse(data: &a2lfile::GenericIfData, __uid: u32, __start_offset: u32, __end_offset: u32) -> Result<Self, ()> {
                 let (incfile, line, input_items) = data.get_block_items()?;
 
                 Ok(#name {
@@ -1114,7 +1117,7 @@ fn generate_indirect_block_parser(typename: &str, blockitems: &Vec<DataItem>) ->
 
 fn generate_struct_field_intializers(items: &Vec<DataItem>) -> Vec<TokenStream> {
     let mut parsers = Vec::new();
-    let mut location_info = vec![quote!{ incfile, line }];
+    let mut location_info = Vec::new();
     for (idx, item) in items.iter().enumerate() {
         let item_getter = quote!{input_items.get(#idx).unwrap_or_else(|| &a2lfile::GenericIfData::None)};
         match &item.basetype {
@@ -1166,7 +1169,18 @@ fn generate_struct_field_intializers(items: &Vec<DataItem>) -> Vec<TokenStream> 
         }
     }
 
-    parsers.push(quote! {__location_info: ( #(#location_info),* )});
+    if location_info.len() == 1 {
+        location_info.push(quote!{ () });
+    }
+
+    parsers.push(quote! {__block_info: BlockInfo {
+        incfile,
+        line,
+        uid: __uid,
+        start_offset: __start_offset,
+        end_offset: __end_offset,
+        item_location: ( #(#location_info),* )
+    }});
 
     parsers
 }
@@ -1299,7 +1313,7 @@ fn generate_indirect_struct_writer(typename: &str, structitems: &Vec<DataItem>) 
     quote!{
         impl #name {
             pub(crate) fn store(&self) -> a2lfile::GenericIfData {
-                a2lfile::GenericIfData::Struct(self.__location_info.0.clone(), self.__location_info.1, vec![ #(#stored_structitems),* ])
+                a2lfile::GenericIfData::Struct(self.__block_info.incfile.clone(), self.__block_info.line, vec![ #(#stored_structitems),* ])
             }
         }
     }
@@ -1314,7 +1328,11 @@ fn generate_indirect_block_writer(typename: &str, structitems: &Vec<DataItem>) -
     quote!{
         impl #name {
             pub(crate) fn store(&self) -> a2lfile::GenericIfData {
-                a2lfile::GenericIfData::Block(self.__location_info.0.clone(), self.__location_info.1, vec![ #(#stored_structitems),* ])
+                a2lfile::GenericIfData::Block {
+                    incfile: self.__block_info.incfile.clone(),
+                    line: self.__block_info.line,
+                    items: vec![ #(#stored_structitems),* ]
+                }
             }
         }
     }
@@ -1323,10 +1341,10 @@ fn generate_indirect_block_writer(typename: &str, structitems: &Vec<DataItem>) -
 
 fn generate_indirect_store_item(structitems: &Vec<DataItem>) -> Vec<TokenStream> {
     let mut stored_structitems = Vec::new();
-    let mut storageidx: usize = 2;
+    let mut storageidx: usize = 0;
     for item in structitems {
         let sidx_literal = Literal::usize_unsuffixed(storageidx);
-        let location = quote! {self.__location_info.#sidx_literal};
+        let location = quote! {self.__block_info.item_location.#sidx_literal};
         stored_structitems.push(match &item.basetype {
             BaseType::Sequence(seqitemtype) => {
                 let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
@@ -1421,8 +1439,11 @@ fn generate_indirect_store_taggeditems(tgitems: &Vec<TaggedItem>) -> TokenStream
                         tag: #tag.to_string(),
                         data: taggeditem.store(),
                         is_block: #is_block,
-                        incfile: taggeditem.__location_info.0.clone(),
-                        line: taggeditem.__location_info.1
+                        incfile: taggeditem.__block_info.incfile.clone(),
+                        line: taggeditem.__block_info.line,
+                        uid: taggeditem.__block_info.uid,
+                        start_offset: taggeditem.__block_info.start_offset,
+                        end_offset: taggeditem.__block_info.end_offset,
                     });
                 }
                 if tgvec.len() > 0 {
@@ -1436,8 +1457,11 @@ fn generate_indirect_store_taggeditems(tgitems: &Vec<TaggedItem>) -> TokenStream
                         tag: #tag.to_string(),
                         data: taggeditem.store(),
                         is_block: #is_block,
-                        incfile: taggeditem.__location_info.0.clone(),
-                        line: taggeditem.__location_info.1
+                        incfile: taggeditem.__block_info.incfile.clone(),
+                        line: taggeditem.__block_info.line,
+                        uid: taggeditem.__block_info.uid,
+                        start_offset: taggeditem.__block_info.start_offset,
+                        end_offset: taggeditem.__block_info.end_offset,
                     };
                     output.insert(#tag.to_string(), vec![outitem]);
                 }
@@ -1466,7 +1490,7 @@ fn generate_interface(spec: &A2mlSpec) -> TokenStream {
             pub(crate) fn load_from_ifdata(ifdata: &a2lfile::IfData) -> Option<Self> {
                 let mut result = None;
                 if let Some(ifdata_items) = &ifdata.ifdata_items {
-                    if let Ok(parsed_items) = Self::parse(ifdata_items) {
+                    if let Ok(parsed_items) = Self::parse(ifdata_items, ifdata.__block_info.uid, ifdata.__block_info.start_offset, ifdata.__block_info.end_offset) {
                         result = Some(parsed_items);
                     }
                 }

@@ -6,6 +6,15 @@ use crate::tokenizer::A2lTokenType;
 use crate::parser::{ParseContext, ParseError, ParserState};
 
 
+pub struct BlockInfo<T> {
+    pub incfile: Option<String>,
+    pub line: u32,
+    pub uid: u32,
+    pub start_offset: u32,
+    pub end_offset: u32,
+    pub item_location: T
+}
+
 a2l_specification! {
     /// Contains all the objects of an A2lfile
     ///
