@@ -175,7 +175,7 @@ pub(crate) fn build_namemap_compu_method<'a>(module: &'a Module, logger: &mut dy
 pub(crate) fn build_namemap_transformer<'a>(module: &'a Module, logger: &mut dyn Logger) -> HashMap<String, &'a Transformer> {
     let mut namelist_transformer = HashMap::<String, &'a Transformer>::new();
     for transformer in &module.transformer {
-        check_and_insert!(namelist_transformer, transformer.transformer_name.to_owned(), transformer, logger, "TRANSFORMER");
+        check_and_insert!(namelist_transformer, transformer.name.to_owned(), transformer, logger, "TRANSFORMER");
     }
     namelist_transformer
 }
@@ -213,7 +213,7 @@ pub(crate) fn build_namemap_variant<'a>(module: &'a Module, logger: &mut dyn Log
 pub(crate) fn build_namemap_group<'a>(module: &'a Module, logger: &mut dyn Logger) -> HashMap<String, &'a Group> {
     let mut namelist_group = HashMap::<String, &'a Group>::new();
     for group in &module.group {
-        check_and_insert!(namelist_group, group.group_name.to_owned(), group, logger, "GROUP");
+        check_and_insert!(namelist_group, group.name.to_owned(), group, logger, "GROUP");
     }
     namelist_group
 }

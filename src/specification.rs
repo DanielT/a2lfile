@@ -6,6 +6,7 @@ use crate::tokenizer::A2lTokenType;
 use crate::parser::{ParseContext, ParseError, ParserState};
 
 
+#[derive(PartialEq)]
 pub struct BlockInfo<T> {
     pub incfile: Option<String>,
     pub line: u32,
@@ -14,6 +15,18 @@ pub struct BlockInfo<T> {
     pub end_offset: u32,
     pub item_location: T
 }
+
+pub trait A2lObjectLayout<T> {
+    fn get_layout(&self) -> &BlockInfo<T>;
+    fn get_layout_mut(&mut self) -> &mut BlockInfo<T>;
+    fn reset_location(&mut self);
+}
+
+
+pub(crate) trait A2lObjectName {
+    fn get_name<'a>(&'a self) -> &'a str;
+}
+
 
 a2l_specification! {
     /// Contains all the objects of an A2lfile
@@ -810,8 +823,8 @@ a2l_specification! {
     ///
     /// Specification: 3.5.71
     block GROUP {
-        ident group_name
-        string group_long_identifier
+        ident name
+        string long_identifier
         [-> ANNOTATION]*
         [-> FUNCTION_LIST]
         [-> IF_DATA]*     (1.60 ..)
@@ -1173,7 +1186,7 @@ a2l_specification! {
     ///
     /// Specification: 3.5.99
     block PROJECT {
-        ident Name
+        ident name
         string long_identifier
         [-> HEADER]
         [-> MODULE]+
@@ -1640,7 +1653,7 @@ a2l_specification! {
 
     /// Definition of call to an external function (32-bit or 64-bit DLL) for converting calibration object values between their implementation format and physical format
     block TRANSFORMER {
-        ident transformer_name
+        ident name
         string version
         string dllname_32bit
         string dllname_64bit

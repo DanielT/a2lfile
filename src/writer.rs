@@ -136,20 +136,20 @@ impl Writer {
 
 
     fn sort_function(a: &TaggedItemInfo, b: &TaggedItemInfo) -> Ordering {
-        if a.uid != 0 && a.uid < b.uid {
+        if a.uid == 0 && b.uid != 0 {
+            Ordering::Greater
+        } else if b.uid == 0 && a.uid != 0 {
             Ordering::Less
         } else if a.uid == b.uid {
             // probably both uids are zero
-            if a.line < b.line {
-                Ordering::Less
-            } else if a.line == b.line {
+            if a.line == b.line {
                 // both uid and line are equal - newly created elements
                 a.tag.cmp(b.tag)
             } else {
-                Ordering::Greater
+                a.line.cmp(&b.line)
             }
         } else {
-            Ordering::Greater
+            a.uid.cmp(&b.uid)
         }
     }
 

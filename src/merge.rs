@@ -632,7 +632,7 @@ fn merge_group(orig_module: &mut Module, merge_module: &mut Module) {
     rename_groups(merge_module, rename_table);
 
     while let Some(mut group) = merge_module.group.pop() {
-        if *merge_action.get(&group.group_name).unwrap() {
+        if *merge_action.get(&group.name).unwrap() {
             group.reset_location();
             orig_module.group.push(group);
         }
@@ -645,8 +645,8 @@ fn rename_groups(merge_module: &mut Module, rename_table: HashMap<String, String
     }
 
     for group in &mut merge_module.group {
-        if let Some(newname) = rename_table.get(&group.group_name) {
-            group.group_name = newname.to_owned();
+        if let Some(newname) = rename_table.get(&group.name) {
+            group.name = newname.to_owned();
         }
         if let Some(sub_group) = &mut group.sub_group {
             rename_item_list(&mut sub_group.identifier_list, &rename_table);
@@ -701,7 +701,7 @@ fn merge_transformer(orig_module: &mut Module, merge_module: &mut Module) {
     rename_transformers(merge_module, rename_table);
 
     while let Some(mut transformer) = merge_module.transformer.pop() {
-        if *merge_action.get(&transformer.transformer_name).unwrap() {
+        if *merge_action.get(&transformer.name).unwrap() {
             transformer.reset_location();
             orig_module.transformer.push(transformer);
         }
@@ -714,8 +714,8 @@ fn rename_transformers(merge_module: &mut Module, rename_table: HashMap<String, 
     }
 
     for transformer in &mut merge_module.transformer {
-        if let Some(newname) = rename_table.get(&transformer.transformer_name) {
-            transformer.transformer_name = newname.to_owned();
+        if let Some(newname) = rename_table.get(&transformer.name) {
+            transformer.name = newname.to_owned();
         }
         if let Some(newname) = rename_table.get(&transformer.inverse_transformer) {
             transformer.inverse_transformer = newname.to_owned();

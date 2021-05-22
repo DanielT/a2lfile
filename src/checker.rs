@@ -223,7 +223,7 @@ fn check_measurement(measurement: &Measurement, name_map: &ModuleNameMap, logger
 
 
 fn check_transformer(transformer: &Transformer, name_map: &ModuleNameMap, logger: &mut dyn Logger) {
-    let name = &transformer.transformer_name;
+    let name = &transformer.name;
     let line = transformer.get_line();
 
     if transformer.inverse_transformer != "NO_INVERSE_TRANSFORMER" && name_map.transformer.get(&transformer.inverse_transformer).is_none() {

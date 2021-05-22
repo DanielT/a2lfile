@@ -7,6 +7,7 @@ mod specification;
 mod namemap;
 mod merge;
 mod checker;
+mod sort;
 
 use std::fmt::Write;
 // used internally
@@ -18,6 +19,7 @@ pub use a2lmacros::a2ml_specification;
 pub use a2ml::GenericIfData;
 pub use a2ml::GenericIfDataTaggedItem;
 pub use specification::*;
+pub use sort::{sort, sort_new_items};
 
 
 pub trait Logger {
@@ -146,6 +148,9 @@ pub fn merge_modules(a2l_file: &mut A2lFile, merge_file: &mut A2lFile) {
                 file_ver.upgrade_no = merge_ver.upgrade_no;
             }
         }
+    } else {
+        // ASAP2_VERSION is required in newer revisions of the standard, but old files might not have it
+        a2l_file.asap2_version = std::mem::take(&mut merge_file.asap2_version);
     }
 }
 

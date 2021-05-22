@@ -146,7 +146,9 @@ fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataI
     for item in structitems {
         definitions.push(generate_struct_item_definition(item));
     }
-    definitions.push(generate_struct_block_info(structitems));
+    let location_spec = generate_struct_block_location(structitems);
+    definitions.push(quote!{pub(crate) __block_info: BlockInfo<#location_spec>});
+
 
     // generate all of the utility functions together with the data structure
     // only write and parse are excluded here, because they are not shared between A2l and A2ml
@@ -155,7 +157,8 @@ fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataI
     let partialeq = generate_block_data_structure_partialeq(typename, structitems);
     let mergeinc = generate_block_data_structure_mergeincludes(typename, structitems);
     let getline = generate_block_data_structure_get_line(typename);
-    let resetlocation = generate_block_data_structure_reset_location(typename);
+    let trait_location = generate_block_data_structure_trait_location(typename, location_spec);
+    let trait_name = generate_block_data_structure_trait_name(typename, structitems);
 
     quote!{
         pub struct #typeident {
@@ -167,7 +170,8 @@ fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataI
         #partialeq
         #mergeinc
         #getline
-        #resetlocation
+        #trait_location
+        #trait_name
     }
 }
 
@@ -178,7 +182,7 @@ fn generate_block_data_structure_a2ml() ->  TokenStream {
     quote!{
         pub struct A2ml {
             pub a2ml_text: String,
-            __block_info: BlockInfo<(u32, ())>
+            pub(crate) __block_info: BlockInfo<(u32, ())>
         }
 
         impl std::fmt::Debug for A2ml {
@@ -211,8 +215,20 @@ fn generate_block_data_structure_a2ml() ->  TokenStream {
             pub fn get_line(&self) -> u32 {
                 self.__block_info.line
             }
+        }
 
-            pub fn reset_location(&mut self) {
+        impl A2lObjectLayout<(u32, ())> for A2ml {
+            fn get_layout(&self) -> &BlockInfo<(u32, ())> {
+                &self.__block_info
+            }
+
+            fn get_layout_mut(&mut self) -> &mut BlockInfo<(u32, ())> {
+                &mut self.__block_info
+            }
+
+            // clear the location info (include filename and uid) of an object
+            // unlike merge_includes() this function does not operate recursively
+            fn reset_location(&mut self) {
                 self.merge_includes();
                 self.__block_info.uid = 0;
             }
@@ -270,8 +286,20 @@ fn generate_block_data_structure_ifdata() ->  TokenStream {
             pub fn get_line(&self) -> u32 {
                 self.__block_info.line
             }
+        }
 
-            pub fn reset_location(&mut self) {
+        impl A2lObjectLayout<()> for IfData {
+            fn get_layout(&self) -> &BlockInfo<()> {
+                &self.__block_info
+            }
+
+            fn get_layout_mut(&mut self) -> &mut BlockInfo<()> {
+                &mut self.__block_info
+            }
+
+            // clear the location info (include filename and uid) of an object
+            // unlike merge_includes() this function does not operate recursively
+            fn reset_location(&mut self) {
                 self.merge_includes();
                 self.__block_info.uid = 0;
             }
@@ -389,13 +417,13 @@ fn generate_bare_typename(typename: &Option<String>, item: &BaseType) -> TokenSt
 }
 
 
-// generate_struct_block_info()
+// generate_struct_block_location()
 // the location of each item needs to be tracked in order to be able to write elements on an
 // a2l file in the same order they were in the input file.
 // This function generates the definition of the __block_info tuple that stores these locations
 // For example a struct with 3 items of type (enum, String, int) the generated tuple would look like this:
-//    pub __block_info: BlockInfo<( u32, u32, (u32, bool) )>
-fn generate_struct_block_info(structitems: &Vec<DataItem>) -> TokenStream {
+//    ( u32, u32, (u32, bool) )
+fn generate_struct_block_location(structitems: &Vec<DataItem>) -> TokenStream {
     let mut locationtypes = Vec::new();
     for item in structitems {
         match item.basetype {
@@ -428,7 +456,7 @@ fn generate_struct_block_info(structitems: &Vec<DataItem>) -> TokenStream {
     }
 
     quote!{
-        __block_info: BlockInfo<( #(#locationtypes),* )>
+        ( #(#locationtypes),* )
     }
 }
 
@@ -766,18 +794,43 @@ fn generate_block_data_structure_get_line(typename: &str) -> TokenStream {
 }
 
 
-// generate the function to clear the location info (include filename and line number) of an object
-// unlike merge_includes() this function does not operate recursively
-fn generate_block_data_structure_reset_location(typename: &str) -> TokenStream {
+fn generate_block_data_structure_trait_location(typename: &str, location_spec: TokenStream) -> TokenStream {
     let typeident = format_ident!("{}", typename);
  
     quote!{
-        impl #typeident {
-            pub fn reset_location(&mut self) {
+        impl A2lObjectLayout<#location_spec> for #typeident {
+            fn get_layout(&self) -> &BlockInfo<#location_spec> {
+                &self.__block_info
+            }
+
+            fn get_layout_mut(&mut self) -> &mut BlockInfo<#location_spec> {
+                &mut self.__block_info
+            }
+
+            // clear the location info (include filename and uid) of an object
+            // unlike merge_includes() this function does not operate recursively
+            fn reset_location(&mut self) {
                 self.merge_includes();
                 self.__block_info.uid = 0;
             }
         }
+    }
+}
+
+
+fn generate_block_data_structure_trait_name(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+    let typeident = format_ident!("{}", typename);
+
+    if structitems.len() > 0 && structitems[0].basetype == BaseType::Ident && structitems[0].varname == Some("name".to_string()) {
+        quote!{
+            impl A2lObjectName for #typeident {
+                fn get_name(&self) -> &str {
+                    &self.name
+                }
+            }
+        }
+    } else {
+        quote!{}
     }
 }
 
@@ -1188,7 +1241,7 @@ fn generate_taggeditem_match_arms(tg_items: &Vec<TaggedItem>) -> (TokenStream, V
     let mut multiplicity_check = quote!{};
 
     for item in tg_items {
-        let tmp_itemname = format_ident!("tmp_required__{}", make_varname(&item.tag));
+        let tmp_itemname = format_ident!("__tmp_required_{}", make_varname(&item.tag));
         let itemname = format_ident!("{}", make_varname(&item.tag));
         let typename = generate_bare_typename(&item.item.typename, &item.item.basetype);
         let store_item; // a code fragment that stores the parsed item into an Option<T> or a Vec<T>

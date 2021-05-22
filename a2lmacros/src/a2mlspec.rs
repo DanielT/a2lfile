@@ -31,7 +31,11 @@ pub(crate) fn a2ml_specification(tokens: TokenStream) -> TokenStream {
     let mut iter: TokenStreamIter = tokens.into_iter().peekable();
     let spec = parse_specification(&mut iter);
 
-    let mut result = quote!{};
+    let mut result = quote!{
+        use a2lfile::BlockInfo;
+        use a2lfile::A2lObjectLayout;
+    };
+
     result.extend(generate_a2ml_constant(&spec));
     let outtypes = fixup_output_datatypes(&spec);
 
