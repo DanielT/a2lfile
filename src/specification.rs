@@ -4,6 +4,7 @@ use crate::a2ml;
 use crate::writer;
 use crate::tokenizer::A2lTokenType;
 use crate::parser::{ParseContext, ParseError, ParserState};
+use crate::ifdata;
 
 
 #[derive(PartialEq)]
@@ -20,6 +21,7 @@ pub trait A2lObjectLayout<T> {
     fn get_layout(&self) -> &BlockInfo<T>;
     fn get_layout_mut(&mut self) -> &mut BlockInfo<T>;
     fn reset_location(&mut self);
+    fn get_line(&self) -> u32;
 }
 
 
@@ -1755,5 +1757,214 @@ a2l_specification! {
         [-> CONSISTENT_EXCHANGE]
         [-> STRUCTURE_COMPONENT]*
         [-> SYMBOL_TYPE_LINK]
+    }
+}
+
+
+// A2ml is special in the specification. It contains the ASAP2 metalanguage code that describes the content of IF_DATA blocks
+// It makes sense to implement it by hand instead of in the code generator
+pub struct A2ml {
+    pub a2ml_text: String,
+    pub(crate) __block_info: BlockInfo<(u32, ())>
+}
+
+impl std::fmt::Debug for A2ml {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("A2ml")
+        .field("a2ml_text", &self.a2ml_text)
+        .finish()
+    }
+}
+
+impl A2ml {
+    pub fn new(a2ml_text: String) -> Self {
+        Self {
+            a2ml_text,
+            __block_info: BlockInfo {
+                incfile: None,
+                line: 0,
+                uid: 0,
+                start_offset: 1,
+                end_offset: 1,
+                item_location: (0, ())
+            }
+        }
+    }
+
+    pub(crate) fn parse(parser: &mut ParserState, context: &ParseContext, start_offset: u32) -> Result<Self, ParseError> {
+        let fileid = parser.get_incfilename(context.fileid);
+        let line = context.line;
+        let uid = parser.get_next_id();
+
+        let __a2ml_text_location = parser.get_current_line_offset();
+        let token = parser.expect_token(context, A2lTokenType::String)?;
+        let a2ml_text = parser.get_token_text(token).to_string();
+
+        if let Ok(a2mlspec) = a2ml::parse_a2ml(&a2ml_text) {
+            parser.file_a2mlspec = Some(a2mlspec);
+        }
+
+        parser.expect_token(context, A2lTokenType::End)?;
+        let ident = parser.get_identifier(context)?;
+        if ident != "A2ML" {
+            parser.error_or_log(ParseError::IncorrectEndTag(context.clone(), ident))?;
+        }
+
+        Ok(A2ml {
+            a2ml_text,
+            __block_info: BlockInfo {
+                incfile: fileid,
+                line,
+                uid,
+                start_offset,
+                end_offset: 1, // the real offset is more difficult to calculate, because the a2ml text is the only multi-line element
+                item_location: (__a2ml_text_location, ())
+            }
+        })
+    }
+
+    pub(crate) fn stringify(&self, indent: usize) -> String {
+        let mut writer = writer::Writer::new(indent);
+        writer.add_str(&self.a2ml_text, self.__block_info.item_location.0);
+        writer.finish()
+    }
+
+    pub fn merge_includes(&mut self) {
+        self.__block_info.incfile = None;
+    }
+}
+
+impl A2lObjectLayout<(u32, ())> for A2ml {
+    fn get_layout(&self) -> &BlockInfo<(u32, ())> {
+        &self.__block_info
+    }
+
+    fn get_layout_mut(&mut self) -> &mut BlockInfo<(u32, ())> {
+        &mut self.__block_info
+    }
+
+    // clear the location info (include filename and uid) of an object
+    // unlike merge_includes() this function does not operate recursively
+    fn reset_location(&mut self) {
+        self.merge_includes();
+        self.__block_info.uid = 0;
+    }
+
+    fn get_line(&self) -> u32 {
+        self.__block_info.line
+    }
+}
+
+impl PartialEq for A2ml {
+    fn eq(&self, other: &Self) -> bool {
+        self.a2ml_text == other.a2ml_text
+    }
+}
+
+
+// Like A2ml, IfData is special in the specification. The content of IF_DATA blocks is not directly described in the specification
+// Instead the content description is provided at runtime through the A2ML block.
+// It makes sense to implement it by hand instead of in the code generator
+pub struct IfData {
+    pub ifdata_items: Option<a2ml::GenericIfData>,
+    pub ifdata_valid: bool,
+    pub __block_info: BlockInfo<()>
+}
+
+impl std::fmt::Debug for IfData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IfData")
+        .field("ifdata_items", &self.ifdata_items)
+        .finish()
+    }
+}
+
+
+impl IfData {
+    pub fn new() -> Self {
+        Self {
+            ifdata_items: None,
+            ifdata_valid: false,
+            __block_info: BlockInfo {
+                incfile: None,
+                line: 0,
+                uid: 0,
+                start_offset: 1,
+                end_offset: 1,
+                item_location: ()
+            }
+        }
+    }
+
+    pub(crate) fn parse(parser: &mut ParserState, context: &ParseContext, start_offset: u32) -> Result<Self, ParseError> {
+        let fileid = parser.get_incfilename(context.fileid);
+        let line = context.line;
+        let uid = parser.get_next_id();
+
+        let (ifdata_items, ifdata_valid) = ifdata::parse_ifdata(parser, context)?;
+
+        let end_offset = parser.get_current_line_offset();
+        parser.expect_token(context, A2lTokenType::End)?;
+        let ident = parser.get_identifier(context)?;
+        if ident != "IF_DATA" {
+            parser.error_or_log(ParseError::IncorrectEndTag(context.clone(), ident))?;
+        }
+
+        Ok(IfData {
+            ifdata_items,
+            ifdata_valid,
+            __block_info: BlockInfo {
+                incfile: fileid,
+                line,
+                uid,
+                start_offset,
+                end_offset,
+                item_location: ()
+            }
+        })
+    }
+
+    pub(crate) fn stringify(&self, indent: usize) -> String {
+        if let Some(ifdata_items) = &self.ifdata_items {
+            // ifdata items were wrapped in an extra layer that would cause a double indent in the output
+            ifdata_items.write(indent - 1)
+        } else {
+            "".to_string()
+        }
+    }
+
+    pub fn merge_includes(&mut self) {
+        self.__block_info.incfile = None;
+        if let Some(ifdata_items) = &mut self.ifdata_items {
+            // ifdata_items is an un-decoded GenericIfData. It can directly handle merge_includes()
+            ifdata_items.merge_includes();
+        }
+    }
+}
+
+impl A2lObjectLayout<()> for IfData {
+    fn get_layout(&self) -> &BlockInfo<()> {
+        &self.__block_info
+    }
+
+    fn get_layout_mut(&mut self) -> &mut BlockInfo<()> {
+        &mut self.__block_info
+    }
+
+    // clear the location info (include filename and uid) of an object
+    // unlike merge_includes() this function does not operate recursively
+    fn reset_location(&mut self) {
+        self.merge_includes();
+        self.__block_info.uid = 0;
+    }
+
+    fn get_line(&self) -> u32 {
+        self.__block_info.line
+    }
+}
+
+impl PartialEq for IfData {
+    fn eq(&self, other: &Self) -> bool {
+        self.ifdata_items == other.ifdata_items
     }
 }

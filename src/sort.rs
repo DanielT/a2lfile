@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use crate::specification::*;
 
 
-pub fn sort_new_items(a2l_file: &mut A2lFile) {
+pub(crate) fn sort_new_items(a2l_file: &mut A2lFile) {
     // if there is a newly inserted ASAP2_VERSION then reorder the top-level elements
     if let Some(asap2version) = &mut a2l_file.asap2_version {
         if asap2version.__block_info.uid == 0 {
@@ -122,7 +122,7 @@ where T: A2lObjectLayout<U> + A2lObjectName {
 }
 
 
-pub fn sort(a2l_file: &mut A2lFile) {
+pub(crate) fn sort(a2l_file: &mut A2lFile) {
     // top level elements
     // ASAP2_VERSION
     if let Some(asap2_version) = &mut a2l_file.asap2_version {

@@ -1493,9 +1493,11 @@ fn generate_interface(spec: &A2mlSpec) -> TokenStream {
         impl #name {
             pub(crate) fn load_from_ifdata(ifdata: &a2lfile::IfData) -> Option<Self> {
                 let mut result = None;
-                if let Some(ifdata_items) = &ifdata.ifdata_items {
-                    if let Ok(parsed_items) = Self::parse(ifdata_items, ifdata.__block_info.uid, ifdata.__block_info.start_offset, ifdata.__block_info.end_offset) {
-                        result = Some(parsed_items);
+                if ifdata.ifdata_valid {
+                    if let Some(ifdata_items) = &ifdata.ifdata_items {
+                        if let Ok(parsed_items) = Self::parse(ifdata_items, ifdata.__block_info.uid, ifdata.__block_info.start_offset, ifdata.__block_info.end_offset) {
+                            result = Some(parsed_items);
+                        }
                     }
                 }
 
@@ -1503,6 +1505,7 @@ fn generate_interface(spec: &A2mlSpec) -> TokenStream {
             }
 
             pub(crate) fn store_to_ifdata(&self, ifdata: &mut a2lfile::IfData) {
+                ifdata.ifdata_valid = true;
                 ifdata.ifdata_items = Some(self.store());
             }
 

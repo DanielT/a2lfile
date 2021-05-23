@@ -2,6 +2,7 @@ mod loader;
 mod tokenizer;
 mod parser;
 mod a2ml;
+mod ifdata;
 mod writer;
 mod specification;
 mod namemap;
@@ -19,7 +20,6 @@ pub use a2lmacros::a2ml_specification;
 pub use a2ml::GenericIfData;
 pub use a2ml::GenericIfDataTaggedItem;
 pub use specification::*;
-pub use sort::{sort, sort_new_items};
 
 
 pub trait Logger {
@@ -47,7 +47,7 @@ fn load_impl(filename: &str, filedata: String, logger: &mut dyn Logger, strict_p
     let mut fake_token = A2lToken {ttype: A2lTokenType::Identifier, startpos: 0, endpos: 0, fileid: 0, line: 1};
     let firstline = tokenresult.tokens.get(0).unwrap_or_else(|| &fake_token).line;
     fake_token.line = firstline;
-    let context = &ParseContext::from_token("", &fake_token, false);
+    let context = &ParseContext::from_token("A2L_FILE", &fake_token, false);
 
     // create the parser state object
     let mut parser = ParserState::new(&tokenresult.tokens, &tokenresult.filedata, &tokenresult.filenames, logger, strict_parsing);
@@ -77,6 +77,20 @@ fn load_impl(filename: &str, filedata: String, logger: &mut dyn Logger, strict_p
     if let Err(parse_error) = a2l_file {
         return Err(parser.stringify_parse_error(&parse_error, true));
     }
+
+    // make sure this is the end of the input, i.e. no additional data after the parsed data
+    if let Some(token) = parser.peek_token() {
+        if !strict_parsing {
+            parser.logger.log_message(
+                format!("Warning on line {}: unexpected additional data \"{}...\" after parsed a2l file content", token.line, parser.get_token_text(token))
+            );
+        } else {
+            return Err(
+                format!("Error on line {}: unexpected additional data \"{}...\" after parsed a2l file content", token.line, parser.get_token_text(token))
+            );
+        }
+    }
+
     Ok(a2l_file.unwrap())
 }
 
@@ -103,58 +117,71 @@ fn get_version(parser: &mut ParserState, context: &ParseContext) -> Result<Asap2
 }
 
 
-pub fn write(a2l_file: &A2lFile, filename: &str, banner: Option<&str>) -> Result<(), String> {
-    let mut outstr = "".to_string();
-
-    let file_text = write_to_string(a2l_file);
-
-    if let Some(banner_text) = banner {
-        outstr = format!("/* {} */", banner_text);
-        // if the first line is empty (first charachter is \n), then the banner is placed on the empty line
-        // otherwise a newline is added
-        if &file_text[0..1] != "\n" {
-            outstr.write_char('\n').unwrap();
-        }
-    }
-    outstr.write_str(&file_text).unwrap();
-
-    if let Err(err) = std::fs::write(filename, outstr) {
-        return Err(format!("Error while writing output {}: {}\n", filename, err.to_string()))
+impl A2lFile {
+    pub fn write_to_string(&self) -> String {
+        self.stringify(0)
     }
 
-    Ok(())
-}
+    pub fn write(&self, filename: &str, banner: Option<&str>) -> Result<(), String> {
+        let mut outstr = "".to_string();
 
+        let file_text = self.write_to_string();
 
-pub fn write_to_string(a2l_file: &A2lFile) -> String {
-    a2l_file.write(0)
-}
-
-
-pub fn merge_includes(a2l_file: &mut A2lFile) {
-    a2l_file.merge_includes();
-}
-
-
-pub fn merge_modules(a2l_file: &mut A2lFile, merge_file: &mut A2lFile) {
-    merge::merge_modules(&mut a2l_file.project.module[0], &mut merge_file.project.module[0]);
-
-    // if the merge file uses a newer file version, then the file version is upgraded by the merge
-    if let Some(file_ver) = &mut a2l_file.asap2_version {
-        if let Some(merge_ver) = &merge_file.asap2_version {
-            if file_ver.version_no < merge_ver.version_no ||
-                ((file_ver.version_no == merge_ver.version_no) && (file_ver.upgrade_no < merge_ver.upgrade_no)) {
-                file_ver.version_no = merge_ver.version_no;
-                file_ver.upgrade_no = merge_ver.upgrade_no;
+        if let Some(banner_text) = banner {
+            outstr = format!("/* {} */", banner_text);
+            // if the first line is empty (first charachter is \n), then the banner is placed on the empty line
+            // otherwise a newline is added
+            if &file_text[0..1] != "\n" {
+                outstr.write_char('\n').unwrap();
             }
         }
-    } else {
-        // ASAP2_VERSION is required in newer revisions of the standard, but old files might not have it
-        a2l_file.asap2_version = std::mem::take(&mut merge_file.asap2_version);
+        outstr.write_str(&file_text).unwrap();
+
+        if let Err(err) = std::fs::write(filename, outstr) {
+            return Err(format!("Error while writing output {}: {}\n", filename, err.to_string()))
+        }
+
+        Ok(())
+    }
+
+
+    pub fn merge_modules(&mut self, merge_file: &mut A2lFile) {
+        merge::merge_modules(&mut self.project.module[0], &mut merge_file.project.module[0]);
+
+        // if the merge file uses a newer file version, then the file version is upgraded by the merge
+        if let Some(file_ver) = &mut self.asap2_version {
+            if let Some(merge_ver) = &merge_file.asap2_version {
+                if file_ver.version_no < merge_ver.version_no ||
+                    ((file_ver.version_no == merge_ver.version_no) && (file_ver.upgrade_no < merge_ver.upgrade_no)) {
+                    file_ver.version_no = merge_ver.version_no;
+                    file_ver.upgrade_no = merge_ver.upgrade_no;
+                }
+            }
+        } else {
+            // ASAP2_VERSION is required in newer revisions of the standard, but old files might not have it
+            self.asap2_version = std::mem::take(&mut merge_file.asap2_version);
+        }
+    }
+
+
+    pub fn check(&self, logger: &mut dyn Logger) {
+        checker::check(self, logger);
+    }
+
+
+    pub fn sort(&mut self) {
+        sort::sort(self)
+    }
+
+
+    pub fn sort_new_items(&mut self) {
+        sort::sort_new_items(self)
+    }
+
+
+    pub fn ifdata_cleanup(&mut self) {
+        ifdata::remove_unknown_ifdata(self);
     }
 }
 
 
-pub fn check(a2l_file: &A2lFile, logger: &mut dyn Logger) {
-    checker::check(a2l_file, logger);
-}

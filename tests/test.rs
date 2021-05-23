@@ -31,7 +31,7 @@ ASAP2_VERSION 1 61
     fn round_trip() {
         let mut logger = A2lLogger { log: Vec::new() };
         let a2lfile = a2lfile::load_from_string(TEST_A2L, None, &mut logger, false).unwrap();
-        let text = a2lfile::write_to_string(&a2lfile);
+        let text = a2lfile.write_to_string();
         println!("input:\n{}\noutput:\n{}\n", TEST_A2L, text);
 
         assert_eq!(TEST_A2L, text);

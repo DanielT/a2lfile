@@ -121,15 +121,10 @@ fn generate_enum_data_structure(typename: &str, enumitems: &Vec<EnumItem>) -> To
 
 // generate_block_data_structure()
 // Generate the data structure of a block (if is_block is false it is a keyword instead, but still almost the same)
-// The A2ml and IfData blocks are special in the specification and this is reflected here
+// The A2ml and IfData blocks are special in the specification and are implemented by hand
 fn generate_block_data_structure(typename: &str, structitems: &Vec<DataItem>, is_block: bool) ->  TokenStream {
     match typename {
-        "A2ml" => {
-            generate_block_data_structure_a2ml()
-        }
-        "IfData" => {
-            generate_block_data_structure_ifdata()
-        }
+        "A2ml" | "IfData" => { quote!{} }
         _ => {
             generate_block_data_structure_generic(typename, structitems, is_block)
         }
@@ -156,7 +151,6 @@ fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataI
     let constructor = generate_block_data_structure_constructor(typename, structitems, is_block);
     let partialeq = generate_block_data_structure_partialeq(typename, structitems);
     let mergeinc = generate_block_data_structure_mergeincludes(typename, structitems);
-    let getline = generate_block_data_structure_get_line(typename);
     let trait_location = generate_block_data_structure_trait_location(typename, location_spec);
     let trait_name = generate_block_data_structure_trait_name(typename, structitems);
 
@@ -169,147 +163,8 @@ fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataI
         #constructor
         #partialeq
         #mergeinc
-        #getline
         #trait_location
         #trait_name
-    }
-}
-
-
-// generate_block_data_structure_a2ml
-// generate the definition of the structure for the A2ML block
-fn generate_block_data_structure_a2ml() ->  TokenStream {
-    quote!{
-        pub struct A2ml {
-            pub a2ml_text: String,
-            pub(crate) __block_info: BlockInfo<(u32, ())>
-        }
-
-        impl std::fmt::Debug for A2ml {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                f.debug_struct("A2ml")
-                .field("a2ml_text", &self.a2ml_text)
-                .finish()
-            }
-        }
-
-        impl A2ml {
-            pub fn new(a2ml_text: String) -> Self {
-                Self {
-                    a2ml_text,
-                    __block_info: BlockInfo {
-                        incfile: None,
-                        line: 0,
-                        uid: 0,
-                        start_offset: 1,
-                        end_offset: 1,
-                        item_location: (0, ())
-                    }
-                }
-            }
-
-            pub fn merge_includes(&mut self) {
-                self.__block_info.incfile = None;
-            }
-
-            pub fn get_line(&self) -> u32 {
-                self.__block_info.line
-            }
-        }
-
-        impl A2lObjectLayout<(u32, ())> for A2ml {
-            fn get_layout(&self) -> &BlockInfo<(u32, ())> {
-                &self.__block_info
-            }
-
-            fn get_layout_mut(&mut self) -> &mut BlockInfo<(u32, ())> {
-                &mut self.__block_info
-            }
-
-            // clear the location info (include filename and uid) of an object
-            // unlike merge_includes() this function does not operate recursively
-            fn reset_location(&mut self) {
-                self.merge_includes();
-                self.__block_info.uid = 0;
-            }
-        }
-
-        impl PartialEq for A2ml {
-            fn eq(&self, other: &Self) -> bool {
-                self.a2ml_text == other.a2ml_text
-            }
-        }
-    }
-}
-
-
-// generate_block_data_structure_ifdata
-// generate the definition of the structure for the IF_DATA block
-fn generate_block_data_structure_ifdata() ->  TokenStream {
-    quote!{
-        pub struct IfData {
-            pub ifdata_items: Option<a2ml::GenericIfData>,
-            pub __block_info: BlockInfo<()>
-        }
-
-        impl std::fmt::Debug for IfData {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                f.debug_struct("IfData")
-                .field("ifdata_items", &self.ifdata_items)
-                .finish()
-            }
-        }
-
-        impl IfData {
-            pub fn new() -> Self {
-                Self {
-                    ifdata_items: None,
-                    __block_info: BlockInfo {
-                        incfile: None,
-                        line: 0,
-                        uid: 0,
-                        start_offset: 1,
-                        end_offset: 1,
-                        item_location: ()
-                    }
-                }
-            }
-
-            pub fn merge_includes(&mut self) {
-                self.__block_info.incfile = None;
-                if let Some(ifdata_items) = &mut self.ifdata_items {
-                    // ifdata_items is an un-decoded GenericIfData. It can directly handle merge_includes()
-                    ifdata_items.merge_includes();
-                }
-            }
-
-            pub fn get_line(&self) -> u32 {
-                self.__block_info.line
-            }
-        }
-
-        impl A2lObjectLayout<()> for IfData {
-            fn get_layout(&self) -> &BlockInfo<()> {
-                &self.__block_info
-            }
-
-            fn get_layout_mut(&mut self) -> &mut BlockInfo<()> {
-                &mut self.__block_info
-            }
-
-            // clear the location info (include filename and uid) of an object
-            // unlike merge_includes() this function does not operate recursively
-            fn reset_location(&mut self) {
-                self.merge_includes();
-                self.__block_info.uid = 0;
-            }
-        }
-
-        impl PartialEq for IfData {
-            fn eq(&self, other: &Self) -> bool {
-                self.ifdata_items == other.ifdata_items
-            }
-        }
     }
 }
 
@@ -781,19 +636,6 @@ fn make_merge_commands(name_prefix: TokenStream, structitems: &Vec<DataItem>) ->
 }
 
 
-// generate the function to get the line number of the object
-fn generate_block_data_structure_get_line(typename: &str) -> TokenStream {
-    let typeident = format_ident!("{}", typename);
-    quote!{
-        impl #typeident {
-            pub fn get_line(&self) -> u32 {
-                self.__block_info.line
-            }
-        }
-    }
-}
-
-
 fn generate_block_data_structure_trait_location(typename: &str, location_spec: TokenStream) -> TokenStream {
     let typeident = format_ident!("{}", typename);
  
@@ -812,6 +654,10 @@ fn generate_block_data_structure_trait_location(typename: &str, location_spec: T
             fn reset_location(&mut self) {
                 self.merge_includes();
                 self.__block_info.uid = 0;
+            }
+
+            fn get_line(&self) -> u32 {
+                self.__block_info.line
             }
         }
     }
@@ -906,93 +752,11 @@ fn generate_enum_parser(typename: &str, enumitems: &Vec<EnumItem>) -> TokenStrea
 // for elements derived from an a2ml spec, blocks are structs which occur after a tag in a TaggedUnion or TaggedStruct.
 fn generate_block_parser(typename: &str, structitems: &Vec<DataItem>, is_block: bool) -> TokenStream {
     match typename {
-        "A2ml" => {
-            generate_block_parser_a2ml()
-        }
-        "IfData" => {
-            generate_block_parser_ifdata()
-        }
+        "A2ml"  | "IfData" => { quote!{} }
         _ => {
             generate_block_parser_generic(typename, structitems, is_block)
         }
 
-    }
-}
-
-
-// generate_block_parser_a2ml()
-// generate a parser function for the A2ml block
-fn generate_block_parser_a2ml() -> TokenStream {
-    quote! {
-        impl A2ml {
-            pub(crate) fn parse(parser: &mut ParserState, context: &ParseContext, start_offset: u32) -> Result<Self, ParseError> {
-                let fileid = parser.get_incfilename(context.fileid);
-                let line = context.line;
-                let uid = parser.get_next_id();
-
-                let __a2ml_text_location = parser.get_current_line_offset();
-                let token = parser.expect_token(context, A2lTokenType::String)?;
-                let a2ml_text = parser.get_token_text(token).to_string();
-
-                if let Ok(a2mlspec) = a2ml::parse_a2ml(&a2ml_text) {
-                    parser.file_a2mlspec = Some(a2mlspec);
-                }
-
-                parser.expect_token(context, A2lTokenType::End)?;
-                let ident = parser.get_identifier(context)?;
-                if ident != "A2ML" {
-                    parser.error_or_log(ParseError::IncorrectEndTag(context.clone(), ident))?;
-                }
-
-                Ok(A2ml {
-                    a2ml_text,
-                    __block_info: BlockInfo {
-                        incfile: fileid,
-                        line,
-                        uid,
-                        start_offset,
-                        end_offset: 1, // the real offset is more difficult to calculate, because the a2ml text is the only multi-line element
-                        item_location: (__a2ml_text_location, ())
-                    }
-                })
-            }
-        }
-    }
-}
-
-
-// generate_block_parser_ifdata()
-// generate a parser function for the IfData block
-fn generate_block_parser_ifdata() -> TokenStream {
-    quote! {
-        impl IfData {
-            pub(crate) fn parse(parser: &mut ParserState, context: &ParseContext, start_offset: u32) -> Result<Self, ParseError> {
-                let fileid = parser.get_incfilename(context.fileid);
-                let line = context.line;
-                let uid = parser.get_next_id();
-
-                let ifdata_items = parser.parse_ifdata(context)?;
-
-                let end_offset = parser.get_current_line_offset();
-                parser.expect_token(context, A2lTokenType::End)?;
-                let ident = parser.get_identifier(context)?;
-                if ident != "IF_DATA" {
-                    parser.error_or_log(ParseError::IncorrectEndTag(context.clone(), ident))?;
-                }
-
-                Ok(IfData {
-                    ifdata_items,
-                    __block_info: BlockInfo {
-                        incfile: fileid,
-                        line,
-                        uid,
-                        start_offset,
-                        end_offset,
-                        item_location: ()
-                    }
-                })
-            }
-        }
     }
 }
 
@@ -1383,7 +1147,7 @@ fn generate_tagged_item_names(tg_items: &Vec<TaggedItem>) -> Vec<Ident> {
 
 
 // generate_writer()
-// Generate a pub fn write() function for all data types in the specification
+// Generate a pub fn stringify() function for all data types in the specification
 pub(crate) fn generate_writer(types: &HashMap<String, DataItem>) -> TokenStream {
     let mut result = quote!{};
     let mut typesvec: Vec<(&String, &DataItem)> = types.iter().map(|(key, val)| (key, val)).collect();
@@ -1410,7 +1174,7 @@ pub(crate) fn generate_writer(types: &HashMap<String, DataItem>) -> TokenStream 
 
 
 // generate_enum_writer()
-// For enums it actually makes more sense to implement the trait std::fmt::Display, than to have a non-standard write() function
+// For enums it actually makes more sense to implement the trait std::fmt::Display, than to have a non-standard stringify() function
 fn generate_enum_writer(typename: &str, enumitems: &Vec<EnumItem>) -> TokenStream {
     let typeident = format_ident!("{}", typename);
     let mut match_arms = Vec::new();
@@ -1438,12 +1202,7 @@ fn generate_enum_writer(typename: &str, enumitems: &Vec<EnumItem>) -> TokenStrea
 // Choose between custom handling for A2ml and IfData and generic handling for every other block.
 fn generate_block_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
     match typename {
-        "A2ml" => {
-            generate_block_writer_a2ml()
-        }
-        "IfData" => {
-            generate_block_writer_ifdata()
-        }
+        "A2ml" | "IfData" => { quote!{} }
         _ => {
             generate_block_writer_generic(typename, structitems)
         }
@@ -1451,41 +1210,8 @@ fn generate_block_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenSt
 }
 
 
-// generate_block_writer_a2ml()
-// The a2ml contains the full A2ML specification, which can be written as one string
-fn generate_block_writer_a2ml() -> TokenStream {
-    quote!{
-        impl A2ml {
-            pub(crate) fn write(&self, indent: usize) -> String {
-                let mut writer = writer::Writer::new(indent);
-                writer.add_str(&self.a2ml_text, self.__block_info.item_location.0);
-                writer.finish()
-            }
-        }
-    }
-}
-
-
-// generate_block_writer_ifdata()
-// Gnerate the write() function for an IfData block, which can contain a GenericIfData item.
-fn generate_block_writer_ifdata() -> TokenStream {
-    quote!{
-        impl IfData {
-            pub(crate) fn write(&self, indent: usize) -> String {
-                if let Some(ifdata_items) = &self.ifdata_items {
-                    // ifdata items were wrapped in an extra layer that would cause a double indent in the output
-                    ifdata_items.write(indent - 1)
-                } else {
-                    "".to_string()
-                }
-            }
-        }
-    }
-}
-
-
 // generate_block_writer_generic()
-// Generate a write() function for a block
+// Generate a stringify() function for a block
 // Each block instantiates its own Writer and uses it to write all of its child elements
 fn generate_block_writer_generic(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
     let typeident = format_ident!("{}", typename);
@@ -1494,7 +1220,7 @@ fn generate_block_writer_generic(typename: &str, structitems: &Vec<DataItem>) ->
 
     quote! {
         impl #typeident {
-            pub(crate) fn write(&self, indent: usize) -> String {
+            pub(crate) fn stringify(&self, indent: usize) -> String {
                 let mut writer = writer::Writer::new(indent);
 
                 #(#write_items)*
@@ -1516,7 +1242,7 @@ fn generate_struct_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenS
 
     quote! {
         impl #typeident {
-            pub(crate) fn write(&self, writer: &mut writer::Writer) {
+            pub(crate) fn stringify(&self, writer: &mut writer::Writer) {
                 #(#write_items)*
             }
         }
@@ -1545,20 +1271,20 @@ fn generate_block_item_writers(structitems: &Vec<DataItem>) -> Vec<TokenStream> 
                     if tgitem.repeat {
                         tgwriters.push(quote!{
                             for #tgname in &self.#tgname {
-                                let #tgname_out = #tgname.write(indent + 1);
+                                let #tgname_out = #tgname.stringify(indent + 1);
                                 tgroup.push(writer::TaggedItemInfo::build(#tag, #tgname_out, #is_block, &#tgname.__block_info));
                             }
                         });
                     } else {
                         if tgitem.required {
                             tgwriters.push(quote!{
-                                let #tgname_out = self.#tgname.write(indent + 1);
+                                let #tgname_out = self.#tgname.stringify(indent + 1);
                                 tgroup.push(writer::TaggedItemInfo::build(#tag, #tgname_out, #is_block, &self.#tgname.__block_info));
                             });
                         } else {
                             tgwriters.push(quote!{
                                 if let Some(#tgname) = &self.#tgname {
-                                    let #tgname_out = #tgname.write(indent + 1);
+                                    let #tgname_out = #tgname.stringify(indent + 1);
                                     tgroup.push(writer::TaggedItemInfo::build(#tag, #tgname_out, #is_block, &#tgname.__block_info));
                                 }
                             });
@@ -1608,7 +1334,7 @@ fn generate_block_item_write_cmd(basetype: &BaseType, itemname: TokenStream, loc
             writer.add_str(&#itemname.to_string(), #location);
         } }
         BaseType::StructRef => { quote!{
-            #itemname.write(&mut writer);
+            #itemname.stringify(&mut writer);
         } }
         BaseType::Array(arraytype, dim) => {
             if let BaseType::Char = arraytype.basetype {
