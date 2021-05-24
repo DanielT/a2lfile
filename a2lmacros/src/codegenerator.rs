@@ -86,7 +86,7 @@ pub(crate) fn generate_data_structures(types: &HashMap<String, DataItem>) -> Tok
                 result.extend(generate_enum_data_structure(typename, enumitems));
             }
             BaseType::Struct(structitems) => {
-                result.extend(generate_block_data_structure_generic(typename, structitems, false));
+                result.extend(generate_block_data_structure_generic(typename, structitems, true, false));
             }
             BaseType::Block(structitems, is_block) => {
                 result.extend(generate_block_data_structure(typename, structitems, *is_block));
@@ -126,7 +126,7 @@ fn generate_block_data_structure(typename: &str, structitems: &Vec<DataItem>, is
     match typename {
         "A2ml" | "IfData" => { quote!{} }
         _ => {
-            generate_block_data_structure_generic(typename, structitems, is_block)
+            generate_block_data_structure_generic(typename, structitems, false, is_block)
         }
     }
 }
@@ -134,7 +134,7 @@ fn generate_block_data_structure(typename: &str, structitems: &Vec<DataItem>, is
 
 // generate_block_data_structure_generic()
 // generate the data structure and associated functions for all except A2ml and IfData
-fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataItem>, is_block: bool) ->  TokenStream {
+fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataItem>, is_struct: bool, is_block: bool) ->  TokenStream {
     let typeident = format_ident!("{}", typename);
     let mut definitions = Vec::new();
 
@@ -148,7 +148,7 @@ fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataI
     // generate all of the utility functions together with the data structure
     // only write and parse are excluded here, because they are not shared between A2l and A2ml
     let debug = generate_block_data_structure_debug(typename, structitems);
-    let constructor = generate_block_data_structure_constructor(typename, structitems, is_block);
+    let constructor = generate_block_data_structure_constructor(typename, structitems, is_struct, is_block);
     let partialeq = generate_block_data_structure_partialeq(typename, structitems);
     let mergeinc = generate_block_data_structure_mergeincludes(typename, structitems);
     let trait_location = generate_block_data_structure_trait_location(typename, location_spec);
@@ -403,20 +403,40 @@ fn generate_block_data_structure_debug(typename: &str, structitems: &Vec<DataIte
 // Generate a constructor new(...) for a struct.
 // All of the required elements become arguments of new(), while the
 // optional ones are automatically set to None or Vec::new()
-fn generate_block_data_structure_constructor(typename: &str, structitems: &Vec<DataItem>, is_block: bool) -> TokenStream {
+fn generate_block_data_structure_constructor(typename: &str, structitems: &Vec<DataItem>, is_struct: bool, is_block: bool) -> TokenStream {
     let typeident = format_ident!("{}", typename);
     let mut newargs = Vec::<TokenStream>::new();
     let mut fieldinit = Vec::<TokenStream>::new();
 
     let mut locationinfo = Vec::new();
 
+    let named_block = if is_block && structitems.len() > 1 && structitems[0].basetype == BaseType::Ident && structitems[1].basetype == BaseType::String {
+        true
+    } else {
+        false
+    };
+
     for item in structitems {
+        let initline = if named_block && locationinfo.len() == 2 {
+            // if it's a named block, then the first two items go on the same line as /begin FOO, followed by a line break
+            1
+        } else if is_struct && locationinfo.len() == 0 {
+            // structs have a line break before the first element
+            1
+        } else if !named_block && is_block && locationinfo.len() == 0 {
+            // any other random block has the line break right after /begin FOO
+            1
+        } else {
+            0
+        };
+
         match &item.basetype {
             BaseType::Sequence(_) => {
                 let membername = item.varname.as_ref().unwrap();
                 let memberident = format_ident!("{}", membername);
                 fieldinit.push(quote!{#memberident: Vec::new()});
-                locationinfo.push(generate_item_locationinfo_init(&item.basetype));
+                // a sequence should always start on a separate line (initline = 1)
+                locationinfo.push(generate_item_locationinfo_init(&item.basetype, 1));
             }
             BaseType::TaggedUnion(taggeditems) |
             BaseType::TaggedStruct(taggeditems) => {
@@ -445,7 +465,7 @@ fn generate_block_data_structure_constructor(typename: &str, structitems: &Vec<D
                 let membertype = generate_bare_typename(&item.typename, &item.basetype);
                 newargs.push(quote!{#memberident: #membertype});
                 fieldinit.push(quote!{#memberident});
-                locationinfo.push(generate_item_locationinfo_init(&item.basetype));
+                locationinfo.push(generate_item_locationinfo_init(&item.basetype, initline));
             }
         }
     }
@@ -480,8 +500,7 @@ fn generate_block_data_structure_constructor(typename: &str, structitems: &Vec<D
 
 // generate_item_locationinfo_init()
 // generate the initializer for one struct item in the location_info tuple of the new() function
-fn generate_item_locationinfo_init(item_basetype: &BaseType) -> TokenStream {
-    let initline: u32 = 0;
+fn generate_item_locationinfo_init(item_basetype: &BaseType, initline: u32) -> TokenStream {
     match item_basetype {
         BaseType::Char |
         BaseType::Int |
@@ -508,7 +527,7 @@ fn generate_item_locationinfo_init(item_basetype: &BaseType) -> TokenStream {
             if arraytype.basetype == BaseType::Char {
                 quote!{#initline}
             } else {
-                let item_loc_info_init = generate_item_locationinfo_init(&arraytype.basetype);
+                let item_loc_info_init = generate_item_locationinfo_init(&arraytype.basetype, 0);
                 let loc_info_init_list: Vec<TokenStream> = (0..(*dim)).into_iter().map(|_| quote!{ #item_loc_info_init }).collect();
                 quote!{ [#(#loc_info_init_list),*] }
             }
