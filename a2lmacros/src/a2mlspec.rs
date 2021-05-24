@@ -1006,14 +1006,20 @@ fn make_enum_name(itemname: &Option<String>, enumitems: &Vec<EnumItem>) -> Strin
 fn typename_to_varname(varname: &str) -> String {
     let inchars: Vec<char> = varname.chars().collect();
     let mut outchars = Vec::<char>::new();
+    let mut prev_is_ucase = true;
+    let mut prev_is_uline = false;
 
-    outchars.push(inchars[0].to_ascii_lowercase());
-    for idx in 1..inchars.len() {
+    for idx in 0..inchars.len() {
         if inchars[idx].is_ascii_alphabetic() && inchars[idx].is_ascii_uppercase() {
-            outchars.push('_');
+            if !prev_is_ucase && !prev_is_uline {
+                outchars.push('_');
+            }
             outchars.push(inchars[idx].to_ascii_lowercase());
+            prev_is_ucase = true;
         } else {
             outchars.push(inchars[idx]);
+            prev_is_uline = inchars[idx] == '_';
+            prev_is_ucase = false;
         }
     }
 
