@@ -5,7 +5,7 @@
 ## Features
 
 - full support for files using A2L version 1.61
-- nearly complete support for version the newest standard 1.71. It handles existing files, but unusual elements might cause problems.
+- nearly complete support for version 1.71. It handles existing files, but unusual elements might cause problems.
 - it is fast
 - the layout and formatting of the input file is preserved. The intention is that afer reading, modifying and then writing a file the resulting diff should be minimal
 - easy access to application-specific data inside of IF_DATA blocks is provided through a macro that generates code based on an A2ML specification

@@ -8,6 +8,7 @@ readme = "README.md"
 license = "MIT OR Apache-2.0"
 keywords = ["a2l", "file", "file format", "ASAM MCD-2 MC"]
 categories = ["parser-implementations"]
+repository = "https://github.com/DanielT/a2lfile"
 
 [workspace]
 members = ["a2lmacros"]
