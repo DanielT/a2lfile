@@ -77,6 +77,8 @@ type A2mlTokenIter<'a> = std::iter::Peekable<std::slice::Iter<'a, TokenType<'a>>
 
 
 // parser output types (generic IF_DATA)
+
+/// A tagged item (of taggedstruct or taggedunion) in the generic IfData representation
 #[derive(Debug)]
 pub struct GenericIfDataTaggedItem {
     pub incfile: Option<String>,
@@ -89,6 +91,7 @@ pub struct GenericIfDataTaggedItem {
     pub is_block: bool
 }
 
+/// generic representation of data inside an IF_DATA block that can be loaded into application-specific data structures
 #[derive(Debug)]
 pub enum GenericIfData {
     None,

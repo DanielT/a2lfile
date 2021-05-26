@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod test {
-    const TEST_A2L: &str = r###"/* written by a2ltool */
+    const TEST_A2L: &str = r###"
 ASAP2_VERSION 1 61
 /begin PROJECT SOMETHING ""
 

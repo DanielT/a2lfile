@@ -22,18 +22,41 @@ pub use a2ml::GenericIfDataTaggedItem;
 pub use specification::*;
 
 
+/// a struct can implement the trait logger in order to be a recipient of log messages during load() and check()
 pub trait Logger {
+    /// receive one log message
     fn log_message(&mut self, msg: String);
 }
 
 
+/**
+Load an a2l file
 
+a2ml_spec is optional and contains a String that is valid A2ML that can be used while parsing the file in addition to the A2ML that might be contained inside the A2ML block in the file.
+If a definition is provided here and there is also an A2ML block in the file, then the definition provided here will be tried first during parsing.
+
+logger is a reference to an object that implements the trait Logger and which will receive all warning messages generated during parsing
+
+strict_parsing toggles strict parsing: If strict parsing is enabled, most warnings become errors.
+
+```
+
+fn main() {
+    let mut logger = SomethingThatImplementsLogger::new();
+    match a2lfile::load("example.a2l", None, &mut logger, true) {
+        Ok(a2l_file) => {/* do something with it*/},
+        Err(error_message) => println!("{}", error_message)
+    }
+}
+```
+ */
 pub fn load(filename: &str, a2ml_spec: Option<String>, logger: &mut dyn Logger, strict_parsing: bool) -> Result<A2lFile, String> {
     let filedata = loader::load(filename)?;
     load_impl(filename, filedata, logger, strict_parsing, a2ml_spec)
 }
 
 
+/// load a2l data stored in a string
 pub fn load_from_string(a2ldata: &str, a2ml_spec: Option<String>, logger: &mut dyn Logger, strict_parsing: bool) -> Result<A2lFile, String> {
     load_impl("", a2ldata.to_string(), logger, strict_parsing, a2ml_spec)
 }
@@ -118,10 +141,13 @@ fn get_version(parser: &mut ParserState, context: &ParseContext) -> Result<Asap2
 
 
 impl A2lFile {
+    /// construct a string containing the whole a2l data of this A2lFile object
     pub fn write_to_string(&self) -> String {
         self.stringify(0)
     }
 
+    /// write this A2lFile object to the given file
+    /// the banner will be placed inside a comment at the beginning of the file; "/*" an "*/" should not be part of the banner string
     pub fn write(&self, filename: &str, banner: Option<&str>) -> Result<(), String> {
         let mut outstr = "".to_string();
 
@@ -145,6 +171,10 @@ impl A2lFile {
     }
 
 
+    /// Merge another a2l file on the MODULE level.
+    ///
+    /// The input file and the merge file must each contain exactly one MODULE.
+    /// The contents will be merged so that there is one merged MODULE in the output.
     pub fn merge_modules(&mut self, merge_file: &mut A2lFile) {
         merge::merge_modules(&mut self.project.module[0], &mut merge_file.project.module[0]);
 
@@ -164,21 +194,27 @@ impl A2lFile {
     }
 
 
+    /// perform a consistency check on the data.
     pub fn check(&self, logger: &mut dyn Logger) {
         checker::check(self, logger);
     }
 
 
+    /// sort the data in the a2l file.
+    /// This changes the order in which the blocks will be written to an output file
     pub fn sort(&mut self) {
         sort::sort(self)
     }
 
 
+    /// sort newly added or merged blocks into sensible locations between the existing blocks
     pub fn sort_new_items(&mut self) {
         sort::sort_new_items(self)
     }
 
 
+    /// cleanup IF_DATA: remove any IF_DATA blocks that could not be parsed using either the
+    /// specification provided during load or the specification in the A2ML block in the file
     pub fn ifdata_cleanup(&mut self) {
         ifdata::remove_unknown_ifdata(self);
     }

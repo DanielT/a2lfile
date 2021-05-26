@@ -1048,7 +1048,7 @@ fn generate_interface(spec: &A2mlSpec) -> TokenStream {
                 let mut result = None;
                 if ifdata.ifdata_valid {
                     if let Some(ifdata_items) = &ifdata.ifdata_items {
-                        if let Ok(parsed_items) = Self::parse(ifdata_items, ifdata.__block_info.uid, ifdata.__block_info.start_offset, ifdata.__block_info.end_offset) {
+                        if let Ok(parsed_items) = Self::parse(ifdata_items, ifdata.get_layout().uid, ifdata.get_layout().start_offset, ifdata.get_layout().end_offset) {
                             result = Some(parsed_items);
                         }
                     }
@@ -1157,7 +1157,9 @@ mod test {
         let mut iter: TokenStreamIter = ts.into_iter().peekable();
         let spec = parse_specification(&mut iter);
         let outtypes = fixup_output_datatypes(&spec);
-        generate_data_structures(&outtypes);
+        for (typename, a2mltype) in &outtypes {
+            codegenerator::data_structure::generate(typename, a2mltype);
+        }
     }
 
     #[test]
@@ -1166,7 +1168,9 @@ mod test {
         let mut iter: TokenStreamIter = ts.into_iter().peekable();
         let spec = parse_specification(&mut iter);
         let outtypes = fixup_output_datatypes(&spec);
-        generate_data_structures(&outtypes);
-        generate_parser(&outtypes);
+        for (typename, a2mltype) in &outtypes {
+            codegenerator::data_structure::generate(typename, a2mltype);
+            codegenerator::parser::generate(typename, a2mltype);
+        }
     }
 }
