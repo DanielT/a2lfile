@@ -17,15 +17,29 @@ pub struct BlockInfo<T> {
     pub item_location: T
 }
 
-pub trait A2lObjectLayout<T> {
+pub trait A2lObject<T> {
+    /// get a reference to the BlockInfo that describes the layout of the a2l object
     fn get_layout(&self) -> &BlockInfo<T>;
+
+    /// get a mutable reference to the BlockInfo that describes the layout of the a2l object
     fn get_layout_mut(&mut self) -> &mut BlockInfo<T>;
+
+    /// reset the location information on the a2l object. It will be treated like a new object when writing a file
     fn reset_location(&mut self);
+
+    /// reset the reference to an include file on this objct and its children.
+    /// This causes the object to be written into the output file instead of referenced through /include "filename"
+    fn merge_includes(&mut self);
+
+    /// get the source line number from which the current a2l object was loaded.
+    /// Returns 0 if the object was newly created and not loaded from a file
     fn get_line(&self) -> u32;
 }
 
 
-pub(crate) trait A2lObjectName {
+pub trait A2lObjectName {
+    /// get the name of an a2l object.
+    /// this trait is only implemented for those objects that have names, which is a subset of all objects
     fn get_name<'a>(&'a self) -> &'a str;
 }
 
@@ -1828,13 +1842,9 @@ impl A2ml {
         writer.add_str(&self.a2ml_text, self.__block_info.item_location.0);
         writer.finish()
     }
-
-    pub fn merge_includes(&mut self) {
-        self.__block_info.incfile = None;
-    }
 }
 
-impl A2lObjectLayout<(u32, ())> for A2ml {
+impl A2lObject<(u32, ())> for A2ml {
     fn get_layout(&self) -> &BlockInfo<(u32, ())> {
         &self.__block_info
     }
@@ -1848,6 +1858,10 @@ impl A2lObjectLayout<(u32, ())> for A2ml {
     fn reset_location(&mut self) {
         self.merge_includes();
         self.__block_info.uid = 0;
+    }
+
+    fn merge_includes(&mut self) {
+        self.__block_info.incfile = None;
     }
 
     fn get_line(&self) -> u32 {
@@ -1932,17 +1946,9 @@ impl IfData {
             "".to_string()
         }
     }
-
-    pub fn merge_includes(&mut self) {
-        self.__block_info.incfile = None;
-        if let Some(ifdata_items) = &mut self.ifdata_items {
-            // ifdata_items is an un-decoded GenericIfData. It can directly handle merge_includes()
-            ifdata_items.merge_includes();
-        }
-    }
 }
 
-impl A2lObjectLayout<()> for IfData {
+impl A2lObject<()> for IfData {
     fn get_layout(&self) -> &BlockInfo<()> {
         &self.__block_info
     }
@@ -1956,6 +1962,14 @@ impl A2lObjectLayout<()> for IfData {
     fn reset_location(&mut self) {
         self.merge_includes();
         self.__block_info.uid = 0;
+    }
+
+    fn merge_includes(&mut self) {
+        self.__block_info.incfile = None;
+        if let Some(ifdata_items) = &mut self.ifdata_items {
+            // ifdata_items is an un-decoded GenericIfData. It can directly handle merge_includes()
+            ifdata_items.merge_includes();
+        }
     }
 
     fn get_line(&self) -> u32 {

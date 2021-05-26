@@ -89,7 +89,7 @@ pub(crate) fn sort_new_items(a2l_file: &mut A2lFile) {
 
 
 fn sort_optional_item<T, U>(a2lobject_option: &mut Option<T>, new_uid: u32) -> u32
-where T: A2lObjectLayout<U> {
+where T: A2lObject<U> {
     let mut next_uid = new_uid;
     if let Some(a2lobject) = a2lobject_option {
         let layout = a2lobject.get_layout_mut();
@@ -105,7 +105,7 @@ where T: A2lObjectLayout<U> {
 
 
 fn sort_objectlist_new<T, U>(a2lobject_list: &mut Vec<T>)
-where T: A2lObjectLayout<U> + A2lObjectName {
+where T: A2lObject<U> + A2lObjectName {
     a2lobject_list.sort_by(cmp_named_a2lobject);
     let mut last_uid = 0;
     for a2lobject in a2lobject_list {
@@ -222,7 +222,7 @@ pub(crate) fn sort(a2l_file: &mut A2lFile) {
 
 
 fn sort_objectlist_full<T, U>(a2lobject_list: &mut Vec<T>, start_uid: u32) -> u32
-where T: A2lObjectLayout<U> + A2lObjectName {
+where T: A2lObject<U> + A2lObjectName {
     let mut current_uid = start_uid;
     a2lobject_list.sort_by(|a, b| a.get_name().cmp(b.get_name()));
     for a2lobject in a2lobject_list {
@@ -236,7 +236,7 @@ where T: A2lObjectLayout<U> + A2lObjectName {
 
 
 fn cmp_named_a2lobject<T, U>(a: &T, b: &T) -> Ordering
-where T: A2lObjectLayout<U> + A2lObjectName {
+where T: A2lObject<U> + A2lObjectName {
     let la = a.get_layout();
     let lb = b.get_layout();
 

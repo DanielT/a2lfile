@@ -2,8 +2,9 @@ use proc_macro2::TokenStream;
 use proc_macro2::TokenTree;
 use proc_macro2::Delimiter;
 use std::collections::HashMap;
-use super::util::*;
-use super::codegenerator::*;
+use crate::util::*;
+use crate::codegenerator;
+use crate::codegenerator::*;
 
 
 
@@ -23,9 +24,16 @@ pub(crate) fn a2l_specification(tokens: TokenStream) -> TokenStream {
 
     let types = build_typelist(structs, enums);
 
-    let mut result = generate_data_structures(&types);
-    result.extend(generate_parser(&types));
-    result.extend(generate_writer(&types));
+    let mut typesvec: Vec<(&String, &DataItem)> = types.iter().map(|(key, val)| (key, val)).collect();
+    typesvec.sort_by(|a, b| a.0.cmp(b.0));
+
+    let mut result = TokenStream::new();
+    for (typename, a2ltype) in typesvec {
+        result.extend(codegenerator::data_structure::generate(typename, a2ltype));
+        result.extend(codegenerator::parser::generate(typename, a2ltype));
+        result.extend(codegenerator::writer::generate(typename, a2ltype));
+    }
+
     result.into()
 }
 

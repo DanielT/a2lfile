@@ -3,12 +3,18 @@ name = "a2lfile"
 version = "0.8.0"
 authors = ["Daniel Thaler <daniel@dthaler.de>"]
 edition = "2018"
+description = "read, modify and write a2l files"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+keywords = ["a2l", "file", "file format", "ASAM MCD-2 MC"]
+categories = ["parser-implementations"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
+[workspace]
+members = ["a2lmacros"]
 
 [dependencies.a2lmacros]
 path = "a2lmacros"
+version = "0.8.0"
 
 [dependencies]
 encoding = "0.2"
