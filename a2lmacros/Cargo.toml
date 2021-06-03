@@ -1,6 +1,6 @@
 [package]
 name = "a2lmacros"
-version = "0.8.0"
+version = "0.8.1"
 authors = ["Daniel Thaler <daniel@dthaler.de>"]
 edition = "2018"
 description = "provides macros in support of the a2lfile crate"

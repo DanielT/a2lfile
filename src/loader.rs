@@ -1,7 +1,5 @@
 use std::fs::File;
 use std::io::Read;
-use encoding::all::ISO_8859_1;
-use encoding::Encoding;
 
 
 pub fn load(filename: &str) -> Result<String, String> {
@@ -98,14 +96,8 @@ fn decode_raw_bytes(filedata: Vec<u8>) -> String {
         return converted;
     }
 
-    /* try to handle the data as ISO8859-1 */
-    if let Ok(converted) = ISO_8859_1.decode(&filedata, encoding::DecoderTrap::Strict) {
-        return converted;
-    }
-
-    /* fallback: decode the data as UTF-8 while discarding invalid bytes.
-     * Generally, everything outside of comments and descriptive text should be pure ascii anyway... */
-    return String::from_utf8_lossy(&filedata).into_owned();
+    /* handle the data as ISO8859-1. This always succeeds, because every sequence of bytes can be a latin-1 string */
+    filedata.iter().map(|c| *c as char).collect::<String>()
 }
 
 
