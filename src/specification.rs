@@ -8,7 +8,7 @@ use crate::ifdata;
 
 
 /// Describes the location and formatting of an a2l block within a file
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct BlockInfo<T> {
     pub incfile: Option<String>,
     pub line: u32,
@@ -1786,6 +1786,7 @@ a2l_specification! {
 
 /// A2ML is a special case in the specification.
 /// It contains the ASAP2 metalanguage code that describes the content of IF_DATA blocks
+#[derive(Clone)]
 pub struct A2ml {
     pub a2ml_text: String,
     pub(crate) __block_info: BlockInfo<(u32, ())>
@@ -1888,6 +1889,7 @@ impl PartialEq for A2ml {
 
 /// The content of IF_DATA blocks is not directly described in the specification.
 /// Instead the content description is provided at runtime through the A2ML block.
+#[derive(Clone)]
 pub struct IfData {
     /// contains the content of the IF_DATA in generic form
     pub ifdata_items: Option<a2ml::GenericIfData>,

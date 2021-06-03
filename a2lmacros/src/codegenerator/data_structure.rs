@@ -43,7 +43,7 @@ fn generate_enum_data_structure(typename: &str, enumitems: &Vec<EnumItem>) -> To
     ).collect();
 
     quote!{
-        #[derive(Debug, PartialEq, Eq, Clone)]
+        #[derive(Debug, PartialEq, Eq, Copy, Clone)]
         pub enum #typeident {
             #(#enumidents),*
         }
@@ -86,6 +86,7 @@ fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataI
     let trait_name = generate_block_data_structure_trait_name(typename, structitems);
 
     quote!{
+        #[derive(Clone)]
         pub struct #typeident {
             #(#definitions),*
         }
