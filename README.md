@@ -13,7 +13,12 @@
 ## What is an a2l file
 
 A2l files are commonly used during the development and testing of automotive ECUs.
+The consumer of the a2l file typically performs online calibration over a protocol such as [XCP](https://en.wikipedia.org/wiki/XCP_(protocol)) and/or offline tuning by generating flashable parameter sets.
+
 If you have never seen an a2l file then you are unlikely to need this library.
+
+## Tools
+The program [a2ltool](https://github.com/DanielT/a2ltool) is based on this library.
 
 ## Documentation
 
@@ -21,7 +26,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-a2lfile = "0.8.0"
+a2lfile = "0.8.2"
 ```
 
 A simple program based on the `a2lfile` library might look like this:
