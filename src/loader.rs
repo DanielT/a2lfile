@@ -1,11 +1,12 @@
+use std::ffi::OsStr;
 use std::fs::File;
 use std::io::Read;
 
 
-pub fn load(filename: &str) -> Result<String, String> {
+pub fn load(filename: &OsStr) -> Result<String, String> {
     let mut file = match File::open(filename) {
         Ok(file) => file,
-        Err(error) => return Err(format!("Error while loading {}: {}\n", filename, error))
+        Err(error) => return Err(format!("Error while loading {}: {}\n", filename.to_string_lossy(), error))
     };
 
     let filedata = read_data(&mut file)?;

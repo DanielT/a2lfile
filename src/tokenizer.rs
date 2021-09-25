@@ -1,3 +1,5 @@
+use std::ffi::OsString;
+
 use super::loader;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -318,16 +320,16 @@ fn is_numchar(c: u8) -> bool {
 }
 
 
-fn make_include_filename(incname: &str, base_filename: &str) -> String {
+fn make_include_filename(incname: &str, base_filename: &str) -> OsString {
     let base = std::path::Path::new(base_filename);
     if let Some(basedir) = base.parent() {
         let joined = basedir.join(incname);
         if joined.exists() {
-            return joined.to_str().unwrap().to_owned();
+            return OsString::from(joined);
         }
     }
 
-    incname.to_string()
+    OsString::from(incname)
 }
 
 

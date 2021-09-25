@@ -10,6 +10,7 @@ mod merge;
 mod checker;
 mod sort;
 
+use std::ffi::OsStr;
 use std::fmt::Write;
 // used internally
 use tokenizer::{A2lToken, A2lTokenType};
@@ -43,7 +44,7 @@ fn main() {
 }
 ```
  */
-pub fn load(filename: &str, a2ml_spec: Option<String>, log_msgs: &mut Vec<String>, strict_parsing: bool) -> Result<A2lFile, String> {
+pub fn load(filename: &OsStr, a2ml_spec: Option<String>, log_msgs: &mut Vec<String>, strict_parsing: bool) -> Result<A2lFile, String> {
     let filedata = loader::load(filename)?;
     load_impl(filename, filedata, log_msgs, strict_parsing, a2ml_spec)
 }
@@ -51,13 +52,13 @@ pub fn load(filename: &str, a2ml_spec: Option<String>, log_msgs: &mut Vec<String
 
 /// load a2l data stored in a string
 pub fn load_from_string(a2ldata: &str, a2ml_spec: Option<String>, log_msgs: &mut Vec<String>, strict_parsing: bool) -> Result<A2lFile, String> {
-    load_impl("", a2ldata.to_string(), log_msgs, strict_parsing, a2ml_spec)
+    load_impl(&OsStr::new(""), a2ldata.to_string(), log_msgs, strict_parsing, a2ml_spec)
 }
 
 
-fn load_impl(filename: &str, filedata: String, log_msgs: &mut Vec<String>, strict_parsing: bool, a2ml_spec: Option<String>) -> Result<A2lFile, String> {
+fn load_impl(filename: &OsStr, filedata: String, log_msgs: &mut Vec<String>, strict_parsing: bool, a2ml_spec: Option<String>) -> Result<A2lFile, String> {
     // tokenize the input data
-    let tokenresult = tokenizer::tokenize(String::from(filename), 0, &filedata)?;
+    let tokenresult = tokenizer::tokenize(filename.to_string_lossy().to_string(), 0, &filedata)?;
 
     // create a context for the parser. Ensure that the current line of the context is set to the first line that actually contains a token
     let mut fake_token = A2lToken {ttype: A2lTokenType::Identifier, startpos: 0, endpos: 0, fileid: 0, line: 1};
