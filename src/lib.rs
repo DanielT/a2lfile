@@ -22,47 +22,40 @@ pub use a2ml::GenericIfDataTaggedItem;
 pub use specification::*;
 
 
-/// a struct can implement the trait logger in order to be a recipient of log messages during load() and check()
-pub trait Logger {
-    /// receive one log message
-    fn log_message(&mut self, msg: String);
-}
-
-
 /**
 Load an a2l file
 
 a2ml_spec is optional and contains a String that is valid A2ML that can be used while parsing the file in addition to the A2ML that might be contained inside the A2ML block in the file.
 If a definition is provided here and there is also an A2ML block in the file, then the definition provided here will be tried first during parsing.
 
-logger is a reference to an object that implements the trait Logger and which will receive all warning messages generated during parsing
+log_msgs is a reference to a Vec<String> which will receive all warning messages generated during parsing
 
 strict_parsing toggles strict parsing: If strict parsing is enabled, most warnings become errors.
 
 ```
 
 fn main() {
-    let mut logger = SomethingThatImplementsLogger::new();
-    match a2lfile::load("example.a2l", None, &mut logger, true) {
+    let mut log_msgs = Vec::<String>::new();
+    match a2lfile::load("example.a2l", None, &mut log_msgs, true) {
         Ok(a2l_file) => {/* do something with it*/},
         Err(error_message) => println!("{}", error_message)
     }
 }
 ```
  */
-pub fn load(filename: &str, a2ml_spec: Option<String>, logger: &mut dyn Logger, strict_parsing: bool) -> Result<A2lFile, String> {
+pub fn load(filename: &str, a2ml_spec: Option<String>, log_msgs: &mut Vec<String>, strict_parsing: bool) -> Result<A2lFile, String> {
     let filedata = loader::load(filename)?;
-    load_impl(filename, filedata, logger, strict_parsing, a2ml_spec)
+    load_impl(filename, filedata, log_msgs, strict_parsing, a2ml_spec)
 }
 
 
 /// load a2l data stored in a string
-pub fn load_from_string(a2ldata: &str, a2ml_spec: Option<String>, logger: &mut dyn Logger, strict_parsing: bool) -> Result<A2lFile, String> {
-    load_impl("", a2ldata.to_string(), logger, strict_parsing, a2ml_spec)
+pub fn load_from_string(a2ldata: &str, a2ml_spec: Option<String>, log_msgs: &mut Vec<String>, strict_parsing: bool) -> Result<A2lFile, String> {
+    load_impl("", a2ldata.to_string(), log_msgs, strict_parsing, a2ml_spec)
 }
 
 
-fn load_impl(filename: &str, filedata: String, logger: &mut dyn Logger, strict_parsing: bool, a2ml_spec: Option<String>) -> Result<A2lFile, String> {
+fn load_impl(filename: &str, filedata: String, log_msgs: &mut Vec<String>, strict_parsing: bool, a2ml_spec: Option<String>) -> Result<A2lFile, String> {
     // tokenize the input data
     let tokenresult = tokenizer::tokenize(String::from(filename), 0, &filedata)?;
 
@@ -73,7 +66,7 @@ fn load_impl(filename: &str, filedata: String, logger: &mut dyn Logger, strict_p
     let context = &ParseContext::from_token("A2L_FILE", &fake_token, false);
 
     // create the parser state object
-    let mut parser = ParserState::new(&tokenresult.tokens, &tokenresult.filedata, &tokenresult.filenames, logger, strict_parsing);
+    let mut parser = ParserState::new(&tokenresult.tokens, &tokenresult.filedata, &tokenresult.filenames, log_msgs, strict_parsing);
 
     // if a built-in A2ml specification was passed as a string, then it is parsed here
     if let Some(spec) = a2ml_spec {
@@ -90,7 +83,7 @@ fn load_impl(filename: &str, filedata: String, logger: &mut dyn Logger, strict_p
     // compatibility with old files, a missing version is only an error if strict parsing is requested
     if let Err(version_error) = get_version(&mut parser, &context) {
         if !strict_parsing {
-            parser.logger.log_message(version_error);
+            parser.log_msgs.push(version_error);
         } else {
             return Err(version_error)
         }
@@ -104,7 +97,7 @@ fn load_impl(filename: &str, filedata: String, logger: &mut dyn Logger, strict_p
     // make sure this is the end of the input, i.e. no additional data after the parsed data
     if let Some(token) = parser.peek_token() {
         if !strict_parsing {
-            parser.logger.log_message(
+            parser.log_msgs.push(
                 format!("Warning on line {}: unexpected additional data \"{}...\" after parsed a2l file content", token.line, parser.get_token_text(token))
             );
         } else {
@@ -195,8 +188,8 @@ impl A2lFile {
 
 
     /// perform a consistency check on the data.
-    pub fn check(&self, logger: &mut dyn Logger) {
-        checker::check(self, logger);
+    pub fn check(&self, log_msgs: &mut Vec<String>) {
+        checker::check(self, log_msgs);
     }
 
 

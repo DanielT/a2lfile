@@ -12,7 +12,7 @@ pub struct ParserState<'a> {
     filenames: &'a Vec<String>,
     last_token_position: u32,
     sequential_id: u32,
-    pub(crate) logger: &'a mut dyn super::Logger,
+    pub(crate) log_msgs: &'a mut Vec<String>,
     strict: bool,
     file_ver: f32,
     pub(crate) builtin_a2mlspec: Option<A2mlTypeSpec>,
@@ -76,14 +76,14 @@ impl<'a> TokenIter<'a> {
 
 
 impl<'a> ParserState<'a> {
-    pub fn new<'b>(tokens: &'b Vec<A2lToken>, filedata: &'b Vec<String>, filenames: &'b Vec<String>, logger: &'b mut dyn super::Logger, strict: bool) -> ParserState<'b> {
+    pub fn new<'b>(tokens: &'b Vec<A2lToken>, filedata: &'b Vec<String>, filenames: &'b Vec<String>, log_msgs: &'b mut Vec<String>, strict: bool) -> ParserState<'b> {
         ParserState {
             token_cursor: TokenIter{ tokens, pos: 0},
             filedata,
             filenames: filenames,
             last_token_position: 0,
             sequential_id: 0,
-            logger,
+            log_msgs,
             strict,
             file_ver: 0f32,
             file_a2mlspec: None,
@@ -115,7 +115,7 @@ impl<'a> ParserState<'a> {
     
 
     pub(crate) fn log_warning(&mut self, parse_error: ParseError) {
-        self.logger.log_message(self.stringify_parse_error(&parse_error, false));
+        self.log_msgs.push(self.stringify_parse_error(&parse_error, false));
     }
 
     
