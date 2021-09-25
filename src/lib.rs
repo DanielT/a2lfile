@@ -1,3 +1,7 @@
+//! a2lfile is a library that allows you to read, modify and write a2l files.
+//!
+//! It is fast, preserves the formatting of the input, and has support for files using standard version 1.71.
+
 mod loader;
 mod tokenizer;
 mod parser;
@@ -34,7 +38,6 @@ log_msgs is a reference to a Vec<String> which will receive all warning messages
 strict_parsing toggles strict parsing: If strict parsing is enabled, most warnings become errors.
 
 ```
-
 fn main() {
     let mut log_msgs = Vec::<String>::new();
     match a2lfile::load("example.a2l", None, &mut log_msgs, true) {

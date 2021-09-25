@@ -1,3 +1,5 @@
+//! a2lmacros is a crate for internal use by the a2lfile crate. It contains the proc macros used by a2lfile.
+
 extern crate proc_macro;
 use proc_macro::TokenStream;
 
