@@ -26,7 +26,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-a2lfile = "0.8.2"
+a2lfile = "0.9.1"
 ```
 
 A simple program based on the `a2lfile` library might look like this:
@@ -34,33 +34,23 @@ A simple program based on the `a2lfile` library might look like this:
 ```rust
 use a2lfile::*;
 
-struct A2lLogger {
-    log: Vec<String>
-}
-
-impl a2lfile::Logger for A2lLogger {
-    fn log_message(&mut self, msg: String) {
-        self.log.push(msg);
-    }
-}
-
 fn main() {
     let input_filename = "example.a2l";
-    let mut logger = A2lLogger { log: Vec::new() };
+    let mut logmsgs = Vec::<String>::new();
     let mut a2l_file = a2lfile::load(
         input_filename,
         None,
-        &mut logger,
+        &mut logmsgs,
         false
     ).expect("could not load the file");
-    for log_msg in logger.log {
+    for log_msg in logmsgs {
         println!("warning while loading the file: {}", log_msg);
     }
 
     // perform a consistency check
-    let mut logger = A2lLogger { log: Vec::new() };
-    a2l_file.check(&mut logger);
-    for log_msg in logger.log {
+    let mut logmsgs = Vec::<String>::new();
+    a2l_file.check(&mut logmsgs);
+    for log_msg in logmsgs {
         println!("warning during consistency check: {}", log_msg);
     }
 
