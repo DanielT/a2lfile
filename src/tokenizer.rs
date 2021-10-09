@@ -89,7 +89,7 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filedata: &str) -> Resul
                 separated = false;
             } else {
                 let endpos = if startpos + 10 < datalen {startpos + 10} else {datalen};
-                return Err(format!("input text \"{}...\" on line {} was not recognized as an a2l token", &filedata[startpos..endpos], line));
+                return Err(format!("Error: input text \"{}...\" on line {} was not recognized as an a2l token", String::from_utf8_lossy(&filebytes[startpos..endpos]), line));
             }
         } else if filebytes[bytepos] == b'"' {
             // a string
@@ -122,15 +122,15 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filedata: &str) -> Resul
             }
             let number = &filedata[startpos..bytepos];
             if number == "-" {
-                return Err(format!("Invalid numerical constant consisting of only \"-\" found on line {}", line));
+                return Err(format!("Error: Invalid numerical constant consisting of only \"-\" found on line {}", line));
             } else if number == "0x" {
-                return Err(format!("Invalid numerical constant consisting of only \"0x\" found on line {}", line));
+                return Err(format!("Error: Invalid numerical constant consisting of only \"0x\" found on line {}", line));
             }
             tokens.push(A2lToken{ttype: A2lTokenType::Number, startpos, endpos: bytepos, fileid, line});
             separated = false;
         } else {
             let endpos = if startpos + 10 < datalen {startpos + 10} else {datalen};
-            return Err(format!("failed to tokenize characters \"{}...\" on line {}", &filedata[startpos..endpos], line));
+            return Err(format!("failed to tokenize characters \"{}...\" on line {}", String::from_utf8_lossy(&filebytes[startpos..endpos]), line));
         }
 
         if tokens.len() >= 2 {
@@ -188,8 +188,8 @@ fn skip_block_comment(filebytes: &[u8], mut bytepos: usize, line: u32) -> Result
         bytepos += 1;
     }
 
-    if bytepos == datalen {
-        return Err(format!("end of input reached before */ was found to close the block comment that started on line {}", line));
+    if bytepos >= datalen {
+        return Err(format!("Error: end of input reached before */ was found to close the block comment that started on line {}", line));
     }
 
     // currently filebytes[bytepos] == b'/', but bytepos should be set to the first character after the block comment
@@ -238,7 +238,7 @@ fn find_string_end(filebytes: &[u8],  mut bytepos: usize, line: u32) -> Result<u
             /* compensate for the fact that we weren't able to look one character past the end of the string */
             bytepos += 1;
         } else {
-            return Err(format!("end of file found in unclosed string starting on line {}", line));
+            return Err(format!("Error: end of file found in unclosed string starting on line {}", line));
         }
     }
     bytepos -= 1;
@@ -292,7 +292,7 @@ fn handle_a2ml(filedata: &str, mut bytepos: usize, mut line: u32, fileid: usize,
 // generate an error message if there is no whitespace (or a block comment) separating two tokens
 fn separator_check(separated: bool, line: u32) -> Result<(), String> {
     if !separated {
-        return Err(format!("There is no whitespace separating the input tokens on line {} ", line))
+        return Err(format!("Error: There is no whitespace separating the input tokens on line {} ", line))
     }
     Ok(())
 }

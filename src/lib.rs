@@ -63,6 +63,10 @@ fn load_impl(filename: &OsStr, filedata: String, log_msgs: &mut Vec<String>, str
     // tokenize the input data
     let tokenresult = tokenizer::tokenize(filename.to_string_lossy().to_string(), 0, &filedata)?;
 
+    if tokenresult.tokens.len() == 0 {
+        return Err(format!("Error: File contains no a2l data"));
+    }
+
     // create a context for the parser. Ensure that the current line of the context is set to the first line that actually contains a token
     let mut fake_token = A2lToken {ttype: A2lTokenType::Identifier, startpos: 0, endpos: 0, fileid: 0, line: 1};
     let firstline = tokenresult.tokens.get(0).unwrap_or_else(|| &fake_token).line;
@@ -79,7 +83,7 @@ fn load_impl(filename: &OsStr, filedata: String, log_msgs: &mut Vec<String>, str
             parser.builtin_a2mlspec = Some(parsed_spec);
         } else {
             // this shouldn't happen; if it does then there is a bug in the a2ml_specification! macro
-            return Err(format!("Failed to load built-in specification: {}", ret.unwrap_err()));
+            return Err(format!("Error: Failed to load built-in specification: {}", ret.unwrap_err()));
         }
     }
 

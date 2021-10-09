@@ -1824,8 +1824,9 @@ impl A2ml {
         let token = parser.expect_token(context, A2lTokenType::String)?;
         let a2ml_text = parser.get_token_text(token).to_string();
 
-        if let Ok(a2mlspec) = a2ml::parse_a2ml(&a2ml_text) {
-            parser.file_a2mlspec = Some(a2mlspec);
+        match a2ml::parse_a2ml(&a2ml_text) {
+            Ok(a2mlspec) => parser.file_a2mlspec = Some(a2mlspec),
+            Err(errmsg) => parser.error_or_log(ParseError::A2mlError(errmsg))?,
         }
 
         parser.expect_token(context, A2lTokenType::End)?;

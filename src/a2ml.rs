@@ -148,15 +148,21 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
             let mut done = false;
             let mut star = false;
             while !done {
-                let pair = chars.next().unwrap_or_else(|| (idx+1, '\0'));
-                idx = pair.0;
-                c = pair.1;
-                if c == '*' {
-                    star = true;
-                } else if (c == '/' && star == true) || c == '\0' {
-                    done = true;
+                if let Some(pair) = chars.next() {
+                    idx = pair.0;
+                    c = pair.1;
+                    if c == '*' {
+                        star = true;
+                    } else if c == '/' && star == true {
+                        done = true;
+                    } else {
+                        star = false;
+                    }
                 } else {
-                    star = false;
+                    let displaylen = if remaining.len() > 16 { 16 } else { remaining.len() };
+                    // slicing remaining in arbitrary ways is not safe, the end might be in the middle of a utf-8 sequence, so from_utf8_lossy is needed
+                    let errtxt = String::from_utf8_lossy(&remaining.as_bytes()[..displaylen]);
+                    return Err(format!("unclosed block quote starting with \"{}\"", errtxt))
                 }
             }
             remaining = &remaining[idx+1..];
@@ -164,10 +170,14 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
         } else if remaining.starts_with("//") {
             /* get a line comment */
             loop {
-                let pair = chars.next().unwrap_or_else(|| (idx+1, '\0'));
-                idx = pair.0;
-                c = pair.1;
-                if c == '\n' || c == '\0' {
+                if let Some(pair) = chars.next() {
+                    idx = pair.0;
+                    c = pair.1;
+                    if c == '\n' {
+                        break;
+                    }
+                } else {
+                    idx = remaining.len() - 1; // results in an empty remaining
                     break;
                 }
             }
@@ -189,7 +199,9 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
                 remaining = &remaining[idx+1..];
             } else {
                 let displaylen = if remaining.len() > 16 { 16 } else { remaining.len() };
-                return Err(format!("unclosed tag string starting with {}", &remaining[..displaylen]))
+                // slicing remaining in arbitrary ways is not safe, the end might be in the middle of a utf-8 sequence, so from_utf8_lossy is needed
+                let errtxt = String::from_utf8_lossy(&remaining.as_bytes()[..displaylen]);
+                return Err(format!("unclosed tag string starting with {}", errtxt))
             }
 
         } else if c == ';' {
@@ -269,7 +281,9 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
             remaining = &remaining[idx..];
         } else {
             let displaylen = if remaining.len() > 16 { 16 } else { remaining.len() };
-            return Err(format!("Unable to tokenize: {}...", &remaining[..displaylen]));
+            // slicing remaining in arbitrary ways is not safe, the end might be in the middle of a utf-8 sequence, so from_utf8_lossy is needed
+            let errtxt = String::from_utf8_lossy(&remaining.as_bytes()[..displaylen]);
+            return Err(format!("Unable to tokenize: {}...", errtxt));
         }
     }
 

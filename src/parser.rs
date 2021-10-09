@@ -45,6 +45,8 @@ pub enum ParseError {
     BlockRefTooNew(ParseContext, String, f32, f32),
     EnumRefDeprecated(ParseContext, String, f32, f32),
     EnumRefTooNew(ParseContext, String, f32, f32),
+    InvalidBegin(ParseContext),
+    A2mlError(String)
 }
 
 
@@ -470,6 +472,9 @@ impl<'a> ParserState<'a> {
     // perform error recovery if an unknown tag is found inside a taggedstruct and strict parsing is off
     pub fn handle_unknown_taggedstruct_tag(&mut self, context: &ParseContext, item_tag: &str, item_is_block: bool, stoplist: &[&str]) -> Result<(), ParseError> {
         self.error_or_log(ParseError::UnknownSubBlock(context.clone(), item_tag.to_string()))?;
+        // make sure there actually is a next token by doing get_token() + undo_get_token() rather than peek()
+        let _ = self.get_token(context)?;
+        self.undo_get_token();
         let startpos = self.get_tokenpos();
         let text = self.get_token_text(&self.token_cursor.tokens[startpos]);
         let errcontext = ParseContext::from_token(text, &self.token_cursor.tokens[startpos], item_is_block);
@@ -584,6 +589,12 @@ impl<'a> ParserState<'a> {
             }
             ParseError::EnumRefDeprecated(context, tag, file_version, max_version) => {
                 format!("{} on line {}: enum item \"{}\" in block {} is deprecated after version {:.2}, but the file declares version {:.2}", prefix, self.last_token_position, tag, context.element, max_version, file_version)
+            }
+            ParseError::InvalidBegin(context) => {
+                format!("{} on line {}: /begin in block {} is not followed by a valid tag", prefix, self.last_token_position, context.element)
+            }
+            ParseError::A2mlError(errmsg) => {
+                format!("{} in A2ML block starting on line {}: {}", prefix, self.last_token_position, errmsg)
             }
         }
     }

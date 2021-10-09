@@ -361,6 +361,11 @@ fn parse_unknown_taggedstruct(parser: &mut ParserState, context: &ParseContext) 
         tsitems.get_mut(tag).unwrap().push(taggeditem);
     }
 
+    // There shouldn't be an unused /begin token after the loop has run. If there is, then this indicates that the file is damaged
+    if let Some(A2lToken { ttype: A2lTokenType::Begin, ..}) = parser.peek_token() {
+        return Err(ParseError::InvalidBegin(context.clone()));
+    }
+
     Ok(GenericIfData::TaggedStruct(tsitems))
 }
 
