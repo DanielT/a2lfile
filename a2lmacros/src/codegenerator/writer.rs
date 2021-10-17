@@ -6,7 +6,7 @@ use super::*;
 
 // generate()
 // Generate a pub fn stringify() function for all data types in the specification
-pub(crate) fn generate(typename: &String, dataitem: &DataItem) -> TokenStream {
+pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
     let mut result = TokenStream::new();
 
     match &dataitem.basetype {
@@ -30,7 +30,7 @@ pub(crate) fn generate(typename: &String, dataitem: &DataItem) -> TokenStream {
 
 // generate_enum_writer()
 // For enums it actually makes more sense to implement the trait std::fmt::Display, than to have a non-standard stringify() function
-fn generate_enum_writer(typename: &str, enumitems: &Vec<EnumItem>) -> TokenStream {
+fn generate_enum_writer(typename: &str, enumitems: &[EnumItem]) -> TokenStream {
     let typeident = format_ident!("{}", typename);
     let mut match_arms = Vec::new();
     for item in enumitems {
@@ -55,7 +55,7 @@ fn generate_enum_writer(typename: &str, enumitems: &Vec<EnumItem>) -> TokenStrea
 
 // generate_block_writer()
 // Choose between custom handling for A2ml and IfData and generic handling for every other block.
-fn generate_block_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+fn generate_block_writer(typename: &str, structitems: &[DataItem]) -> TokenStream {
     match typename {
         "A2ml" | "IfData" => { quote!{} }
         _ => {
@@ -68,7 +68,7 @@ fn generate_block_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenSt
 // generate_block_writer_generic()
 // Generate a stringify() function for a block
 // Each block instantiates its own Writer and uses it to write all of its child elements
-fn generate_block_writer_generic(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+fn generate_block_writer_generic(typename: &str, structitems: &[DataItem]) -> TokenStream {
     let typeident = format_ident!("{}", typename);
 
     let write_items = generate_block_item_writers(structitems);
@@ -90,7 +90,7 @@ fn generate_block_writer_generic(typename: &str, structitems: &Vec<DataItem>) ->
 // generate_struct_writer()
 // Generate a write function for a struct which occurs inside of a block.
 // The struct is written using the parent block's Writer
-fn generate_struct_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+fn generate_struct_writer(typename: &str, structitems: &[DataItem]) -> TokenStream {
     let typeident = format_ident!("{}", typename);
 
     let write_items = generate_block_item_writers(structitems);
@@ -107,7 +107,7 @@ fn generate_struct_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenS
 
 // generate_block_item_writers()
 // Generate a write command for every item in the block.
-fn generate_block_item_writers(structitems: &Vec<DataItem>) -> Vec<TokenStream> {
+fn generate_block_item_writers(structitems: &[DataItem]) -> Vec<TokenStream> {
     let mut write_items = Vec::<TokenStream>::new();
     let mut posidx: usize = 0;
 
@@ -130,20 +130,18 @@ fn generate_block_item_writers(structitems: &Vec<DataItem>) -> Vec<TokenStream> 
                                 tgroup.push(writer::TaggedItemInfo::build(#tag, #tgname_out, #is_block, &#tgname.__block_info));
                             }
                         });
+                    } else if tgitem.required {
+                        tgwriters.push(quote!{
+                            let #tgname_out = self.#tgname.stringify(indent + 1);
+                            tgroup.push(writer::TaggedItemInfo::build(#tag, #tgname_out, #is_block, &self.#tgname.__block_info));
+                        });
                     } else {
-                        if tgitem.required {
-                            tgwriters.push(quote!{
-                                let #tgname_out = self.#tgname.stringify(indent + 1);
-                                tgroup.push(writer::TaggedItemInfo::build(#tag, #tgname_out, #is_block, &self.#tgname.__block_info));
-                            });
-                        } else {
-                            tgwriters.push(quote!{
-                                if let Some(#tgname) = &self.#tgname {
-                                    let #tgname_out = #tgname.stringify(indent + 1);
-                                    tgroup.push(writer::TaggedItemInfo::build(#tag, #tgname_out, #is_block, &#tgname.__block_info));
-                                }
-                            });
-                        }
+                        tgwriters.push(quote!{
+                            if let Some(#tgname) = &self.#tgname {
+                                let #tgname_out = #tgname.stringify(indent + 1);
+                                tgroup.push(writer::TaggedItemInfo::build(#tag, #tgname_out, #is_block, &#tgname.__block_info));
+                            }
+                        });
                     }
                 }
                 write_items.push(quote!{
@@ -225,8 +223,8 @@ fn generate_block_item_write_cmd(basetype: &BaseType, itemname: TokenStream, loc
                 BaseType::Long |
                 BaseType::Ulong |
                 BaseType::Int64 |
-                BaseType::Uint64 => generate_block_item_write_cmd(&seqtype, quote!{*#seqitemident}, seqlocation, calldepth + 1),
-                _                => generate_block_item_write_cmd(&seqtype, quote!{#seqitemident}, seqlocation, calldepth + 1),
+                BaseType::Uint64 => generate_block_item_write_cmd(seqtype, quote!{*#seqitemident}, seqlocation, calldepth + 1),
+                _                => generate_block_item_write_cmd(seqtype, quote!{#seqitemident}, seqlocation, calldepth + 1),
             };
             quote!{
                 for (#seqidxident, #seqitemident) in #itemname.iter().enumerate() {

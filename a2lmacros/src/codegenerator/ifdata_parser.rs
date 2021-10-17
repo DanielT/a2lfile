@@ -8,7 +8,7 @@ use crate::util::*;
 //-----------------------------------------------------------------------------
 // "indirect" parsing of IF_DATA -> parsing generic IF_DATA in GenericIfData structures into application-specific data structures
 
-pub(crate) fn generate(typename: &String, dataitem: &DataItem) -> TokenStream {
+pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
     let mut result = TokenStream::new();
 
     match &dataitem.basetype {
@@ -30,7 +30,7 @@ pub(crate) fn generate(typename: &String, dataitem: &DataItem) -> TokenStream {
 }
 
 
-fn generate_indirect_enum_parser(typename: &str, enumitems: &Vec<EnumItem>) -> TokenStream {
+fn generate_indirect_enum_parser(typename: &str, enumitems: &[EnumItem]) -> TokenStream {
     let name = format_ident!("{}", typename);
 
     let mut match_branches = Vec::new();
@@ -60,7 +60,7 @@ fn generate_indirect_enum_parser(typename: &str, enumitems: &Vec<EnumItem>) -> T
 }
 
 
-fn generate_indirect_struct_parser(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+fn generate_indirect_struct_parser(typename: &str, structitems: &[DataItem]) -> TokenStream {
     let name = format_ident!("{}", typename);
     let structfields = generate_struct_field_intializers(structitems);
 
@@ -81,7 +81,7 @@ fn generate_indirect_struct_parser(typename: &str, structitems: &Vec<DataItem>) 
 }
 
 
-fn generate_indirect_block_parser(typename: &str, blockitems: &Vec<DataItem>) -> TokenStream {
+fn generate_indirect_block_parser(typename: &str, blockitems: &[DataItem]) -> TokenStream {
     let name = format_ident!("{}", typename);
     let structfields = generate_struct_field_intializers(blockitems);
 
@@ -99,7 +99,7 @@ fn generate_indirect_block_parser(typename: &str, blockitems: &Vec<DataItem>) ->
 }
 
 
-fn generate_struct_field_intializers(items: &Vec<DataItem>) -> Vec<TokenStream> {
+fn generate_struct_field_intializers(items: &[DataItem]) -> Vec<TokenStream> {
     let mut parsers = Vec::new();
     let mut location_info = Vec::new();
     for (idx, item) in items.iter().enumerate() {
@@ -134,7 +134,7 @@ fn generate_struct_field_intializers(items: &Vec<DataItem>) -> Vec<TokenStream> 
             BaseType::TaggedStruct(taggeditems) => {
                 for tgitem in taggeditems {
                     let tag = &tgitem.tag;
-                    let tgitemname = format_ident!("{}", make_varname(&tag));
+                    let tgitemname = format_ident!("{}", make_varname(tag));
                     let typename = format_ident!("{}", tgitem.item.typename.as_ref().unwrap());
                     if tgitem.repeat {
                         parsers.push(quote!{#tgitemname: #item_getter.get_multiple_optitems(#tag, #typename::parse)?});

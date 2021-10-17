@@ -416,8 +416,7 @@ fn parse_aml_type_enum(tok_iter: &mut A2mlTokenIter, types: &TypeSet) -> Result<
     // check if this is a reference to a previous declaration or if there is also a list of items in {}
     let tok_peek = tok_iter.peek();
     if tok_peek.is_none() || **tok_peek.unwrap() != TokenType::OpenCurlyBracket {
-        if name.is_some() {
-            let name = name.unwrap();
+        if let Some(name) = name {
             if let Some(A2mlTypeSpec::Enum(items)) = types.enums.get(&name) {
                 return Ok( (Some(name), A2mlTypeSpec::Enum(items.clone())) );
             } else {
@@ -468,8 +467,7 @@ fn parse_aml_type_struct(tok_iter: &mut A2mlTokenIter, types: &TypeSet) -> Resul
     // check if this is a reference to a previous declaration or if there is also a definition of the struct enclosed in {}
     let tok_peek = tok_iter.peek();
     if tok_peek.is_none() || **tok_peek.unwrap() != TokenType::OpenCurlyBracket {
-        if name.is_some() {
-            let name = name.unwrap();
+        if let Some(name) = name {
             if let Some(A2mlTypeSpec::Struct(structitems)) = types.structs.get(&name) {
                 return Ok( (Some(name), A2mlTypeSpec::Struct(structitems.clone())) );
             } else {
@@ -508,8 +506,7 @@ fn parse_aml_type_taggedstruct(tok_iter: &mut A2mlTokenIter, types: &TypeSet) ->
     // check if this is a reference to a previous declaration or if there is also a definition of the taggedstruct enclosed in {}
     let tok_peek = tok_iter.peek();
     if tok_peek.is_none() || **tok_peek.unwrap() != TokenType::OpenCurlyBracket {
-        if name.is_some() {
-            let name = name.unwrap();
+        if let Some(name) = name {
             if let Some(A2mlTypeSpec::TaggedStruct(tsitems)) = types.taggedstructs.get(&name) {
                 return Ok( (Some(name), A2mlTypeSpec::TaggedStruct(tsitems.clone())) );
             } else {
@@ -547,8 +544,7 @@ fn parse_aml_type_taggedunion(tok_iter: &mut A2mlTokenIter, types: &TypeSet) -> 
     /* check if this is a reference to a previous declaration or if there is also a definition of the taggedunion enclosed in {} */
     let tok_peek = tok_iter.peek();
     if tok_peek.is_none() || **tok_peek.unwrap() != TokenType::OpenCurlyBracket {
-        if name.is_some() {
-            let name = name.unwrap();
+        if let Some(name) = name {
             if let Some(A2mlTypeSpec::TaggedUnion(tsitems)) = types.taggedunions.get(&name) {
                 return Ok( (Some(name), A2mlTypeSpec::TaggedUnion(tsitems.clone())) );
             } else {
@@ -972,7 +968,7 @@ impl GenericIfData {
             Self::TaggedStruct(taggeditems) |
             Self::TaggedUnion(taggeditems) => {
                 let mut tgroup = Vec::new();
-                for (_, tgitemlist) in taggeditems {
+                for tgitemlist in taggeditems.values() {
                     for tgitem in tgitemlist {
                         tgroup.push(TaggedItemInfo::build_generic(tgitem.data.write(indent + 1), tgitem));
                     }
@@ -1001,7 +997,7 @@ impl GenericIfData {
             }
             Self::TaggedStruct(taggeditems) |
             Self::TaggedUnion(taggeditems) => {
-                for (_, tgitemlist) in taggeditems {
+                for tgitemlist in taggeditems.values_mut() {
                     for tgitem in tgitemlist {
                         tgitem.incfile = None;
                         tgitem.data.merge_includes();

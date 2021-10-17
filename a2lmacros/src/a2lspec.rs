@@ -34,7 +34,7 @@ pub(crate) fn a2l_specification(tokens: TokenStream) -> TokenStream {
         result.extend(codegenerator::writer::generate(typename, a2ltype));
     }
 
-    result.into()
+    result
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -69,14 +69,14 @@ fn parse_input(token_iter: &mut TokenStreamIter) -> (Vec<StructInfo>, Vec<DataIt
 fn parse_doc_comments(token_iter: &mut TokenStreamIter) -> Option<String> {
     let mut comment = "".to_string();
     while let Some(comment_line) = parse_optional_comment(token_iter) {
-        if comment.len() > 0 {
+        if !comment.is_empty() {
             comment = format!("{}\n{}", comment, comment_line);
         } else {
-            comment = comment_line.clone();
+            comment = comment_line;
         }
     }
 
-    if comment.len() > 0 {
+    if !comment.is_empty() {
         Some(comment)
     } else {
         None
@@ -120,7 +120,7 @@ fn parse_struct(token_iter: &mut TokenStreamIter, comment: Option<String>, is_ke
         }
     }
 
-    if references.len() > 0 {
+    if !references.is_empty() {
         // the references to other blocks are represented as a taggedstruct.
         // This is always the last element in the struct, as a2l does not have required items after optional items
         items.push(
@@ -150,8 +150,7 @@ fn parse_struct(token_iter: &mut TokenStreamIter, comment: Option<String>, is_ke
 // it is possible to specify that one block is referenced under multiple names, e.g.  AXIS_PTS_X / _Y / _Z / _4 / _5
 // this function constructs all the full names from the pattern and returns them in a Vec
 fn parse_blockname(token_iter: &mut TokenStreamIter) -> Vec<String> {
-    let mut names = Vec::new();
-    names.push(get_ident(token_iter));
+    let mut names = vec![ get_ident(token_iter) ];
     let name0chars: Vec<char> = names[0].chars().collect();
 
     loop {
@@ -288,7 +287,7 @@ fn parse_optitem(block_token_iter: &mut TokenStreamIter) -> Vec<TaggedItem> {
 
 fn get_optional_version_range(token_iter: &mut TokenStreamIter) -> Option<(f32, f32)> {
     let mut version_range = None;
-    if let Some(TokenTree::Group(g)) = token_iter.peek().clone() {
+    if let Some(TokenTree::Group(g)) = token_iter.peek() {
         if g.delimiter() == Delimiter::Parenthesis {
             let range_tokens = get_group(token_iter, Delimiter::Parenthesis);
             let mut range_token_iter = range_tokens.into_iter().peekable();
@@ -351,7 +350,7 @@ fn parse_enum(token_iter: &mut TokenStreamIter, comment: Option<String>) -> Data
 }
 
 
-fn typename_from_names(names: &Vec<String>) -> String {
+fn typename_from_names(names: &[String]) -> String {
     if names.len() == 1 {
         ucname_to_typename(&names[0])
     }
@@ -396,9 +395,8 @@ fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<Str
     // enums can be copied directly to the output type list
     for e in enums {
         let typename = e.typename.as_ref().unwrap().to_owned();
-        if typelist.insert(typename.clone(), e) != None {
-            panic!("duplicate enum name {} in a2l specification", typename);
-        }
+        let oldval = typelist.insert(typename.clone(), e);
+        assert!(oldval.is_none(), "duplicate enum name {} in a2l specification", typename);
     }
 
     // for all tags of all structs: store if this tag refers to a block or not
@@ -443,9 +441,8 @@ fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<Str
             }
     
             let typename = dataitem.typename.unwrap();
-            if typelist.insert(typename.clone(), DataItem {typename: Some(typename.clone()), basetype: BaseType::Block(output_structitems, is_block), varname: None, comment: dataitem.comment }) != None {
-                panic!("type {} for block {} altready exists", typename, taglist[0]);
-            }
+            let oldval = typelist.insert(typename.clone(), DataItem {typename: Some(typename.clone()), basetype: BaseType::Block(output_structitems, is_block), varname: None, comment: dataitem.comment });
+            assert!(oldval.is_none(), "type {} for block {} altready exists", typename, taglist[0]);
         }
     }
 
@@ -460,21 +457,19 @@ fn unwrap_nested_structs(tag: &str, si: DataItem, typelist: &mut HashMap<String,
         if let BaseType::Struct(_) = *seqitem {
             // the sequence contains a struct, which needs to be moved out of the sequence
             let typename = si.typename.unwrap();
-            let existing_type = typelist.get(&typename);
-            if existing_type.is_none() {
+            if let Some(existing_type) = typelist.get(&typename) {
+                // the struct type already exists in the output types. Some sequences (identifier_list) occur frequently
+                assert!((existing_type.basetype == *seqitem), "type {} has multiple incompatible definitions", typename);
+                // no need to insert the type, because it exists and is compatible
+            } else {
                 let comment = if let Some(comment) = si.comment {
                     Some(comment)
                 } else {
                     Some(format!("Auto generated for repeating sequence {} in block {}", si.varname.as_ref().unwrap().to_owned(), tag))
                 };
                 typelist.insert(typename.clone(), DataItem {typename: Some(typename.clone()), basetype: *seqitem, varname: None, comment});
-            } else {
-                // the struct type already exists in the output types. Some sequences (identifier_list) occur frequently
-                if existing_type.unwrap().basetype != *seqitem {
-                    panic!("type {} has multiple incompatible definitions", typename);
-                }
-                // no need to insert the type, because it exists and is compatible
             }
+
             DataItem {
                 typename: Some(typename),
                 basetype: BaseType::Sequence(Box::new(BaseType::StructRef)),

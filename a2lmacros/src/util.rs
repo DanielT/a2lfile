@@ -59,9 +59,7 @@ pub(crate) fn get_group(token_iter: &mut TokenStreamIter, delim: Delimiter) -> T
     let tok: TokenTree = token_iter.next().unwrap();
     match tok {
         TokenTree::Group(grp) => {
-            if grp.delimiter() != delim {
-                panic!("Expected a group inside of {:#?}, but got a group inside {:#?}", delim, grp.delimiter());
-            }
+            assert!(!(grp.delimiter() != delim), "Expected a group inside of {:#?}, but got a group inside {:#?}", delim, grp.delimiter());
             grp.stream()
         }
         _ => {
@@ -83,9 +81,8 @@ pub(crate) fn get_punct(token_iter: &mut TokenStreamIter) -> char {
 
 pub(crate) fn require_punct(token_iter: &mut TokenStreamIter, reqchar: char) {
     let cur_pkchar = get_punct(token_iter);
-    if cur_pkchar != reqchar {
-        panic!("Punctuation character '{}' is required in this position, but '{}' was found instead", reqchar, cur_pkchar);
-    }
+    assert!(!(cur_pkchar != reqchar),
+        "Punctuation character '{}' is required in this position, but '{}' was found instead", reqchar, cur_pkchar);
 }
 
 
@@ -153,7 +150,7 @@ const RUST_RESERVED_KEYWORDS: [&str; 51] = [
 // convert an uppercase name to lowercase, then check that the varname does not collide with a Rust keyword
 pub(crate) fn make_varname(blkname: &str) -> String {
     let mut lcname = blkname.to_ascii_lowercase();
-    if RUST_RESERVED_KEYWORDS.iter().find(|kw| kw == &&&lcname).is_some() {
+    if RUST_RESERVED_KEYWORDS.iter().any(|kw| kw == &lcname) {
         lcname = format!("var_{}", lcname);
     }
     lcname

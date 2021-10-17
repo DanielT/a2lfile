@@ -45,7 +45,7 @@ pub trait A2lObject<T> {
 pub trait A2lObjectName {
     /// get the name of an a2l object.
     /// this trait is only implemented for those objects that have names, which is a subset of all objects
-    fn get_name<'a>(&'a self) -> &'a str;
+    fn get_name(&self) -> &str;
 }
 
 

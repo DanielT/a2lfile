@@ -9,7 +9,7 @@ use crate::util::*;
 // generate
 // generate parser function implementations for the set of types of A2l
 // A2ml does not use this code, since it parses its data from intermediate GenericIfData structures
-pub(crate) fn generate(typename: &String, dataitem: &DataItem) -> TokenStream {
+pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
     let mut result = quote!{};
 
     match &dataitem.basetype {
@@ -32,7 +32,7 @@ pub(crate) fn generate(typename: &String, dataitem: &DataItem) -> TokenStream {
 
 // generate_enum_parser()
 // generates a parser function that returns the enum variant matching the text of the current input token
-fn generate_enum_parser(typename: &str, enumitems: &Vec<EnumItem>) -> TokenStream {
+fn generate_enum_parser(typename: &str, enumitems: &[EnumItem]) -> TokenStream {
     let name = format_ident!("{}", typename);
 
     let mut match_branches = Vec::new();
@@ -70,7 +70,7 @@ fn generate_enum_parser(typename: &str, enumitems: &Vec<EnumItem>) -> TokenStrea
 // generate_block_parser
 // generates the full parser function for a block or keyword
 // for elements derived from an a2ml spec, blocks are structs which occur after a tag in a TaggedUnion or TaggedStruct.
-fn generate_block_parser(typename: &str, structitems: &Vec<DataItem>, is_block: bool) -> TokenStream {
+fn generate_block_parser(typename: &str, structitems: &[DataItem], is_block: bool) -> TokenStream {
     match typename {
         "A2ml"  | "IfData" => { quote!{} }
         _ => {
@@ -83,7 +83,7 @@ fn generate_block_parser(typename: &str, structitems: &Vec<DataItem>, is_block: 
 
 // generate_block_parser_generic()
 // generate a parser function for a block, keyword or struct
-fn generate_block_parser_generic(typename: &str, structitems: &Vec<DataItem>, is_block: bool) -> TokenStream {
+fn generate_block_parser_generic(typename: &str, structitems: &[DataItem], is_block: bool) -> TokenStream {
     let name = format_ident!("{}", typename);
     let (itemnames, itemparsers, location_names) = generate_struct_item_fragments(structitems);
 
@@ -130,7 +130,7 @@ fn generate_block_parser_generic(typename: &str, structitems: &Vec<DataItem>, is
 
 // generate_struct_item_fragments
 // generate a list of struct elements as well as TokenStreams with code to parse these elements
-fn generate_struct_item_fragments(structitems: &Vec<DataItem>) -> (Vec<Ident>, Vec<TokenStream>, Vec<Ident>) {
+fn generate_struct_item_fragments(structitems: &[DataItem]) -> (Vec<Ident>, Vec<TokenStream>, Vec<Ident>) {
     let mut itemparsers = Vec::<TokenStream>::new();
     let mut itemnames = Vec::<Ident>::new();
     let mut location_names = Vec::<Ident>::new();
@@ -273,7 +273,7 @@ fn generate_sequence_parser(itemname: &Ident, typename: &Option<String>, seqitem
 
 // generate_taggeditem_parser
 // Generate a TokenStream representing code to parse all the tagged items of a TaggedStruct or TaggedUnion
-fn generate_taggeditem_parser(tg_items: &Vec<TaggedItem>, is_taggedunion: bool, is_last: bool) -> TokenStream {
+fn generate_taggeditem_parser(tg_items: &[TaggedItem], is_taggedunion: bool, is_last: bool) -> TokenStream {
     // result: the TokenStream that ultimately collcts all the code fragements in this function
     let mut result = quote!{};
 
@@ -317,7 +317,7 @@ fn generate_taggeditem_parser(tg_items: &Vec<TaggedItem>, is_taggedunion: bool, 
 // a match statement is used in order to parse the taggeditems of a TaggedStruct / TaggedUnion
 // This function generates all of the match arms of the match expression
 // In order to use the result of the match arms, we also need the definition of the generated variables.
-fn generate_taggeditem_match_arms(tg_items: &Vec<TaggedItem>) -> (TokenStream, Vec<TokenStream>, TokenStream) {
+fn generate_taggeditem_match_arms(tg_items: &[TaggedItem]) -> (TokenStream, Vec<TokenStream>, TokenStream) {
     let mut var_definitions = quote!{};
     // item_match_arms: the match arms of the while loop that passes each set of input tokens to the appropriate item parser
     let mut item_match_arms = Vec::new();
@@ -406,7 +406,7 @@ fn generate_taggeditem_match_arms(tg_items: &Vec<TaggedItem>) -> (TokenStream, V
 
 // generate_taggeditem_parser_core()
 // generate the match statement for parsing TaggedStructs and TaggedUnions
-fn generate_taggeditem_parser_core(tg_items: &Vec<TaggedItem>, is_taggedunion: bool, is_last: bool, item_match_arms: &Vec<TokenStream>) -> TokenStream {
+fn generate_taggeditem_parser_core(tg_items: &[TaggedItem], is_taggedunion: bool, is_last: bool, item_match_arms: &[TokenStream]) -> TokenStream {
     // default action if a tag is not recognized: step back in the tokenstream and let it be handled somewhere else
     let mut default_match_arm = quote!{
         if is_block {
@@ -452,7 +452,7 @@ fn generate_taggeditem_parser_core(tg_items: &Vec<TaggedItem>, is_taggedunion: b
 
 // generate_tagged_item_names()
 // generate variable names for all of the items in a TggedStruct or TaggedUnion
-fn generate_tagged_item_names(tg_items: &Vec<TaggedItem>) -> Vec<Ident> {
+fn generate_tagged_item_names(tg_items: &[TaggedItem]) -> Vec<Ident> {
     let mut names = Vec::new();
 
     for item in tg_items {

@@ -7,7 +7,7 @@ use super::*;
 // generate_data_structures()
 // generate the struct and enum definitions for all inputs in types
 // Also generate a new() for each type as well as functions for impl Debug and impl PartialEq
-pub(crate) fn generate(typename: &String, dataitem: &DataItem) -> TokenStream {
+pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
     let mut result = quote!{};
 
     if let Some(comment) = &dataitem.comment {
@@ -35,7 +35,7 @@ pub(crate) fn generate(typename: &String, dataitem: &DataItem) -> TokenStream {
 
 // generate_enum_data_structure()
 // generate an enum with the given name and items
-fn generate_enum_data_structure(typename: &str, enumitems: &Vec<EnumItem>) -> TokenStream {
+fn generate_enum_data_structure(typename: &str, enumitems: &[EnumItem]) -> TokenStream {
     let typeident = format_ident!("{}", typename);
 
     let enumidents: Vec<proc_macro2::Ident> = enumitems.iter().map(
@@ -54,7 +54,7 @@ fn generate_enum_data_structure(typename: &str, enumitems: &Vec<EnumItem>) -> To
 // generate_block_data_structure()
 // Generate the data structure of a block (if is_block is false it is a keyword instead, but still almost the same)
 // The A2ml and IfData blocks are special in the specification and are implemented by hand
-fn generate_block_data_structure(typename: &str, structitems: &Vec<DataItem>, is_block: bool) ->  TokenStream {
+fn generate_block_data_structure(typename: &str, structitems: &[DataItem], is_block: bool) ->  TokenStream {
     match typename {
         "A2ml" | "IfData" => { quote!{} }
         _ => {
@@ -66,7 +66,7 @@ fn generate_block_data_structure(typename: &str, structitems: &Vec<DataItem>, is
 
 // generate_block_data_structure_generic()
 // generate the data structure and associated functions for all except A2ml and IfData
-fn generate_block_data_structure_generic(typename: &str, structitems: &Vec<DataItem>, is_struct: bool, is_block: bool) ->  TokenStream {
+fn generate_block_data_structure_generic(typename: &str, structitems: &[DataItem], is_struct: bool, is_block: bool) ->  TokenStream {
     let typeident = format_ident!("{}", typename);
     let mut definitions = Vec::new();
 
@@ -133,12 +133,10 @@ fn generate_struct_item_definition(item: &DataItem) -> TokenStream {
                 // The container type for the TaggedItems varies depending on the options
                 if tgitem.repeat {
                     curr_def.extend(quote!{pub #tgitemname: Vec<#typename>});
+                } else if tgitem.required {
+                    curr_def.extend(quote!{pub #tgitemname: #typename});
                 } else {
-                    if tgitem.required {
-                        curr_def.extend(quote!{pub #tgitemname: #typename});
-                    } else {
-                        curr_def.extend(quote!{pub #tgitemname: Option<#typename>});
-                    }
+                    curr_def.extend(quote!{pub #tgitemname: Option<#typename>});
                 }
 
                 tgdefs.push(curr_def);
@@ -146,9 +144,8 @@ fn generate_struct_item_definition(item: &DataItem) -> TokenStream {
             def.extend(quote!{#(#tgdefs),*});
         }
         _ => {
-            if item.varname.is_none() {
-                panic!("bad varname for struct item {:#?}", item);
-            }
+            assert!(!item.varname.is_none(), "bad varname for struct item {:#?}", item);
+
             let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
             let typename = generate_bare_typename(&item.typename, &item.basetype);
             def.extend(quote!{pub #itemname: #typename});
@@ -164,7 +161,7 @@ fn generate_struct_item_definition(item: &DataItem) -> TokenStream {
 // This function generates the definition of the __block_info tuple that stores these locations
 // For example a struct with 3 items of type (enum, String, int) the generated tuple would look like this:
 //    ( u32, u32, (u32, bool) )
-fn generate_struct_block_location(structitems: &Vec<DataItem>) -> TokenStream {
+fn generate_struct_block_location(structitems: &[DataItem]) -> TokenStream {
     let mut locationtypes = Vec::new();
     for item in structitems {
         match item.basetype {
@@ -250,7 +247,7 @@ fn generate_item_location_info(item_basetype: &BaseType) -> TokenStream {
 
 // generate an impl of the Debug trait for each generated struct
 // unfortunately this cannot be derived automatically because of the __block_info
-fn generate_block_data_structure_debug(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+fn generate_block_data_structure_debug(typename: &str, structitems: &[DataItem]) -> TokenStream {
     let typeident = format_ident!("{}", typename);
     let mut membernames = Vec::new();
     let mut structmembers = Vec::new();
@@ -289,28 +286,23 @@ fn generate_block_data_structure_debug(typename: &str, structitems: &Vec<DataIte
 // Generate a constructor new(...) for a struct.
 // All of the required elements become arguments of new(), while the
 // optional ones are automatically set to None or Vec::new()
-fn generate_block_data_structure_constructor(typename: &str, structitems: &Vec<DataItem>, is_struct: bool, is_block: bool) -> TokenStream {
+fn generate_block_data_structure_constructor(typename: &str, structitems: &[DataItem], is_struct: bool, is_block: bool) -> TokenStream {
     let typeident = format_ident!("{}", typename);
     let mut newargs = Vec::<TokenStream>::new();
     let mut fieldinit = Vec::<TokenStream>::new();
 
     let mut locationinfo = Vec::new();
 
-    let named_block = if is_block && structitems.len() > 1 && structitems[0].basetype == BaseType::Ident && structitems[1].basetype == BaseType::String {
-        true
-    } else {
-        false
-    };
+    // it's a named block if the first two elements are Ident and String (== short name and long name)
+    let named_block = is_block && structitems.len() > 1 && structitems[0].basetype == BaseType::Ident && structitems[1].basetype == BaseType::String;
 
     for item in structitems {
-        let initline = if named_block && locationinfo.len() == 2 {
-            // if it's a named block, then the first two items go on the same line as /begin FOO, followed by a line break
-            1
-        } else if is_struct && locationinfo.len() == 0 {
-            // structs have a line break before the first element
-            1
-        } else if !named_block && is_block && locationinfo.len() == 0 {
-            // any other random block has the line break right after /begin FOO
+        let initline = if (named_block && locationinfo.len() == 2) ||
+            (is_struct && locationinfo.is_empty()) ||
+            (!named_block && is_block && locationinfo.is_empty()) {
+            // - if it's a named block, then the first two items go on the same line as /begin FOO, followed by a line break
+            // - structs have a line break before the first element
+            // - any other random block has the line break right after /begin FOO
             1
         } else {
             0
@@ -332,13 +324,11 @@ fn generate_block_data_structure_constructor(typename: &str, structitems: &Vec<D
                     let typename = generate_bare_typename(&tgitem.item.typename, &tgitem.item.basetype);
                     if tgitem.repeat {
                         fieldinit.push(quote!{#tgitemname: Vec::new()});
+                    } else if tgitem.required {
+                        newargs.push(quote!{#tgitemname: #typename});
+                        fieldinit.push(quote!{#tgitemname});
                     } else {
-                        if tgitem.required {
-                            newargs.push(quote!{#tgitemname: #typename});
-                            fieldinit.push(quote!{#tgitemname});
-                        } else {
-                            fieldinit.push(quote!{#tgitemname: None});
-                        }
+                        fieldinit.push(quote!{#tgitemname: None});
                     }
                 }
             }
@@ -433,7 +423,7 @@ fn generate_item_locationinfo_init(item_basetype: &BaseType, initline: u32) -> T
 // generate_block_data_structure_partialeq()
 // generate an impl of partialeq which compares all the regular struct members but ignores
 // the layout information in self.__block_info
-fn generate_block_data_structure_partialeq(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+fn generate_block_data_structure_partialeq(typename: &str, structitems: &[DataItem]) -> TokenStream {
     let typeident = format_ident!("{}", typename);
     let mut comparisons = Vec::<TokenStream>::new();
 
@@ -458,7 +448,7 @@ fn generate_block_data_structure_partialeq(typename: &str, structitems: &Vec<Dat
     }
 
     // some structs, e.g. DISCRETE and READ_ONLY have no content. They are always equal.
-    if comparisons.len() == 0 {
+    if comparisons.is_empty() {
         comparisons.push(quote!{true});
     }
 
@@ -476,7 +466,7 @@ fn generate_block_data_structure_partialeq(typename: &str, structitems: &Vec<Dat
 // generate the function calls inside a structs merge_includes() function that also merge the child elements
 // this is only a concern for structs and optional elements, because other items do not track an include location
 // and are always assumed to be inside the same file
-fn make_merge_commands(name_prefix: TokenStream, structitems: &Vec<DataItem>) -> Vec<TokenStream> {
+fn make_merge_commands(name_prefix: TokenStream, structitems: &[DataItem]) -> Vec<TokenStream> {
     let mut merge_commands = Vec::<TokenStream>::new();
     for item in structitems {
         match &item.basetype {
@@ -490,18 +480,16 @@ fn make_merge_commands(name_prefix: TokenStream, structitems: &Vec<DataItem>) ->
                                 #tgitemname.merge_includes();
                             }
                         });
+                    } else if tgitem.required {
+                        merge_commands.push(quote!{
+                            #name_prefix.#tgitemname.merge_includes();
+                        });
                     } else {
-                        if tgitem.required {
-                            merge_commands.push(quote!{
-                                #name_prefix.#tgitemname.merge_includes();
-                            });
-                        } else {
-                            merge_commands.push(quote!{
-                                if let Some(#tgitemname) = &mut #name_prefix.#tgitemname {
-                                    #tgitemname.merge_includes();
-                                }
-                            });
-                        }
+                        merge_commands.push(quote!{
+                            if let Some(#tgitemname) = &mut #name_prefix.#tgitemname {
+                                #tgitemname.merge_includes();
+                            }
+                        });
                     }
                 }
             }
@@ -522,7 +510,7 @@ fn make_merge_commands(name_prefix: TokenStream, structitems: &Vec<DataItem>) ->
 }
 
 
-fn generate_block_data_structure_trait_location(typename: &str, structitems: &Vec<DataItem>, location_spec: TokenStream) -> TokenStream {
+fn generate_block_data_structure_trait_location(typename: &str, structitems: &[DataItem], location_spec: TokenStream) -> TokenStream {
     let typeident = format_ident!("{}", typename);
     let merge_commands = make_merge_commands(quote!{self}, structitems);
  
@@ -556,10 +544,10 @@ fn generate_block_data_structure_trait_location(typename: &str, structitems: &Ve
 }
 
 
-fn generate_block_data_structure_trait_name(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+fn generate_block_data_structure_trait_name(typename: &str, structitems: &[DataItem]) -> TokenStream {
     let typeident = format_ident!("{}", typename);
 
-    if structitems.len() > 0 && structitems[0].basetype == BaseType::Ident && structitems[0].varname == Some("name".to_string()) {
+    if !structitems.is_empty() && structitems[0].basetype == BaseType::Ident && structitems[0].varname == Some("name".to_string()) {
         quote!{
             impl A2lObjectName for #typeident {
                 fn get_name(&self) -> &str {

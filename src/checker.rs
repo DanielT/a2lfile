@@ -254,7 +254,7 @@ fn check_ref_memory_segment(opt_ref_memory_segment: &Option<RefMemorySegment>, n
 
 
 
-fn check_reference_list<T>(container_type: &str, ref_type: &str, line: u32, identifier_list: &Vec<String>, map: &HashMap<String, T>, log_msgs: &mut Vec<String>) {
+fn check_reference_list<T>(container_type: &str, ref_type: &str, line: u32, identifier_list: &[String], map: &HashMap<String, T>, log_msgs: &mut Vec<String>) {
     for ident in identifier_list {
         if map.get(ident).is_none() {
             log_msgs.push(format!("In {} on line {}: Reference to nonexistent {} \"{}\"",

@@ -73,9 +73,9 @@ fn decode_raw_bytes(filedata: Vec<u8>) -> String {
      * little endian bom is 0xff 0xfe. Without BOM, the fist character should be 0x?? 0x00 */
     if (filedata.len() % 2 == 0) && (filedata.len() > 1) {
         let u16conversion: Option<fn([u8; 2]) -> u16> = 
-            if ((filedata[0] == 0) && (filedata[1] != 0)) || ((filedata[0] == 0xfe && filedata[1] == 0xff)) {
+            if ((filedata[0] == 0) && (filedata[1] != 0)) || (filedata[0] == 0xfe && filedata[1] == 0xff) {
                 Some(u16::from_be_bytes) 
-            } else if ((filedata[0] != 0) && (filedata[1] == 0)) || ((filedata[0] == 0xff && filedata[1] == 0xfe)) {  
+            } else if ((filedata[0] != 0) && (filedata[1] == 0)) || (filedata[0] == 0xff && filedata[1] == 0xfe) {  
                 Some(u16::from_le_bytes) 
             } else { 
                 None

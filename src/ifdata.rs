@@ -250,8 +250,7 @@ pub(crate) fn parse_unknown_ifdata_start(parser: &mut ParserState, context: &Par
         let mut tuitem = HashMap::new();
         tuitem.insert(tag.to_string(), vec![taggeditem]);
 
-        let mut items: Vec<GenericIfData> = Vec::new();
-        items.push(GenericIfData::TaggedUnion(tuitem));
+        let items: Vec<GenericIfData> = vec![GenericIfData::TaggedUnion(tuitem)];
 
         Ok(GenericIfData::Block{
             incfile: parser.get_incfilename(context.fileid),

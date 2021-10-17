@@ -6,7 +6,7 @@ use quote::quote;
 use super::{BaseType, DataItem, EnumItem, TaggedItem};
 use crate::util::*;
 
-pub(crate) fn generate(typename: &String, dataitem: &DataItem) -> TokenStream {
+pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
     let mut result = TokenStream::new();
 
     match &dataitem.basetype {
@@ -28,7 +28,7 @@ pub(crate) fn generate(typename: &String, dataitem: &DataItem) -> TokenStream {
 }
 
 
-fn generate_indirect_enum_writer(typename: &str, enumitems: &Vec<EnumItem>) -> TokenStream {
+fn generate_indirect_enum_writer(typename: &str, enumitems: &[EnumItem]) -> TokenStream {
     let name = format_ident!("{}", typename);
 
     let mut match_branches = Vec::new();
@@ -51,7 +51,7 @@ fn generate_indirect_enum_writer(typename: &str, enumitems: &Vec<EnumItem>) -> T
 }
 
 
-fn generate_indirect_struct_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+fn generate_indirect_struct_writer(typename: &str, structitems: &[DataItem]) -> TokenStream {
     let name = format_ident!("{}", typename);
 
     let stored_structitems = generate_indirect_store_item(structitems);
@@ -66,7 +66,7 @@ fn generate_indirect_struct_writer(typename: &str, structitems: &Vec<DataItem>) 
 }
 
 
-fn generate_indirect_block_writer(typename: &str, structitems: &Vec<DataItem>) -> TokenStream {
+fn generate_indirect_block_writer(typename: &str, structitems: &[DataItem]) -> TokenStream {
     let name = format_ident!("{}", typename);
 
     let stored_structitems = generate_indirect_store_item(structitems);
@@ -85,7 +85,7 @@ fn generate_indirect_block_writer(typename: &str, structitems: &Vec<DataItem>) -
 }
 
 
-fn generate_indirect_store_item(structitems: &Vec<DataItem>) -> Vec<TokenStream> {
+fn generate_indirect_store_item(structitems: &[DataItem]) -> Vec<TokenStream> {
     let mut stored_structitems = Vec::new();
     let mut storageidx: usize = 0;
     for item in structitems {
@@ -95,7 +95,7 @@ fn generate_indirect_store_item(structitems: &Vec<DataItem>) -> Vec<TokenStream>
             BaseType::Sequence(seqitemtype) => {
                 let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
                 let locationinfo = quote! {(*#location.get(idx).unwrap_or_else(|| &0))};
-                let parsercall = generate_indirect_store_simple_item(quote!{item}, locationinfo, &seqitemtype);
+                let parsercall = generate_indirect_store_simple_item(quote!{item}, locationinfo, seqitemtype);
                 storageidx += 1;
                 quote!{a2lfile::GenericIfData::Sequence({
                     let mut sequence_content = Vec::new();
@@ -170,7 +170,7 @@ fn generate_indirect_store_simple_item(itemname: TokenStream, locationinfo: Toke
 }
 
 
-fn generate_indirect_store_taggeditems(tgitems: &Vec<TaggedItem>) -> TokenStream {
+fn generate_indirect_store_taggeditems(tgitems: &[TaggedItem]) -> TokenStream {
     let mut insert_items = Vec::new();
     for tgitem in tgitems {
         let tgname = format_ident!("{}", make_varname(&tgitem.tag));

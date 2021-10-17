@@ -38,13 +38,11 @@ log_msgs is a reference to a Vec<String> which will receive all warning messages
 strict_parsing toggles strict parsing: If strict parsing is enabled, most warnings become errors.
 
 ```
-fn main() {
     let mut log_msgs = Vec::<String>::new();
     match a2lfile::load(&std::ffi::OsString::from("example.a2l"), None, &mut log_msgs, true) {
         Ok(a2l_file) => {/* do something with it*/},
         Err(error_message) => println!("{}", error_message)
     }
-}
 ```
  */
 pub fn load(filename: &OsStr, a2ml_spec: Option<String>, log_msgs: &mut Vec<String>, strict_parsing: bool) -> Result<A2lFile, String> {
