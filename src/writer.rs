@@ -96,7 +96,7 @@ impl Writer {
                 if included_files.get(incname).is_none() {
                     self.add_whitespace(item.start_offset);
                     self.outstring.write_str("/include \"").unwrap();
-                    self.outstring.write_str(&incname).unwrap();
+                    self.outstring.write_str(incname).unwrap();
                     self.outstring.write_char('"').unwrap();
 
                     included_files.insert(incname.to_owned());

@@ -52,7 +52,7 @@ pub enum ParseError {
 
 // it pretends to be an Iter, but it really isn't
 impl<'a> TokenIter<'a> {
-    fn next(self: &mut Self) -> Option<&'a A2lToken> {
+    fn next(&mut self) -> Option<&'a A2lToken> {
         if self.pos < self.tokens.len() {
             let item = &self.tokens[self.pos];
             self.pos += 1;
@@ -62,7 +62,7 @@ impl<'a> TokenIter<'a> {
         }
     }
 
-    fn peek(self: &mut Self) -> Option<&'a A2lToken> {
+    fn peek(&mut self) -> Option<&'a A2lToken> {
         if self.pos < self.tokens.len() {
             let item = &self.tokens[self.pos];
             Some(item)
@@ -71,7 +71,7 @@ impl<'a> TokenIter<'a> {
         }
     }
 
-    fn back(self: &mut Self) {
+    fn back(&mut self) {
         self.pos -= 1;
     }
 }
@@ -82,7 +82,7 @@ impl<'a> ParserState<'a> {
         ParserState {
             token_cursor: TokenIter{ tokens, pos: 0},
             filedata,
-            filenames: filenames,
+            filenames,
             last_token_position: 0,
             sequential_id: 0,
             log_msgs,
@@ -234,7 +234,7 @@ impl<'a> ParserState<'a> {
             let token = self.expect_token(context, A2lTokenType::String)?;
             let mut text = self.get_token_text(token);
 
-            if text.starts_with("\"") {
+            if text.starts_with('\"') {
                 text = &text[1..text.len() - 1];
             }
 
@@ -610,7 +610,7 @@ impl ParseContext {
 
 fn unescape_string(text: &str) -> String {
     /* first check if any unescaping is needed at all */
-    if text.chars().find(|c| *c == '\\' || *c == '"').is_some() {
+    if text.chars().any(|c| c == '\\' || c == '"') {
         let input_chars: Vec<char> = text.chars().collect();
         let mut output_chars = Vec::<char>::new();
 

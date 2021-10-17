@@ -103,7 +103,7 @@ fn parse_ifdata_item(parser: &mut ParserState, context: &ParseContext, spec: &A2
         A2mlTypeSpec::Enum(enumspec) => {
             let pos = parser.get_current_line_offset();
             let enumitem = parser.get_identifier(context)?;
-            if let Some(_) = enumspec.get(&enumitem) {
+            if enumspec.get(&enumitem).is_some() {
                 GenericIfData::EnumItem(pos, enumitem)
             } else {
                 return Err(ParseError::InvalidEnumValue(context.clone(), enumitem));
@@ -332,7 +332,7 @@ fn parse_unknown_taggedstruct(parser: &mut ParserState, context: &ParseContext) 
     while let Ok(Some((token, is_block, start_offset))) = parser.get_next_tag(context) {
         let uid = parser.get_next_id();
         let tag = parser.get_token_text(token);
-        let newcontext = ParseContext::from_token(tag, &token, true);
+        let newcontext = ParseContext::from_token(tag, token, true);
         let result = parse_unknown_ifdata(parser, &newcontext, is_block)?;
 
         let end_offset = parser.get_current_line_offset();

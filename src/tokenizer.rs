@@ -147,7 +147,7 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filetext: &str) -> Resul
                 }
                 let incname = &filetext[filename_start .. filename_end];
 
-                let incfilename = make_include_filename(&incname, &filenames[0]);
+                let incfilename = make_include_filename(incname, &filenames[0]);
 
                 // check if incname is an accessible file
                 let loadresult = loader::load(&incfilename);
@@ -251,35 +251,33 @@ fn find_string_end(filebytes: &[u8],  mut bytepos: usize, line: u32) -> Result<u
 // handle_a2ml finds the end of the A2ML block and stores its content as a string
 fn handle_a2ml(filedata: &str, mut bytepos: usize, mut line: u32, fileid: usize, tokens: &mut Vec<A2lToken>) -> (usize, u32) {
     let tokcount = tokens.len();
-    if tokcount >= 2 {
-        if tokens[tokcount-2].ttype == A2lTokenType::Begin {
-            let startpos = bytepos;
-            let filebytes = filedata.as_bytes();
-            let datalen = filedata.len();
-            let tag = &filedata[tokens[tokcount-1].startpos .. tokens[tokcount-1].endpos];
+    if tokcount >= 2 && tokens[tokcount-2].ttype == A2lTokenType::Begin {
+        let startpos = bytepos;
+        let filebytes = filedata.as_bytes();
+        let datalen = filedata.len();
+        let tag = &filedata[tokens[tokcount-1].startpos .. tokens[tokcount-1].endpos];
 
-            if tag == "A2ML" {
-                while bytepos < datalen && !(filebytes[bytepos] == b'/' && filedata[bytepos .. ].starts_with("/end A2ML")) {
-                    bytepos += 1;
-                }
-
-                // trim off trailing whitespace up to and including the last newline - this newline and the
-                // following indentation will be written together with /end A2ML
-                while filebytes[bytepos-1].is_ascii_whitespace() && filebytes[bytepos-1] != b'\r' && filebytes[bytepos-1] != b'\n' {
-                    bytepos -= 1;
-                }
-                if filebytes[bytepos-1] == b'\r' && filebytes[bytepos-1] == b'\n' {
-                    bytepos -= 2;
-                } else if filebytes[bytepos-1] == b'\n' {
-                    bytepos -= 1;
-                }
+        if tag == "A2ML" {
+            while bytepos < datalen && !(filebytes[bytepos] == b'/' && filedata[bytepos .. ].starts_with("/end A2ML")) {
+                bytepos += 1;
             }
 
-            if bytepos > startpos {
-                tokens.push(A2lToken{ttype: A2lTokenType::String, startpos, endpos: bytepos, fileid, line});
-
-                line += count_newlines(&filebytes[startpos .. bytepos]);
+            // trim off trailing whitespace up to and including the last newline - this newline and the
+            // following indentation will be written together with /end A2ML
+            while filebytes[bytepos-1].is_ascii_whitespace() && filebytes[bytepos-1] != b'\r' && filebytes[bytepos-1] != b'\n' {
+                bytepos -= 1;
             }
+            if filebytes[bytepos-1] == b'\r' && filebytes[bytepos-1] == b'\n' {
+                bytepos -= 2;
+            } else if filebytes[bytepos-1] == b'\n' {
+                bytepos -= 1;
+            }
+        }
+
+        if bytepos > startpos {
+            tokens.push(A2lToken{ttype: A2lTokenType::String, startpos, endpos: bytepos, fileid, line});
+
+            line += count_newlines(&filebytes[startpos .. bytepos]);
         }
     }
 

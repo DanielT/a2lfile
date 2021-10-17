@@ -12,7 +12,7 @@ pub fn load(filename: &OsStr) -> Result<String, String> {
     let filedata = read_data(&mut file)?;
     let utf8data = decode_raw_bytes(filedata);
 
-    let data = if utf8data.len() > 2 && utf8data.chars().next().unwrap() == '\u{feff}' {
+    let data = if utf8data.len() > 2 && utf8data.starts_with('\u{feff}') {
         // it has a BOM, strip that off here
         String::from(&utf8data[3..])
     } else {
@@ -52,7 +52,7 @@ fn decode_raw_bytes(filedata: Vec<u8>) -> String {
             };
         if u32conversion.is_some() {
             let mut conversion_failed = false;
-            let mut filedata_unicode: Vec<char> =  Vec::with_capacity(filedata.len()/4 as usize);
+            let mut filedata_unicode: Vec<char> =  Vec::with_capacity(filedata.len()/4_usize);
             for i in 0..(filedata.len()/4) {
                 let charbytes: [u8; 4] = [filedata[i*4], filedata[i*4+1], filedata[i*4+2], filedata[i*4+3]];
                 let nextchar = std::char::from_u32(u32conversion.unwrap()(charbytes));
@@ -62,7 +62,7 @@ fn decode_raw_bytes(filedata: Vec<u8>) -> String {
                 }
                 filedata_unicode.push(nextchar.unwrap());
             }
-            if conversion_failed == false {
+            if !conversion_failed {
                 return filedata_unicode.into_iter().collect();
             }
         }

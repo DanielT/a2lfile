@@ -40,7 +40,7 @@ strict_parsing toggles strict parsing: If strict parsing is enabled, most warnin
 ```
 fn main() {
     let mut log_msgs = Vec::<String>::new();
-    match a2lfile::load("example.a2l", None, &mut log_msgs, true) {
+    match a2lfile::load(&std::ffi::OsString::from("example.a2l"), None, &mut log_msgs, true) {
         Ok(a2l_file) => {/* do something with it*/},
         Err(error_message) => println!("{}", error_message)
     }
@@ -55,7 +55,7 @@ pub fn load(filename: &OsStr, a2ml_spec: Option<String>, log_msgs: &mut Vec<Stri
 
 /// load a2l data stored in a string
 pub fn load_from_string(a2ldata: &str, a2ml_spec: Option<String>, log_msgs: &mut Vec<String>, strict_parsing: bool) -> Result<A2lFile, String> {
-    load_impl(&OsStr::new(""), a2ldata, log_msgs, strict_parsing, a2ml_spec)
+    load_impl(OsStr::new(""), a2ldata, log_msgs, strict_parsing, a2ml_spec)
 }
 
 
@@ -63,13 +63,13 @@ fn load_impl(filename: &OsStr, filedata: &str, log_msgs: &mut Vec<String>, stric
     // tokenize the input data
     let tokenresult = tokenizer::tokenize(filename.to_string_lossy().to_string(), 0, filedata)?;
 
-    if tokenresult.tokens.len() == 0 {
-        return Err(format!("Error: File contains no a2l data"));
+    if tokenresult.tokens.is_empty() {
+        return Err("Error: File contains no a2l data".to_string());
     }
 
     // create a context for the parser. Ensure that the current line of the context is set to the first line that actually contains a token
     let mut fake_token = A2lToken {ttype: A2lTokenType::Identifier, startpos: 0, endpos: 0, fileid: 0, line: 1};
-    let firstline = tokenresult.tokens.get(0).unwrap_or_else(|| &fake_token).line;
+    let firstline = tokenresult.tokens.get(0).unwrap_or(&fake_token).line;
     fake_token.line = firstline;
     let context = &ParseContext::from_token("A2L_FILE", &fake_token, false);
 
@@ -89,7 +89,7 @@ fn load_impl(filename: &OsStr, filedata: &str, log_msgs: &mut Vec<String>, stric
 
     // try to get the file version. Starting with 1.60, the ASAP2_VERSION element is mandatory. For
     // compatibility with old files, a missing version is only an error if strict parsing is requested
-    if let Err(version_error) = get_version(&mut parser, &context) {
+    if let Err(version_error) = get_version(&mut parser, context) {
         if !strict_parsing {
             parser.log_msgs.push(version_error);
         } else {
@@ -97,7 +97,7 @@ fn load_impl(filename: &OsStr, filedata: &str, log_msgs: &mut Vec<String>, stric
         }
     }
     // build the a2l data structures from the tokens
-    let a2l_file = A2lFile::parse(&mut parser, &context, 0);
+    let a2l_file = A2lFile::parse(&mut parser, context, 0);
     if let Err(parse_error) = a2l_file {
         return Err(parser.stringify_parse_error(&parse_error, true));
     }

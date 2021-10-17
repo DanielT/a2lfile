@@ -128,7 +128,7 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
     let mut amltokens = Vec::<TokenType>::new();
     let mut remaining = input;
 
-    while remaining.len() > 0 {
+    while !remaining.is_empty() {
         let mut chars = remaining.char_indices();
         let (mut idx, mut c) = chars.next().unwrap();
 
@@ -153,7 +153,7 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
                     c = pair.1;
                     if c == '*' {
                         star = true;
-                    } else if c == '/' && star == true {
+                    } else if c == '/' && star {
                         done = true;
                     } else {
                         star = false;
@@ -372,7 +372,7 @@ pub(crate) fn parse_a2ml(input: &str) -> Result<A2mlTypeSpec, String> {
     if let Some(ifdata_block) = ifdata_block {
         Ok(ifdata_block)
     } else {
-        Err(format!("The A2ML declaration was fully parsed. However it does not contain an IF_DATA block, so it is not usable."))
+        Err("The A2ML declaration was fully parsed. However it does not contain an IF_DATA block, so it is not usable.".to_string())
     }
 }
 
@@ -393,10 +393,10 @@ fn parse_aml_type(tok_iter: &mut A2mlTokenIter, types: &TypeSet, tok_start: &Tok
         TokenType::Uint64 => Ok((None, A2mlTypeSpec::UInt64)),
         TokenType::Float => Ok((None, A2mlTypeSpec::Float)),
         TokenType::Double => Ok((None, A2mlTypeSpec::Double)),
-        TokenType::Enum => parse_aml_type_enum(tok_iter, &types),
-        TokenType::Struct => parse_aml_type_struct(tok_iter, &types),
-        TokenType::Taggedstruct => parse_aml_type_taggedstruct(tok_iter, &types),
-        TokenType::Taggedunion => parse_aml_type_taggedunion(tok_iter, &types),
+        TokenType::Enum => parse_aml_type_enum(tok_iter, types),
+        TokenType::Struct => parse_aml_type_struct(tok_iter, types),
+        TokenType::Taggedstruct => parse_aml_type_taggedstruct(tok_iter, types),
+        TokenType::Taggedunion => parse_aml_type_taggedunion(tok_iter, types),
         _ => Err(format!("unexpected token {:?} in type declaration", tok_start)),
     }
 }
@@ -417,7 +417,7 @@ fn parse_aml_type_enum(tok_iter: &mut A2mlTokenIter, types: &TypeSet) -> Result<
     let tok_peek = tok_iter.peek();
     if tok_peek.is_none() || **tok_peek.unwrap() != TokenType::OpenCurlyBracket {
         if name.is_some() {
-            let name = String::from(name.unwrap());
+            let name = name.unwrap();
             if let Some(A2mlTypeSpec::Enum(items)) = types.enums.get(&name) {
                 return Ok( (Some(name), A2mlTypeSpec::Enum(items.clone())) );
             } else {
@@ -469,7 +469,7 @@ fn parse_aml_type_struct(tok_iter: &mut A2mlTokenIter, types: &TypeSet) -> Resul
     let tok_peek = tok_iter.peek();
     if tok_peek.is_none() || **tok_peek.unwrap() != TokenType::OpenCurlyBracket {
         if name.is_some() {
-            let name = String::from(name.unwrap());
+            let name = name.unwrap();
             if let Some(A2mlTypeSpec::Struct(structitems)) = types.structs.get(&name) {
                 return Ok( (Some(name), A2mlTypeSpec::Struct(structitems.clone())) );
             } else {
@@ -485,7 +485,7 @@ fn parse_aml_type_struct(tok_iter: &mut A2mlTokenIter, types: &TypeSet) -> Resul
     let mut structdata = Vec::new();
 
     loop {
-        structdata.push(parse_aml_member(tok_iter, &types)?);
+        structdata.push(parse_aml_member(tok_iter, types)?);
         require_token_type(tok_iter, TokenType::Semicolon)?;
 
         if let Some(TokenType::ClosedCurlyBracket) = tok_iter.peek() {
@@ -509,7 +509,7 @@ fn parse_aml_type_taggedstruct(tok_iter: &mut A2mlTokenIter, types: &TypeSet) ->
     let tok_peek = tok_iter.peek();
     if tok_peek.is_none() || **tok_peek.unwrap() != TokenType::OpenCurlyBracket {
         if name.is_some() {
-            let name = String::from(name.unwrap());
+            let name = name.unwrap();
             if let Some(A2mlTypeSpec::TaggedStruct(tsitems)) = types.taggedstructs.get(&name) {
                 return Ok( (Some(name), A2mlTypeSpec::TaggedStruct(tsitems.clone())) );
             } else {
@@ -524,7 +524,7 @@ fn parse_aml_type_taggedstruct(tok_iter: &mut A2mlTokenIter, types: &TypeSet) ->
     require_token_type(tok_iter, TokenType::OpenCurlyBracket)?; // guaranteed to succeed
     let mut taggedstructdata = HashMap::new();
     loop {
-        let (itemname, itemdef) = parse_aml_taggedmember(tok_iter, &types, true)?;
+        let (itemname, itemdef) = parse_aml_taggedmember(tok_iter, types, true)?;
         taggedstructdata.insert(itemname, itemdef);
         require_token_type(tok_iter, TokenType::Semicolon)?;
 
@@ -548,7 +548,7 @@ fn parse_aml_type_taggedunion(tok_iter: &mut A2mlTokenIter, types: &TypeSet) -> 
     let tok_peek = tok_iter.peek();
     if tok_peek.is_none() || **tok_peek.unwrap() != TokenType::OpenCurlyBracket {
         if name.is_some() {
-            let name = String::from(name.unwrap());
+            let name = name.unwrap();
             if let Some(A2mlTypeSpec::TaggedUnion(tsitems)) = types.taggedunions.get(&name) {
                 return Ok( (Some(name), A2mlTypeSpec::TaggedUnion(tsitems.clone())) );
             } else {
@@ -563,7 +563,7 @@ fn parse_aml_type_taggedunion(tok_iter: &mut A2mlTokenIter, types: &TypeSet) -> 
     require_token_type(tok_iter, TokenType::OpenCurlyBracket)?; // guaranteed to succeed
     let mut taggeduniondata = HashMap::new();
     loop {
-        let (itemname, itemdef) = parse_aml_taggedmember(tok_iter, &types, false)?;
+        let (itemname, itemdef) = parse_aml_taggedmember(tok_iter, types, false)?;
         taggeduniondata.insert(itemname, itemdef);
         require_token_type(tok_iter, TokenType::Semicolon)?;
 
@@ -601,7 +601,7 @@ fn parse_aml_taggedmember(tok_iter: &mut A2mlTokenIter, types: &TypeSet, allow_r
             let item = if let Some(TokenType::Semicolon) = tok_peek {
                 A2mlTypeSpec::None
             } else {
-                parse_aml_tagged_def(tok_iter, &types)?
+                parse_aml_tagged_def(tok_iter, types)?
             };
             (tag.to_string(), A2mlTaggedTypeSpec { tag: tag.to_string(), item, is_block, repeat })
         } else {
@@ -627,7 +627,7 @@ fn parse_aml_tagged_def(tok_iter: &mut A2mlTokenIter, types: &TypeSet) -> Result
         tok_iter.next();
     }
 
-    let mut member = parse_aml_member(tok_iter, &types)?;
+    let mut member = parse_aml_member(tok_iter, types)?;
 
     if inner_repeat {
         require_token_type(tok_iter, TokenType::ClosedRoundBracket)?;
@@ -645,7 +645,7 @@ fn parse_aml_tagged_def(tok_iter: &mut A2mlTokenIter, types: &TypeSet) -> Result
 //    array_specifier = "[" constant "]" | "[" constant "]" array_specifier
 fn parse_aml_member(tok_iter: &mut A2mlTokenIter, types: &TypeSet) -> Result<A2mlTypeSpec, String> {
     let tok_start = nexttoken(tok_iter)?;
-    let (_, mut base_type) = parse_aml_type(tok_iter, &types, tok_start)?;
+    let (_, mut base_type) = parse_aml_type(tok_iter, types, tok_start)?;
 
     while let Some(TokenType::OpenSquareBracket) = tok_iter.peek() {
         /* get the array dim */

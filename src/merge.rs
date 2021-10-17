@@ -121,7 +121,7 @@ fn merge_memory_segment(orig_module: &mut Module, merge_module: &mut Module) {
 
 
 fn rename_memory_segments(merge_module: &mut Module, rename_table: HashMap<String, String>) {
-    if rename_table.len() == 0 {
+    if rename_table.is_empty() {
         return;
     }
 
@@ -165,7 +165,7 @@ fn merge_if_data(orig_module: &mut Module, merge_module: &mut Module) {
     // this could result in files that two conflicting XCP connection definitions, or which have
     // both XCP as well as ASAP1B_CCP definitions.
     // For this reason, IF_DATA will ony be merged if there is no IF_DATA at all
-    if orig_module.if_data.len() == 0 {
+    if orig_module.if_data.is_empty() {
         let mut if_data = std::mem::take(&mut merge_module.if_data);
         for item in &mut if_data {
             item.reset_location();
@@ -193,7 +193,7 @@ fn merge_unit(orig_module: &mut Module, merge_module: &mut Module) {
 }
 
 fn rename_units(merge_module: &mut Module, rename_table: HashMap<String, String>) {
-    if rename_table.len() == 0 {
+    if rename_table.is_empty() {
         return;
     }
 
@@ -244,7 +244,7 @@ fn merge_compu_tab(orig_module: &mut Module, merge_module: &mut Module) {
 
 
 fn rename_compu_tabs(merge_module: &mut Module, rename_table: HashMap<String, String>) {
-    if rename_table.len() == 0 {
+    if rename_table.is_empty() {
         return;
     }
 
@@ -293,7 +293,7 @@ fn merge_compu_method(orig_module: &mut Module, merge_module: &mut Module) {
 }
 
 fn rename_compu_methods(merge_module: &mut Module, rename_table: HashMap<String, String>) {
-    if rename_table.len() == 0 {
+    if rename_table.is_empty() {
         return;
     }
 
@@ -346,7 +346,7 @@ fn merge_record_layout(orig_module: &mut Module, merge_module: &mut Module) {
 }
 
 fn rename_record_layouts(merge_module: &mut Module, rename_table: HashMap<String, String>) {
-    if rename_table.len() == 0 {
+    if rename_table.is_empty() {
         return;
     }
 
@@ -441,7 +441,7 @@ fn merge_objects(orig_module: &mut Module, merge_module: &mut Module) {
 }
 
 fn rename_objects(merge_module: &mut Module, rename_table: HashMap<String, String>) {
-    if rename_table.len() == 0 {
+    if rename_table.is_empty() {
         return;
     }
 
@@ -633,7 +633,7 @@ fn merge_group(orig_module: &mut Module, merge_module: &mut Module) {
 }
 
 fn rename_groups(merge_module: &mut Module, rename_table: HashMap<String, String>) {
-    if rename_table.len() == 0 {
+    if rename_table.is_empty() {
         return;
     }
 
@@ -672,7 +672,7 @@ fn merge_frame(orig_module: &mut Module, merge_module: &mut Module) {
 }
 
 fn rename_frames(merge_module: &mut Module, rename_table: HashMap<String, String>) {
-    if rename_table.len() == 0 {
+    if rename_table.is_empty() {
         return;
     }
 
@@ -702,7 +702,7 @@ fn merge_transformer(orig_module: &mut Module, merge_module: &mut Module) {
 }
 
 fn rename_transformers(merge_module: &mut Module, rename_table: HashMap<String, String>) {
-    if rename_table.len() == 0 {
+    if rename_table.is_empty() {
         return;
     }
 
@@ -759,7 +759,7 @@ fn merge_typedef(orig_module: &mut Module, merge_module: &mut Module) {
 }
 
 fn rename_typedefs(merge_module: &mut Module, rename_table: HashMap<String, String>) {
-    if rename_table.len() == 0 {
+    if rename_table.is_empty() {
         return;
     }
 
@@ -845,7 +845,7 @@ where T: PartialEq {
                 merge_action.insert(name.to_owned(), false);
             } else {
                 // items with the same name but with different content exist on both sides. Rename the new ones before merging
-                let newname = make_unique_name(&name, &orig_map, &merge_map);
+                let newname = make_unique_name(name, &orig_map, &merge_map);
                 rename_table.insert(name.to_owned(), newname.to_owned());
                 merge_action.insert(newname, true);
             }
