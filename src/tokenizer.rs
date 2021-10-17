@@ -35,18 +35,17 @@ pub(crate) struct TokenResult {
 // possible to do this because characters outside of basic ASCII can actually only occur in
 // strings and comments. UTF-8 in strings is directly copied to the output, while comments are discarded.
 // An important extra goal of the tokenizer is to attach the source line number to each token so that error messages can give accurate location info
-pub(crate) fn tokenize(filename: String, fileid: usize, filedata: &str) -> Result<TokenResult, String> {
+pub(crate) fn tokenize(filename: String, fileid: usize, filetext: &str) -> Result<TokenResult, String> {
     let mut filenames: Vec<String> = vec![filename];
-    let filebytes = filedata.as_bytes();
-    let mut tokens: Vec<A2lToken> = Vec::with_capacity(filedata.len() / 20);
+    let mut filedatas: Vec<String> = vec![filetext.to_owned()];
+    let filebytes = filetext.as_bytes();
+    let datalen = filebytes.len();
+
+    let mut tokens: Vec<A2lToken> = Vec::with_capacity(datalen / 20);
     let mut next_fileid = fileid + 1;
-    let datalen = filedata.len();
     let mut bytepos = 0;
     let mut separated = true;
     let mut line = 1;
-    let mut filedatas: Vec<String> = vec![];
-
-    filedatas.push(filedata.to_string());
 
     while bytepos < datalen {
         let startpos = bytepos;
@@ -72,17 +71,17 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filedata: &str) -> Resul
                 while bytepos < datalen && filebytes[bytepos] != b'\n' {
                     bytepos += 1;
                 }
-            } else if filedata[bytepos .. ].starts_with("begin") {
+            } else if filebytes[bytepos .. ].starts_with(b"begin") {
                 separator_check(separated, line)?;
                 bytepos += 5;
                 tokens.push(A2lToken{ttype: A2lTokenType::Begin, startpos, endpos: bytepos, fileid, line});
                 separated = false;
-            } else if filedata[bytepos .. ].starts_with("end") {
+            } else if filebytes[bytepos .. ].starts_with(b"end") {
                 separator_check(separated, line)?;
                 bytepos += 3;
                 tokens.push(A2lToken{ttype: A2lTokenType::End, startpos, endpos: bytepos, fileid, line});
                 separated = false;
-            } else if filedata[bytepos .. ].starts_with("include") {
+            } else if filebytes[bytepos .. ].starts_with(b"include") {
                 separator_check(separated, line)?;
                 bytepos += 7;
                 tokens.push(A2lToken{ttype: A2lTokenType::Include, startpos, endpos: bytepos, fileid, line});
@@ -107,7 +106,7 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filedata: &str) -> Resul
             tokens.push(A2lToken{ttype: A2lTokenType::Identifier, startpos, endpos: bytepos, fileid, line});
             separated = false;
 
-            let (new_bytepos, new_line) = handle_a2ml(filedata, bytepos, line, fileid, &mut tokens);
+            let (new_bytepos, new_line) = handle_a2ml(filetext, bytepos, line, fileid, &mut tokens);
             if bytepos != new_bytepos {
                 separated = true;
             }
@@ -120,10 +119,10 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filedata: &str) -> Resul
             while bytepos < datalen && is_numchar(filebytes[bytepos]) {
                 bytepos += 1;
             }
-            let number = &filedata[startpos..bytepos];
-            if number == "-" {
+            let number = &filebytes[startpos..bytepos];
+            if number == b"-" {
                 return Err(format!("Error: Invalid numerical constant consisting of only \"-\" found on line {}", line));
-            } else if number == "0x" {
+            } else if number == b"0x" {
                 return Err(format!("Error: Invalid numerical constant consisting of only \"0x\" found on line {}", line));
             }
             tokens.push(A2lToken{ttype: A2lTokenType::Number, startpos, endpos: bytepos, fileid, line});
@@ -146,14 +145,14 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filedata: &str) -> Resul
                     filename_start += 1;
                     filename_end -= 1;
                 }
-                let incname = &filedata[filename_start .. filename_end];
+                let incname = &filetext[filename_start .. filename_end];
 
                 let incfilename = make_include_filename(&incname, &filenames[0]);
 
                 // check if incname is an accessible file
                 let loadresult = loader::load(&incfilename);
                 if let Ok(incfiledata) = loadresult {
-                    let mut tokresult = tokenize(incname.to_string(), next_fileid, &incfiledata)?;
+                    let mut tokresult = tokenize(incname.to_owned(), next_fileid, &incfiledata)?;
 
                     next_fileid += tokresult.filenames.len();
 

@@ -49,19 +49,19 @@ fn main() {
  */
 pub fn load(filename: &OsStr, a2ml_spec: Option<String>, log_msgs: &mut Vec<String>, strict_parsing: bool) -> Result<A2lFile, String> {
     let filedata = loader::load(filename)?;
-    load_impl(filename, filedata, log_msgs, strict_parsing, a2ml_spec)
+    load_impl(filename, &filedata, log_msgs, strict_parsing, a2ml_spec)
 }
 
 
 /// load a2l data stored in a string
 pub fn load_from_string(a2ldata: &str, a2ml_spec: Option<String>, log_msgs: &mut Vec<String>, strict_parsing: bool) -> Result<A2lFile, String> {
-    load_impl(&OsStr::new(""), a2ldata.to_string(), log_msgs, strict_parsing, a2ml_spec)
+    load_impl(&OsStr::new(""), a2ldata, log_msgs, strict_parsing, a2ml_spec)
 }
 
 
-fn load_impl(filename: &OsStr, filedata: String, log_msgs: &mut Vec<String>, strict_parsing: bool, a2ml_spec: Option<String>) -> Result<A2lFile, String> {
+fn load_impl(filename: &OsStr, filedata: &str, log_msgs: &mut Vec<String>, strict_parsing: bool, a2ml_spec: Option<String>) -> Result<A2lFile, String> {
     // tokenize the input data
-    let tokenresult = tokenizer::tokenize(filename.to_string_lossy().to_string(), 0, &filedata)?;
+    let tokenresult = tokenizer::tokenize(filename.to_string_lossy().to_string(), 0, filedata)?;
 
     if tokenresult.tokens.len() == 0 {
         return Err(format!("Error: File contains no a2l data"));

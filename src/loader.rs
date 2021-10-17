@@ -98,7 +98,9 @@ fn decode_raw_bytes(filedata: Vec<u8>) -> String {
     }
 
     /* handle the data as ISO8859-1. This always succeeds, because every sequence of bytes can be a latin-1 string */
-    filedata.iter().map(|c| *c as char).collect::<String>()
+    let mut outstr = String::with_capacity(filedata.len());
+    filedata.iter().for_each(|ch| outstr.push(*ch as char));
+    outstr
 }
 
 

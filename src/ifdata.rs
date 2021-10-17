@@ -110,7 +110,7 @@ fn parse_ifdata_item(parser: &mut ParserState, context: &ParseContext, spec: &A2
             }
         }
         A2mlTypeSpec::Struct(structspec) => {
-            let mut structitems = Vec::new();
+            let mut structitems = Vec::with_capacity(structspec.len());
             let line = parser.get_current_line_offset();
             for itemspec in structspec {
                 structitems.push(parse_ifdata_item(parser, context, itemspec)?);
@@ -144,12 +144,13 @@ fn parse_ifdata_item(parser: &mut ParserState, context: &ParseContext, spec: &A2
 // parse_ifdata_taggedstruct()
 // parse all the tagged items of a TaggedStruct (TaggedUnions are not handled here because no loop is needed for those)
 fn parse_ifdata_taggedstruct(parser: &mut ParserState, context: &ParseContext, tsspec: &HashMap<String, A2mlTaggedTypeSpec>) -> Result<HashMap<String, Vec<GenericIfDataTaggedItem>>, ParseError> {
-    let mut result = HashMap::new();
+    let mut result = HashMap::<String, Vec<GenericIfDataTaggedItem>>::new();
     while let Some(taggeditem) = parse_ifdata_taggeditem(parser, context, tsspec)? {
-        if result.get(&taggeditem.tag).is_none() {
-            result.insert(taggeditem.tag.clone(), Vec::new());
+        if let Some(itemvec) = result.get_mut(&taggeditem.tag) {
+            itemvec.push(taggeditem);
+        } else {
+            result.insert(taggeditem.tag.clone(), vec![taggeditem]);
         }
-        result.get_mut(&taggeditem.tag.clone()).unwrap().push(taggeditem);
     }
 
     Ok(result)
