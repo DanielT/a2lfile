@@ -359,11 +359,9 @@ fn parse_a2ml_taggeditem(token_iter: &mut TokenStreamIter, types: &A2mlTypeList,
         Some(TokenTree::Literal(_)) => {
             let tag = get_string(ts_item_iter);
             let dataitem;
-            if multi && ts_item_iter.peek().is_none() {
+            if (multi && ts_item_iter.peek().is_none()) || matches!(ts_item_iter.peek(), Some(TokenTree::Punct(_))) {
                 // case 1: repeating, i.e. enclosed in ( ... )*
                 // In this case the ts_item_iter only covers the items inside the parenthesis and there are no more items
-                dataitem = DataItem {typename: None, basetype: BaseType::None, varname: None, comment: None};
-            } else if let Some(TokenTree::Punct(_)) = ts_item_iter.peek() {
                 // case 2: not repeating, so ts_item_iter refers to some larger group of items.
                 // In this case the taggeditem contains None if punctuation (i.e. ';') is seen
                 dataitem = DataItem {typename: None, basetype: BaseType::None, varname: None, comment: None};

@@ -2,14 +2,14 @@ use crate::a2ml::*;
 use super::tokenizer::*;
 
 struct TokenIter<'a> {
-    tokens: &'a Vec<A2lToken>,
+    tokens: &'a [A2lToken],
     pos: usize
 }
 
 pub struct ParserState<'a> {
     token_cursor: TokenIter<'a>,
-    filedata: &'a Vec<String>,
-    filenames: &'a Vec<String>,
+    filedata: &'a [String],
+    filenames: &'a [String],
     last_token_position: u32,
     sequential_id: u32,
     pub(crate) log_msgs: &'a mut Vec<String>,
@@ -78,7 +78,7 @@ impl<'a> TokenIter<'a> {
 
 
 impl<'a> ParserState<'a> {
-    pub fn new<'b>(tokens: &'b Vec<A2lToken>, filedata: &'b Vec<String>, filenames: &'b Vec<String>, log_msgs: &'b mut Vec<String>, strict: bool) -> ParserState<'b> {
+    pub fn new<'b>(tokens: &'b [A2lToken], filedata: &'b [String], filenames: &'b [String], log_msgs: &'b mut Vec<String>, strict: bool) -> ParserState<'b> {
         ParserState {
             token_cursor: TokenIter{ tokens, pos: 0},
             filedata,
@@ -616,10 +616,7 @@ fn unescape_string(text: &str) -> String {
 
         let mut idx = 1;
         while idx < input_chars.len() {
-            if input_chars[idx-1] == '"' && input_chars[idx] == '"' {
-                output_chars.push('"');
-                idx += 1;
-            } else if input_chars[idx-1] == '\\' && input_chars[idx] == '"' {
+            if (input_chars[idx-1] == '\\' || input_chars[idx-1] == '"') && input_chars[idx] == '"' {
                 output_chars.push('"');
                 idx += 1;
             } else if input_chars[idx-1] == '\\' && input_chars[idx] == '\'' {

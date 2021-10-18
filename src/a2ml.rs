@@ -713,21 +713,21 @@ fn nexttoken<'a>(tok_iter: &mut A2mlTokenIter<'a>) -> Result<&'a TokenType<'a>, 
 
 
 impl GenericIfData {
-    pub fn get_block_items(&self) -> Result<(Option<String>, u32, &Vec<GenericIfData>), ()> {
+    pub fn get_block_items(&self) -> Result<(Option<String>, u32, &Vec<GenericIfData>), &'static str> {
         match self {
             GenericIfData::Block{incfile, line, items} => Ok((incfile.clone(), *line, items)),
-            _ => Err(())
+            _ => Err("strucutal mismatch: get_block_items called on something that is not a Block")
         }
     }
 
-    pub fn get_struct_items(&self) -> Result<(Option<String>, u32, &Vec<GenericIfData>), ()> {
+    pub fn get_struct_items(&self) -> Result<(Option<String>, u32, &Vec<GenericIfData>), &'static str> {
         match self {
             GenericIfData::Struct(file, line, blockitems) => Ok((file.clone(), *line, blockitems)),
-            _ => Err(())
+            _ => Err("strucutal mismatch: get_struct_items called on something that is not a Struct")
         }
     }
 
-    pub fn get_int_is_hex(&self) -> Result<bool, ()> {
+    pub fn get_int_is_hex(&self) -> Result<bool, &'static str> {
         match self {
             GenericIfData::UChar(_, (_, is_hex)) |
             GenericIfData::UInt(_, (_, is_hex)) |
@@ -737,115 +737,115 @@ impl GenericIfData {
             GenericIfData::Int(_, (_, is_hex)) |
             GenericIfData::Long(_, (_, is_hex)) |
             GenericIfData::Int64(_, (_, is_hex)) => Ok(*is_hex),
-            _ => Err(())
+            _ => Err("strucutal mismatch: get_int_is_hex called on something that is not an integer")
         }
     }
 
-    pub fn get_integer_u8(&self) -> Result<u8, ()> {
+    pub fn get_integer_u8(&self) -> Result<u8, &'static str> {
         if let GenericIfData::UChar(_, (val, _)) = self {
             Ok(*val)
         } else {
-            Err(())
+            Err("strucutal mismatch: get_integer_u8 called on something that is not a UChar")
         }
     }
 
-    pub fn get_integer_u16(&self) -> Result<u16, ()> {
+    pub fn get_integer_u16(&self) -> Result<u16, &'static str> {
         if let GenericIfData::UInt(_, (val, _)) = self {
             Ok(*val)
         } else {
-            Err(())
+            Err("strucutal mismatch: get_integer_u16 called on something that is not a UInt")
         }
     }
 
-    pub fn get_integer_u32(&self) -> Result<u32, ()> {
+    pub fn get_integer_u32(&self) -> Result<u32, &'static str> {
         if let GenericIfData::ULong(_, (val, _)) = self {
             Ok(*val)
         } else {
-            Err(())
+            Err("strucutal mismatch: get_integer_u32 called on something that is not a ULong")
         }
     }
 
-    pub fn get_integer_u64(&self) -> Result<u64, ()> {
+    pub fn get_integer_u64(&self) -> Result<u64, &'static str> {
         if let GenericIfData::UInt64(_, (val, _)) = self {
             Ok(*val)
         } else {
-            Err(())
+            Err("strucutal mismatch: get_integer_u64 called on something that is not a UInt64")
         }
     }
 
-    pub fn get_integer_i8(&self) -> Result<i8, ()> {
+    pub fn get_integer_i8(&self) -> Result<i8, &'static str> {
         if let GenericIfData::Char(_, (val, _)) = self {
             Ok(*val)
         } else {
-            Err(())
+            Err("strucutal mismatch: get_integer_i8 called on something that is not a Char")
         }
     }
 
-    pub fn get_integer_i16(&self) -> Result<i16, ()> {
+    pub fn get_integer_i16(&self) -> Result<i16, &'static str> {
         if let GenericIfData::Int(_, (val, _)) = self {
             Ok(*val)
         } else {
-            Err(())
+            Err("strucutal mismatch: get_integer_i16 called on something that is not an Int")
         }
     }
 
-    pub fn get_integer_i32(&self) -> Result<i32, ()> {
+    pub fn get_integer_i32(&self) -> Result<i32, &'static str> {
         if let GenericIfData::Long(_, (val, _)) = self {
             Ok(*val)
         } else {
-            Err(())
+            Err("strucutal mismatch: get_integer_i32 called on something that is not a Long")
         }
     }
 
-    pub fn get_integer_i64(&self) -> Result<i64, ()> {
+    pub fn get_integer_i64(&self) -> Result<i64, &'static str> {
         if let GenericIfData::Int64(_, (val, _)) = self {
             Ok(*val)
         } else {
-            Err(())
+            Err("strucutal mismatch: get_integer_i64 called on something that is not an Int64")
         }
     }
 
-    pub fn get_float(&self) -> Result<f32, ()> {
+    pub fn get_float(&self) -> Result<f32, &'static str> {
         if let GenericIfData::Float(_, val) = self {
             Ok(*val)
         } else {
-            Err(())
+            Err("strucutal mismatch: get_float called on something that is not a Float")
         }
     }
 
-    pub fn get_double(&self) -> Result<f64, ()> {
+    pub fn get_double(&self) -> Result<f64, &'static str> {
         if let GenericIfData::Double(_, val) = self {
             Ok(*val)
         } else {
-            Err(())
+            Err("strucutal mismatch: get_double called on something that is not a Double")
         }
     }
 
-    pub fn get_stringval(&self) -> Result<String, ()> {
+    pub fn get_stringval(&self) -> Result<String, &'static str> {
         if let GenericIfData::String(_, val) = self {
             Ok(val.to_owned())
         } else {
-            Err(())
+            Err("strucutal mismatch: get_stringval called on something that is not a String")
         }
     }
 
-    pub fn get_array(&self) -> Result<&Vec<GenericIfData>, ()> {
+    pub fn get_array(&self) -> Result<&Vec<GenericIfData>, &'static str> {
         if let GenericIfData::Array(arrayitems) = self {
             Ok(arrayitems)
         } else {
-            Err(())
+            Err("strucutal mismatch: get_array called on something that is not an Array")
         }
     }
 
-    pub fn get_sequence(&self) -> Result<&Vec<GenericIfData>, ()> {
+    pub fn get_sequence(&self) -> Result<&Vec<GenericIfData>, &'static str> {
         if let GenericIfData::Sequence(seqitems) = self {
             Ok(seqitems)
         } else {
-            Err(())
+            Err("strucutal mismatch: get_sequence called on something that is not a Sequence")
         }
     }
 
-    pub fn get_line(&self) -> Result<u32, ()> {
+    pub fn get_line(&self) -> Result<u32, &'static str> {
         match self {
             GenericIfData::Char(line, _) |
             GenericIfData::Int(line, _) |
@@ -861,11 +861,11 @@ impl GenericIfData {
             GenericIfData::EnumItem(line, _) |
             GenericIfData::Struct(_, line, _) |
             GenericIfData::Block {line, .. } => Ok(*line),
-            _ => Err(())
+            _ => Err("strucutal mismatch: get_line called on something that has no line info")
         }
     }
 
-    pub fn get_single_optitem<T>(&self, tag: &str, func: fn (&GenericIfData, u32, u32, u32) -> Result<T, ()>) -> Result<Option<T>, ()> {
+    pub fn get_single_optitem<T>(&self, tag: &str, func: fn (&GenericIfData, u32, u32, u32) -> Result<T, &'static str>) -> Result<Option<T>, &'static str> {
         match self {
             GenericIfData::TaggedStruct(taggeditems) |
             GenericIfData::TaggedUnion(taggeditems) => {
@@ -876,12 +876,12 @@ impl GenericIfData {
                 }
             }
             _ => {
-                Err(())
+                Err("strucutal mismatch: get_single_optitem called on unsuitable element")
             }
         }
     }
 
-    pub fn get_multiple_optitems<T>(&self, tag: &str, func: fn (&GenericIfData, u32, u32, u32) -> Result<T, ()>) -> Result<Vec<T>, ()> {
+    pub fn get_multiple_optitems<T>(&self, tag: &str, func: fn (&GenericIfData, u32, u32, u32) -> Result<T, &'static str>) -> Result<Vec<T>, &'static str> {
         match self {
             GenericIfData::TaggedStruct(taggeditems) |
             GenericIfData::TaggedUnion(taggeditems) => {
@@ -894,7 +894,7 @@ impl GenericIfData {
                 Ok(resultvec)
             }
             _ => {
-                Err(())
+                Err("strucutal mismatch: get_multiple_optitems called on unsuitable element")
             }
         }
     }
@@ -1016,7 +1016,7 @@ impl PartialEq for GenericIfData {
     fn eq(&self, other: &Self) -> bool {
         match self {
             Self::None => {
-                if let Self::None = other { true } else { false }
+                matches!(other, Self::None)
             }
             Self::Char(_, val) => {
                 if let Self::Char(_, otherval) = other { val == otherval } else { false }

@@ -45,14 +45,14 @@ fn generate_indirect_enum_parser(typename: &str, enumitems: &[EnumItem]) -> Toke
 
     quote!{
         impl #name {
-            pub(crate) fn parse(data: &a2lfile::GenericIfData) -> Result<Self, ()> {
+            pub(crate) fn parse(data: &a2lfile::GenericIfData) -> Result<Self, &'static str> {
                 if let a2lfile::GenericIfData::EnumItem(_, item) = data {
                     match &**item {
                         #(#match_branches)*
-                        _ => Err(())
+                        _ => Err("failed to match enumeration value")
                     }
                 } else {
-                    Err(())
+                    Err("element is not an EnumItem")
                 }
             }
         }
@@ -66,7 +66,7 @@ fn generate_indirect_struct_parser(typename: &str, structitems: &[DataItem]) -> 
 
     quote!{
         impl #name {
-            pub(crate) fn parse(data: &a2lfile::GenericIfData) -> Result<Self, ()> {
+            pub(crate) fn parse(data: &a2lfile::GenericIfData) -> Result<Self, &'static str> {
                 let (incfile, line, input_items) = data.get_struct_items()?;
                 let __uid: u32 = 0;
                 let __start_offset: u32 = 0;
@@ -87,7 +87,7 @@ fn generate_indirect_block_parser(typename: &str, blockitems: &[DataItem]) -> To
 
     quote!{
         impl #name {
-            pub(crate) fn parse(data: &a2lfile::GenericIfData, __uid: u32, __start_offset: u32, __end_offset: u32) -> Result<Self, ()> {
+            pub(crate) fn parse(data: &a2lfile::GenericIfData, __uid: u32, __start_offset: u32, __end_offset: u32) -> Result<Self, &'static str> {
                 let (incfile, line, input_items) = data.get_block_items()?;
 
                 Ok(#name {
