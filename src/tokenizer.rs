@@ -258,9 +258,44 @@ fn handle_a2ml(filedata: &str, mut bytepos: usize, mut line: u32, fileid: usize,
         let tag = &filedata[tokens[tokcount-1].startpos .. tokens[tokcount-1].endpos];
 
         if tag == "A2ML" {
-            while bytepos < datalen && !(filebytes[bytepos] == b'/' && filedata[bytepos .. ].starts_with("/end A2ML")) {
-                bytepos += 1;
+            let mut done = false;
+            while !done && bytepos < datalen {
+                // find the next occurrence of '/'
+                // this should be the start of one of "/*", "//", or "/end"
+                while bytepos < datalen && filebytes[bytepos] != b'/' {
+                    bytepos += 1;
+                }
+                if filebytes[bytepos ..].starts_with(b"//") {
+                    // line comment
+                    // skip the comment marker
+                    bytepos += 2;
+                    // skip the remaining characters on the line up to the newline
+                    while bytepos < datalen && filebytes[bytepos] != b'\n' {
+                        bytepos += 1;
+                    }
+                } else if filebytes[bytepos ..].starts_with(b"/*") {
+                    // block comment
+                    // skip the comment marker
+                    bytepos += 2;
+                    // skip the remaining characters on the line up to the newline
+                    while bytepos < (datalen - 1) && !(filebytes[bytepos] == b'*' && filebytes[bytepos + 1] == b'/') {
+                        bytepos += 1;
+                    }
+                    bytepos += 2;
+                    if bytepos > datalen {
+                        bytepos = datalen;
+                    }
+                } else if filebytes[bytepos ..].starts_with(b"/end") {
+                    done = true;
+                } else {
+                    // solitary '/' hanging around? this will definitely be a parse error later on
+                    bytepos += 1;
+                }
             }
+
+            // while bytepos < datalen && !(filebytes[bytepos] == b'/' && filedata[bytepos .. ].starts_with("/end A2ML")) {
+            //     bytepos += 1;
+            // }
 
             // trim off trailing whitespace up to and including the last newline - this newline and the
             // following indentation will be written together with /end A2ML
