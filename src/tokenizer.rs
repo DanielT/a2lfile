@@ -489,3 +489,26 @@ fn tokenize_a2l_skip_whitespace() {
     let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
     assert_eq!(tokresult.tokens.len(), 0);
 }
+
+#[test]
+fn tokenize_skip_a2ml() {
+    let data = String::from(r##"
+ASAP2_VERSION 1 60
+/begin PROJECT Test "test test"
+    /begin MODULE MODULE_NAME ""
+        /begin A2ML
+            struct Foo {
+                uint;
+                uint;
+            }; /* trap: /end A2ML */
+            / / //
+        /end A2ML
+    /end MODULE
+/end PROJECT
+"##);
+    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+    println!("token count: {}", tokresult.tokens.len());
+    assert_eq!(tokresult.tokens.len(), 20);
+    assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Identifier);
+    assert_eq!(tokresult.tokens[13].ttype, A2lTokenType::String); // a2ml body text
+}
