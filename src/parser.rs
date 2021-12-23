@@ -539,6 +539,14 @@ impl<'a> ParserState<'a> {
     }
 
 
+    pub fn handle_multiplicity_error(&mut self, context: &ParseContext, tag: &str, is_error: bool) -> Result<(), ParseError> {
+        if is_error {
+            self.error_or_log(ParseError::InvalidMultiplicityTooMany(context.clone(), tag.to_string()))?;
+        }
+        Ok(())
+    }
+
+
     // stringify_parse_error()
     // Generate error messages for the various parse errors
     // Handling the error info this way opens up the possibility of passing ParseError data to the caller of the parser

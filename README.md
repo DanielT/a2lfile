@@ -26,7 +26,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-a2lfile = "1.0.0"
+a2lfile = "1.0.1"
 ```
 
 A simple program based on the `a2lfile` library might look like this:

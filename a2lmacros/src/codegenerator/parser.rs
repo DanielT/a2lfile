@@ -351,11 +351,8 @@ fn generate_taggeditem_match_arms(tg_items: &[TaggedItem]) -> (TokenStream, Vec<
                 // required items are first stored into a temporary variable of type Option<T>
                 var_definitions.extend(quote!{let mut #tmp_itemname: Option<#typename> = None;});
                 store_item = quote!{
-                    if #tmp_itemname.is_none() {
-                        #tmp_itemname = Some(newitem);
-                    } else {
-                        parser.error_or_log(ParseError::InvalidMultiplicityTooMany(context.clone(), #tag_string.to_string()))?;
-                    }
+                    parser.handle_multiplicity_error(context, tag, #tmp_itemname.is_some())?;
+                    #tmp_itemname = Some(newitem);
                 };
                 // during the mutliplicity check the required item can be unwrapped from the Option
                 multiplicity_check.extend(quote!{
@@ -369,11 +366,8 @@ fn generate_taggeditem_match_arms(tg_items: &[TaggedItem]) -> (TokenStream, Vec<
                 // an non-repeating item that is not required
                 var_definitions.extend(quote!{let mut #itemname: Option<#typename> = None;});
                 store_item = quote!{
-                    if #itemname.is_none() {
-                        #itemname = Some(newitem);
-                    } else {
-                        parser.error_or_log(ParseError::InvalidMultiplicityTooMany(context.clone(), #tag_string.to_string()))?;
-                    }
+                    parser.handle_multiplicity_error(context, tag, #itemname.is_some())?;
+                    #itemname = Some(newitem);
                 };
             }
         }
@@ -392,9 +386,7 @@ fn generate_taggeditem_match_arms(tg_items: &[TaggedItem]) -> (TokenStream, Vec<
                     #version_check
                     let newitem = #typename::parse(parser, &newcontext, line_offset)?;
                     #store_item
-                    if #is_block_item != is_block {
-                        parser.error_or_log(ParseError::IncorrectElemType(context.clone(), #tag_string.to_string(), #is_block_item))?;
-                    }
+                    expect_block = #is_block_item;
                 }
             }
         );
@@ -429,6 +421,7 @@ fn generate_taggeditem_parser_core(tg_items: &[TaggedItem], is_taggedunion: bool
             } else {
                 #default_match_arm
             }
+            expect_block = is_block;
         };
     }
 
@@ -439,12 +432,16 @@ fn generate_taggeditem_parser_core(tg_items: &[TaggedItem], is_taggedunion: bool
         let (token, is_block, line_offset) = next_tag.unwrap();
         let tag = parser.get_token_text(token);
         let newcontext = ParseContext::from_token(tag, token, is_block);
+        let expect_block: bool;
         const TAG_LIST: [&str; #taglist_len] = [#(#taglist),*];
         match tag {
             #(#item_match_arms)*
             _ => {
                 #default_match_arm
             }
+        }
+        if expect_block != is_block {
+            parser.error_or_log(ParseError::IncorrectElemType(context.clone(), tag.to_string(), expect_block))?;
         }
     }
 }

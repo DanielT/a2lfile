@@ -1,8 +1,8 @@
 [package]
 name = "a2lmacros"
-version = "1.0.0"
+version = "1.0.1"
 authors = ["Daniel Thaler <daniel@dthaler.de>"]
-edition = "2018"
+edition = "2021"
 description = "provides macros in support of the a2lfile crate"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/DanielT/a2lfile"
