@@ -147,7 +147,7 @@ impl A2lFile {
 
     /// write this A2lFile object to the given file
     /// the banner will be placed inside a comment at the beginning of the file; "/*" an "*/" should not be part of the banner string
-    pub fn write(&self, filename: &str, banner: Option<&str>) -> Result<(), String> {
+    pub fn write(&self, filename: &OsStr, banner: Option<&str>) -> Result<(), String> {
         let mut outstr = "".to_string();
 
         let file_text = self.write_to_string();
@@ -156,14 +156,14 @@ impl A2lFile {
             outstr = format!("/* {} */", banner_text);
             // if the first line is empty (first charachter is \n), then the banner is placed on the empty line
             // otherwise a newline is added
-            if &file_text[0..1] != "\n" {
+            if !file_text.starts_with('\n') {
                 outstr.write_char('\n').unwrap();
             }
         }
         outstr.write_str(&file_text).unwrap();
 
         if let Err(err) = std::fs::write(filename, outstr) {
-            return Err(format!("Error while writing output {}: {}\n", filename, err.to_string()))
+            return Err(format!("Error while writing output {}: {}\n", filename.to_string_lossy(), err.to_string()))
         }
 
         Ok(())
