@@ -3,10 +3,10 @@ use quote::format_ident;
 use quote::quote;
 
 pub(crate) mod data_structure;
-pub(crate) mod parser;
-pub(crate) mod writer;
 pub(crate) mod ifdata_parser;
 pub(crate) mod ifdata_writer;
+pub(crate) mod parser;
+pub(crate) mod writer;
 
 use super::util::*;
 
@@ -55,17 +55,33 @@ pub(crate) enum BaseType {
     Float,
     Ident,  // text without double quotes, obeying the rules for identifiers (no spaces, etc)
     String, // text inside double qoutes
-    Array(Box<DataItem>, usize),
-    Sequence(Box<BaseType>),
-    Enum(Vec<EnumItem>),
+    Array {
+        arraytype: Box<DataItem>,
+        dim: usize
+    },
+    Sequence {
+        seqtype: Box<BaseType>
+    },
+    Enum {
+        enumitems: Vec<EnumItem>
+    },
     EnumRef,
-    Struct(Vec<DataItem>),
+    Struct {
+        structitems: Vec<DataItem>
+    },
     StructRef,
-    TaggedUnion(Vec<TaggedItem>),
+    TaggedUnion {
+        tuitems: Vec<TaggedItem>
+    },
     TaggedUnionRef,
-    TaggedStruct(Vec<TaggedItem>),
+    TaggedStruct {
+        tsitems: Vec<TaggedItem>
+    },
     TaggedStructRef,
-    Block(Vec<DataItem>, bool)
+    Block {
+        blockitems: Vec<DataItem>,
+        is_block: bool
+    }
 }
 
 
@@ -75,37 +91,37 @@ pub(crate) enum BaseType {
 // generates the typename without other tokens (i.e. "u32" instead of "foo: u32") for a given struct item
 fn generate_bare_typename(typename: &Option<String>, item: &BaseType) -> TokenStream {
     match item {
-        BaseType::Char => { quote!{i8} }
-        BaseType::Int => { quote!{i16} }
-        BaseType::Long => { quote!{i32} }
-        BaseType::Int64 => { quote!{i64} }
-        BaseType::Uchar => { quote!{u8} }
-        BaseType::Uint => { quote!{u16} }
-        BaseType::Ulong => { quote!{u32} }
-        BaseType::Uint64 => { quote!{u64} }
-        BaseType::Double => { quote!{f64} }
-        BaseType::Float => { quote!{f32} }
-        BaseType::Ident => { quote!{String} }
-        BaseType::String => { quote!{String} }
-        BaseType::Array(arraytype, dim) => {
+        BaseType::Char => quote! {i8},
+        BaseType::Int => quote! {i16},
+        BaseType::Long => quote! {i32},
+        BaseType::Int64 => quote! {i64},
+        BaseType::Uchar => quote! {u8},
+        BaseType::Uint => quote! {u16},
+        BaseType::Ulong => quote! {u32},
+        BaseType::Uint64 => quote! {u64},
+        BaseType::Double => quote! {f64},
+        BaseType::Float => quote! {f32},
+        BaseType::Ident => quote! {String},
+        BaseType::String => quote! {String},
+        BaseType::Array { arraytype, dim } => {
             // a2ml specifies strings like C does: as arrays of char
             // if this pattern is found, then represent it as a String in Rust
             if arraytype.basetype == BaseType::Char {
-                quote!{String}
+                quote! {String}
             } else {
                 let name = generate_bare_typename(&arraytype.typename, &arraytype.basetype);
-                quote!{[#name; #dim]}
+                quote! {[#name; #dim]}
             }
         }
-        BaseType::Sequence(seqtype) => {
+        BaseType::Sequence { seqtype } => {
             let name = generate_bare_typename(typename, seqtype);
-            quote!{Vec<#name>}
+            quote! {Vec<#name>}
         }
         BaseType::EnumRef |
         BaseType::StructRef => {
             let typename = typename.as_ref().unwrap();
             let name = format_ident!("{}", typename);
-            quote!{#name}
+            quote! {#name}
         }
         _ => {
             // None is not allowed at all once generation begins (previously it is a placeholder that is dropped during the fixup phase)

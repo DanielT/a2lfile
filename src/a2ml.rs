@@ -310,8 +310,7 @@ pub(crate) fn parse_a2ml(input: &str) -> Result<A2mlTypeSpec, String> {
 
     // at the top level the applicable grammar rule is
     //    declaration = type_definition ";" | block_definition ";"
-    while tok_iter.peek().is_some() {
-        let tok = tok_iter.next().unwrap();
+    while let Some(tok) = tok_iter.next() {
         match tok {
             TokenType::Block => {
                 // the top level only _needs_ exactly one block.
@@ -414,17 +413,21 @@ fn parse_aml_type_enum(tok_iter: &mut A2mlTokenIter, types: &TypeSet) -> Result<
     let name: Option<String> = parse_optional_name(tok_iter);
 
     // check if this is a reference to a previous declaration or if there is also a list of items in {}
-    let tok_peek = tok_iter.peek();
-    if tok_peek.is_none() || **tok_peek.unwrap() != TokenType::OpenCurlyBracket {
-        if let Some(name) = name {
-            if let Some(A2mlTypeSpec::Enum(items)) = types.enums.get(&name) {
-                return Ok( (Some(name), A2mlTypeSpec::Enum(items.clone())) );
+    match tok_iter.peek() {
+        Some(TokenType::OpenCurlyBracket) => {
+            // nothing to do here, a group definition follows
+        }
+        _ => {
+            // no group with content follows, must be a reference to an existing type
+            if let Some(name) = name {
+                if let Some(A2mlTypeSpec::Enum(items)) = types.enums.get(&name) {
+                    return Ok( (Some(name), A2mlTypeSpec::Enum(items.clone())) );
+                } else {
+                    return Err(format!("enum {} was referenced but not defined", name));
+                }
             } else {
-                return Err(format!("enum {} was referenced but not defined", name));
+                return Err(String::from("expected either an identifier or an opening bracket after keyword enum."));
             }
-            
-        } else {
-            return Err(String::from("expected either an identifier or an opening bracket after keyword enum."));
         }
     }
 
@@ -465,16 +468,21 @@ fn parse_aml_type_struct(tok_iter: &mut A2mlTokenIter, types: &TypeSet) -> Resul
     let name: Option<String> = parse_optional_name(tok_iter);
 
     // check if this is a reference to a previous declaration or if there is also a definition of the struct enclosed in {}
-    let tok_peek = tok_iter.peek();
-    if tok_peek.is_none() || **tok_peek.unwrap() != TokenType::OpenCurlyBracket {
-        if let Some(name) = name {
-            if let Some(A2mlTypeSpec::Struct(structitems)) = types.structs.get(&name) {
-                return Ok( (Some(name), A2mlTypeSpec::Struct(structitems.clone())) );
+    match tok_iter.peek() {
+        Some(TokenType::OpenCurlyBracket) => {
+            // nothing to do here, a group definition follows
+        }
+        _ => {
+            // no group with content follows, must be a reference to an existing type
+            if let Some(name) = name {
+                if let Some(A2mlTypeSpec::Struct(structitems)) = types.structs.get(&name) {
+                    return Ok( (Some(name), A2mlTypeSpec::Struct(structitems.clone())) );
+                } else {
+                    return Err(format!("struct {} was referenced but not defined", name));
+                }
             } else {
-                return Err(format!("struct {} was referenced but not defined", name));
+                return Err(String::from("expected either an identifier or an opening bracket after keyword struct."));
             }
-        } else {
-            return Err(String::from("expected either an identifier or an opening bracket after keyword struct."));
         }
     }
 
@@ -504,16 +512,21 @@ fn parse_aml_type_taggedstruct(tok_iter: &mut A2mlTokenIter, types: &TypeSet) ->
     let name: Option<String> = parse_optional_name(tok_iter);
 
     // check if this is a reference to a previous declaration or if there is also a definition of the taggedstruct enclosed in {}
-    let tok_peek = tok_iter.peek();
-    if tok_peek.is_none() || **tok_peek.unwrap() != TokenType::OpenCurlyBracket {
-        if let Some(name) = name {
-            if let Some(A2mlTypeSpec::TaggedStruct(tsitems)) = types.taggedstructs.get(&name) {
-                return Ok( (Some(name), A2mlTypeSpec::TaggedStruct(tsitems.clone())) );
+    match tok_iter.peek() {
+        Some(TokenType::OpenCurlyBracket) => {
+            // nothing to do here, a group definition follows
+        }
+        _ => {
+            // no group with content follows, must be a reference to an existing type
+            if let Some(name) = name {
+                if let Some(A2mlTypeSpec::TaggedStruct(tsitems)) = types.taggedstructs.get(&name) {
+                    return Ok( (Some(name), A2mlTypeSpec::TaggedStruct(tsitems.clone())) );
+                } else {
+                    return Err(format!("taggedstruct {} was referenced but not defined", name));
+                }
             } else {
-                return Err(format!("taggedstruct {} was referenced but not defined", name));
+                return Err(String::from("expected either an identifier or an opening bracket after keyword taggedstruct."));
             }
-        } else {
-            return Err(String::from("expected either an identifier or an opening bracket after keyword taggedstruct."));
         }
     }
 
@@ -541,17 +554,22 @@ fn parse_aml_type_taggedstruct(tok_iter: &mut A2mlTokenIter, types: &TypeSet) ->
 fn parse_aml_type_taggedunion(tok_iter: &mut A2mlTokenIter, types: &TypeSet) -> Result<(Option<String>, A2mlTypeSpec), String> {
     let name: Option<String> = parse_optional_name(tok_iter);
 
-    /* check if this is a reference to a previous declaration or if there is also a definition of the taggedunion enclosed in {} */
-    let tok_peek = tok_iter.peek();
-    if tok_peek.is_none() || **tok_peek.unwrap() != TokenType::OpenCurlyBracket {
-        if let Some(name) = name {
-            if let Some(A2mlTypeSpec::TaggedUnion(tsitems)) = types.taggedunions.get(&name) {
-                return Ok( (Some(name), A2mlTypeSpec::TaggedUnion(tsitems.clone())) );
+    // check if this is a reference to a previous declaration or if there is also a definition of the taggedunion enclosed in {}
+    match tok_iter.peek() {
+        Some(TokenType::OpenCurlyBracket) => {
+            // nothing to do here, a group definition follows
+        }
+        _ => {
+            // no group with content follows, must be a reference to an existing type
+            if let Some(name) = name {
+                if let Some(A2mlTypeSpec::TaggedUnion(tsitems)) = types.taggedunions.get(&name) {
+                    return Ok( (Some(name), A2mlTypeSpec::TaggedUnion(tsitems.clone())) );
+                } else {
+                    return Err(format!("taggedunion {} was referenced but not defined", name));
+                }
             } else {
-                return Err(format!("taggedunion {} was referenced but not defined", name));
+                return Err(String::from("A2ML error: expected either an identifier or an opening bracket after keyword taggedunion."));
             }
-        } else {
-            return Err(String::from("A2ML error: expected either an identifier or an opening bracket after keyword taggedunion."));
         }
     }
 

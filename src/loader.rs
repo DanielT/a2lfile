@@ -24,7 +24,10 @@ pub fn load(filename: &OsStr) -> Result<String, String> {
 
 
 fn read_data(file: &mut File) -> Result<Vec<u8>, String> {
-    let filesize = file.metadata().unwrap().len();
+    let filesize = match file.metadata() {
+        Ok(metadata) => metadata.len(),
+        Err(err) => return Err(format!("Error: failed to read file metadata: {}", err)),
+    };
     let mut buffer = Vec::with_capacity(filesize as usize);
     let read_result = file.read_to_end(&mut buffer);
     match read_result {
@@ -50,17 +53,18 @@ fn decode_raw_bytes(filedata: Vec<u8>) -> String {
             } else { 
                 None
             };
-        if u32conversion.is_some() {
+        if let Some(conversion) = u32conversion {
             let mut conversion_failed = false;
             let mut filedata_unicode: Vec<char> =  Vec::with_capacity(filedata.len()/4_usize);
             for i in 0..(filedata.len()/4) {
                 let charbytes: [u8; 4] = [filedata[i*4], filedata[i*4+1], filedata[i*4+2], filedata[i*4+3]];
-                let nextchar = std::char::from_u32(u32conversion.unwrap()(charbytes));
-                if nextchar.is_none() {
-                    conversion_failed = true;
-                    break;
+                match std::char::from_u32(conversion(charbytes)) {
+                    Some(nextchar) => filedata_unicode.push(nextchar),
+                    None => {
+                        conversion_failed = true;
+                        break;
+                    }
                 }
-                filedata_unicode.push(nextchar.unwrap());
             }
             if !conversion_failed {
                 return filedata_unicode.into_iter().collect();

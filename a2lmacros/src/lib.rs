@@ -5,8 +5,8 @@ use proc_macro::TokenStream;
 
 pub(crate) mod a2lspec;
 pub(crate) mod a2mlspec;
-pub(crate) mod util;
 pub(crate) mod codegenerator;
+pub(crate) mod util;
 
 
 #[proc_macro]

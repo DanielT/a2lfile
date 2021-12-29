@@ -95,10 +95,10 @@ fn load_impl(filename: &OsStr, filedata: &str, log_msgs: &mut Vec<String>, stric
         }
     }
     // build the a2l data structures from the tokens
-    let a2l_file = A2lFile::parse(&mut parser, context, 0);
-    if let Err(parse_error) = a2l_file {
-        return Err(parser.stringify_parse_error(&parse_error, true));
-    }
+    let a2l_file = match A2lFile::parse(&mut parser, context, 0) {
+        Ok(data) => data,
+        Err(parse_error) => return Err(parser.stringify_parse_error(&parse_error, true)),
+    };
 
     // make sure this is the end of the input, i.e. no additional data after the parsed data
     if let Some(token) = parser.peek_token() {
@@ -113,7 +113,7 @@ fn load_impl(filename: &OsStr, filedata: &str, log_msgs: &mut Vec<String>, stric
         }
     }
 
-    Ok(a2l_file.unwrap())
+    Ok(a2l_file)
 }
 
 

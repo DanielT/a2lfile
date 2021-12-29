@@ -4,77 +4,79 @@ pub(crate) type TokenStreamIter = std::iter::Peekable<proc_macro2::token_stream:
 
 
 pub(crate) fn get_ident(token_iter: &mut TokenStreamIter) -> String {
-    let tok: TokenTree = token_iter.next().unwrap();
-    match tok {
-        TokenTree::Ident(ident) => ident.to_string(),
-        _ => panic!("Expected an Ident in this position, got: {:#?}", tok.to_string())
+    match token_iter.next() {
+        Some(TokenTree::Ident(ident)) => ident.to_string(),
+        Some(tok) => panic!("Expected an Ident, got: {:#?}", tok.to_string()),
+        None => panic!("Expected an Ident, but reached the end of input")
     }
 }
 
 
 pub(crate) fn get_string(token_iter: &mut TokenStreamIter) -> String {
-    let tok: TokenTree = token_iter.next().unwrap();
-    match tok {
-        TokenTree::Literal(literal) => {
+    match token_iter.next() {
+        Some(TokenTree::Literal(literal)) => {
             let raw_string = literal.to_string();
-            let chars: Vec<char> = raw_string.chars().collect();
-            let startoffset = if chars[0] == '"' {
-                1
-            } else if chars[0] == 'r' && chars[1] == '"' {
-                2
+
+            let stripped = if raw_string.starts_with('"') {
+                // "string" -> string
+                raw_string.strip_prefix('"')
             } else {
-                panic!("expected a string in double-quotes, got {}", raw_string);
-            };
-            let stripped_string = chars[startoffset..chars.len()-1].iter().collect();
-            stripped_string
+                // r"string" -> string
+                raw_string.strip_prefix("r\"")
+            }
+            .and_then(|no_prefix_str| no_prefix_str.strip_suffix('"'));
+
+            match stripped {
+                Some(val) => val.to_owned(),
+                None => panic!("expected a string in double-quotes, got {}", raw_string)
+            }
         }
-        _ => panic!("Expected a string in this position, got: {:#?}", tok.to_string())
+        Some(tok) => panic!("Expected a string, got: {:#?}", tok.to_string()),
+        None => panic!("Expected a string, but reached the end of input")
     }
 }
 
 
 pub(crate) fn get_integer(token_iter: &mut TokenStreamIter) -> i32 {
-    let tok: TokenTree = token_iter.next().unwrap();
-    match tok {
-        TokenTree::Literal(literal) => {
+    match token_iter.next() {
+        Some(TokenTree::Literal(literal)) => {
             literal.to_string().parse().unwrap()
         }
-        _ => panic!("Expected a literal in this position, got: {:#?}", tok.to_string())
+        Some(tok) => panic!("Expected an int literal, got: {:#?}", tok.to_string()),
+        None => panic!("Expected an int literal, but reached the end of input")
     }
 }
 
 
 pub(crate) fn get_float(token_iter: &mut TokenStreamIter) -> f32 {
-    let tok: TokenTree = token_iter.next().unwrap();
-    match tok {
-        TokenTree::Literal(literal) => {
+    match token_iter.next() {
+        Some(TokenTree::Literal(literal)) => {
             literal.to_string().parse().unwrap()
         }
-        _ => panic!("Expected a literal in this position, got: {:#?}", tok.to_string())
+        Some(tok) => panic!("Expected a float literal, got: {:#?}", tok.to_string()),
+        None => panic!("Expected a float literal, but reached the end of input")
     }
 }
 
 
 pub(crate) fn get_group(token_iter: &mut TokenStreamIter, delim: Delimiter) -> TokenStream {
-    let tok: TokenTree = token_iter.next().unwrap();
-    match tok {
-        TokenTree::Group(grp) => {
+    match token_iter.next() {
+        Some(TokenTree::Group(grp)) => {
             assert!(!(grp.delimiter() != delim), "Expected a group inside of {:#?}, but got a group inside {:#?}", delim, grp.delimiter());
             grp.stream()
         }
-        _ => {
-            panic!("expected a group, got {:#?}", tok.to_string());
-        }
+        Some(tok) => panic!("Expected a group, got {:#?}", tok.to_string()),
+        None => panic!("Expected a group, but reached the end of input")
     }
 }
 
 
 pub(crate) fn get_punct(token_iter: &mut TokenStreamIter) -> char {
-    let tok: TokenTree = token_iter.next().unwrap();
-    match tok {
-        TokenTree::Punct(p) => p.as_char(),
-        TokenTree::Group(_) => panic!("Expected Punct in this position, got a Group(...)"),
-        _ => panic!("Expected Punct in this position, got: {:#?}", tok.to_string())
+    match token_iter.next() {
+        Some(TokenTree::Punct(p)) => p.as_char(),
+        Some(TokenTree::Group(_)) => panic!("Expected Punct, got a Group(...)"),
+        Some(tok) => panic!("Expected Punct, got: {:#?}", tok.to_string()),
+        None => panic!("Expected Punct, but reached the end of input")
     }
 }
 
@@ -111,7 +113,7 @@ pub(crate) fn parse_optional_comment(token_iter: &mut TokenStreamIter) -> Option
 // it the name contains any lowercase characters, it is not considered to be an uppercase name and is passed through unchanged
 pub(crate) fn ucname_to_typename(blkname: &str) -> String {
     let namechars: Vec<char> = blkname.chars().collect();
-    let mut outchars:Vec<char> = Vec::new();
+    let mut outchars: Vec<char> = Vec::new();
     let mut capitalise_next = true;
     let mut is_ucname = true;
 

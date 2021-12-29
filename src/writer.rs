@@ -37,13 +37,13 @@ impl Writer {
 
     pub(crate) fn add_str(&mut self, text: &str, offset: u32) {
         self.add_whitespace(offset);
-        self.outstring.write_str(text).unwrap();
+        self.outstring.push_str(text);
     }
 
 
     pub(crate) fn add_quoted_string(&mut self, value: &str, offset: u32) {
         self.add_whitespace(offset);
-        self.outstring.write_char('"').unwrap();
+        self.outstring.push('"');
 
         // escaping lots of strings is an expensive operation, so check if anything needs to be done first
         if value.contains(|c| c == '\'' || c == '"' || c == '\\' || c == '\n' || c == '\t') {
@@ -51,14 +51,14 @@ impl Writer {
     
             for c in input_chars {
                 if c == '\'' || c == '"' || c == '\\' || c == '\n' || c == '\t' {
-                    self.outstring.write_char('\\').unwrap();
+                    self.outstring.push('\\');
                 }
-                self.outstring.write_char(c).unwrap();
+                self.outstring.push(c);
             }
         } else {
-            self.outstring.write_str(value).unwrap();
+            self.outstring.push_str(value);
         }
-        self.outstring.write_char('"').unwrap();
+        self.outstring.push('"');
     }
 
 
@@ -78,7 +78,7 @@ impl Writer {
         let value_conv = value.try_into().unwrap();
         self.add_whitespace(offset);
         if value_conv == 0f64 {
-            self.outstring.write_char('0').unwrap();
+            self.outstring.push('0');
         } else if value_conv < -1e+10 || (-0.0001 < value_conv && value_conv < 0.0001) || 1e+10 < value_conv {
             write!(self.outstring, "{:e}", value_conv).unwrap();
         } else {
@@ -95,23 +95,23 @@ impl Writer {
             if let Some(incname) = item.incfile {
                 if included_files.get(incname).is_none() {
                     self.add_whitespace(item.start_offset);
-                    self.outstring.write_str("/include \"").unwrap();
-                    self.outstring.write_str(incname).unwrap();
-                    self.outstring.write_char('"').unwrap();
+                    self.outstring.push_str("/include \"");
+                    self.outstring.push_str(incname);
+                    self.outstring.push('"');
 
                     included_files.insert(incname.to_owned());
                 }
             } else {
                 self.add_whitespace(item.start_offset);
                 if item.is_block {
-                    self.outstring.write_str("/begin ").unwrap();
+                    self.outstring.push_str("/begin ");
                 }
-                self.outstring.write_str(item.tag).unwrap();
-                self.outstring.write_str(&item.item_text).unwrap();
+                self.outstring.push_str(item.tag);
+                self.outstring.push_str(&item.item_text);
                 if item.is_block {
                     self.add_whitespace(item.end_offset);
-                    self.outstring.write_str("/end ").unwrap();
-                    self.outstring.write_str(item.tag).unwrap();
+                    self.outstring.push_str("/end ");
+                    self.outstring.push_str(item.tag);
                 }
             }
         }
@@ -121,14 +121,14 @@ impl Writer {
     fn add_whitespace(&mut self, offset: u32) {
         match offset {
             0 => {
-                self.outstring.write_char(' ').unwrap();
+                self.outstring.push(' ');
             }
             _ => {
                 for _ in 0..offset {
-                    self.outstring.write_char('\n').unwrap();
+                    self.outstring.push('\n');
                 }
                 for _ in 0..self.indent {
-                    self.outstring.write_str("  ").unwrap();
+                    self.outstring.push_str("  ");
                 }
             }
         }

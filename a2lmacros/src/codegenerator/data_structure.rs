@@ -8,21 +8,21 @@ use super::*;
 // generate the struct and enum definitions for all inputs in types
 // Also generate a new() for each type as well as functions for impl Debug and impl PartialEq
 pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
-    let mut result = quote!{};
+    let mut result = quote! {};
 
     if let Some(comment) = &dataitem.comment {
-        result.extend(quote!{#[doc=#comment]});
+        result.extend(quote! {#[doc=#comment]});
     }
 
     match &dataitem.basetype {
-        BaseType::Enum(enumitems) => {
+        BaseType::Enum {enumitems} => {
             result.extend(generate_enum_data_structure(typename, enumitems));
         }
-        BaseType::Struct(structitems) => {
+        BaseType::Struct {structitems} => {
             result.extend(generate_block_data_structure_generic(typename, structitems, true, false));
         }
-        BaseType::Block(structitems, is_block) => {
-            result.extend(generate_block_data_structure(typename, structitems, *is_block));
+        BaseType::Block {blockitems, is_block} => {
+            result.extend(generate_block_data_structure(typename, blockitems, *is_block));
         }
         _ => {
             panic!("only block, struct and enum are allowed as top-level types, but {} = {:#?} was encountered", typename, dataitem);
@@ -42,7 +42,7 @@ fn generate_enum_data_structure(typename: &str, enumitems: &[EnumItem]) -> Token
         |enumitem| { format_ident!("{}", ucname_to_typename(&enumitem.name)) }
     ).collect();
 
-    quote!{
+    quote! {
         #[derive(Debug, PartialEq, Eq, Copy, Clone)]
         pub enum #typeident {
             #(#enumidents),*
@@ -56,7 +56,7 @@ fn generate_enum_data_structure(typename: &str, enumitems: &[EnumItem]) -> Token
 // The A2ml and IfData blocks are special in the specification and are implemented by hand
 fn generate_block_data_structure(typename: &str, structitems: &[DataItem], is_block: bool) ->  TokenStream {
     match typename {
-        "A2ml" | "IfData" => { quote!{} }
+        "A2ml" | "IfData" => { quote! {} }
         _ => {
             generate_block_data_structure_generic(typename, structitems, false, is_block)
         }
@@ -74,7 +74,7 @@ fn generate_block_data_structure_generic(typename: &str, structitems: &[DataItem
         definitions.push(generate_struct_item_definition(item));
     }
     let location_spec = generate_struct_block_location(structitems);
-    definitions.push(quote!{pub(crate) __block_info: BlockInfo<#location_spec>});
+    definitions.push(quote! {pub(crate) __block_info: BlockInfo<#location_spec>});
 
 
     // generate all of the utility functions together with the data structure
@@ -85,7 +85,7 @@ fn generate_block_data_structure_generic(typename: &str, structitems: &[DataItem
     let trait_location = generate_block_data_structure_trait_location(typename, structitems, location_spec);
     let trait_name = generate_block_data_structure_trait_name(typename, structitems);
 
-    quote!{
+    quote! {
         #[derive(Clone)]
         pub struct #typeident {
             #(#definitions),*
@@ -105,50 +105,50 @@ fn generate_block_data_structure_generic(typename: &str, structitems: &[DataItem
 // In the case of TaggedStructs/TaggedUnions, the output TokenStream consists
 // of several definitions - one for each TaggedItem
 fn generate_struct_item_definition(item: &DataItem) -> TokenStream {
-    let mut def = quote!{};
+    let mut def = quote! {};
 
     // preserve documentation comments from the specification into the output
     if let Some(comment) = &item.comment {
-        def.extend(quote!{#[doc=#comment]});
+        def.extend(quote! {#[doc=#comment]});
     }
 
     match &item.basetype {
         BaseType::None => { panic!("type None is not permitted for struct items"); }
-        BaseType::Enum(_) => { panic!("type Enum is not permitted at this point and should have been transformed to an EnumRef"); }
-        BaseType::Struct(_) => { panic!("type Struct is not permitted at this point and should have been transformed to a StructRef"); }
+        BaseType::Enum { .. } => { panic!("type Enum is not permitted at this point and should have been transformed to an EnumRef"); }
+        BaseType::Struct { .. } => { panic!("type Struct is not permitted at this point and should have been transformed to a StructRef"); }
         BaseType::TaggedUnionRef => { panic!("TaggedUnionRef should have been resolved in the data structure fixup phase"); }
         BaseType::TaggedStructRef => { panic!("TaggedStructRef should have been resolved in the data structure fixup phase"); }
-        BaseType::TaggedUnion(tgitems) |
-        BaseType::TaggedStruct(tgitems) => {
+        BaseType::TaggedUnion { tuitems: tgitems } |
+        BaseType::TaggedStruct { tsitems: tgitems } => {
             let mut tgdefs = Vec::new();
             // output each TaggedItem
             for tgitem in tgitems {
-                let mut curr_def = quote!{};
+                let mut curr_def = quote! {};
                 // documentation comments are also possible on individual TaggedItems and are also output per item
                 if let Some(comment) = &tgitem.item.comment {
-                    curr_def.extend(quote!{#[doc=#comment]});
+                    curr_def.extend(quote! {#[doc=#comment]});
                 }
                 let tgitemname = format_ident!("{}", make_varname(&tgitem.tag));
                 let typename = generate_bare_typename(&tgitem.item.typename, &tgitem.item.basetype);
                 // The container type for the TaggedItems varies depending on the options
                 if tgitem.repeat {
-                    curr_def.extend(quote!{pub #tgitemname: Vec<#typename>});
+                    curr_def.extend(quote! {pub #tgitemname: Vec<#typename>});
                 } else if tgitem.required {
-                    curr_def.extend(quote!{pub #tgitemname: #typename});
+                    curr_def.extend(quote! {pub #tgitemname: #typename});
                 } else {
-                    curr_def.extend(quote!{pub #tgitemname: Option<#typename>});
+                    curr_def.extend(quote! {pub #tgitemname: Option<#typename>});
                 }
 
                 tgdefs.push(curr_def);
             }
-            def.extend(quote!{#(#tgdefs),*});
+            def.extend(quote! {#(#tgdefs),*});
         }
         _ => {
-            assert!(!item.varname.is_none(), "bad varname for struct item {:#?}", item);
+            assert!(item.varname.is_some(), "bad varname for struct item {:#?}", item);
 
             let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
             let typename = generate_bare_typename(&item.typename, &item.basetype);
-            def.extend(quote!{pub #itemname: #typename});
+            def.extend(quote! {pub #itemname: #typename});
         }
     }
     def
@@ -178,9 +178,9 @@ fn generate_struct_block_location(structitems: &[DataItem]) -> TokenStream {
             BaseType::Ident |
             BaseType::StructRef |
             BaseType::EnumRef |
-            BaseType::Array(_, _) |
+            BaseType::Array { .. } |
             BaseType::String |
-            BaseType::Sequence(_) => {
+            BaseType::Sequence { .. } => {
                 let item_location_info = generate_item_location_info(&item.basetype);
                 locationtypes.push(item_location_info);
             }
@@ -190,10 +190,10 @@ fn generate_struct_block_location(structitems: &[DataItem]) -> TokenStream {
 
     // make sure we don't try to make a tuple of one item. Add () as an extra tuple item if required
     if locationtypes.len() == 1 {
-        locationtypes.push(quote!{ () });
+        locationtypes.push(quote! { () });
     }
 
-    quote!{
+    quote! {
         ( #(#locationtypes),* )
     }
 }
@@ -213,7 +213,7 @@ fn generate_item_location_info(item_basetype: &BaseType) -> TokenStream {
         BaseType::Uint64 => {
             // for integers the location info tracks a boolean flag that indicates if
             // the value should be displayed in hex format in addition to the line number
-            quote!{ (u32, bool) }
+            quote! { (u32, bool) }
         }
         BaseType::Double |
         BaseType::Float |
@@ -221,24 +221,24 @@ fn generate_item_location_info(item_basetype: &BaseType) -> TokenStream {
         BaseType::StructRef |
         BaseType::EnumRef |
         BaseType::String => {
-            quote!{u32}
+            quote! {u32}
         }
-        BaseType::Array(arraytype, dim) => {
+        BaseType::Array { arraytype, dim } => {
             if arraytype.basetype == BaseType::Char {
                 // as usual, array of char is just treated as String
-                quote!{u32}
+                quote! {u32}
             } else {
                 let item_loc_info = generate_item_location_info(&arraytype.basetype);
-                quote!{ [#item_loc_info; #dim] }
+                quote! { [#item_loc_info; #dim] }
             }
         }
-        BaseType::Sequence(seqtype) => {
+        BaseType::Sequence { seqtype } => {
             let item_loc_info = generate_item_location_info(seqtype);
-            quote!{ Vec<#item_loc_info> }
+            quote! { Vec<#item_loc_info> }
         }
         _ => {
             // other variants have no location info
-            quote!{}
+            quote! {}
         }
     }
 }
@@ -254,8 +254,8 @@ fn generate_block_data_structure_debug(typename: &str, structitems: &[DataItem])
 
     for item in structitems {
         match &item.basetype {
-            BaseType::TaggedUnion(taggeditems) |
-            BaseType::TaggedStruct(taggeditems) => {
+            BaseType::TaggedUnion { tuitems: taggeditems } |
+            BaseType::TaggedStruct { tsitems: taggeditems } => {
                 for tgitem in taggeditems {
                     let membername = make_varname(&tgitem.tag);
                     structmembers.push(format_ident!("{}", membername));
@@ -270,7 +270,7 @@ fn generate_block_data_structure_debug(typename: &str, structitems: &[DataItem])
         }
     }
 
-    quote!{
+    quote! {
         impl std::fmt::Debug for #typeident {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 f.debug_struct(#typename)
@@ -309,26 +309,26 @@ fn generate_block_data_structure_constructor(typename: &str, structitems: &[Data
         };
 
         match &item.basetype {
-            BaseType::Sequence(_) => {
+            BaseType::Sequence { .. } => {
                 let membername = item.varname.as_ref().unwrap();
                 let memberident = format_ident!("{}", membername);
-                fieldinit.push(quote!{#memberident: Vec::new()});
+                fieldinit.push(quote! {#memberident: Vec::new()});
                 // a sequence should always start on a separate line (initline = 1)
                 locationinfo.push(generate_item_locationinfo_init(&item.basetype, 1));
             }
-            BaseType::TaggedUnion(taggeditems) |
-            BaseType::TaggedStruct(taggeditems) => {
+            BaseType::TaggedUnion { tuitems: taggeditems } |
+            BaseType::TaggedStruct { tsitems: taggeditems } => {
                 // TaggedItems are optional items and have no initializers in the argument list of the new() function
                 for tgitem in taggeditems {
                     let tgitemname = format_ident!("{}", make_varname(&tgitem.tag));
                     let typename = generate_bare_typename(&tgitem.item.typename, &tgitem.item.basetype);
                     if tgitem.repeat {
-                        fieldinit.push(quote!{#tgitemname: Vec::new()});
+                        fieldinit.push(quote! {#tgitemname: Vec::new()});
                     } else if tgitem.required {
-                        newargs.push(quote!{#tgitemname: #typename});
-                        fieldinit.push(quote!{#tgitemname});
+                        newargs.push(quote! {#tgitemname: #typename});
+                        fieldinit.push(quote! {#tgitemname});
                     } else {
-                        fieldinit.push(quote!{#tgitemname: None});
+                        fieldinit.push(quote! {#tgitemname: None});
                     }
                 }
             }
@@ -339,8 +339,8 @@ fn generate_block_data_structure_constructor(typename: &str, structitems: &[Data
                 let membername = item.varname.as_ref().unwrap();
                 let memberident = format_ident!("{}", membername);
                 let membertype = generate_bare_typename(&item.typename, &item.basetype);
-                newargs.push(quote!{#memberident: #membertype});
-                fieldinit.push(quote!{#memberident});
+                newargs.push(quote! {#memberident: #membertype});
+                fieldinit.push(quote! {#memberident});
                 locationinfo.push(generate_item_locationinfo_init(&item.basetype, initline));
             }
         }
@@ -348,11 +348,11 @@ fn generate_block_data_structure_constructor(typename: &str, structitems: &[Data
 
     // if there is only one item in the location info tuple, an extra () is added
     if locationinfo.len() == 1 {
-        locationinfo.push(quote!{ () });
+        locationinfo.push(quote! { () });
     }
 
     let start_offset: u32 = if is_block { 2 } else { 1 };
-    fieldinit.push(quote!{__block_info: BlockInfo {
+    fieldinit.push(quote! {__block_info: BlockInfo {
             incfile: None,
             line: 0,
             uid: 0,
@@ -362,7 +362,7 @@ fn generate_block_data_structure_constructor(typename: &str, structitems: &[Data
         }
     });
 
-    quote!{
+    quote! {
         impl #typeident {
             pub fn new(#(#newargs),*) -> Self {
                 Self {
@@ -388,7 +388,7 @@ fn generate_item_locationinfo_init(item_basetype: &BaseType, initline: u32) -> T
         BaseType::Uint64 => {
             // for integers we track both the current line and the formatting of the number (hex or not)
             // by default no number will be output as hex
-            quote!{ (#initline, false) }
+            quote! { (#initline, false) }
         }
         BaseType::Double |
         BaseType::Float |
@@ -397,24 +397,24 @@ fn generate_item_locationinfo_init(item_basetype: &BaseType, initline: u32) -> T
         BaseType::EnumRef |
         BaseType::String => {
             // all other single items only need to track the line
-            quote!{#initline}
+            quote! {#initline}
         }
-        BaseType::Array(arraytype, dim) => {
+        BaseType::Array { arraytype, dim } => {
             if arraytype.basetype == BaseType::Char {
-                quote!{#initline}
+                quote! {#initline}
             } else {
                 let item_loc_info_init = generate_item_locationinfo_init(&arraytype.basetype, 0);
-                let loc_info_init_list: Vec<TokenStream> = (0..(*dim)).into_iter().map(|_| quote!{ #item_loc_info_init }).collect();
-                quote!{ [#(#loc_info_init_list),*] }
+                let loc_info_init_list: Vec<TokenStream> = (0..(*dim)).into_iter().map(|_| quote! { #item_loc_info_init }).collect();
+                quote! { [#(#loc_info_init_list),*] }
             }
         }
-        BaseType::Sequence(seqtype) => {
+        BaseType::Sequence { seqtype } => {
             let item_loc_info = generate_item_location_info(seqtype);
-            quote!{ Vec::<#item_loc_info>::new() }
+            quote! { Vec::<#item_loc_info>::new() }
         }
         _ => {
             // other variants don't get here (panic?) and have no location info
-            quote!{}
+            quote! {}
         }
     }
 }
@@ -429,18 +429,18 @@ fn generate_block_data_structure_partialeq(typename: &str, structitems: &[DataIt
 
     for item in structitems {
         match &item.basetype {
-            BaseType::TaggedUnion(taggeditems) |
-            BaseType::TaggedStruct(taggeditems) => {
+            BaseType::TaggedUnion { tuitems: taggeditems } |
+            BaseType::TaggedStruct { tsitems: taggeditems } => {
                 for tgitem in taggeditems {
                     let tgitemname = format_ident!("{}", make_varname(&tgitem.tag));
-                    comparisons.push(quote!{
+                    comparisons.push(quote! {
                         (self.#tgitemname == other.#tgitemname)
                     });
                 }
             }
             _ => {
                 let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
-                comparisons.push(quote!{
+                comparisons.push(quote! {
                     (self.#itemname == other.#itemname)
                 });
             }
@@ -449,10 +449,10 @@ fn generate_block_data_structure_partialeq(typename: &str, structitems: &[DataIt
 
     // some structs, e.g. DISCRETE and READ_ONLY have no content. They are always equal.
     if comparisons.is_empty() {
-        comparisons.push(quote!{true});
+        comparisons.push(quote! {true});
     }
 
-    quote!{
+    quote! {
         impl PartialEq for #typeident {
             fn eq(&self, other: &Self) -> bool {
                 #(#comparisons)&&*
@@ -470,22 +470,22 @@ fn make_merge_commands(name_prefix: TokenStream, structitems: &[DataItem]) -> Ve
     let mut merge_commands = Vec::<TokenStream>::new();
     for item in structitems {
         match &item.basetype {
-            BaseType::TaggedUnion(taggeditems) |
-            BaseType::TaggedStruct(taggeditems) => {
+            BaseType::TaggedUnion { tuitems: taggeditems } |
+            BaseType::TaggedStruct { tsitems: taggeditems } => {
                 for tgitem in taggeditems {
                     let tgitemname = format_ident!("{}", make_varname(&tgitem.tag));
                     if tgitem.repeat {
-                        merge_commands.push(quote!{
+                        merge_commands.push(quote! {
                             for #tgitemname in &mut #name_prefix.#tgitemname {
                                 #tgitemname.merge_includes();
                             }
                         });
                     } else if tgitem.required {
-                        merge_commands.push(quote!{
+                        merge_commands.push(quote! {
                             #name_prefix.#tgitemname.merge_includes();
                         });
                     } else {
-                        merge_commands.push(quote!{
+                        merge_commands.push(quote! {
                             if let Some(#tgitemname) = &mut #name_prefix.#tgitemname {
                                 #tgitemname.merge_includes();
                             }
@@ -493,14 +493,14 @@ fn make_merge_commands(name_prefix: TokenStream, structitems: &[DataItem]) -> Ve
                     }
                 }
             }
-            BaseType::Block(structitems, _) |
-            BaseType::Struct(structitems) => {
+            BaseType::Block { blockitems: items, .. } |
+            BaseType::Struct { structitems: items } => {
                 let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
-                let newprefix = quote!{#name_prefix.#itemname};
-                merge_commands.push(quote!{
+                let newprefix = quote! {#name_prefix.#itemname};
+                merge_commands.push(quote! {
                     #newprefix.__block_info.incfile = None;
                 });
-                merge_commands.extend(make_merge_commands(newprefix, structitems));
+                merge_commands.extend(make_merge_commands(newprefix, items));
             }
             _ => {}
         }
@@ -512,9 +512,9 @@ fn make_merge_commands(name_prefix: TokenStream, structitems: &[DataItem]) -> Ve
 
 fn generate_block_data_structure_trait_location(typename: &str, structitems: &[DataItem], location_spec: TokenStream) -> TokenStream {
     let typeident = format_ident!("{}", typename);
-    let merge_commands = make_merge_commands(quote!{self}, structitems);
+    let merge_commands = make_merge_commands(quote! {self}, structitems);
  
-    quote!{
+    quote! {
         impl A2lObject<#location_spec> for #typeident {
             fn get_layout(&self) -> &BlockInfo<#location_spec> {
                 &self.__block_info
@@ -548,7 +548,7 @@ fn generate_block_data_structure_trait_name(typename: &str, structitems: &[DataI
     let typeident = format_ident!("{}", typename);
 
     if !structitems.is_empty() && structitems[0].basetype == BaseType::Ident && structitems[0].varname == Some("name".to_string()) {
-        quote!{
+        quote! {
             impl A2lObjectName for #typeident {
                 fn get_name(&self) -> &str {
                     &self.name
@@ -556,6 +556,6 @@ fn generate_block_data_structure_trait_name(typename: &str, structitems: &[DataI
             }
         }
     } else {
-        quote!{}
+        quote! {}
     }
 }

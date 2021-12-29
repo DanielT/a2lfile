@@ -1,10 +1,11 @@
-use proc_macro2::TokenStream;
-use proc_macro2::TokenTree;
-use proc_macro2::Delimiter;
-use std::collections::HashMap;
-use crate::util::*;
 use crate::codegenerator;
 use crate::codegenerator::*;
+use crate::util::*;
+use proc_macro2::Delimiter;
+use proc_macro2::TokenStream;
+use proc_macro2::TokenTree;
+use std::collections::HashMap;
+use std::fmt::Write;
 
 
 
@@ -94,8 +95,7 @@ fn parse_struct(token_iter: &mut TokenStreamIter, comment: Option<String>, is_ke
     let block_tokens = get_group(token_iter, Delimiter::Brace);
     let mut block_token_iter = block_tokens.into_iter().peekable();
 
-    while block_token_iter.peek().is_some() {
-        let nexttok = block_token_iter.peek().unwrap();
+    while let Some(nexttok) = block_token_iter.peek() {
         match nexttok {
             TokenTree::Ident(_) => {
                 // a single item (uint foo)
@@ -126,7 +126,7 @@ fn parse_struct(token_iter: &mut TokenStreamIter, comment: Option<String>, is_ke
         items.push(
             DataItem {
                 typename: None,
-                basetype: BaseType::TaggedStruct(references),
+                basetype: BaseType::TaggedStruct { tsitems: references },
                 varname: None,
                 comment: None
             }
@@ -135,7 +135,7 @@ fn parse_struct(token_iter: &mut TokenStreamIter, comment: Option<String>, is_ke
 
     let dataitem = DataItem {
         typename: Some(name),
-        basetype: BaseType::Struct(items),
+        basetype: BaseType::Struct { structitems: items },
         varname: None,
         comment
     };
@@ -150,20 +150,29 @@ fn parse_struct(token_iter: &mut TokenStreamIter, comment: Option<String>, is_ke
 // it is possible to specify that one block is referenced under multiple names, e.g.  AXIS_PTS_X / _Y / _Z / _4 / _5
 // this function constructs all the full names from the pattern and returns them in a Vec
 fn parse_blockname(token_iter: &mut TokenStreamIter) -> Vec<String> {
-    let mut names = vec![ get_ident(token_iter) ];
-    let name0chars: Vec<char> = names[0].chars().collect();
+    let mut names = vec![get_ident(token_iter)];
+    let mut suffixlist = Vec::<String>::new();
 
-    loop {
-        let nextitem = token_iter.peek();
-        if let Some(TokenTree::Punct(_)) = nextitem {
-            require_punct(token_iter, '/');
-            let suffix = get_ident(token_iter);
-            let mut suffixchars: Vec<char> = suffix.chars().collect();
-            let mut newname = name0chars[0..(name0chars.len()-suffixchars.len())].to_vec();
-            newname.append(&mut suffixchars);
-            names.push(newname.iter().collect());
-        } else {
-            break;
+    // collect the suffixes (if any)
+    while let Some(TokenTree::Punct(_)) = token_iter.peek() {
+        require_punct(token_iter, '/');
+        let suffix = get_ident(token_iter);
+        if !suffix.is_empty() {
+            suffixlist.push(suffix);
+        }
+    }
+
+    if !suffixlist.is_empty() {
+        // strip the suffix from the first name, and append all the other suffixes, e.g. AXIS_PTS_X -> AXIS_PTS_Y
+        let suffixlen = suffixlist[0].len();
+        assert!(suffixlist.iter().all(|suffix| suffix.len() == suffixlen));
+        let endidx = names[0].len() - suffixlen;
+        let basename = String::from(&names[0][0..endidx]);
+
+        for suffix in &suffixlist {
+            let mut newname = basename.clone();
+            newname.write_str(suffix).unwrap();
+            names.push(newname);
         }
     }
 
@@ -186,11 +195,14 @@ fn parse_blockitem_single(block_token_iter: &mut TokenStreamIter) -> DataItem {
         if g.delimiter() == Delimiter::Bracket {
             let arrspec_tokens = get_group(block_token_iter, Delimiter::Bracket);
             if let Some(TokenTree::Literal(lit)) = arrspec_tokens.into_iter().next() {
-                let arraydim = lit.to_string().parse().unwrap();
+                let arraydim = match lit.to_string().parse() {
+                    Ok(val) => val,
+                    Err(error) => panic!("{} is not a valid array index: {}", lit, error),
+                };
 
                 dataitem = DataItem{
                     typename: None,
-                    basetype: BaseType::Array(Box::new(dataitem), arraydim),
+                    basetype: BaseType::Array{arraytype: Box::new(dataitem), dim: arraydim},
                     varname: None,
                     comment: None
                 };
@@ -221,7 +233,7 @@ fn parse_blockitem_group(block_token_iter: &mut TokenStreamIter) -> DataItem {
         let item = structitems.pop().unwrap();
         DataItem {
             typename: Some(typename),
-            basetype: BaseType::Sequence(Box::new(item.basetype)),
+            basetype: BaseType::Sequence { seqtype: Box::new(item.basetype) },
             varname: Some(varname),
             comment: None
         }
@@ -229,7 +241,7 @@ fn parse_blockitem_group(block_token_iter: &mut TokenStreamIter) -> DataItem {
         // since there are multiple items in the sequence, they are wrapped in a struct
         DataItem {
             typename: Some(typename),
-            basetype: BaseType::Sequence(Box::new(BaseType::Struct(structitems))),
+            basetype: BaseType::Sequence { seqtype: Box::new(BaseType::Struct{structitems} )},
             varname: Some(varname),
             comment: None
         }
@@ -245,9 +257,10 @@ fn parse_optitem(block_token_iter: &mut TokenStreamIter) -> Vec<TaggedItem> {
     require_punct(&mut ref_token_iter, '-');
     require_punct(&mut ref_token_iter, '>');
     let blocknames = parse_blockname(&mut ref_token_iter);
-    let varnames: Vec<String> = blocknames.iter().map(
-        |bn| make_varname(&bn.to_ascii_lowercase())
-    ).collect();
+    let varnames: Vec<String> = blocknames
+        .iter()
+        .map(|bn| make_varname(&bn.to_ascii_lowercase()))
+        .collect();
 
     // check if there is an additional *, +, or ! to mark this reference as repeating or required
     let mut required = false;
@@ -343,7 +356,7 @@ fn parse_enum(token_iter: &mut TokenStreamIter, comment: Option<String>) -> Data
 
     DataItem {
         typename: Some(name),
-        basetype: BaseType::Enum(items),
+        basetype: BaseType::Enum { enumitems: items },
         varname: None,
         comment
     }
@@ -353,8 +366,7 @@ fn parse_enum(token_iter: &mut TokenStreamIter, comment: Option<String>) -> Data
 fn typename_from_names(names: &[String]) -> String {
     if names.len() == 1 {
         ucname_to_typename(&names[0])
-    }
-    else {
+    } else {
         let mut namechars: Vec<char> = names[0].chars().collect();
         // Replace the varying pat of the name with "DIM"
         namechars.pop();
@@ -394,6 +406,7 @@ fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<Str
 
     // enums can be copied directly to the output type list
     for e in enums {
+        // an enum in the a2lspec always has a type name
         let typename = e.typename.as_ref().unwrap().to_owned();
         let oldval = typelist.insert(typename.clone(), e);
         assert!(oldval.is_none(), "duplicate enum name {} in a2l specification", typename);
@@ -417,8 +430,8 @@ fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<Str
 
         let mut output_structitems = Vec::new();
         // everything in the structs array is a Struct, so the condition is always true. It's just a convenient way to unwrap the structitems
-        if let BaseType::Struct(blockitems) = dataitem.basetype {
-            for si in blockitems {
+        if let BaseType::Struct { structitems } = dataitem.basetype {
+            for si in structitems {
                 output_structitems.push(unwrap_nested_structs(&taglist[0], si, &mut typelist));
             }
 
@@ -428,7 +441,7 @@ fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<Str
             if si_count > 0 {
                 // the struct is not empty, so it is safe to get the last item (the TaggedStruct is always last if it exists)
                 let lastitem = &mut output_structitems[si_count-1];
-                if let BaseType::TaggedStruct(taggeditems) = &mut lastitem.basetype {
+                if let BaseType::TaggedStruct { tsitems: taggeditems } = &mut lastitem.basetype {
                     // The taggedstruct exists, loop over the taggeditems and update them
                     for tgitem in taggeditems {
                         if let Some(is_block) = tagmap.get(&tgitem.tag) {
@@ -440,8 +453,17 @@ fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<Str
                 }
             }
     
+            // a struct always has a type name in the a2l spec, so unwrap() is safe here
             let typename = dataitem.typename.unwrap();
-            let oldval = typelist.insert(typename.clone(), DataItem {typename: Some(typename.clone()), basetype: BaseType::Block(output_structitems, is_block), varname: None, comment: dataitem.comment });
+            let oldval = typelist.insert(
+                typename.clone(),
+                DataItem {
+                    typename: Some(typename.clone()),
+                    basetype: BaseType::Block {blockitems: output_structitems, is_block},
+                    varname: None,
+                    comment: dataitem.comment
+                }
+            );
             assert!(oldval.is_none(), "type {} for block {} altready exists", typename, taglist[0]);
         }
     }
@@ -453,13 +475,13 @@ fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<Str
 // unwrap_nested_structs
 // if the current item is a Sequence and contains a struct rather than a single item, then the struct needs to be moved out of the sequence
 fn unwrap_nested_structs(tag: &str, si: DataItem, typelist: &mut HashMap<String, DataItem>) -> DataItem {
-    if let BaseType::Sequence(seqitem) = si.basetype {
-        if let BaseType::Struct(_) = *seqitem {
+    if let BaseType::Sequence { seqtype } = si.basetype {
+        if let BaseType::Struct { .. } = *seqtype {
             // the sequence contains a struct, which needs to be moved out of the sequence
             let typename = si.typename.unwrap();
             if let Some(existing_type) = typelist.get(&typename) {
                 // the struct type already exists in the output types. Some sequences (identifier_list) occur frequently
-                assert!((existing_type.basetype == *seqitem), "type {} has multiple incompatible definitions", typename);
+                assert!((existing_type.basetype == *seqtype), "type {} has multiple incompatible definitions", typename);
                 // no need to insert the type, because it exists and is compatible
             } else {
                 let comment = if let Some(comment) = si.comment {
@@ -467,12 +489,20 @@ fn unwrap_nested_structs(tag: &str, si: DataItem, typelist: &mut HashMap<String,
                 } else {
                     Some(format!("Auto generated for repeating sequence {} in block {}", si.varname.as_ref().unwrap().to_owned(), tag))
                 };
-                typelist.insert(typename.clone(), DataItem {typename: Some(typename.clone()), basetype: *seqitem, varname: None, comment});
+                typelist.insert(
+                    typename.clone(),
+                    DataItem {
+                        typename: Some(typename.clone()),
+                        basetype: *seqtype,
+                        varname: None,
+                        comment
+                    }
+                );
             }
 
             DataItem {
                 typename: Some(typename),
-                basetype: BaseType::Sequence(Box::new(BaseType::StructRef)),
+                basetype: BaseType::Sequence { seqtype: Box::new(BaseType::StructRef) },
                 varname: si.varname,
                 comment: None
             }
@@ -480,7 +510,7 @@ fn unwrap_nested_structs(tag: &str, si: DataItem, typelist: &mut HashMap<String,
             // the sequence does not contain a struct, so the type can be added unchanged to the output struct
             DataItem {
                 typename: si.typename,
-                basetype: BaseType::Sequence(seqitem),
+                basetype: BaseType::Sequence { seqtype },
                 varname: si.varname,
                 comment: si.comment
             }
@@ -496,11 +526,11 @@ fn unwrap_nested_structs(tag: &str, si: DataItem, typelist: &mut HashMap<String,
 
 #[cfg(test)]
 mod test {
-    use proc_macro2::TokenStream;
     use crate::a2lspec::*;
+    use proc_macro2::TokenStream;
 
     fn get_test_spec_tokens() -> TokenStream {
-        quote::quote!{
+        quote::quote! {
             // Specification: predefined data types
             enum enumTest {
                 VARIANT1,

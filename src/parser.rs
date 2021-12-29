@@ -448,8 +448,8 @@ impl<'a> ParserState<'a> {
 
         let token = self.token_cursor.next();
         // get the tag or return None if the token is not an Identifier
-        if let Some(A2lToken { ttype: A2lTokenType::Identifier, ..}) = token {
-            Ok(Some((token.unwrap(), is_block, start_offset)))
+        if let Some(tokenval @ A2lToken { ttype: A2lTokenType::Identifier, ..}) = token {
+            Ok(Some((tokenval, is_block, start_offset)))
         } else {
             self.set_tokenpos(tokenpos);
             if is_block {

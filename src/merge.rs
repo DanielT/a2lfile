@@ -55,9 +55,10 @@ pub(crate) fn merge_modules(orig_module: &mut Module, merge_module: &mut Module)
 
 fn merge_a2ml(orig_module: &mut Module, merge_module: &mut Module) {
     if merge_module.a2ml.is_some() && orig_module.a2ml.is_none() {
-        let mut a2ml = std::mem::take(&mut merge_module.a2ml).unwrap();
-        a2ml.reset_location();
-        orig_module.a2ml = Some(a2ml);
+        if let Some(mut a2ml) = std::mem::take(&mut merge_module.a2ml) {
+            a2ml.reset_location();
+            orig_module.a2ml = Some(a2ml);
+        }
     }
 }
 
@@ -112,7 +113,7 @@ fn merge_memory_segment(orig_module: &mut Module, merge_module: &mut Module) {
     let orig_mod_par = orig_module.mod_par.as_mut().unwrap();
     let merge_mod_par = merge_module.mod_par.as_mut().unwrap();
     while let Some(mut memory_segment) = merge_mod_par.memory_segment.pop() {
-        if *merge_action.get(&memory_segment.name).unwrap() {
+        if let Some(true) = merge_action.get(&memory_segment.name) {
             memory_segment.reset_location();
             orig_mod_par.memory_segment.push(memory_segment);
         }
@@ -185,7 +186,7 @@ fn merge_unit(orig_module: &mut Module, merge_module: &mut Module) {
     rename_units(merge_module, rename_table);
 
     while let Some(mut unit) = merge_module.unit.pop() {
-        if *merge_action.get(&unit.name).unwrap() {
+        if let Some(true) = merge_action.get(&unit.name) {
             unit.reset_location();
             orig_module.unit.push(unit);
         }
@@ -223,19 +224,19 @@ fn merge_compu_tab(orig_module: &mut Module, merge_module: &mut Module) {
     rename_compu_tabs(merge_module, rename_table);
 
     while let Some(mut compu_tab) = merge_module.compu_tab.pop() {
-        if *merge_action.get(&compu_tab.name).unwrap() {
+        if let Some(true) = merge_action.get(&compu_tab.name) {
             compu_tab.reset_location();
             orig_module.compu_tab.push(compu_tab);
         }
     }
     while let Some(mut compu_vtab) = merge_module.compu_vtab.pop() {
-        if *merge_action.get(&compu_vtab.name).unwrap() {
+        if let Some(true) = merge_action.get(&compu_vtab.name) {
             compu_vtab.reset_location();
             orig_module.compu_vtab.push(compu_vtab);
         }
     }
     while let Some(mut compu_vtab_range) = merge_module.compu_vtab_range.pop() {
-        if *merge_action.get(&compu_vtab_range.name).unwrap() {
+        if let Some(true) = merge_action.get(&compu_vtab_range.name) {
             compu_vtab_range.reset_location();
             orig_module.compu_vtab_range.push(compu_vtab_range);
         }
@@ -285,7 +286,7 @@ fn merge_compu_method(orig_module: &mut Module, merge_module: &mut Module) {
     rename_compu_methods(merge_module, rename_table);
 
     while let Some(mut compu_method) = merge_module.compu_method.pop() {
-        if *merge_action.get(&compu_method.name).unwrap() {
+        if let Some(true) = merge_action.get(&compu_method.name) {
             compu_method.reset_location();
             orig_module.compu_method.push(compu_method);
         }
@@ -338,7 +339,7 @@ fn merge_record_layout(orig_module: &mut Module, merge_module: &mut Module) {
     rename_record_layouts(merge_module, rename_table);
 
     while let Some(mut record_layout) = merge_module.record_layout.pop() {
-        if *merge_action.get(&record_layout.name).unwrap() {
+        if let Some(true) = merge_action.get(&record_layout.name) {
             record_layout.reset_location();
             orig_module.record_layout.push(record_layout);
         }
@@ -381,9 +382,10 @@ fn rename_record_layouts(merge_module: &mut Module, rename_table: HashMap<String
 
 fn merge_mod_common(orig_module: &mut Module, merge_module: &mut Module) {
     if merge_module.mod_common.is_some() && orig_module.mod_common.is_none() {
-        let mut mod_common = std::mem::take(&mut merge_module.mod_common).unwrap();
-        mod_common.reset_location();
-        orig_module.mod_common = Some(mod_common);
+        if let Some(mut mod_common) = std::mem::take(&mut merge_module.mod_common) {
+            mod_common.reset_location();
+            orig_module.mod_common = Some(mod_common);
+        }
     }
 }
 
@@ -402,38 +404,38 @@ fn merge_objects(orig_module: &mut Module, merge_module: &mut Module) {
     rename_functions(merge_module, function_rename_table);
 
     while let Some(mut axis_pts) = merge_module.axis_pts.pop() {
-        if *object_merge_action.get(&axis_pts.name).unwrap() {
+        if let Some(true) = object_merge_action.get(&axis_pts.name) {
             axis_pts.reset_location();
             orig_module.axis_pts.push(axis_pts);
         }
     }
     while let Some(mut blob) = merge_module.blob.pop() {
-        if *object_merge_action.get(&blob.name).unwrap() {
+        if let Some(true) = object_merge_action.get(&blob.name) {
             blob.reset_location();
             orig_module.blob.push(blob);
         }
     }
     while let Some(mut characteristic) = merge_module.characteristic.pop() {
-        if *object_merge_action.get(&characteristic.name).unwrap() {
+        if let Some(true) = object_merge_action.get(&characteristic.name) {
             characteristic.reset_location();
             orig_module.characteristic.push(characteristic);
         }
     }
     while let Some(mut instance) = merge_module.instance.pop() {
-        if *object_merge_action.get(&instance.name).unwrap() {
+        if let Some(true) = object_merge_action.get(&instance.name) {
             instance.reset_location();
             orig_module.instance.push(instance);
         }
     }
     while let Some(mut measurement) = merge_module.measurement.pop() {
-        if *object_merge_action.get(&measurement.name).unwrap() {
+        if let Some(true) = object_merge_action.get(&measurement.name) {
             measurement.reset_location();
             orig_module.measurement.push(measurement);
         }
     }
 
     while let Some(mut function) = merge_module.function.pop() {
-        if *function_merge_action.get(&function.name).unwrap() {
+        if let Some(true) = function_merge_action.get(&function.name) {
             function.reset_location();
             orig_module.function.push(function);
         }
@@ -625,7 +627,7 @@ fn merge_group(orig_module: &mut Module, merge_module: &mut Module) {
     rename_groups(merge_module, rename_table);
 
     while let Some(mut group) = merge_module.group.pop() {
-        if *merge_action.get(&group.name).unwrap() {
+        if let Some(true) = merge_action.get(&group.name) {
             group.reset_location();
             orig_module.group.push(group);
         }
@@ -664,7 +666,7 @@ fn merge_frame(orig_module: &mut Module, merge_module: &mut Module) {
     rename_frames(merge_module, rename_table);
 
     while let Some(mut frame) = merge_module.frame.pop() {
-        if *merge_action.get(&frame.name).unwrap() {
+        if let Some(true) = merge_action.get(&frame.name) {
             frame.reset_location();
             orig_module.frame.push(frame);
         }
@@ -694,7 +696,7 @@ fn merge_transformer(orig_module: &mut Module, merge_module: &mut Module) {
     rename_transformers(merge_module, rename_table);
 
     while let Some(mut transformer) = merge_module.transformer.pop() {
-        if *merge_action.get(&transformer.name).unwrap() {
+        if let Some(true) = merge_action.get(&transformer.name) {
             transformer.reset_location();
             orig_module.transformer.push(transformer);
         }
@@ -727,31 +729,31 @@ fn merge_typedef(orig_module: &mut Module, merge_module: &mut Module) {
     rename_typedefs(merge_module, rename_table);
 
     while let Some(mut typedef_axis) = merge_module.typedef_axis.pop() {
-        if *merge_action.get(&typedef_axis.name).unwrap() {
+        if let Some(true) = merge_action.get(&typedef_axis.name) {
             typedef_axis.reset_location();
             orig_module.typedef_axis.push(typedef_axis);
         }
     }
     while let Some(mut typedef_blob) = merge_module.typedef_blob.pop() {
-        if *merge_action.get(&typedef_blob.name).unwrap() {
+        if let Some(true) = merge_action.get(&typedef_blob.name) {
             typedef_blob.reset_location();
             orig_module.typedef_blob.push(typedef_blob);
         }
     }
     while let Some(mut typedef_characteristic) = merge_module.typedef_characteristic.pop() {
-        if *merge_action.get(&typedef_characteristic.name).unwrap() {
+        if let Some(true) = merge_action.get(&typedef_characteristic.name) {
             typedef_characteristic.reset_location();
             orig_module.typedef_characteristic.push(typedef_characteristic);
         }
     }
     while let Some(mut typedef_measurement) = merge_module.typedef_measurement.pop() {
-        if *merge_action.get(&typedef_measurement.name).unwrap() {
+        if let Some(true) = merge_action.get(&typedef_measurement.name) {
             typedef_measurement.reset_location();
             orig_module.typedef_measurement.push(typedef_measurement);
         }
     }
     while let Some(mut typedef_structure) = merge_module.typedef_structure.pop() {
-        if *merge_action.get(&typedef_structure.name).unwrap() {
+        if let Some(true) = merge_action.get(&typedef_structure.name) {
             typedef_structure.reset_location();
             orig_module.typedef_structure.push(typedef_structure);
         }
