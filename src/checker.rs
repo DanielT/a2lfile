@@ -28,6 +28,7 @@ pub fn check(a2l_file: &A2lFile, log_msgs: &mut Vec<String>) {
         for group in &module.group {
             check_group(group, &name_map, log_msgs);
         }
+        check_group_structure(&module.group, log_msgs);
 
         for measurement in &module.measurement {
             check_measurement(measurement, &name_map, log_msgs);
@@ -40,23 +41,23 @@ pub fn check(a2l_file: &A2lFile, log_msgs: &mut Vec<String>) {
 }
 
 
-fn check_axis_descr(axis_descr: &AxisDescr, name_map: &ModuleNameMap, log_msgs: &mut Vec<String>) {
+fn check_axis_descr(parent_name: &str, axis_descr: &AxisDescr, name_map: &ModuleNameMap, log_msgs: &mut Vec<String>) {
     let line = axis_descr.get_line();
     if axis_descr.input_quantity != "NO_INPUT_QUANTITY" && name_map.object.get(&axis_descr.input_quantity).is_none() {
-        log_msgs.push(format!("In AXIS_DESCR on line {}: Referenced input MEASUREMENT {} does not exist.",
-            line, axis_descr.input_quantity));
+        log_msgs.push(format!("In AXIS_DESCR of CHARACTERISTIC {} on line {}: Referenced input MEASUREMENT {} does not exist.",
+        parent_name, line, axis_descr.input_quantity));
     }
 
     if axis_descr.conversion != "NO_COMPU_METHOD" && name_map.compu_method.get(&axis_descr.conversion).is_none() {
-        log_msgs.push(format!("In AXIS_DESCR on line {}: Referenced COMPU_METHOD {} does not exist.",
-            line, axis_descr.conversion));
+        log_msgs.push(format!("In AXIS_DESCR of CHARACTERISTIC {} on line {}: Referenced COMPU_METHOD {} does not exist.",
+        parent_name, line, axis_descr.conversion));
     }
 
     if let Some(axis_pts_ref) = &axis_descr.axis_pts_ref {
         let apr_line = axis_pts_ref.get_line();
         if name_map.object.get(&axis_pts_ref.axis_points).is_none() {
-            log_msgs.push(format!("In AXIS_PTS_REF on line {}: Referenced AXIS_PTS {} does not exist",
-            apr_line, axis_pts_ref.axis_points));
+            log_msgs.push(format!("In AXIS_PTS_REF of CHARACTERISTIC {} on line {}: Referenced AXIS_PTS {} does not exist",
+            parent_name, apr_line, axis_pts_ref.axis_points));
         }
     }
 
@@ -99,7 +100,7 @@ fn check_characteristic(characteristic: &Characteristic, name_map: &ModuleNameMa
     }
 
     for axis_descr in &characteristic.axis_descr {
-        check_axis_descr(axis_descr, name_map, log_msgs);
+        check_axis_descr(name, axis_descr, name_map, log_msgs);
     }
 
     if let Some(comparison_quantity) = &characteristic.comparison_quantity {
@@ -259,6 +260,49 @@ fn check_reference_list<T>(container_type: &str, ref_type: &str, line: u32, iden
         if map.get(ident).is_none() {
             log_msgs.push(format!("In {} on line {}: Reference to nonexistent {} \"{}\"",
                 container_type, line, ref_type, ident));
+        }
+    }
+}
+
+
+struct GroupInfo<'a> {
+    is_root: bool,
+    parents: Vec<&'a str>
+}
+
+fn check_group_structure(grouplist: &[Group], log_msgs: &mut Vec<String>) {
+    let mut groupinfo: HashMap<String, GroupInfo> = HashMap::new();
+
+    for group in grouplist {
+        groupinfo.insert(group.name.to_owned(), GroupInfo {
+            is_root: group.root.is_some(),
+            parents: Vec::new()
+        });
+    }
+
+    for group in grouplist {
+        if let Some(sub_group) = &group.sub_group {
+            for sg in &sub_group.identifier_list {
+                if let Some(gi) = groupinfo.get_mut(sg) {
+                    gi.parents.push(&group.name);
+                } else {
+                    log_msgs.push(format!("GROUP {} references non-existent sub-group {}", group.name, sg));
+                }
+            }
+        }
+    }
+
+    for group in grouplist {
+        if let Some(gi) = groupinfo.get(&group.name) {
+            if gi.is_root && gi.parents.len() > 1 {
+                log_msgs.push(format!("GROUP {} has the ROOT attribute, but is also referenced as a sub-group by GROUPs {}", group.name, gi.parents.join(", ")));
+            } else if gi.is_root && gi.parents.len() == 1 {
+                log_msgs.push(format!("GROUP {} has the ROOT attribute, but is also referenced as a sub-group by GROUP {}", group.name, gi.parents[0]));
+            } else if !gi.is_root && gi.parents.len() > 1 {
+                log_msgs.push(format!("GROUP {} is referenced as a sub-group by multiple groups: {}", group.name, gi.parents.join(", ")));
+            } else if !gi.is_root && gi.parents.is_empty() {
+                log_msgs.push(format!("GROUP {} does not have the ROOT attribute, and is not referenced as a sub-group by any other group", group.name));
+            }
         }
     }
 }
