@@ -1850,7 +1850,9 @@ impl A2ml {
 
     pub(crate) fn stringify(&self, indent: usize) -> String {
         let mut writer = writer::Writer::new(indent);
-        writer.add_str(&self.a2ml_text, self.__block_info.item_location.0);
+        // force the a2ml string to use only "\n" instead of (potentially) "\r\n" to conform with all the other output
+        let text_fixed = self.a2ml_text.split("\r\n").collect::<Vec<&str>>().join("\n");
+        writer.add_str(&text_fixed, self.__block_info.item_location.0);
         writer.finish()
     }
 }
