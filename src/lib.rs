@@ -12,6 +12,7 @@ mod specification;
 mod namemap;
 mod merge;
 mod checker;
+mod cleanup;
 mod sort;
 
 use std::ffi::OsStr;
@@ -209,6 +210,12 @@ impl A2lFile {
     /// sort newly added or merged blocks into sensible locations between the existing blocks
     pub fn sort_new_items(&mut self) {
         sort::sort_new_items(self)
+    }
+
+
+    /// cleanup: remove unused GROUPs, RECORD_LAYOUTs, COMPU_METHODs, COMPU_(V)TABs and UNITs
+    pub fn cleanup(&mut self) {
+        cleanup::cleanup(self);
     }
 
 
