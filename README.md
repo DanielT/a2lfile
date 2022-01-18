@@ -26,7 +26,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-a2lfile = "1.1.0"
+a2lfile = "1.2.0"
 ```
 
 A simple program based on the `a2lfile` library might look like this:
@@ -35,7 +35,7 @@ A simple program based on the `a2lfile` library might look like this:
 use a2lfile::*;
 
 fn main() {
-    let input_filename = "example.a2l";
+    let input_filename = &std::ffi::OsString::from("example.a2l");
     let mut logmsgs = Vec::<String>::new();
     let mut a2l_file = a2lfile::load(
         input_filename,
@@ -79,7 +79,7 @@ fn main() {
 
     // write the modified file
     a2l_file.write(
-        "example_output.txt",
+        &std::ffi::OsString::from("example_output.txt"),
         Some("modified by the demo program")
     ).expect("failed to write output");
 }
