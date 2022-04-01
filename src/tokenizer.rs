@@ -222,8 +222,13 @@ fn find_string_end(filebytes: &[u8],  mut bytepos: usize, line: u32) -> Result<u
                 /* the previous char was a quote though, so the end has been found */
                 end_found = true;
             } else if filebytes[bytepos] == b'\\' {
-                /* this char is the beginnning of an escape sequence (not necessarily \", but that's the only one that matters here) */
-                prev_bkslash = true;
+                if prev_bkslash == true {
+                    /* both this char and the previous one were '\', so this completes a \\ escape */
+                    prev_bkslash = false;
+                } else {
+                    /* this char is the beginnning of an escape sequence (not necessarily \", but that's the only one that matters here) */
+                    prev_bkslash = true;
+                }
             } else {
                 prev_bkslash = false;
             }
@@ -488,6 +493,13 @@ fn tokenize_a2l_skip_whitespace() {
     let data = String::from("\n\n ");
     let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
     assert_eq!(tokresult.tokens.len(), 0);
+}
+
+#[test]
+fn tokenize_string_with_backslash() {
+    let data = String::from(r#" ident "\\" 0 "#);
+    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+    assert_eq!(tokresult.tokens.len(), 3);
 }
 
 #[test]
