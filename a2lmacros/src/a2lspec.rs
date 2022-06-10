@@ -522,8 +522,8 @@ fn unwrap_nested_structs(
             let typename = si.typename.unwrap();
             if let Some(existing_type) = typelist.get(&typename) {
                 // the struct type already exists in the output types. Some sequences (identifier_list) occur frequently
-                assert!(
-                    (existing_type.basetype == *seqtype),
+                assert_eq!(
+                    existing_type.basetype, *seqtype,
                     "type {} has multiple incompatible definitions",
                     typename
                 );
@@ -534,7 +534,7 @@ fn unwrap_nested_structs(
                 } else {
                     Some(format!(
                         "Auto generated for repeating sequence {} in block {}",
-                        si.varname.as_ref().unwrap().to_owned(),
+                        si.varname.as_ref().unwrap(),
                         tag
                     ))
                 };

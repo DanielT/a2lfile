@@ -222,7 +222,7 @@ fn parse_a2ml_type_enum(
         if let Some(name) = enum_typename {
             let refenum = types.get_enum(&name);
             assert!(
-                !refenum.is_none(),
+                refenum.is_some(),
                 "enum {} was referenced but not defined",
                 name
             );
@@ -275,7 +275,7 @@ fn parse_a2ml_type_struct(
         if let Some(name) = struct_typename {
             let refstruct = types.get_struct(&name);
             assert!(
-                !refstruct.is_none(),
+                refstruct.is_some(),
                 "struct {} was referenced but not defined",
                 name
             );
@@ -322,7 +322,7 @@ fn parse_a2ml_type_taggedstruct(
         if let Some(name) = typename {
             let refts = types.get_taggedstruct(&name);
             assert!(
-                !refts.is_none(),
+                refts.is_some(),
                 "taggedstruct {} was referenced but not defined",
                 name
             );
@@ -368,7 +368,7 @@ fn parse_a2ml_type_taggedunion(
         if let Some(name) = typename {
             let reftu = types.get_taggedunion(&name);
             assert!(
-                !reftu.is_none(),
+                reftu.is_some(),
                 "taggedunion {} was referenced but not defined",
                 name
             );
@@ -426,23 +426,22 @@ fn parse_a2ml_taggeditem(
     match ts_item_iter.peek() {
         Some(TokenTree::Literal(_)) => {
             let tag = get_string(ts_item_iter);
-            let dataitem;
-            if (multi && ts_item_iter.peek().is_none())
+            let dataitem = if (multi && ts_item_iter.peek().is_none())
                 || matches!(ts_item_iter.peek(), Some(TokenTree::Punct(_)))
             {
                 // case 1: repeating, i.e. enclosed in ( ... )*
                 // In this case the ts_item_iter only covers the items inside the parenthesis and there are no more items
                 // case 2: not repeating, so ts_item_iter refers to some larger group of items.
                 // In this case the taggeditem contains None if punctuation (i.e. ';') is seen
-                dataitem = DataItem {
+                DataItem {
                     typename: None,
                     basetype: BaseType::None,
                     varname: None,
                     comment: None,
-                };
+                }
             } else {
                 // case 3: not at the end of the iterator and not followed by ';' immediately, so there is an item to parse
-                dataitem = parse_a2ml_tagged_def(ts_item_iter, types);
+                parse_a2ml_tagged_def(ts_item_iter, types)
             };
             TaggedItem {
                 tag,

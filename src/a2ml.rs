@@ -127,9 +127,9 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
         let (mut idx, mut c) = chars.next().unwrap();
 
         if c.is_ascii_whitespace() {
-            /* skip whitepace */
+            /* skip whitespace */
             while c.is_ascii_whitespace() {
-                let pair = chars.next().unwrap_or_else(|| (idx + 1, '\0'));
+                let pair = chars.next().unwrap_or((idx + 1, '\0'));
                 idx = pair.0;
                 c = pair.1;
             }
@@ -181,7 +181,7 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
         } else if c == '"' {
             /* tag - it is enclosed in double quotes, but contains neither spaces nor escape characters */
             loop {
-                let pair = chars.next().unwrap_or_else(|| (idx + 1, '\0'));
+                let pair = chars.next().unwrap_or((idx + 1, '\0'));
                 idx = pair.0;
                 c = pair.1;
                 if c == '"' || c == '\0' {
@@ -234,7 +234,7 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
             remaining = &remaining[1..];
         } else if c.is_ascii_digit() {
             loop {
-                let pair = chars.next().unwrap_or_else(|| (idx + 1, '\0'));
+                let pair = chars.next().unwrap_or((idx + 1, '\0'));
                 idx = pair.0;
                 c = pair.1;
                 if !c.is_ascii_alphanumeric() && c != '_' {
@@ -250,7 +250,7 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
             remaining = &remaining[idx..];
         } else if c.is_ascii_alphabetic() || c == '_' {
             loop {
-                let pair = chars.next().unwrap_or_else(|| (idx + 1, '\0'));
+                let pair = chars.next().unwrap_or((idx + 1, '\0'));
                 idx = pair.0;
                 c = pair.1;
                 if !c.is_ascii_alphanumeric() && c != '_' {
