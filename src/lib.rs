@@ -23,8 +23,7 @@ use tokenizer::{A2lToken, A2lTokenType};
 
 // re-export for the crate user
 pub use a2lmacros::a2ml_specification;
-pub use a2ml::GenericIfData;
-pub use a2ml::GenericIfDataTaggedItem;
+pub use a2ml::{GenericIfData, GenericIfDataTaggedItem};
 pub use specification::*;
 
 /**
@@ -196,7 +195,7 @@ impl A2lFile {
             return Err(format!(
                 "Error while writing output {}: {}\n",
                 filename.to_string_lossy(),
-                err.to_string()
+                err
             ));
         }
 

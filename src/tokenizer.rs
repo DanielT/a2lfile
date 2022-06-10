@@ -286,7 +286,7 @@ fn find_string_end(filebytes: &[u8], mut bytepos: usize, line: u32) -> Result<us
                 /* the previous char was a quote though, so the end has been found */
                 end_found = true;
             } else if filebytes[bytepos] == b'\\' {
-                if prev_bkslash == true {
+                if prev_bkslash {
                     /* both this char and the previous one were '\', so this completes a \\ escape */
                     prev_bkslash = false;
                 } else {

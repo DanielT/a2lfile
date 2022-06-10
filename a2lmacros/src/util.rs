@@ -53,8 +53,9 @@ pub(crate) fn get_float(token_iter: &mut TokenStreamIter) -> f32 {
 pub(crate) fn get_group(token_iter: &mut TokenStreamIter, delim: Delimiter) -> TokenStream {
     match token_iter.next() {
         Some(TokenTree::Group(grp)) => {
-            assert!(
-                !(grp.delimiter() != delim),
+            assert_eq!(
+                grp.delimiter(),
+                delim,
                 "Expected a group inside of {:#?}, but got a group inside {:#?}",
                 delim,
                 grp.delimiter()
@@ -77,11 +78,10 @@ pub(crate) fn get_punct(token_iter: &mut TokenStreamIter) -> char {
 
 pub(crate) fn require_punct(token_iter: &mut TokenStreamIter, reqchar: char) {
     let cur_pkchar = get_punct(token_iter);
-    assert!(
-        !(cur_pkchar != reqchar),
+    assert_eq!(
+        cur_pkchar, reqchar,
         "Punctuation character '{}' is required in this position, but '{}' was found instead",
-        reqchar,
-        cur_pkchar
+        reqchar, cur_pkchar
     );
 }
 
