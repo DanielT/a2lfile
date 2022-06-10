@@ -11,20 +11,17 @@ use quote::quote;
 use super::codegenerator::*;
 use super::util::*;
 
-
 #[derive(Debug)]
 struct A2mlSpec {
     name: String,
     types: A2mlTypeList,
-    ifdata_item: Option<DataItem>
+    ifdata_item: Option<DataItem>,
 }
-
 
 #[derive(Debug)]
 struct A2mlTypeList {
-    list: Vec<(String, BaseType)>
+    list: Vec<(String, BaseType)>,
 }
-
 
 /// a2ml_specification - entry point for the proc_macro a2ml_specification!
 /// the function processes the provided specification and generates appropriate data structures and parser functions from it
@@ -40,7 +37,8 @@ pub(crate) fn a2ml_specification(tokens: TokenStream) -> TokenStream {
     result.extend(generate_a2ml_constant(&spec));
     let outtypes = fixup_output_datatypes(&spec);
 
-    let mut typesvec: Vec<(&String, &DataItem)> = outtypes.iter().map(|(key, val)| (key, val)).collect();
+    let mut typesvec: Vec<(&String, &DataItem)> =
+        outtypes.iter().map(|(key, val)| (key, val)).collect();
     typesvec.sort_by(|a, b| a.0.cmp(b.0));
 
     for (typename, a2mltype) in typesvec {
@@ -66,14 +64,14 @@ Grammar for A2ML:
 
     enum_type_name = "enum" [ identifier ] "{" enumerator_list "}" | "enum" identifier
     enumerator_list = enumerator | enumerator "," enumerator_list
-    enumerator = keyword [ "=" constant ] 
+    enumerator = keyword [ "=" constant ]
 
-    member = type_name [ array_specifier ] 
+    member = type_name [ array_specifier ]
     array_specifier = "[" constant "]" | "[" constant "]" array_specifier
 
     struct_type_name = "struct" [ identifier ] "{" [struct_member_list ] "}" | "struct" identifier
     struct_member_list = struct_member | struct_member struct_member_list
-    struct_member = member ";" 
+    struct_member = member ";"
 
     taggedstruct_type_name = "taggedstruct" [ identifier ] "{" [taggedstruct_member_list ] "}" | "taggedstruct" identifier
     taggedstruct_member_list = taggedstruct_member | taggedstruct_member taggedstruct_member_list
@@ -87,10 +85,9 @@ Grammar for A2ML:
     constant = for enums this is defined as a signed 32 bit int
 */
 
-
 /// parse_specification - parses the tokens from the compiler into a data structure
 /// the format of the specification is basically A2ML.
-/// There are two extensions to the A2ML grammar: 
+/// There are two extensions to the A2ML grammar:
 /// Firstly, all variables can be named, e.g.
 ///     uint some_name;
 /// instead of just
@@ -102,9 +99,7 @@ fn parse_specification(token_iter: &mut TokenStreamIter) -> A2mlSpec {
     let name = get_ident(token_iter);
     require_punct(token_iter, '>');
 
-    let mut types = A2mlTypeList {
-        list: Vec::new()
-    };
+    let mut types = A2mlTypeList { list: Vec::new() };
     let mut ifdata_item = None;
 
     while token_iter.peek().is_some() {
@@ -117,7 +112,6 @@ fn parse_specification(token_iter: &mut TokenStreamIter) -> A2mlSpec {
                 ifdata_item = Some(dataitem);
             }
         } else {
-
             // no need to keep types without names, we wouldn't be able to do anything with those anyway
             if let (Some(typename), itemtype) = parse_a2ml_type(token_iter, &types, &ident) {
                 types.list.push((typename, itemtype));
@@ -132,17 +126,20 @@ fn parse_specification(token_iter: &mut TokenStreamIter) -> A2mlSpec {
     A2mlSpec {
         name,
         types,
-        ifdata_item
+        ifdata_item,
     }
 }
-
 
 // parse_a2ml_type()
 // Implements the grammar rules
 //    type_name = predefined_type_name | struct_type_name | taggedstruct_type_name | taggedunion_type_name | enum_type_name
 //    predefined_type_name = "char" | "int" | "long" | "uchar" | "uint" | "ulong" | "double" | "float"
 // returns a type name in addition to the BaseType; this matters for enums, structs, etc.
-fn parse_a2ml_type(token_iter: &mut TokenStreamIter, types: &A2mlTypeList, tok_start: &str) -> (Option<String>, BaseType) {
+fn parse_a2ml_type(
+    token_iter: &mut TokenStreamIter,
+    types: &A2mlTypeList,
+    tok_start: &str,
+) -> (Option<String>, BaseType) {
     match tok_start {
         "char" => (None, BaseType::Char),
         "int" => (None, BaseType::Int),
@@ -163,7 +160,6 @@ fn parse_a2ml_type(token_iter: &mut TokenStreamIter, types: &A2mlTypeList, tok_s
     }
 }
 
-
 // parse_a2ml_type_enum()
 // Parses enum definitions according to the grammar:
 //    enum_type_name = "enum" [ identifier ] "{" enumerator_list "}" | "enum" identifier
@@ -172,7 +168,10 @@ fn parse_a2ml_type(token_iter: &mut TokenStreamIter, types: &A2mlTypeList, tok_s
 //
 // If the short form "enum identifier;" is found, then the type is looked up in the hashmap of previously defined enums
 // If not, a new enum definition is expected
-fn parse_a2ml_type_enum(token_iter: &mut TokenStreamIter, types: &A2mlTypeList) -> (Option<String>, BaseType) {
+fn parse_a2ml_type_enum(
+    token_iter: &mut TokenStreamIter,
+    types: &A2mlTypeList,
+) -> (Option<String>, BaseType) {
     let enum_typename: Option<String> = parse_optional_name(token_iter);
 
     if let Some(TokenTree::Group(_)) = token_iter.peek() {
@@ -200,21 +199,33 @@ fn parse_a2ml_type_enum(token_iter: &mut TokenStreamIter, types: &A2mlTypeList) 
             }
             let comment = parse_optional_comment(enum_token_iter);
             // if there was no comma, but there are stil items remaining, then that is a parsing error
-            assert!(!(lastvalue && enum_token_iter.peek().is_some()),
-                "additional items ({:#?}, ...) found in enum; missing ','?", enum_token_iter.peek().unwrap());
+            assert!(
+                !(lastvalue && enum_token_iter.peek().is_some()),
+                "additional items ({:#?}, ...) found in enum; missing ','?",
+                enum_token_iter.peek().unwrap()
+            );
             enumvalues.push(EnumItem {
                 name: tag,
                 value,
                 comment,
-                version_range: None
+                version_range: None,
             });
         }
-        (enum_typename, BaseType::Enum {enumitems: enumvalues})
+        (
+            enum_typename,
+            BaseType::Enum {
+                enumitems: enumvalues,
+            },
+        )
     } else {
         // there is no list of items, so this can only be a reference to a previous declaration
         if let Some(name) = enum_typename {
             let refenum = types.get_enum(&name);
-            assert!(!refenum.is_none(), "enum {} was referenced but not defined", name);
+            assert!(
+                !refenum.is_none(),
+                "enum {} was referenced but not defined",
+                name
+            );
 
             (Some(name), BaseType::EnumRef)
         } else {
@@ -223,13 +234,15 @@ fn parse_a2ml_type_enum(token_iter: &mut TokenStreamIter, types: &A2mlTypeList) 
     }
 }
 
-
 // parse_a2ml_type_struct()
 // Parses struct definitions according to the grammar:
 //    struct_type_name = "struct" [ identifier ] "{" [struct_member_list ] "}" | "struct" identifier
 //    struct_member_list = struct_member | struct_member struct_member_list
-//    struct_member = member ";" 
-fn parse_a2ml_type_struct(token_iter: &mut TokenStreamIter, types: &A2mlTypeList) -> (Option<String>, BaseType) {
+//    struct_member = member ";"
+fn parse_a2ml_type_struct(
+    token_iter: &mut TokenStreamIter,
+    types: &A2mlTypeList,
+) -> (Option<String>, BaseType) {
     let struct_typename: Option<String> = parse_optional_name(token_iter);
 
     // check if there is definition of the struct enclosed in {} or if is a reference to a previous declaration
@@ -239,18 +252,33 @@ fn parse_a2ml_type_struct(token_iter: &mut TokenStreamIter, types: &A2mlTypeList
         let struct_token_iter = &mut struct_tokens.into_iter().peekable();
         let mut structdata = Vec::new();
         while struct_token_iter.peek().is_some() {
-            let (item_typename, struct_item, item_varname) = parse_a2ml_member(struct_token_iter, types);
+            let (item_typename, struct_item, item_varname) =
+                parse_a2ml_member(struct_token_iter, types);
             require_punct(struct_token_iter, ';');
             let comment = parse_optional_comment(struct_token_iter);
-            structdata.push(DataItem {typename: item_typename, basetype: struct_item, varname: item_varname, comment});
+            structdata.push(DataItem {
+                typename: item_typename,
+                basetype: struct_item,
+                varname: item_varname,
+                comment,
+            });
         }
 
-        (struct_typename, BaseType::Struct {structitems: structdata})
+        (
+            struct_typename,
+            BaseType::Struct {
+                structitems: structdata,
+            },
+        )
     } else {
         // no definition of the struct, so it must be a reference
         if let Some(name) = struct_typename {
             let refstruct = types.get_struct(&name);
-            assert!(!refstruct.is_none(), "struct {} was referenced but not defined", name);
+            assert!(
+                !refstruct.is_none(),
+                "struct {} was referenced but not defined",
+                name
+            );
 
             (Some(name), BaseType::StructRef)
         } else {
@@ -259,12 +287,14 @@ fn parse_a2ml_type_struct(token_iter: &mut TokenStreamIter, types: &A2mlTypeList
     }
 }
 
-
 // parse_a2ml_type_taggedstruct()
 // Parses taggedstructs according to the grammar:
 //    taggedstruct_type_name = "taggedstruct" [ identifier ] "{" [taggedstruct_member_list ] "}" | "taggedstruct" identifier
 //    taggedstruct_member_list = taggedstruct_member | taggedstruct_member taggedstruct_member_list
-fn parse_a2ml_type_taggedstruct(token_iter: &mut TokenStreamIter, types: &A2mlTypeList) -> (Option<String>, BaseType) {
+fn parse_a2ml_type_taggedstruct(
+    token_iter: &mut TokenStreamIter,
+    types: &A2mlTypeList,
+) -> (Option<String>, BaseType) {
     let typename: Option<String> = parse_optional_name(token_iter);
 
     // check if there is definition of the taggedstruct enclosed in {} or if is a reference to a previous declaration
@@ -281,25 +311,38 @@ fn parse_a2ml_type_taggedstruct(token_iter: &mut TokenStreamIter, types: &A2mlTy
             ts_members.push(tsitem);
         }
 
-        (typename, BaseType::TaggedStruct { tsitems: ts_members })
+        (
+            typename,
+            BaseType::TaggedStruct {
+                tsitems: ts_members,
+            },
+        )
     } else {
         // no definition of the taggedstruct, so it must be a reference
         if let Some(name) = typename {
             let refts = types.get_taggedstruct(&name);
-            assert!(!refts.is_none(), "taggedstruct {} was referenced but not defined", name);
+            assert!(
+                !refts.is_none(),
+                "taggedstruct {} was referenced but not defined",
+                name
+            );
 
             (Some(name), BaseType::TaggedStructRef)
         } else {
-            panic!("expected either an identifier or an opening bracket after keyword taggedstruct.");
+            panic!(
+                "expected either an identifier or an opening bracket after keyword taggedstruct."
+            );
         }
     }
 }
 
-
 // parse_a2ml_type_taggedunion()
 //    taggedunion_type_name = "taggedunion" [ identifier ] "{" [taggedunion_member_list ] "}" | "taggedunion" identifier
 //    taggedunion_member_list = tagged_union_member | tagged_union_member taggedunion_member_list
-fn parse_a2ml_type_taggedunion(token_iter: &mut TokenStreamIter, types: &A2mlTypeList) -> (Option<String>, BaseType) {
+fn parse_a2ml_type_taggedunion(
+    token_iter: &mut TokenStreamIter,
+    types: &A2mlTypeList,
+) -> (Option<String>, BaseType) {
     let typename: Option<String> = parse_optional_name(token_iter);
 
     // check if there is definition of the taggedunion enclosed in {} or if is a reference to a previous declaration
@@ -314,27 +357,41 @@ fn parse_a2ml_type_taggedunion(token_iter: &mut TokenStreamIter, types: &A2mlTyp
             item.item.comment = parse_optional_comment(tu_token_iter);
             taggeduniondata.push(item);
         }
-        (typename, BaseType::TaggedUnion { tuitems: taggeduniondata })
+        (
+            typename,
+            BaseType::TaggedUnion {
+                tuitems: taggeduniondata,
+            },
+        )
     } else {
         // no definition of the taggedunion, so it must be a reference
         if let Some(name) = typename {
             let reftu = types.get_taggedunion(&name);
-            assert!(!reftu.is_none(), "taggedunion {} was referenced but not defined", name);
+            assert!(
+                !reftu.is_none(),
+                "taggedunion {} was referenced but not defined",
+                name
+            );
 
             (Some(name), BaseType::TaggedUnionRef)
         } else {
-            panic!("expected either an identifier or an opening bracket after keyword taggedunion.");
+            panic!(
+                "expected either an identifier or an opening bracket after keyword taggedunion."
+            );
         }
     }
 }
-
 
 // parse_a2ml_taggeditem()
 // Parses taggedstruct members according to the grammar (allow_multi = true):
 //    taggedstruct_member = taggedstruct_definition ";" | "(" taggedstruct_definition ")*;" | block_definition ";" | "(" block_definition ")*;"
 // Parses taggedunion members according to the grammar (allow_multi = false):
 //    tagged_union_member = tag [ member ] ";" | block_definition ";"
-fn parse_a2ml_taggeditem(token_iter: &mut TokenStreamIter, types: &A2mlTypeList, allow_multi: bool) -> TaggedItem {
+fn parse_a2ml_taggeditem(
+    token_iter: &mut TokenStreamIter,
+    types: &A2mlTypeList,
+    allow_multi: bool,
+) -> TaggedItem {
     let mut ts_item_iter = token_iter;
 
     let mut multi = false;
@@ -347,7 +404,10 @@ fn parse_a2ml_taggeditem(token_iter: &mut TokenStreamIter, types: &A2mlTypeList,
         ts_item_iter = &mut ts_item_iter_base;
         multi = true;
 
-        assert!(allow_multi, "repetition with ( ... )* is not permitted at this point");
+        assert!(
+            allow_multi,
+            "repetition with ( ... )* is not permitted at this point"
+        );
     }
 
     let mut is_block = false;
@@ -356,7 +416,10 @@ fn parse_a2ml_taggeditem(token_iter: &mut TokenStreamIter, types: &A2mlTypeList,
         if &*ident == "block" {
             is_block = true;
         } else {
-            panic!("Identifier {} is not allowed in the definition of a tagged item", ident);
+            panic!(
+                "Identifier {} is not allowed in the definition of a tagged item",
+                ident
+            );
         }
     }
 
@@ -364,7 +427,9 @@ fn parse_a2ml_taggeditem(token_iter: &mut TokenStreamIter, types: &A2mlTypeList,
         Some(TokenTree::Literal(_)) => {
             let tag = get_string(ts_item_iter);
             let dataitem;
-            if (multi && ts_item_iter.peek().is_none()) || matches!(ts_item_iter.peek(), Some(TokenTree::Punct(_))) {
+            if (multi && ts_item_iter.peek().is_none())
+                || matches!(ts_item_iter.peek(), Some(TokenTree::Punct(_)))
+            {
                 // case 1: repeating, i.e. enclosed in ( ... )*
                 // In this case the ts_item_iter only covers the items inside the parenthesis and there are no more items
                 // case 2: not repeating, so ts_item_iter refers to some larger group of items.
@@ -373,7 +438,7 @@ fn parse_a2ml_taggeditem(token_iter: &mut TokenStreamIter, types: &A2mlTypeList,
                     typename: None,
                     basetype: BaseType::None,
                     varname: None,
-                    comment: None
+                    comment: None,
                 };
             } else {
                 // case 3: not at the end of the iterator and not followed by ';' immediately, so there is an item to parse
@@ -385,7 +450,7 @@ fn parse_a2ml_taggeditem(token_iter: &mut TokenStreamIter, types: &A2mlTypeList,
                 is_block,
                 repeat: multi,
                 required: false,
-                version_range: None
+                version_range: None,
             }
         }
         tok => {
@@ -393,7 +458,6 @@ fn parse_a2ml_taggeditem(token_iter: &mut TokenStreamIter, types: &A2mlTypeList,
         }
     }
 }
-
 
 // parse_a2ml_tagged_def()
 // Parses taggedstruct definitions according to the grammar:
@@ -416,18 +480,27 @@ fn parse_a2ml_tagged_def(token_iter: &mut TokenStreamIter, types: &A2mlTypeList)
     let (typename, mut member, varname) = parse_a2ml_member(tagged_def_iter, types);
 
     if inner_repeat {
-        member = BaseType::Sequence{seqtype: Box::new(member)};
+        member = BaseType::Sequence {
+            seqtype: Box::new(member),
+        };
     }
 
-    DataItem { typename, basetype: member, varname, comment: None}
+    DataItem {
+        typename,
+        basetype: member,
+        varname,
+        comment: None,
+    }
 }
-
 
 // parse_a2ml_member()
 // Parse a member of some other data structure. Each member could potentially have an arbitrary number of array dimensions
 //    member = type_name [ array_specifier ]
 //    array_specifier = "[" constant "]" | "[" constant "]" array_specifier
-fn parse_a2ml_member(token_iter: &mut TokenStreamIter, types: &A2mlTypeList) -> (Option<String>, BaseType, Option<String>) {
+fn parse_a2ml_member(
+    token_iter: &mut TokenStreamIter,
+    types: &A2mlTypeList,
+) -> (Option<String>, BaseType, Option<String>) {
     let tok_start = get_ident(token_iter);
     let (mut typename, mut base_type) = parse_a2ml_type(token_iter, types, &tok_start);
     let varname = parse_optional_name(token_iter);
@@ -442,16 +515,15 @@ fn parse_a2ml_member(token_iter: &mut TokenStreamIter, types: &A2mlTypeList) -> 
                 typename,
                 basetype: base_type,
                 varname: None,
-                comment: None
+                comment: None,
             }),
-            dim: dim as usize
+            dim: dim as usize,
         };
         typename = None;
     }
 
     (typename, base_type, varname)
 }
-
 
 // parse_optional_name()
 // In some cases a name is allowed optionally; this can be either a type name, or a variable name depending on the calling context.
@@ -464,15 +536,15 @@ fn parse_optional_name(token_iter: &mut TokenStreamIter) -> Option<String> {
     }
 }
 
-
 /// A2mlTypeList is a wrapper around Vec<(name, BaseType)>
 /// It provides functions to get various entries from the list.
 /// Unlike a HashMap, it preserves the ordering of the elements, which is needed when generating the a2ml-constant
 impl A2mlTypeList {
     fn get_item(&self, name: &str, kind: std::mem::Discriminant<BaseType>) -> Option<&BaseType> {
-        let findresult = self.list.iter().find(|(itemname, item)| {
-            itemname == name && kind == std::mem::discriminant(item)
-        });
+        let findresult = self
+            .list
+            .iter()
+            .find(|(itemname, item)| itemname == name && kind == std::mem::discriminant(item));
 
         if let Some((_, item)) = findresult {
             Some(item)
@@ -482,22 +554,41 @@ impl A2mlTypeList {
     }
 
     fn get_enum(&self, name: &str) -> Option<&BaseType> {
-        self.get_item(name, std::mem::discriminant(&BaseType::Enum {enumitems: Vec::<EnumItem>::new()}))
+        self.get_item(
+            name,
+            std::mem::discriminant(&BaseType::Enum {
+                enumitems: Vec::<EnumItem>::new(),
+            }),
+        )
     }
 
     fn get_struct(&self, name: &str) -> Option<&BaseType> {
-        self.get_item(name, std::mem::discriminant(&BaseType::Struct {structitems: Vec::<DataItem>::new()}))
+        self.get_item(
+            name,
+            std::mem::discriminant(&BaseType::Struct {
+                structitems: Vec::<DataItem>::new(),
+            }),
+        )
     }
 
     fn get_taggedstruct(&self, name: &str) -> Option<&BaseType> {
-        self.get_item(name, std::mem::discriminant(&BaseType::TaggedStruct { tsitems: Vec::<TaggedItem>::new() }))
+        self.get_item(
+            name,
+            std::mem::discriminant(&BaseType::TaggedStruct {
+                tsitems: Vec::<TaggedItem>::new(),
+            }),
+        )
     }
 
     fn get_taggedunion(&self, name: &str) -> Option<&BaseType> {
-        self.get_item(name, std::mem::discriminant(&BaseType::TaggedUnion { tuitems: Vec::<TaggedItem>::new() }))
+        self.get_item(
+            name,
+            std::mem::discriminant(&BaseType::TaggedUnion {
+                tuitems: Vec::<TaggedItem>::new(),
+            }),
+        )
     }
 }
-
 
 //-----------------------------------------------------------------------------
 
@@ -509,7 +600,6 @@ impl A2mlTypeList {
 //
 // The generated string does not contain any of the variable names that are allowed in the
 // input specification, so it is standard-compliant a2ml.
-
 
 const A2ML_INDENT_WIDTH: usize = 2; // number of spaces per indent level
 const A2ML_INITIAL_INDENT_LEVEL: usize = 3; // typically a2ml will be indented by 3 levels within the A2l file
@@ -523,10 +613,20 @@ fn generate_a2ml_constant(spec: &A2mlSpec) -> proc_macro2::TokenStream {
 
     let mut definition = "".to_string();
     for (name, item) in &spec.types.list {
-        generate_a2ml_constant_of_item(&mut definition, &Some(name.clone()), item, A2ML_INITIAL_INDENT_LEVEL, true);
+        generate_a2ml_constant_of_item(
+            &mut definition,
+            &Some(name.clone()),
+            item,
+            A2ML_INITIAL_INDENT_LEVEL,
+            true,
+        );
         definition.push_str(";\n\n");
     }
-    generate_a2ml_constant_of_ifdata_block(&mut definition, &spec.ifdata_item, A2ML_INITIAL_INDENT_LEVEL);
+    generate_a2ml_constant_of_ifdata_block(
+        &mut definition,
+        &spec.ifdata_item,
+        A2ML_INITIAL_INDENT_LEVEL,
+    );
 
     let def_literal = proc_macro2::Literal::string(&definition);
     result.extend(quote! {pub(crate) const #constname: &str = #def_literal;});
@@ -534,34 +634,67 @@ fn generate_a2ml_constant(spec: &A2mlSpec) -> proc_macro2::TokenStream {
     result
 }
 
-
 // generate_a2ml_constant_of_item()
 // Generate the string representing some item (recursively). Calls special handlers as needed.
-fn generate_a2ml_constant_of_item(outstring: &mut String, typename: &Option<String>, item: &BaseType, indent_level: usize, indent_first: bool) {
+fn generate_a2ml_constant_of_item(
+    outstring: &mut String,
+    typename: &Option<String>,
+    item: &BaseType,
+    indent_level: usize,
+    indent_first: bool,
+) {
     if indent_first {
         outstring.push_str(&get_indent_string(indent_level));
     }
 
     match item {
-        BaseType::None => { }
-        BaseType::Char => { outstring.push_str("char"); }
-        BaseType::Int => { outstring.push_str("int"); }
-        BaseType::Long => { outstring.push_str("long"); }
-        BaseType::Int64 => { outstring.push_str("int64"); }
-        BaseType::Uchar => { outstring.push_str("uchar"); }
-        BaseType::Uint => { outstring.push_str("uint"); }
-        BaseType::Ulong => { outstring.push_str("ulong"); }
-        BaseType::Uint64 => { outstring.push_str("uint64"); }
-        BaseType::Double => { outstring.push_str("double"); }
-        BaseType::Float => { outstring.push_str("float"); }
-        BaseType::Ident =>  { outstring.push_str("ident"); }
-        BaseType::Array{ arraytype, dim } => {
-            generate_a2ml_constant_of_item(outstring, typename, &arraytype.basetype, indent_level, false);
+        BaseType::None => {}
+        BaseType::Char => {
+            outstring.push_str("char");
+        }
+        BaseType::Int => {
+            outstring.push_str("int");
+        }
+        BaseType::Long => {
+            outstring.push_str("long");
+        }
+        BaseType::Int64 => {
+            outstring.push_str("int64");
+        }
+        BaseType::Uchar => {
+            outstring.push_str("uchar");
+        }
+        BaseType::Uint => {
+            outstring.push_str("uint");
+        }
+        BaseType::Ulong => {
+            outstring.push_str("ulong");
+        }
+        BaseType::Uint64 => {
+            outstring.push_str("uint64");
+        }
+        BaseType::Double => {
+            outstring.push_str("double");
+        }
+        BaseType::Float => {
+            outstring.push_str("float");
+        }
+        BaseType::Ident => {
+            outstring.push_str("ident");
+        }
+        BaseType::Array { arraytype, dim } => {
+            generate_a2ml_constant_of_item(
+                outstring,
+                typename,
+                &arraytype.basetype,
+                indent_level,
+                false,
+            );
             outstring.push('[');
             outstring.push_str(&dim.to_string());
             outstring.push(']');
         }
-        BaseType::Sequence{ seqtype } => {
+        BaseType::Sequence { seqtype } => {
             outstring.push('(');
             generate_a2ml_constant_of_item(outstring, typename, &**seqtype, indent_level, false);
             outstring.push_str(")*");
@@ -599,14 +732,18 @@ fn generate_a2ml_constant_of_item(outstring: &mut String, typename: &Option<Stri
             outstring.push_str(typename);
         }
         BaseType::String => panic!("type String not possible in A2ml"),
-        BaseType::Block { .. } => panic!("type Block is not allowed here")
+        BaseType::Block { .. } => panic!("type Block is not allowed here"),
     }
 }
 
-
 // generate_a2ml_constant_of_enum()
 // Generate the string representing an enum.
-fn generate_a2ml_constant_of_enum(outstring: &mut String, name: &Option<String>, enumdef: &[EnumItem], indent_level: usize) {
+fn generate_a2ml_constant_of_enum(
+    outstring: &mut String,
+    name: &Option<String>,
+    enumdef: &[EnumItem],
+    indent_level: usize,
+) {
     outstring.push_str("enum");
     generate_optional_typename(outstring, name);
     outstring.push_str(" {\n");
@@ -633,15 +770,25 @@ fn generate_a2ml_constant_of_enum(outstring: &mut String, name: &Option<String>,
     outstring.push('}');
 }
 
-
 // generate_a2ml_constant_of_struct()
 // Generate the string representing a struct.
-fn generate_a2ml_constant_of_struct(outstring: &mut String, name: &Option<String>, items: &[DataItem], indent_level: usize) {
+fn generate_a2ml_constant_of_struct(
+    outstring: &mut String,
+    name: &Option<String>,
+    items: &[DataItem],
+    indent_level: usize,
+) {
     outstring.push_str("struct");
     generate_optional_typename(outstring, name);
     outstring.push_str(" {\n");
     for structitem in items {
-        generate_a2ml_constant_of_item(outstring, &structitem.typename, &structitem.basetype, indent_level + 1, true);
+        generate_a2ml_constant_of_item(
+            outstring,
+            &structitem.typename,
+            &structitem.basetype,
+            indent_level + 1,
+            true,
+        );
         outstring.push(';');
         if let Some(comment) = &structitem.comment {
             outstring.push_str(" //");
@@ -653,9 +800,13 @@ fn generate_a2ml_constant_of_struct(outstring: &mut String, name: &Option<String
     outstring.push('}');
 }
 
-
 // generate_a2ml_constant_of_taggedunion()
-fn generate_a2ml_constant_of_taggedunion(outstring: &mut String, name: &Option<String>, tudef: &[TaggedItem], indent_level: usize) {
+fn generate_a2ml_constant_of_taggedunion(
+    outstring: &mut String,
+    name: &Option<String>,
+    tudef: &[TaggedItem],
+    indent_level: usize,
+) {
     outstring.push_str("taggedunion");
     generate_optional_typename(outstring, name);
     outstring.push_str(" {\n");
@@ -664,9 +815,13 @@ fn generate_a2ml_constant_of_taggedunion(outstring: &mut String, name: &Option<S
     outstring.push('}');
 }
 
-
 // generate_a2ml_constant_of_taggedstruct()
-fn generate_a2ml_constant_of_taggedstruct(outstring: &mut String, name: &Option<String>, tsdef: &[TaggedItem], indent_level: usize) {
+fn generate_a2ml_constant_of_taggedstruct(
+    outstring: &mut String,
+    name: &Option<String>,
+    tsdef: &[TaggedItem],
+    indent_level: usize,
+) {
     outstring.push_str("taggedstruct");
     generate_optional_typename(outstring, name);
     outstring.push_str(" {\n");
@@ -675,10 +830,13 @@ fn generate_a2ml_constant_of_taggedstruct(outstring: &mut String, name: &Option<
     outstring.push('}');
 }
 
-
 // generate_a2ml_constant_of_taggeditems()
 // both taggestruct and taggedunion contain taggeditems; this function works equally for both
-fn generate_a2ml_constant_of_taggeditems(outstring: &mut String, taggeditems: &[TaggedItem], indent_level: usize) {
+fn generate_a2ml_constant_of_taggeditems(
+    outstring: &mut String,
+    taggeditems: &[TaggedItem],
+    indent_level: usize,
+) {
     for tgitem in taggeditems.iter() {
         outstring.push_str(&get_indent_string(indent_level));
         // on taggedunions tgitem.repeat is never true
@@ -691,7 +849,13 @@ fn generate_a2ml_constant_of_taggeditems(outstring: &mut String, taggeditems: &[
         outstring.push('\"');
         outstring.push_str(&tgitem.tag);
         outstring.push_str("\" ");
-        generate_a2ml_constant_of_item(outstring, &tgitem.item.typename, &tgitem.item.basetype, indent_level, false);
+        generate_a2ml_constant_of_item(
+            outstring,
+            &tgitem.item.typename,
+            &tgitem.item.basetype,
+            indent_level,
+            false,
+        );
         if tgitem.repeat {
             outstring.push_str(")*");
         }
@@ -702,12 +866,15 @@ fn generate_a2ml_constant_of_taggeditems(outstring: &mut String, taggeditems: &[
         }
         outstring.push('\n');
     }
- 
 }
 
 // generate_a2ml_constant_of_ifdata_block()
 // There is one block that can appear at the top level of an a2ml specification: block "IF_DATA" connects the A2ML to the containing A2l file.
-fn generate_a2ml_constant_of_ifdata_block(outstring: &mut String, ifdata_item: &Option<DataItem>, indent_level: usize) {
+fn generate_a2ml_constant_of_ifdata_block(
+    outstring: &mut String,
+    ifdata_item: &Option<DataItem>,
+    indent_level: usize,
+) {
     outstring.push_str(&get_indent_string(indent_level));
     outstring.push_str("block \"IF_DATA\" ");
     if let Some(blockitem) = ifdata_item {
@@ -716,12 +883,11 @@ fn generate_a2ml_constant_of_ifdata_block(outstring: &mut String, ifdata_item: &
             &blockitem.typename,
             &blockitem.basetype,
             indent_level,
-            false
+            false,
         );
     }
     outstring.push(';');
 }
-
 
 fn generate_optional_typename(outstring: &mut String, name: &Option<String>) {
     if let Some(name_unwrapped) = name {
@@ -730,13 +896,11 @@ fn generate_optional_typename(outstring: &mut String, name: &Option<String>) {
     }
 }
 
-
 // get_indent_string()
 // build a string consisting of the number of spaces required to indent to the given indent_level
 fn get_indent_string(indent_level: usize) -> String {
     format!("{:1$}", "", indent_level * A2ML_INDENT_WIDTH)
 }
-
 
 //-----------------------------------------------------------------------------
 //
@@ -745,7 +909,6 @@ fn get_indent_string(indent_level: usize) -> String {
 // - types can be nested to an arbitrary depth, but the code generator needs a flat list
 // - items are not required to have names and need to be named
 // - there is nothing that prevents the spec from using one type name with different meanings in different places, so some disambiguation might be needed
-
 
 // fixup_output_datatypes
 // The entry point for data type fixup. Recursively adds the "IF_DATA" block and all data types referenced by or defined within it
@@ -763,8 +926,8 @@ fn fixup_output_datatypes(spec: &A2mlSpec) -> HashMap<String, DataItem> {
                     typename: Some(typename),
                     basetype,
                     varname: None,
-                    comment: None
-                }
+                    comment: None,
+                },
             );
         }
         datatypes
@@ -774,10 +937,15 @@ fn fixup_output_datatypes(spec: &A2mlSpec) -> HashMap<String, DataItem> {
     }
 }
 
-
 // fixup_output_block
 // fixup of one "block". A block is a struct, which occurs at the top level as "IF_DATA" or after a tag in a TaggedStruct or TaggedUnion
-fn fixup_output_block(spec: &A2mlSpec, tag: &str, item: &DataItem, defined_types: &mut HashMap<String, BaseType>, is_block: bool) -> String {
+fn fixup_output_block(
+    spec: &A2mlSpec,
+    tag: &str,
+    item: &DataItem,
+    defined_types: &mut HashMap<String, BaseType>,
+    is_block: bool,
+) -> String {
     let structname = ucname_to_typename(tag);
 
     // add the top level datatype to a new struct. If the datatype is also a struct, its elements will be merged
@@ -786,16 +954,19 @@ fn fixup_output_block(spec: &A2mlSpec, tag: &str, item: &DataItem, defined_types
 
     let newstruct = BaseType::Block {
         blockitems: structitems,
-        is_block
+        is_block,
     };
     fixup_add_type(&structname, newstruct, defined_types)
 }
 
-
 // fixup_add_data_to_struct
 // Add a data element to a struct or block. If the data element being added is a struct (or structref) itself, flatten the data structure
-fn fixup_add_data_to_struct(spec: &A2mlSpec, item: &DataItem, defined_types: &mut HashMap<String, BaseType>) -> Vec<DataItem> {
-    let mut new_structitems= Vec::<DataItem>::new();
+fn fixup_add_data_to_struct(
+    spec: &A2mlSpec,
+    item: &DataItem,
+    defined_types: &mut HashMap<String, BaseType>,
+) -> Vec<DataItem> {
+    let mut new_structitems = Vec::<DataItem>::new();
 
     match &item.basetype {
         BaseType::Struct { structitems } => {
@@ -827,77 +998,103 @@ fn fixup_add_data_to_struct(spec: &A2mlSpec, item: &DataItem, defined_types: &mu
     new_structitems
 }
 
-
-fn fixup_make_dataitem(spec: &A2mlSpec, item: &DataItem, defined_types: &mut HashMap<String, BaseType>) -> DataItem {
-    let (new_typename, new_basetype) = fixup_data_type(spec, &item.typename, &item.basetype, &item.comment, defined_types);
+fn fixup_make_dataitem(
+    spec: &A2mlSpec,
+    item: &DataItem,
+    defined_types: &mut HashMap<String, BaseType>,
+) -> DataItem {
+    let (new_typename, new_basetype) = fixup_data_type(
+        spec,
+        &item.typename,
+        &item.basetype,
+        &item.comment,
+        defined_types,
+    );
     let varname = make_itemname(&item.varname, &new_typename);
     DataItem {
         typename: new_typename,
         basetype: new_basetype,
         varname: Some(varname),
-        comment: item.comment.clone()
+        comment: item.comment.clone(),
     }
 }
 
-
-fn fixup_data_type(spec: &A2mlSpec, typename: &Option<String>, basetype: &BaseType, comment: &Option<String>, defined_types: &mut HashMap<String, BaseType>) -> (Option<String>, BaseType) {
+fn fixup_data_type(
+    spec: &A2mlSpec,
+    typename: &Option<String>,
+    basetype: &BaseType,
+    comment: &Option<String>,
+    defined_types: &mut HashMap<String, BaseType>,
+) -> (Option<String>, BaseType) {
     match basetype {
         BaseType::Array { arraytype, dim } => {
-            let (newname, new_arraytype) = fixup_data_type(spec, &arraytype.typename, &arraytype.basetype, comment, defined_types);
+            let (newname, new_arraytype) = fixup_data_type(
+                spec,
+                &arraytype.typename,
+                &arraytype.basetype,
+                comment,
+                defined_types,
+            );
             let new_basetype = BaseType::Array {
                 arraytype: Box::new(DataItem {
                     typename: arraytype.typename.clone(),
                     basetype: new_arraytype,
                     varname: None,
-                    comment: None
+                    comment: None,
                 }),
-                dim: *dim
+                dim: *dim,
             };
             (newname, new_basetype)
         }
         BaseType::Sequence { seqtype } => {
             match &**seqtype {
-                BaseType::Sequence {seqtype: inner_seqtype} => {
+                BaseType::Sequence {
+                    seqtype: inner_seqtype,
+                } => {
                     // seqence(seqence(x)) makes no sense, flatten it to just sequence(x)
-                    let (new_typename, new_basetype) = fixup_data_type(
-                        spec,
-                        typename,
-                        inner_seqtype,
-                        comment,
-                        defined_types
-                    );
-                    (new_typename, BaseType::Sequence {seqtype: Box::new(new_basetype)})
+                    let (new_typename, new_basetype) =
+                        fixup_data_type(spec, typename, inner_seqtype, comment, defined_types);
+                    (
+                        new_typename,
+                        BaseType::Sequence {
+                            seqtype: Box::new(new_basetype),
+                        },
+                    )
                 }
-                BaseType::TaggedStruct { .. } |
-                BaseType::TaggedStructRef => {
+                BaseType::TaggedStruct { .. } | BaseType::TaggedStructRef => {
                     panic!("A repeating taggedstruct cannot be parsed properly, because there is no separator between each instance of the taggedstruct. Suggestion: use a taggdstruct with repeating elements instead.")
                 }
-                BaseType::TaggedUnion { .. } |
-                BaseType::TaggedUnionRef => {
-                    panic!("A repeating taggedunion does not make sense. Use a taggedstruct instead")
+                BaseType::TaggedUnion { .. } | BaseType::TaggedUnionRef => {
+                    panic!(
+                        "A repeating taggedunion does not make sense. Use a taggedstruct instead"
+                    )
                 }
                 _ => {
-                    let (new_typename, new_basetype) = fixup_data_type(
-                        spec,
-                        typename,
-                        seqtype,
-                        comment,
-                        defined_types
-                    );
-                    (new_typename, BaseType::Sequence {seqtype: Box::new(new_basetype)})
+                    let (new_typename, new_basetype) =
+                        fixup_data_type(spec, typename, seqtype, comment, defined_types);
+                    (
+                        new_typename,
+                        BaseType::Sequence {
+                            seqtype: Box::new(new_basetype),
+                        },
+                    )
                 }
             }
         }
         BaseType::Enum { enumitems } => {
-            let newenum = BaseType::Enum {enumitems: enumitems.clone()};
+            let newenum = BaseType::Enum {
+                enumitems: enumitems.clone(),
+            };
             let enumname = make_enum_name(typename, enumitems);
             let new_enumname = fixup_add_type(&enumname, newenum, defined_types);
             (Some(new_enumname), BaseType::EnumRef)
         }
         BaseType::EnumRef => {
             let typename = typename.as_ref().unwrap();
-            if let Some(BaseType::Enum {enumitems}) = spec.types.get_enum(typename) {
-                let newenum = BaseType::Enum{enumitems: enumitems.clone()};
+            if let Some(BaseType::Enum { enumitems }) = spec.types.get_enum(typename) {
+                let newenum = BaseType::Enum {
+                    enumitems: enumitems.clone(),
+                };
                 let new_enumname = fixup_add_type(typename, newenum, defined_types);
                 (Some(new_enumname), BaseType::EnumRef)
             } else {
@@ -913,30 +1110,47 @@ fn fixup_data_type(spec: &A2mlSpec, typename: &Option<String>, basetype: &BaseTy
         }
         BaseType::StructRef => {
             let typename = typename.as_ref().unwrap();
-            if let Some(BaseType::Struct {structitems}) = spec.types.get_struct(typename) {
+            if let Some(BaseType::Struct { structitems }) = spec.types.get_struct(typename) {
                 fixup_struct(typename, structitems, spec, defined_types)
             } else {
                 panic!("failed to resolve struct reference {}", typename)
             }
         }
-        BaseType::TaggedUnion { tuitems } => {
-            (None, BaseType::TaggedUnion { tuitems: fixup_taggeditems(tuitems, spec, defined_types) })
-        }
+        BaseType::TaggedUnion { tuitems } => (
+            None,
+            BaseType::TaggedUnion {
+                tuitems: fixup_taggeditems(tuitems, spec, defined_types),
+            },
+        ),
         BaseType::TaggedUnionRef => {
             let typename = typename.as_ref().unwrap();
             if let Some(BaseType::TaggedUnion { tuitems }) = spec.types.get_taggedunion(typename) {
-                (None, BaseType::TaggedUnion { tuitems: fixup_taggeditems(tuitems, spec, defined_types) })
+                (
+                    None,
+                    BaseType::TaggedUnion {
+                        tuitems: fixup_taggeditems(tuitems, spec, defined_types),
+                    },
+                )
             } else {
                 panic!("failed to resolve taggedunion reference {}", typename)
             }
         }
-        BaseType::TaggedStruct { tsitems } => {
-            (None, BaseType::TaggedStruct { tsitems: fixup_taggeditems(tsitems, spec, defined_types) })
-        }
+        BaseType::TaggedStruct { tsitems } => (
+            None,
+            BaseType::TaggedStruct {
+                tsitems: fixup_taggeditems(tsitems, spec, defined_types),
+            },
+        ),
         BaseType::TaggedStructRef => {
             let typename = typename.as_ref().unwrap();
-            if let Some(BaseType::TaggedStruct { tsitems }) = spec.types.get_taggedstruct(typename) {
-                (None, BaseType::TaggedStruct { tsitems: fixup_taggeditems(tsitems, spec, defined_types) })
+            if let Some(BaseType::TaggedStruct { tsitems }) = spec.types.get_taggedstruct(typename)
+            {
+                (
+                    None,
+                    BaseType::TaggedStruct {
+                        tsitems: fixup_taggeditems(tsitems, spec, defined_types),
+                    },
+                )
             } else {
                 panic!("failed to resolve taggedstruct reference {}", typename)
             }
@@ -954,12 +1168,18 @@ fn fixup_data_type(spec: &A2mlSpec, typename: &Option<String>, basetype: &BaseTy
         BaseType::Float => (None, BaseType::Float),
         BaseType::Ident => (None, BaseType::Ident),
         BaseType::String => (None, BaseType::String),
-        BaseType::Block { .. } => panic!("type block is not allowed as an input of the fixup function")
+        BaseType::Block { .. } => {
+            panic!("type block is not allowed as an input of the fixup function")
+        }
     }
 }
 
-
-fn fixup_struct(structname: &str, structitems: &[DataItem], spec: &A2mlSpec, defined_types: &mut HashMap<String, BaseType>) -> (Option<String>, BaseType) {
+fn fixup_struct(
+    structname: &str,
+    structitems: &[DataItem],
+    spec: &A2mlSpec,
+    defined_types: &mut HashMap<String, BaseType>,
+) -> (Option<String>, BaseType) {
     let mut new_structitems = Vec::<DataItem>::new();
     for item in structitems {
         new_structitems.extend(fixup_add_data_to_struct(spec, item, defined_types));
@@ -968,38 +1188,52 @@ fn fixup_struct(structname: &str, structitems: &[DataItem], spec: &A2mlSpec, def
 
     let new_structname = fixup_add_type(
         structname,
-        BaseType::Struct {structitems: new_structitems},
-        defined_types
+        BaseType::Struct {
+            structitems: new_structitems,
+        },
+        defined_types,
     );
 
     (Some(new_structname), BaseType::StructRef)
 }
 
-
-fn fixup_taggeditems(taggeditems: &[TaggedItem], spec: &A2mlSpec, defined_types: &mut HashMap<String, BaseType>) -> Vec<TaggedItem> {
+fn fixup_taggeditems(
+    taggeditems: &[TaggedItem],
+    spec: &A2mlSpec,
+    defined_types: &mut HashMap<String, BaseType>,
+) -> Vec<TaggedItem> {
     let mut new_tuitems = Vec::<TaggedItem>::new();
     for tgitem in taggeditems {
-        let new_typename = fixup_output_block(spec, &tgitem.tag, &tgitem.item, defined_types, tgitem.is_block);
+        let new_typename = fixup_output_block(
+            spec,
+            &tgitem.tag,
+            &tgitem.item,
+            defined_types,
+            tgitem.is_block,
+        );
         new_tuitems.push(TaggedItem {
             tag: tgitem.tag.clone(),
             item: DataItem {
                 typename: Some(new_typename.clone()),
                 basetype: BaseType::StructRef,
                 varname: None,
-                comment: None
+                comment: None,
             },
             is_block: tgitem.is_block,
             repeat: tgitem.repeat,
             required: false,
-            version_range: None
+            version_range: None,
         });
     }
 
     new_tuitems
 }
 
-
-fn fixup_add_type(itemname: &str, newitem: BaseType, defined_types: &mut HashMap<String, BaseType>) -> String {
+fn fixup_add_type(
+    itemname: &str,
+    newitem: BaseType,
+    defined_types: &mut HashMap<String, BaseType>,
+) -> String {
     let mut new_itemname = itemname.to_string();
     let mut suffix = 1;
     let type_exists;
@@ -1026,7 +1260,6 @@ fn fixup_add_type(itemname: &str, newitem: BaseType, defined_types: &mut HashMap
     new_itemname
 }
 
-
 fn make_itemname(varname: &Option<String>, typename: &Option<String>) -> String {
     if let Some(name) = varname {
         // there is a name for the item in the spec
@@ -1038,7 +1271,6 @@ fn make_itemname(varname: &Option<String>, typename: &Option<String>) -> String 
         "item".to_string()
     }
 }
-
 
 fn fixup_make_varnames_unique(structitems: &mut Vec<DataItem>) {
     let mut names = HashSet::<String>::new();
@@ -1058,7 +1290,6 @@ fn fixup_make_varnames_unique(structitems: &mut Vec<DataItem>) {
         }
     }
 }
-
 
 fn make_enum_name(itemname: &Option<String>, enumitems: &[EnumItem]) -> String {
     if let Some(name) = itemname {
@@ -1096,7 +1327,6 @@ fn make_enum_name(itemname: &Option<String>, enumitems: &[EnumItem]) -> String {
     }
 }
 
-
 fn typename_to_varname(varname: &str) -> String {
     let inchars: Vec<char> = varname.chars().collect();
     let mut outchars = Vec::<char>::new();
@@ -1120,12 +1350,7 @@ fn typename_to_varname(varname: &str) -> String {
     outchars.iter().collect()
 }
 
-
-
-
 //-----------------------------------------------------------------------------
-
-
 
 fn generate_interface(spec: &A2mlSpec) -> TokenStream {
     let name = format_ident!("{}", spec.name);
@@ -1163,10 +1388,7 @@ fn generate_interface(spec: &A2mlSpec) -> TokenStream {
     }
 }
 
-
 //-----------------------------------------------------------------------------
-
-
 
 #[cfg(test)]
 mod test {

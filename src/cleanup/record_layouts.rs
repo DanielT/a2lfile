@@ -22,5 +22,7 @@ pub(crate) fn cleanup(module: &mut Module) {
     }
 
     // remove all unused RECORD_LAYOUTs
-    module.record_layout.retain(|item| used_record_layouts.get(&item.name).is_some());
+    module
+        .record_layout
+        .retain(|item| used_record_layouts.get(&item.name).is_some());
 }

@@ -2,31 +2,30 @@
 //!
 //! It is fast, preserves the formatting of the input, and has support for files using standard version 1.71.
 
-mod loader;
-mod tokenizer;
-mod parser;
 mod a2ml;
-mod ifdata;
-mod writer;
-mod specification;
-mod namemap;
-mod merge;
 mod checker;
 mod cleanup;
+mod ifdata;
+mod loader;
+mod merge;
+mod namemap;
+mod parser;
 mod sort;
+mod specification;
+mod tokenizer;
+mod writer;
 
 use std::ffi::OsStr;
 use std::fmt::Write;
 // used internally
-use tokenizer::{A2lToken, A2lTokenType};
 use parser::{ParseContext, ParserState};
+use tokenizer::{A2lToken, A2lTokenType};
 
 // re-export for the crate user
 pub use a2lmacros::a2ml_specification;
 pub use a2ml::GenericIfData;
 pub use a2ml::GenericIfDataTaggedItem;
 pub use specification::*;
-
 
 /**
 Load an a2l file
@@ -46,19 +45,33 @@ strict_parsing toggles strict parsing: If strict parsing is enabled, most warnin
     }
 ```
  */
-pub fn load(filename: &OsStr, a2ml_spec: Option<String>, log_msgs: &mut Vec<String>, strict_parsing: bool) -> Result<A2lFile, String> {
+pub fn load(
+    filename: &OsStr,
+    a2ml_spec: Option<String>,
+    log_msgs: &mut Vec<String>,
+    strict_parsing: bool,
+) -> Result<A2lFile, String> {
     let filedata = loader::load(filename)?;
     load_impl(filename, &filedata, log_msgs, strict_parsing, a2ml_spec)
 }
 
-
 /// load a2l data stored in a string
-pub fn load_from_string(a2ldata: &str, a2ml_spec: Option<String>, log_msgs: &mut Vec<String>, strict_parsing: bool) -> Result<A2lFile, String> {
+pub fn load_from_string(
+    a2ldata: &str,
+    a2ml_spec: Option<String>,
+    log_msgs: &mut Vec<String>,
+    strict_parsing: bool,
+) -> Result<A2lFile, String> {
     load_impl(OsStr::new(""), a2ldata, log_msgs, strict_parsing, a2ml_spec)
 }
 
-
-fn load_impl(filename: &OsStr, filedata: &str, log_msgs: &mut Vec<String>, strict_parsing: bool, a2ml_spec: Option<String>) -> Result<A2lFile, String> {
+fn load_impl(
+    filename: &OsStr,
+    filedata: &str,
+    log_msgs: &mut Vec<String>,
+    strict_parsing: bool,
+    a2ml_spec: Option<String>,
+) -> Result<A2lFile, String> {
     // tokenize the input data
     let tokenresult = tokenizer::tokenize(filename.to_string_lossy().to_string(), 0, filedata)?;
 
@@ -67,13 +80,25 @@ fn load_impl(filename: &OsStr, filedata: &str, log_msgs: &mut Vec<String>, stric
     }
 
     // create a context for the parser. Ensure that the current line of the context is set to the first line that actually contains a token
-    let mut fake_token = A2lToken {ttype: A2lTokenType::Identifier, startpos: 0, endpos: 0, fileid: 0, line: 1};
+    let mut fake_token = A2lToken {
+        ttype: A2lTokenType::Identifier,
+        startpos: 0,
+        endpos: 0,
+        fileid: 0,
+        line: 1,
+    };
     let firstline = tokenresult.tokens.get(0).unwrap_or(&fake_token).line;
     fake_token.line = firstline;
     let context = &ParseContext::from_token("A2L_FILE", &fake_token, false);
 
     // create the parser state object
-    let mut parser = ParserState::new(&tokenresult.tokens, &tokenresult.filedata, &tokenresult.filenames, log_msgs, strict_parsing);
+    let mut parser = ParserState::new(
+        &tokenresult.tokens,
+        &tokenresult.filedata,
+        &tokenresult.filenames,
+        log_msgs,
+        strict_parsing,
+    );
 
     // if a built-in A2ml specification was passed as a string, then it is parsed here
     if let Some(spec) = a2ml_spec {
@@ -82,7 +107,10 @@ fn load_impl(filename: &OsStr, filedata: &str, log_msgs: &mut Vec<String>, stric
             parser.builtin_a2mlspec = Some(parsed_spec);
         } else {
             // this shouldn't happen; if it does then there is a bug in the a2ml_specification! macro
-            return Err(format!("Error: Failed to load built-in specification: {}", ret.unwrap_err()));
+            return Err(format!(
+                "Error: Failed to load built-in specification: {}",
+                ret.unwrap_err()
+            ));
         }
     }
 
@@ -92,7 +120,7 @@ fn load_impl(filename: &OsStr, filedata: &str, log_msgs: &mut Vec<String>, stric
         if !strict_parsing {
             parser.log_msgs.push(version_error);
         } else {
-            return Err(version_error)
+            return Err(version_error);
         }
     }
     // build the a2l data structures from the tokens
@@ -117,7 +145,6 @@ fn load_impl(filename: &OsStr, filedata: &str, log_msgs: &mut Vec<String>, stric
     Ok(a2l_file)
 }
 
-
 fn get_version(parser: &mut ParserState, context: &ParseContext) -> Result<Asap2Version, String> {
     if let Some(token) = parser.peek_token() {
         let ident = parser.get_identifier(context);
@@ -136,9 +163,11 @@ fn get_version(parser: &mut ParserState, context: &ParseContext) -> Result<Asap2
     // for compatibility with 1.50 and earlier, also make it possible to catch the error and continue
     parser.set_tokenpos(0);
     parser.set_file_version(1, 50)?;
-    Err("File is not recognized as an a2l file. Mandatory version information is missing.".to_string())
+    Err(
+        "File is not recognized as an a2l file. Mandatory version information is missing."
+            .to_string(),
+    )
 }
-
 
 impl A2lFile {
     /// construct a string containing the whole a2l data of this A2lFile object
@@ -164,25 +193,33 @@ impl A2lFile {
         outstr.write_str(&file_text).unwrap();
 
         if let Err(err) = std::fs::write(filename, outstr) {
-            return Err(format!("Error while writing output {}: {}\n", filename.to_string_lossy(), err.to_string()))
+            return Err(format!(
+                "Error while writing output {}: {}\n",
+                filename.to_string_lossy(),
+                err.to_string()
+            ));
         }
 
         Ok(())
     }
-
 
     /// Merge another a2l file on the MODULE level.
     ///
     /// The input file and the merge file must each contain exactly one MODULE.
     /// The contents will be merged so that there is one merged MODULE in the output.
     pub fn merge_modules(&mut self, merge_file: &mut A2lFile) {
-        merge::merge_modules(&mut self.project.module[0], &mut merge_file.project.module[0]);
+        merge::merge_modules(
+            &mut self.project.module[0],
+            &mut merge_file.project.module[0],
+        );
 
         // if the merge file uses a newer file version, then the file version is upgraded by the merge
         if let Some(file_ver) = &mut self.asap2_version {
             if let Some(merge_ver) = &merge_file.asap2_version {
-                if file_ver.version_no < merge_ver.version_no ||
-                    ((file_ver.version_no == merge_ver.version_no) && (file_ver.upgrade_no < merge_ver.upgrade_no)) {
+                if file_ver.version_no < merge_ver.version_no
+                    || ((file_ver.version_no == merge_ver.version_no)
+                        && (file_ver.upgrade_no < merge_ver.upgrade_no))
+                {
                     file_ver.version_no = merge_ver.version_no;
                     file_ver.upgrade_no = merge_ver.upgrade_no;
                 }
@@ -193,12 +230,10 @@ impl A2lFile {
         }
     }
 
-
     /// perform a consistency check on the data.
     pub fn check(&self, log_msgs: &mut Vec<String>) {
         checker::check(self, log_msgs);
     }
-
 
     /// sort the data in the a2l file.
     /// This changes the order in which the blocks will be written to an output file
@@ -206,18 +241,15 @@ impl A2lFile {
         sort::sort(self)
     }
 
-
     /// sort newly added or merged blocks into sensible locations between the existing blocks
     pub fn sort_new_items(&mut self) {
         sort::sort_new_items(self)
     }
 
-
     /// cleanup: remove unused GROUPs, RECORD_LAYOUTs, COMPU_METHODs, COMPU_(V)TABs and UNITs
     pub fn cleanup(&mut self) {
         cleanup::cleanup(self);
     }
-
 
     /// cleanup IF_DATA: remove any IF_DATA blocks that could not be parsed using either the
     /// specification provided during load or the specification in the A2ML block in the file
@@ -225,5 +257,3 @@ impl A2lFile {
         ifdata::remove_unknown_ifdata(self);
     }
 }
-
-

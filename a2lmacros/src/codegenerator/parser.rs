@@ -19,7 +19,10 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
         BaseType::Struct { structitems } => {
             result.extend(generate_block_parser_generic(typename, structitems, false));
         }
-        BaseType::Block { blockitems, is_block } => {
+        BaseType::Block {
+            blockitems,
+            is_block,
+        } => {
             result.extend(generate_block_parser(typename, blockitems, *is_block));
         }
         _ => {
@@ -28,7 +31,6 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
     }
     result
 }
-
 
 // generate_enum_parser()
 // generates a parser function that returns the enum variant matching the text of the current input token
@@ -66,24 +68,25 @@ fn generate_enum_parser(typename: &str, enumitems: &[EnumItem]) -> TokenStream {
     }
 }
 
-
 // generate_block_parser
 // generates the full parser function for a block or keyword
 // for elements derived from an a2ml spec, blocks are structs which occur after a tag in a TaggedUnion or TaggedStruct.
 fn generate_block_parser(typename: &str, structitems: &[DataItem], is_block: bool) -> TokenStream {
     match typename {
-        "A2ml"  | "IfData" => { quote! {} }
-        _ => {
-            generate_block_parser_generic(typename, structitems, is_block)
+        "A2ml" | "IfData" => {
+            quote! {}
         }
-
+        _ => generate_block_parser_generic(typename, structitems, is_block),
     }
 }
 
-
 // generate_block_parser_generic()
 // generate a parser function for a block, keyword or struct
-fn generate_block_parser_generic(typename: &str, structitems: &[DataItem], is_block: bool) -> TokenStream {
+fn generate_block_parser_generic(
+    typename: &str,
+    structitems: &[DataItem],
+    is_block: bool,
+) -> TokenStream {
     let name = format_ident!("{}", typename);
     let (itemnames, itemparsers, location_names) = generate_struct_item_fragments(structitems);
 
@@ -127,10 +130,11 @@ fn generate_block_parser_generic(typename: &str, structitems: &[DataItem], is_bl
     }
 }
 
-
 // generate_struct_item_fragments
 // generate a list of struct elements as well as TokenStreams with code to parse these elements
-fn generate_struct_item_fragments(structitems: &[DataItem]) -> (Vec<Ident>, Vec<TokenStream>, Vec<Ident>) {
+fn generate_struct_item_fragments(
+    structitems: &[DataItem],
+) -> (Vec<Ident>, Vec<TokenStream>, Vec<Ident>) {
     let mut itemparsers = Vec::<TokenStream>::new();
     let mut itemnames = Vec::<Ident>::new();
     let mut location_names = Vec::<Ident>::new();
@@ -147,7 +151,11 @@ fn generate_struct_item_fragments(structitems: &[DataItem]) -> (Vec<Ident>, Vec<
             }
             BaseType::Sequence { seqtype } => {
                 let itemname = format_ident!("{}", sitem.varname.clone().unwrap());
-                itemparsers.push(generate_sequence_parser(&itemname, &sitem.typename, seqtype));
+                itemparsers.push(generate_sequence_parser(
+                    &itemname,
+                    &sitem.typename,
+                    seqtype,
+                ));
                 location_names.push(format_ident!("__{}_location", itemname));
                 itemnames.push(itemname);
             }
@@ -170,20 +178,19 @@ fn generate_struct_item_fragments(structitems: &[DataItem]) -> (Vec<Ident>, Vec<
     (itemnames, itemparsers, location_names)
 }
 
-
 // generate_item_parser_call
 // generates code to call an existing item parser function
 // each item parser fragment evaluates as a tuple (locationinfo, value)
 fn generate_item_parser_call(typename: &Option<String>, item: &BaseType) -> TokenStream {
     match item {
-        BaseType::Char |
-        BaseType::Int |
-        BaseType::Long |
-        BaseType::Int64 |
-        BaseType::Uchar |
-        BaseType::Uint |
-        BaseType::Ulong |
-        BaseType::Uint64 => {
+        BaseType::Char
+        | BaseType::Int
+        | BaseType::Long
+        | BaseType::Int64
+        | BaseType::Uchar
+        | BaseType::Uint
+        | BaseType::Ulong
+        | BaseType::Uint64 => {
             let intparser = get_int_parser(item);
             quote! {{
                 let line = parser.get_current_line_offset();
@@ -191,21 +198,29 @@ fn generate_item_parser_call(typename: &Option<String>, item: &BaseType) -> Toke
                 ((line, is_hex), value)
             }}
         }
-        BaseType::Double => { quote! {(parser.get_current_line_offset(), parser.get_double(context)?)} }
-        BaseType::Float => { quote! {(parser.get_current_line_offset(), parser.get_float(context)?)} }
-        BaseType::Ident => { quote! {(parser.get_current_line_offset(), parser.get_identifier(context)?)} }
-        BaseType::String => { quote! {(parser.get_current_line_offset(), parser.get_string(context)?)} }
-        BaseType::Array {arraytype, dim} => {
+        BaseType::Double => {
+            quote! {(parser.get_current_line_offset(), parser.get_double(context)?)}
+        }
+        BaseType::Float => {
+            quote! {(parser.get_current_line_offset(), parser.get_float(context)?)}
+        }
+        BaseType::Ident => {
+            quote! {(parser.get_current_line_offset(), parser.get_identifier(context)?)}
+        }
+        BaseType::String => {
+            quote! {(parser.get_current_line_offset(), parser.get_string(context)?)}
+        }
+        BaseType::Array { arraytype, dim } => {
             if let BaseType::Char = arraytype.basetype {
                 quote! {parser.get_string_maxlen(context, #dim)?}
             } else {
-                let itemparser = generate_item_parser_call(&arraytype.typename, &arraytype.basetype);
-                let names: Vec<Ident> = (0..(*dim)).into_iter().map(
-                    |x| format_ident!("__arrayitem_{}", x)
-                ).collect();
-                let parsercalls = names.iter().map(
-                    |name| quote! {let #name = #itemparser;}
-                );
+                let itemparser =
+                    generate_item_parser_call(&arraytype.typename, &arraytype.basetype);
+                let names: Vec<Ident> = (0..(*dim))
+                    .into_iter()
+                    .map(|x| format_ident!("__arrayitem_{}", x))
+                    .collect();
+                let parsercalls = names.iter().map(|name| quote! {let #name = #itemparser;});
                 quote! {{
                     #(#parsercalls)*
                     ([ #(#names.0),* ], [ #(#names.1),*])
@@ -222,32 +237,50 @@ fn generate_item_parser_call(typename: &Option<String>, item: &BaseType) -> Toke
             let name = format_ident!("{}", typename);
             quote! { (parser.get_current_line_offset(), #name::parse(parser, context, 0)?) }
         }
-        _ => panic!("forbidden type: {:#?}", item)
+        _ => panic!("forbidden type: {:#?}", item),
     }
 }
-
 
 // get_int_parser()
 // simplify the handling of the integer case in generate_item_parser_call
 fn get_int_parser(item: &BaseType) -> TokenStream {
     match item {
-        BaseType::Char => { quote! {parser.get_integer_i8} }
-        BaseType::Int => { quote! {parser.get_integer_i16} }
-        BaseType::Long => { quote! {parser.get_integer_i32} }
-        BaseType::Int64 => { quote! {parser.get_integer_i64} }
-        BaseType::Uchar => { quote! {parser.get_integer_u8} }
-        BaseType::Uint => { quote! {parser.get_integer_u16} }
-        BaseType::Ulong => { quote! {parser.get_integer_u32} }
-        BaseType::Uint64 => { quote! {parser.get_integer_u64} }
-        _ => panic!("call of get_int_parser only allowed for integer types")
+        BaseType::Char => {
+            quote! {parser.get_integer_i8}
+        }
+        BaseType::Int => {
+            quote! {parser.get_integer_i16}
+        }
+        BaseType::Long => {
+            quote! {parser.get_integer_i32}
+        }
+        BaseType::Int64 => {
+            quote! {parser.get_integer_i64}
+        }
+        BaseType::Uchar => {
+            quote! {parser.get_integer_u8}
+        }
+        BaseType::Uint => {
+            quote! {parser.get_integer_u16}
+        }
+        BaseType::Ulong => {
+            quote! {parser.get_integer_u32}
+        }
+        BaseType::Uint64 => {
+            quote! {parser.get_integer_u64}
+        }
+        _ => panic!("call of get_int_parser only allowed for integer types"),
     }
 }
-
 
 // generate_sequence_parser
 // Generates a TokenStream with code to greedily parse elements of a sequence
 // Parsing of sequence items continues until the parser function for the current sequence item returns an error
-fn generate_sequence_parser(itemname: &Ident, typename: &Option<String>, seqitem: &BaseType) -> TokenStream {
+fn generate_sequence_parser(
+    itemname: &Ident,
+    typename: &Option<String>,
+    seqitem: &BaseType,
+) -> TokenStream {
     let parserfunc = generate_item_parser_call(typename, seqitem);
     let itemname_location = format_ident!("__{}_location", itemname);
     quote! {
@@ -270,21 +303,25 @@ fn generate_sequence_parser(itemname: &Ident, typename: &Option<String>, seqitem
     }
 }
 
-
 // generate_taggeditem_parser
 // Generate a TokenStream representing code to parse all the tagged items of a TaggedStruct or TaggedUnion
-fn generate_taggeditem_parser(tg_items: &[TaggedItem], is_taggedunion: bool, is_last: bool) -> TokenStream {
+fn generate_taggeditem_parser(
+    tg_items: &[TaggedItem],
+    is_taggedunion: bool,
+    is_last: bool,
+) -> TokenStream {
     // result: the TokenStream that ultimately collcts all the code fragements in this function
     let mut result = quote! {};
 
     // item_match_arms: the match arms of the while loop that passes each set of input tokens to the appropriate item parser
     // multiplicity_check: code fragemnts that check if references marked as required are present
-    let (var_definitions, item_match_arms, multiplicity_check) = generate_taggeditem_match_arms(tg_items);
+    let (var_definitions, item_match_arms, multiplicity_check) =
+        generate_taggeditem_match_arms(tg_items);
     result.extend(var_definitions);
 
-
     // generate the full match statement that has one arm for each tgitem
-    let parser_core = generate_taggeditem_parser_core(tg_items, is_taggedunion, is_last, &item_match_arms);
+    let parser_core =
+        generate_taggeditem_parser_core(tg_items, is_taggedunion, is_last, &item_match_arms);
 
     // wrap the match statement inside an if or a while loop
     if is_taggedunion {
@@ -312,12 +349,13 @@ fn generate_taggeditem_parser(tg_items: &[TaggedItem], is_taggedunion: bool, is_
     result
 }
 
-
 // generate_taggeditem_match_arms()
 // a match statement is used in order to parse the taggeditems of a TaggedStruct / TaggedUnion
 // This function generates all of the match arms of the match expression
 // In order to use the result of the match arms, we also need the definition of the generated variables.
-fn generate_taggeditem_match_arms(tg_items: &[TaggedItem]) -> (TokenStream, Vec<TokenStream>, TokenStream) {
+fn generate_taggeditem_match_arms(
+    tg_items: &[TaggedItem],
+) -> (TokenStream, Vec<TokenStream>, TokenStream) {
     let mut var_definitions = quote! {};
     // item_match_arms: the match arms of the while loop that passes each set of input tokens to the appropriate item parser
     let mut item_match_arms = Vec::new();
@@ -380,25 +418,27 @@ fn generate_taggeditem_match_arms(tg_items: &[TaggedItem]) -> (TokenStream, Vec<
         }
 
         let is_block_item = item.is_block;
-        item_match_arms.push(
-            quote! {
-                #tag_string => {
-                    #version_check
-                    let newitem = #typename::parse(parser, &newcontext, line_offset)?;
-                    #store_item
-                    expect_block = #is_block_item;
-                }
+        item_match_arms.push(quote! {
+            #tag_string => {
+                #version_check
+                let newitem = #typename::parse(parser, &newcontext, line_offset)?;
+                #store_item
+                expect_block = #is_block_item;
             }
-        );
+        });
     }
 
     (var_definitions, item_match_arms, multiplicity_check)
 }
 
-
 // generate_taggeditem_parser_core()
 // generate the match statement for parsing TaggedStructs and TaggedUnions
-fn generate_taggeditem_parser_core(tg_items: &[TaggedItem], is_taggedunion: bool, is_last: bool, item_match_arms: &[TokenStream]) -> TokenStream {
+fn generate_taggeditem_parser_core(
+    tg_items: &[TaggedItem],
+    is_taggedunion: bool,
+    is_last: bool,
+    item_match_arms: &[TokenStream],
+) -> TokenStream {
     // default action if a tag is not recognized: step back in the tokenstream and let it be handled somewhere else
     let mut default_match_arm = quote! {
         if is_block {
@@ -425,10 +465,7 @@ fn generate_taggeditem_parser_core(tg_items: &[TaggedItem], is_taggedunion: bool
         };
     }
 
-    let taglist: Vec<String> = tg_items
-        .iter()
-        .map(|item| item.tag.clone())
-        .collect();
+    let taglist: Vec<String> = tg_items.iter().map(|item| item.tag.clone()).collect();
     let taglist_len = taglist.len();
     // generate the full match statement
     quote! {
@@ -448,7 +485,6 @@ fn generate_taggeditem_parser_core(tg_items: &[TaggedItem], is_taggedunion: bool
         }
     }
 }
-
 
 // generate_tagged_item_names()
 // generate variable names for all of the items in a TggedStruct or TaggedUnion

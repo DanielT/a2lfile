@@ -16,7 +16,7 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
         BaseType::Struct { structitems } => {
             result.extend(generate_indirect_struct_writer(typename, structitems));
         }
-        BaseType::Block{ blockitems, .. } => {
+        BaseType::Block { blockitems, .. } => {
             result.extend(generate_indirect_block_writer(typename, blockitems));
         }
         _ => {
@@ -26,7 +26,6 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
 
     result
 }
-
 
 fn generate_indirect_enum_writer(typename: &str, enumitems: &[EnumItem]) -> TokenStream {
     let name = format_ident!("{}", typename);
@@ -50,7 +49,6 @@ fn generate_indirect_enum_writer(typename: &str, enumitems: &[EnumItem]) -> Toke
     }
 }
 
-
 fn generate_indirect_struct_writer(typename: &str, structitems: &[DataItem]) -> TokenStream {
     let name = format_ident!("{}", typename);
 
@@ -64,7 +62,6 @@ fn generate_indirect_struct_writer(typename: &str, structitems: &[DataItem]) -> 
         }
     }
 }
-
 
 fn generate_indirect_block_writer(typename: &str, blockitems: &[DataItem]) -> TokenStream {
     let name = format_ident!("{}", typename);
@@ -84,7 +81,6 @@ fn generate_indirect_block_writer(typename: &str, blockitems: &[DataItem]) -> To
     }
 }
 
-
 fn generate_indirect_store_item(structitems: &[DataItem]) -> Vec<TokenStream> {
     let mut stored_structitems = Vec::new();
     let mut storageidx: usize = 0;
@@ -95,7 +91,8 @@ fn generate_indirect_store_item(structitems: &[DataItem]) -> Vec<TokenStream> {
             BaseType::Sequence { seqtype } => {
                 let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
                 let locationinfo = quote! {(*#location.get(idx).unwrap_or_else(|| &0))};
-                let parsercall = generate_indirect_store_simple_item(quote! {item}, locationinfo, seqtype);
+                let parsercall =
+                    generate_indirect_store_simple_item(quote! {item}, locationinfo, seqtype);
                 storageidx += 1;
                 quote! {a2lfile::GenericIfData::Sequence({
                     let mut sequence_content = Vec::new();
@@ -116,34 +113,63 @@ fn generate_indirect_store_item(structitems: &[DataItem]) -> Vec<TokenStream> {
             _ => {
                 let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
                 storageidx += 1;
-                generate_indirect_store_simple_item(quote! {self.#itemname}, location, &item.basetype)
+                generate_indirect_store_simple_item(
+                    quote! {self.#itemname},
+                    location,
+                    &item.basetype,
+                )
             }
         });
     }
     stored_structitems
 }
 
-
-fn generate_indirect_store_simple_item(itemname: TokenStream, locationinfo: TokenStream, basetype: &BaseType) -> TokenStream {
+fn generate_indirect_store_simple_item(
+    itemname: TokenStream,
+    locationinfo: TokenStream,
+    basetype: &BaseType,
+) -> TokenStream {
     match basetype {
         BaseType::None => quote! {a2lfile::GenericIfData::None},
-        BaseType::Char => quote! {a2lfile::GenericIfData::Char(#locationinfo.0, (#itemname, #locationinfo.1))},
-        BaseType::Int =>  quote! {a2lfile::GenericIfData::Int(#locationinfo.0, (#itemname, #locationinfo.1))},
-        BaseType::Long => quote! {a2lfile::GenericIfData::Long(#locationinfo.0, (#itemname, #locationinfo.1))},
-        BaseType::Int64 => quote! {a2lfile::GenericIfData::Int64(#locationinfo.0, (#itemname, #locationinfo.1))},
-        BaseType::Uchar => quote! {a2lfile::GenericIfData::UChar(#locationinfo.0, (#itemname, #locationinfo.1))},
-        BaseType::Uint =>  quote! {a2lfile::GenericIfData::UInt(#locationinfo.0, (#itemname, #locationinfo.1))},
-        BaseType::Ulong => quote! {a2lfile::GenericIfData::ULong(#locationinfo.0, (#itemname, #locationinfo.1))},
-        BaseType::Uint64 => quote! {a2lfile::GenericIfData::UInt64(#locationinfo.0, (#itemname, #locationinfo.1))},
+        BaseType::Char => {
+            quote! {a2lfile::GenericIfData::Char(#locationinfo.0, (#itemname, #locationinfo.1))}
+        }
+        BaseType::Int => {
+            quote! {a2lfile::GenericIfData::Int(#locationinfo.0, (#itemname, #locationinfo.1))}
+        }
+        BaseType::Long => {
+            quote! {a2lfile::GenericIfData::Long(#locationinfo.0, (#itemname, #locationinfo.1))}
+        }
+        BaseType::Int64 => {
+            quote! {a2lfile::GenericIfData::Int64(#locationinfo.0, (#itemname, #locationinfo.1))}
+        }
+        BaseType::Uchar => {
+            quote! {a2lfile::GenericIfData::UChar(#locationinfo.0, (#itemname, #locationinfo.1))}
+        }
+        BaseType::Uint => {
+            quote! {a2lfile::GenericIfData::UInt(#locationinfo.0, (#itemname, #locationinfo.1))}
+        }
+        BaseType::Ulong => {
+            quote! {a2lfile::GenericIfData::ULong(#locationinfo.0, (#itemname, #locationinfo.1))}
+        }
+        BaseType::Uint64 => {
+            quote! {a2lfile::GenericIfData::UInt64(#locationinfo.0, (#itemname, #locationinfo.1))}
+        }
         BaseType::Double => quote! {a2lfile::GenericIfData::Double(#locationinfo, #itemname)},
-        BaseType::Float =>  quote! {a2lfile::GenericIfData::Float(#locationinfo, #itemname)},
-        BaseType::String => quote! {a2lfile::GenericIfData::String(#locationinfo, #itemname.to_owned())},
-        BaseType::Array {arraytype, .. } => {
+        BaseType::Float => quote! {a2lfile::GenericIfData::Float(#locationinfo, #itemname)},
+        BaseType::String => {
+            quote! {a2lfile::GenericIfData::String(#locationinfo, #itemname.to_owned())}
+        }
+        BaseType::Array { arraytype, .. } => {
             if arraytype.basetype == BaseType::Char {
                 quote! {a2lfile::GenericIfData::String(#locationinfo, #itemname.to_owned())}
             } else {
                 let arrayitem_locinfo = quote! {#locationinfo[idx]};
-                let parsercall = generate_indirect_store_simple_item(quote! {item}, arrayitem_locinfo, &arraytype.basetype);
+                let parsercall = generate_indirect_store_simple_item(
+                    quote! {item},
+                    arrayitem_locinfo,
+                    &arraytype.basetype,
+                );
                 quote! {a2lfile::GenericIfData::Array({
                     let mut arraycontent = Vec::new();
                     for (idx, item) in #itemname.iter().enumerate() {
@@ -159,16 +185,17 @@ fn generate_indirect_store_simple_item(itemname: TokenStream, locationinfo: Toke
         BaseType::StructRef => {
             quote! {#itemname.store()}
         }
-        BaseType::Sequence { .. } |
-        BaseType::TaggedUnion { .. } |
-        BaseType::TaggedStruct { .. } => {
-            panic!("should no be able to reach this function with type {:?}", basetype)
+        BaseType::Sequence { .. }
+        | BaseType::TaggedUnion { .. }
+        | BaseType::TaggedStruct { .. } => {
+            panic!(
+                "should no be able to reach this function with type {:?}",
+                basetype
+            )
         }
-        _ => quote! {}
+        _ => quote! {},
     }
-
 }
-
 
 fn generate_indirect_store_taggeditems(tgitems: &[TaggedItem]) -> TokenStream {
     let mut insert_items = Vec::new();

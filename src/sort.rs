@@ -1,6 +1,5 @@
-use std::cmp::Ordering;
 use crate::specification::*;
-
+use std::cmp::Ordering;
 
 pub(crate) fn sort_new_items(a2l_file: &mut A2lFile) {
     // if there is a newly inserted ASAP2_VERSION then reorder the top-level elements
@@ -58,8 +57,12 @@ pub(crate) fn sort_new_items(a2l_file: &mut A2lFile) {
         sort_objectlist_new(&mut module.typedef_structure);
         sort_objectlist_new(&mut module.unit);
 
-
-        if let Some(maxid) = module.if_data.iter().map(|item| item.get_layout().uid).max() {
+        if let Some(maxid) = module
+            .if_data
+            .iter()
+            .map(|item| item.get_layout().uid)
+            .max()
+        {
             if maxid > 0 {
                 module.if_data.iter_mut().for_each(|item| {
                     if item.get_layout_mut().uid != 0 {
@@ -71,7 +74,12 @@ pub(crate) fn sort_new_items(a2l_file: &mut A2lFile) {
             }
         }
 
-        if let Some(maxid) = module.user_rights.iter().map(|item| item.get_layout().uid).max() {
+        if let Some(maxid) = module
+            .user_rights
+            .iter()
+            .map(|item| item.get_layout().uid)
+            .max()
+        {
             if maxid > 0 {
                 module.user_rights.iter_mut().for_each(|item| {
                     if item.get_layout_mut().uid != 0 {
@@ -87,9 +95,10 @@ pub(crate) fn sort_new_items(a2l_file: &mut A2lFile) {
     }
 }
 
-
 fn sort_optional_item<T, U>(a2lobject_option: &mut Option<T>, new_uid: u32) -> u32
-where T: A2lObject<U> {
+where
+    T: A2lObject<U>,
+{
     let mut next_uid = new_uid;
     if let Some(a2lobject) = a2lobject_option {
         let layout = a2lobject.get_layout_mut();
@@ -103,9 +112,10 @@ where T: A2lObject<U> {
     next_uid
 }
 
-
 fn sort_objectlist_new<T, U>(a2lobject_list: &mut Vec<T>)
-where T: A2lObject<U> + A2lObjectName {
+where
+    T: A2lObject<U> + A2lObjectName,
+{
     a2lobject_list.sort_by(cmp_named_a2lobject);
     let mut last_uid = 0;
     for a2lobject in a2lobject_list {
@@ -120,7 +130,6 @@ where T: A2lObject<U> + A2lObjectName {
         }
     }
 }
-
 
 pub(crate) fn sort(a2l_file: &mut A2lFile) {
     // top level elements
@@ -205,7 +214,9 @@ pub(crate) fn sort(a2l_file: &mut A2lFile) {
         uid = sort_objectlist_full(&mut module.transformer, uid);
         uid = sort_objectlist_full(&mut module.unit, uid);
 
-        module.user_rights.sort_by(|a, b| a.user_level_id.cmp(&b.user_level_id));
+        module
+            .user_rights
+            .sort_by(|a, b| a.user_level_id.cmp(&b.user_level_id));
         for user_rights in &mut module.user_rights {
             user_rights.__block_info.uid = uid;
             uid += 1;
@@ -219,10 +230,10 @@ pub(crate) fn sort(a2l_file: &mut A2lFile) {
     }
 }
 
-
-
 fn sort_objectlist_full<T, U>(a2lobject_list: &mut Vec<T>, start_uid: u32) -> u32
-where T: A2lObject<U> + A2lObjectName {
+where
+    T: A2lObject<U> + A2lObjectName,
+{
     let mut current_uid = start_uid;
     a2lobject_list.sort_by(|a, b| a.get_name().cmp(b.get_name()));
     for a2lobject in a2lobject_list {
@@ -234,9 +245,10 @@ where T: A2lObject<U> + A2lObjectName {
     current_uid
 }
 
-
 fn cmp_named_a2lobject<T, U>(a: &T, b: &T) -> Ordering
-where T: A2lObject<U> + A2lObjectName {
+where
+    T: A2lObject<U> + A2lObjectName,
+{
     let la = a.get_layout();
     let lb = b.get_layout();
 

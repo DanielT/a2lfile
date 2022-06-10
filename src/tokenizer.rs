@@ -18,16 +18,15 @@ pub struct A2lToken {
     pub startpos: usize,
     pub endpos: usize,
     pub fileid: usize,
-    pub line: u32
+    pub line: u32,
 }
 
 #[derive(Debug)]
 pub(crate) struct TokenResult {
     pub(crate) tokens: Vec<A2lToken>,
     pub(crate) filedata: Vec<String>,
-    pub(crate) filenames: Vec<String>
+    pub(crate) filenames: Vec<String>,
 }
-
 
 // tokenize()
 // Convert the text of an a2l file to tokens.
@@ -35,7 +34,11 @@ pub(crate) struct TokenResult {
 // possible to do this because characters outside of basic ASCII can actually only occur in
 // strings and comments. UTF-8 in strings is directly copied to the output, while comments are discarded.
 // An important extra goal of the tokenizer is to attach the source line number to each token so that error messages can give accurate location info
-pub(crate) fn tokenize(filename: String, fileid: usize, filetext: &str) -> Result<TokenResult, String> {
+pub(crate) fn tokenize(
+    filename: String,
+    fileid: usize,
+    filetext: &str,
+) -> Result<TokenResult, String> {
     let mut filenames: Vec<String> = vec![filename];
     let mut filedatas: Vec<String> = vec![filetext.to_owned()];
     let filebytes = filetext.as_bytes();
@@ -56,7 +59,7 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filetext: &str) -> Resul
             while bytepos < datalen && filebytes[bytepos].is_ascii_whitespace() {
                 bytepos += 1;
             }
-            line += count_newlines(&filebytes[startpos .. bytepos]);
+            line += count_newlines(&filebytes[startpos..bytepos]);
             continue;
         } else if filebytes[bytepos] == b'/' && bytepos + 1 < datalen {
             bytepos += 1;
@@ -64,38 +67,70 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filetext: &str) -> Resul
                 // block comment
                 separated = true;
                 bytepos = skip_block_comment(filebytes, bytepos + 1, line)?;
-                line += count_newlines(&filebytes[startpos .. bytepos]);
+                line += count_newlines(&filebytes[startpos..bytepos]);
             } else if filebytes[bytepos] == b'/' {
                 // line comment
                 separated = true;
                 while bytepos < datalen && filebytes[bytepos] != b'\n' {
                     bytepos += 1;
                 }
-            } else if filebytes[bytepos .. ].starts_with(b"begin") {
+            } else if filebytes[bytepos..].starts_with(b"begin") {
                 separator_check(separated, line)?;
                 bytepos += 5;
-                tokens.push(A2lToken{ttype: A2lTokenType::Begin, startpos, endpos: bytepos, fileid, line});
+                tokens.push(A2lToken {
+                    ttype: A2lTokenType::Begin,
+                    startpos,
+                    endpos: bytepos,
+                    fileid,
+                    line,
+                });
                 separated = false;
-            } else if filebytes[bytepos .. ].starts_with(b"end") {
+            } else if filebytes[bytepos..].starts_with(b"end") {
                 separator_check(separated, line)?;
                 bytepos += 3;
-                tokens.push(A2lToken{ttype: A2lTokenType::End, startpos, endpos: bytepos, fileid, line});
+                tokens.push(A2lToken {
+                    ttype: A2lTokenType::End,
+                    startpos,
+                    endpos: bytepos,
+                    fileid,
+                    line,
+                });
                 separated = false;
-            } else if filebytes[bytepos .. ].starts_with(b"include") {
+            } else if filebytes[bytepos..].starts_with(b"include") {
                 separator_check(separated, line)?;
                 bytepos += 7;
-                tokens.push(A2lToken{ttype: A2lTokenType::Include, startpos, endpos: bytepos, fileid, line});
+                tokens.push(A2lToken {
+                    ttype: A2lTokenType::Include,
+                    startpos,
+                    endpos: bytepos,
+                    fileid,
+                    line,
+                });
                 separated = false;
             } else {
-                let endpos = if startpos + 10 < datalen {startpos + 10} else {datalen};
-                return Err(format!("Error: input text \"{}...\" on line {} was not recognized as an a2l token", String::from_utf8_lossy(&filebytes[startpos..endpos]), line));
+                let endpos = if startpos + 10 < datalen {
+                    startpos + 10
+                } else {
+                    datalen
+                };
+                return Err(format!(
+                    "Error: input text \"{}...\" on line {} was not recognized as an a2l token",
+                    String::from_utf8_lossy(&filebytes[startpos..endpos]),
+                    line
+                ));
             }
         } else if filebytes[bytepos] == b'"' {
             // a string
             separator_check(separated, line)?;
             bytepos = find_string_end(filebytes, bytepos + 1, line)?;
-            line += count_newlines(&filebytes[startpos .. bytepos]);
-            tokens.push(A2lToken{ttype: A2lTokenType::String, startpos, endpos: bytepos, fileid, line});
+            line += count_newlines(&filebytes[startpos..bytepos]);
+            tokens.push(A2lToken {
+                ttype: A2lTokenType::String,
+                startpos,
+                endpos: bytepos,
+                fileid,
+                line,
+            });
             separated = false;
         } else if !(filebytes[bytepos]).is_ascii_digit() && is_identchar(filebytes[bytepos]) {
             // an identifier
@@ -103,7 +138,13 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filetext: &str) -> Resul
             while bytepos < datalen && is_identchar(filebytes[bytepos]) {
                 bytepos += 1;
             }
-            tokens.push(A2lToken{ttype: A2lTokenType::Identifier, startpos, endpos: bytepos, fileid, line});
+            tokens.push(A2lToken {
+                ttype: A2lTokenType::Identifier,
+                startpos,
+                endpos: bytepos,
+                fileid,
+                line,
+            });
             separated = false;
 
             let (new_bytepos, new_line) = handle_a2ml(filetext, bytepos, line, fileid, &mut tokens);
@@ -121,31 +162,53 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filetext: &str) -> Resul
             }
             let number = &filebytes[startpos..bytepos];
             if number == b"-" {
-                return Err(format!("Error: Invalid numerical constant consisting of only \"-\" found on line {}", line));
+                return Err(format!(
+                    "Error: Invalid numerical constant consisting of only \"-\" found on line {}",
+                    line
+                ));
             } else if number == b"0x" {
-                return Err(format!("Error: Invalid numerical constant consisting of only \"0x\" found on line {}", line));
+                return Err(format!(
+                    "Error: Invalid numerical constant consisting of only \"0x\" found on line {}",
+                    line
+                ));
             }
-            tokens.push(A2lToken{ttype: A2lTokenType::Number, startpos, endpos: bytepos, fileid, line});
+            tokens.push(A2lToken {
+                ttype: A2lTokenType::Number,
+                startpos,
+                endpos: bytepos,
+                fileid,
+                line,
+            });
             separated = false;
         } else {
-            let endpos = if startpos + 10 < datalen {startpos + 10} else {datalen};
-            return Err(format!("failed to tokenize characters \"{}...\" on line {}", String::from_utf8_lossy(&filebytes[startpos..endpos]), line));
+            let endpos = if startpos + 10 < datalen {
+                startpos + 10
+            } else {
+                datalen
+            };
+            return Err(format!(
+                "failed to tokenize characters \"{}...\" on line {}",
+                String::from_utf8_lossy(&filebytes[startpos..endpos]),
+                line
+            ));
         }
 
         if tokens.len() >= 2 {
             // process /include statements
             // /include foo.a2l and /include "foo.a2l" are both valid
             // /include is not permitted inside <A2ML> blocks
-            if tokens[tokens.len() - 2].ttype == A2lTokenType::Include &&
-              (tokens[tokens.len() - 1].ttype == A2lTokenType::String || tokens[tokens.len() - 1].ttype == A2lTokenType::Identifier) {
+            if tokens[tokens.len() - 2].ttype == A2lTokenType::Include
+                && (tokens[tokens.len() - 1].ttype == A2lTokenType::String
+                    || tokens[tokens.len() - 1].ttype == A2lTokenType::Identifier)
+            {
                 let prevtok = &tokens[tokens.len() - 1];
                 let mut filename_start = prevtok.startpos;
                 let mut filename_end = prevtok.endpos;
-                if filebytes[filename_start] == b'"' && filebytes[filename_end-1] == b'"' {
+                if filebytes[filename_start] == b'"' && filebytes[filename_end - 1] == b'"' {
                     filename_start += 1;
                     filename_end -= 1;
                 }
-                let incname = &filetext[filename_start .. filename_end];
+                let incname = &filetext[filename_start..filename_end];
 
                 let incfilename = make_include_filename(incname, &filenames[0]);
 
@@ -165,17 +228,19 @@ pub(crate) fn tokenize(filename: String, fileid: usize, filetext: &str) -> Resul
                     // also save the names of the included file(s)
                     filenames.append(&mut tokresult.filenames);
                     filedatas.append(&mut tokresult.filedata);
-                }
-                else {
+                } else {
                     return Err(format!("Error: Failed to load included file {}", incname));
                 }
             }
         }
     }
 
-    Ok(TokenResult { tokens, filenames, filedata: filedatas })
+    Ok(TokenResult {
+        tokens,
+        filenames,
+        filedata: filedatas,
+    })
 }
-
 
 // skip_block_comment
 // finds the first byte position after the end of a block comment
@@ -197,10 +262,9 @@ fn skip_block_comment(filebytes: &[u8], mut bytepos: usize, line: u32) -> Result
     Ok(bytepos)
 }
 
-
 // find_string_end
 // finds the end of a string
-fn find_string_end(filebytes: &[u8],  mut bytepos: usize, line: u32) -> Result<usize, String> {
+fn find_string_end(filebytes: &[u8], mut bytepos: usize, line: u32) -> Result<usize, String> {
     let datalen = filebytes.len();
     let mut end_found = false;
     let mut prev_quote = false;
@@ -242,7 +306,10 @@ fn find_string_end(filebytes: &[u8],  mut bytepos: usize, line: u32) -> Result<u
             /* compensate for the fact that we weren't able to look one character past the end of the string */
             bytepos += 1;
         } else {
-            return Err(format!("Error: end of file found in unclosed string starting on line {}", line));
+            return Err(format!(
+                "Error: end of file found in unclosed string starting on line {}",
+                line
+            ));
         }
     }
     bytepos -= 1;
@@ -250,17 +317,22 @@ fn find_string_end(filebytes: &[u8],  mut bytepos: usize, line: u32) -> Result<u
     Ok(bytepos)
 }
 
-
 // handle_a2ml()
 // the data inside the A2ML block can't be tokenized according to the rules for A2L, because it is a completely different format
 // handle_a2ml finds the end of the A2ML block and stores its content as a string
-fn handle_a2ml(filedata: &str, mut bytepos: usize, mut line: u32, fileid: usize, tokens: &mut Vec<A2lToken>) -> (usize, u32) {
+fn handle_a2ml(
+    filedata: &str,
+    mut bytepos: usize,
+    mut line: u32,
+    fileid: usize,
+    tokens: &mut Vec<A2lToken>,
+) -> (usize, u32) {
     let tokcount = tokens.len();
-    if tokcount >= 2 && tokens[tokcount-2].ttype == A2lTokenType::Begin {
+    if tokcount >= 2 && tokens[tokcount - 2].ttype == A2lTokenType::Begin {
         let startpos = bytepos;
         let filebytes = filedata.as_bytes();
         let datalen = filedata.len();
-        let tag = &filedata[tokens[tokcount-1].startpos .. tokens[tokcount-1].endpos];
+        let tag = &filedata[tokens[tokcount - 1].startpos..tokens[tokcount - 1].endpos];
 
         if tag == "A2ML" {
             let mut done = false;
@@ -270,7 +342,7 @@ fn handle_a2ml(filedata: &str, mut bytepos: usize, mut line: u32, fileid: usize,
                 while bytepos < datalen && filebytes[bytepos] != b'/' {
                     bytepos += 1;
                 }
-                if filebytes[bytepos ..].starts_with(b"//") {
+                if filebytes[bytepos..].starts_with(b"//") {
                     // line comment
                     // skip the comment marker
                     bytepos += 2;
@@ -278,19 +350,21 @@ fn handle_a2ml(filedata: &str, mut bytepos: usize, mut line: u32, fileid: usize,
                     while bytepos < datalen && filebytes[bytepos] != b'\n' {
                         bytepos += 1;
                     }
-                } else if filebytes[bytepos ..].starts_with(b"/*") {
+                } else if filebytes[bytepos..].starts_with(b"/*") {
                     // block comment
                     // skip the comment marker
                     bytepos += 2;
                     // skip the remaining characters on the line up to the newline
-                    while bytepos < (datalen - 1) && !(filebytes[bytepos] == b'*' && filebytes[bytepos + 1] == b'/') {
+                    while bytepos < (datalen - 1)
+                        && !(filebytes[bytepos] == b'*' && filebytes[bytepos + 1] == b'/')
+                    {
                         bytepos += 1;
                     }
                     bytepos += 2;
                     if bytepos > datalen {
                         bytepos = datalen;
                     }
-                } else if filebytes[bytepos ..].starts_with(b"/end") {
+                } else if filebytes[bytepos..].starts_with(b"/end") {
                     done = true;
                 } else {
                     // solitary '/' hanging around? this will definitely be a parse error later on
@@ -304,43 +378,52 @@ fn handle_a2ml(filedata: &str, mut bytepos: usize, mut line: u32, fileid: usize,
 
             // trim off trailing whitespace up to and including the last newline - this newline and the
             // following indentation will be written together with /end A2ML
-            while filebytes[bytepos-1].is_ascii_whitespace() && filebytes[bytepos-1] != b'\r' && filebytes[bytepos-1] != b'\n' {
+            while filebytes[bytepos - 1].is_ascii_whitespace()
+                && filebytes[bytepos - 1] != b'\r'
+                && filebytes[bytepos - 1] != b'\n'
+            {
                 bytepos -= 1;
             }
-            if filebytes[bytepos-1] == b'\r' && filebytes[bytepos-1] == b'\n' {
+            if filebytes[bytepos - 1] == b'\r' && filebytes[bytepos - 1] == b'\n' {
                 bytepos -= 2;
-            } else if filebytes[bytepos-1] == b'\n' {
+            } else if filebytes[bytepos - 1] == b'\n' {
                 bytepos -= 1;
             }
         }
 
         if bytepos > startpos {
-            tokens.push(A2lToken{ttype: A2lTokenType::String, startpos, endpos: bytepos, fileid, line});
+            tokens.push(A2lToken {
+                ttype: A2lTokenType::String,
+                startpos,
+                endpos: bytepos,
+                fileid,
+                line,
+            });
 
-            line += count_newlines(&filebytes[startpos .. bytepos]);
+            line += count_newlines(&filebytes[startpos..bytepos]);
         }
     }
 
     (bytepos, line)
 }
 
-
 // separator_check
 // generate an error message if there is no whitespace (or a block comment) separating two tokens
 fn separator_check(separated: bool, line: u32) -> Result<(), String> {
     if !separated {
-        return Err(format!("Error: There is no whitespace separating the input tokens on line {} ", line))
+        return Err(format!(
+            "Error: There is no whitespace separating the input tokens on line {} ",
+            line
+        ));
     }
     Ok(())
 }
 
-
 // count_newlines()
 // count the number of newlines in a comment or string. This is needed to keep the line count accurate
 fn count_newlines(text: &[u8]) -> u32 {
-    text.iter().map(|c| if *c == b'\n' {1} else {0}).sum()
+    text.iter().map(|c| if *c == b'\n' { 1 } else { 0 }).sum()
 }
-
 
 // is_identchar()
 // is this char allowed in an identifier
@@ -348,14 +431,12 @@ fn is_identchar(c: u8) -> bool {
     c.is_ascii_alphanumeric() || c == b'.' || c == b'[' || c == b']' || c == b'_'
 }
 
-
 // is_numchar()
 // in addition to decimal format, numbers can also be written as hex, or as floats with exponents
 // this expands the set of allowable characters beyond is_ascii_hexdigit()
 fn is_numchar(c: u8) -> bool {
     c.is_ascii_hexdigit() || c == b'x' || c == b'X' || c == b'.' || c == b'+' || c == b'-'
 }
-
 
 fn make_include_filename(incname: &str, base_filename: &str) -> OsString {
     let base = std::path::Path::new(base_filename);
@@ -369,11 +450,7 @@ fn make_include_filename(incname: &str, base_filename: &str) -> OsString {
     OsString::from(incname)
 }
 
-
 /*************************************************************************************************/
-
-
-
 
 #[test]
 fn tokenize_a2l_comment() {
@@ -504,7 +581,8 @@ fn tokenize_string_with_backslash() {
 
 #[test]
 fn tokenize_skip_a2ml() {
-    let data = String::from(r##"
+    let data = String::from(
+        r##"
 ASAP2_VERSION 1 60
 /begin PROJECT Test "test test"
     /begin MODULE MODULE_NAME ""
@@ -517,7 +595,8 @@ ASAP2_VERSION 1 60
         /end A2ML
     /end MODULE
 /end PROJECT
-"##);
+"##,
+    );
     let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
     println!("token count: {}", tokresult.tokens.len());
     assert_eq!(tokresult.tokens.len(), 20);

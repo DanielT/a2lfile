@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-use crate::specification::*;
 use crate::namemap::*;
-
+use crate::specification::*;
+use std::collections::HashMap;
 
 pub(crate) fn merge_modules(orig_module: &mut Module, merge_module: &mut Module) {
     // merge A2ML - no dependencies
@@ -119,7 +118,6 @@ fn merge_memory_segment(orig_module: &mut Module, merge_module: &mut Module) {
         }
     }
 }
-
 
 fn rename_memory_segments(merge_module: &mut Module, rename_table: HashMap<String, String>) {
     if rename_table.is_empty() {
@@ -242,7 +240,6 @@ fn merge_compu_tab(orig_module: &mut Module, merge_module: &mut Module) {
         }
     }
 }
-
 
 fn rename_compu_tabs(merge_module: &mut Module, rename_table: HashMap<String, String>) {
     if rename_table.is_empty() {
@@ -398,7 +395,8 @@ fn merge_objects(orig_module: &mut Module, merge_module: &mut Module) {
     let (object_merge_action, object_rename_table) = calculate_item_actions(orig_map, merge_map);
     let orig_map = build_namemap_function(orig_module, &mut log_msgs);
     let merge_map = build_namemap_function(merge_module, &mut log_msgs);
-    let (function_merge_action, function_rename_table) = calculate_item_actions(orig_map, merge_map);
+    let (function_merge_action, function_rename_table) =
+        calculate_item_actions(orig_map, merge_map);
 
     rename_objects(merge_module, object_rename_table);
     rename_functions(merge_module, function_rename_table);
@@ -492,7 +490,10 @@ fn rename_objects(merge_module: &mut Module, rename_table: HashMap<String, Strin
         }
         // MODULE.CHARACTERISTIC.DEPENDENT_CHARACTERISTIC
         if let Some(dependent_characteristic) = &mut characteristic.dependent_characteristic {
-            rename_item_list(&mut dependent_characteristic.characteristic_list, &rename_table);
+            rename_item_list(
+                &mut dependent_characteristic.characteristic_list,
+                &rename_table,
+            );
         }
     }
     // MODULE.INSTANCE
@@ -575,7 +576,9 @@ fn rename_objects(merge_module: &mut Module, rename_table: HashMap<String, Strin
                 }
             }
             // MODULE.VARIANT_CODING.VAR_CRITERION.VAR_SELECTION
-            if let Some(var_selection_characteristic) = &mut var_criterion.var_selection_characteristic {
+            if let Some(var_selection_characteristic) =
+                &mut var_criterion.var_selection_characteristic
+            {
                 if let Some(newname) = rename_table.get(&var_selection_characteristic.name) {
                     var_selection_characteristic.name = newname.to_owned();
                 }
@@ -743,7 +746,9 @@ fn merge_typedef(orig_module: &mut Module, merge_module: &mut Module) {
     while let Some(mut typedef_characteristic) = merge_module.typedef_characteristic.pop() {
         if let Some(true) = merge_action.get(&typedef_characteristic.name) {
             typedef_characteristic.reset_location();
-            orig_module.typedef_characteristic.push(typedef_characteristic);
+            orig_module
+                .typedef_characteristic
+                .push(typedef_characteristic);
         }
     }
     while let Some(mut typedef_measurement) = merge_module.typedef_measurement.pop() {
@@ -834,9 +839,13 @@ fn merge_variant_coding(orig_module: &mut Module, merge_module: &mut Module) {
 
 // ------------------------------------------------
 
-
-fn calculate_item_actions<T>(orig_map: HashMap<String, T>, merge_map: HashMap<String, T>) -> (HashMap<String, bool>, HashMap<String, String>)
-where T: PartialEq {
+fn calculate_item_actions<T>(
+    orig_map: HashMap<String, T>,
+    merge_map: HashMap<String, T>,
+) -> (HashMap<String, bool>, HashMap<String, String>)
+where
+    T: PartialEq,
+{
     let mut rename_table = HashMap::<String, String>::new();
     let mut merge_action = HashMap::<String, bool>::new();
 
@@ -860,7 +869,6 @@ where T: PartialEq {
     (merge_action, rename_table)
 }
 
-
 fn rename_item_list(items: &mut Vec<String>, rename_table: &HashMap<String, String>) {
     for item in items {
         if let Some(newname) = rename_table.get(item) {
@@ -869,8 +877,11 @@ fn rename_item_list(items: &mut Vec<String>, rename_table: &HashMap<String, Stri
     }
 }
 
-
-fn make_unique_name<T>(current_name: &str, orig_map: &HashMap<String, T>, merge_map: &HashMap<String, T>) -> String {
+fn make_unique_name<T>(
+    current_name: &str,
+    orig_map: &HashMap<String, T>,
+    merge_map: &HashMap<String, T>,
+) -> String {
     let mut newname = format!("{}.MERGE", current_name);
     let mut idx = 1;
 

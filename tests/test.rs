@@ -17,7 +17,6 @@ ASAP2_VERSION 1 61
   /end MODULE
 /end PROJECT"###;
 
-
     #[test]
     fn round_trip() {
         let mut log_msgs = Vec::<String>::new();
