@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use std::convert::TryInto;
 use std::fmt::Write;
 
-use crate::GenericIfDataTaggedItem;
 use crate::specification::BlockInfo;
+use crate::GenericIfDataTaggedItem;
 
 #[derive(Debug)]
 pub(crate) struct Writer {
@@ -20,26 +20,23 @@ pub(crate) struct TaggedItemInfo<'a> {
     start_offset: u32,
     end_offset: u32,
     is_block: bool,
-    item_text: String
+    item_text: String,
 }
-
 
 impl Writer {
     pub(crate) fn new(indent: usize) -> Self {
         Self {
             indent,
             /* using an initial capacity of 1024 means that usually only MODULE will have to
-               reallocate while adding elements. This is a measurable speed improvement. */
+            reallocate while adding elements. This is a measurable speed improvement. */
             outstring: String::with_capacity(1024),
         }
     }
-
 
     pub(crate) fn add_str(&mut self, text: &str, offset: u32) {
         self.add_whitespace(offset);
         self.outstring.push_str(text);
     }
-
 
     pub(crate) fn add_quoted_string(&mut self, value: &str, offset: u32) {
         self.add_whitespace(offset);
@@ -48,7 +45,7 @@ impl Writer {
         // escaping lots of strings is an expensive operation, so check if anything needs to be done first
         if value.contains(|c| c == '\'' || c == '"' || c == '\\' || c == '\n' || c == '\t') {
             let input_chars: Vec<char> = value.chars().collect();
-    
+
             for c in input_chars {
                 if c == '\'' || c == '"' || c == '\\' || c == '\n' || c == '\t' {
                     self.outstring.push('\\');
@@ -61,9 +58,10 @@ impl Writer {
         self.outstring.push('"');
     }
 
-
     pub(crate) fn add_integer<T>(&mut self, value: T, is_hex: bool, offset: u32)
-    where T: std::fmt::Display + std::fmt::UpperHex {
+    where
+        T: std::fmt::Display + std::fmt::UpperHex,
+    {
         self.add_whitespace(offset);
         if !is_hex {
             write!(self.outstring, "{}", value).unwrap();
@@ -72,20 +70,23 @@ impl Writer {
         }
     }
 
-
     pub(crate) fn add_float<T>(&mut self, value: T, offset: u32)
-    where T: std::convert::Into<f64> {
+    where
+        T: std::convert::Into<f64>,
+    {
         let value_conv = value.try_into().unwrap();
         self.add_whitespace(offset);
         if value_conv == 0f64 {
             self.outstring.push('0');
-        } else if value_conv < -1e+10 || (-0.0001 < value_conv && value_conv < 0.0001) || 1e+10 < value_conv {
+        } else if value_conv < -1e+10
+            || (-0.0001 < value_conv && value_conv < 0.0001)
+            || 1e+10 < value_conv
+        {
             write!(self.outstring, "{:e}", value_conv).unwrap();
         } else {
             write!(self.outstring, "{}", value_conv).unwrap();
         }
     }
-
 
     pub(crate) fn add_group(&mut self, mut group: Vec<TaggedItemInfo>) {
         group.sort_by(Self::sort_function);
@@ -117,7 +118,6 @@ impl Writer {
         }
     }
 
-
     fn add_whitespace(&mut self, offset: u32) {
         match offset {
             0 => {
@@ -133,7 +133,6 @@ impl Writer {
             }
         }
     }
-
 
     fn sort_function(a: &TaggedItemInfo, b: &TaggedItemInfo) -> Ordering {
         if a.uid == 0 && b.uid != 0 {
@@ -153,16 +152,19 @@ impl Writer {
         }
     }
 
-
     pub(crate) fn finish(self) -> String {
         self.outstring
     }
 }
 
-
 impl<'a> TaggedItemInfo<'a> {
     // build a TaggedItemInfo from a normal block which has BlockInfo
-    pub(crate) fn build<T>(tag: &'a str, item_text: String, is_block: bool, block_info: &'a BlockInfo<T>) -> Self {
+    pub(crate) fn build<T>(
+        tag: &'a str,
+        item_text: String,
+        is_block: bool,
+        block_info: &'a BlockInfo<T>,
+    ) -> Self {
         Self {
             tag,
             incfile: &block_info.incfile,
@@ -171,7 +173,7 @@ impl<'a> TaggedItemInfo<'a> {
             start_offset: block_info.start_offset,
             end_offset: block_info.end_offset,
             is_block,
-            item_text
+            item_text,
         }
     }
 
@@ -185,7 +187,7 @@ impl<'a> TaggedItemInfo<'a> {
             start_offset: gti.start_offset,
             end_offset: gti.end_offset,
             is_block: gti.is_block,
-            item_text
+            item_text,
         }
     }
 }

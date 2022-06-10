@@ -27,7 +27,6 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
     result
 }
 
-
 // generate_enum_writer()
 // For enums it actually makes more sense to implement the trait std::fmt::Display, than to have a non-standard stringify() function
 fn generate_enum_writer(typename: &str, enumitems: &[EnumItem]) -> TokenStream {
@@ -52,16 +51,14 @@ fn generate_enum_writer(typename: &str, enumitems: &[EnumItem]) -> TokenStream {
     }
 }
 
-
 // generate_block_writer()
 // Choose between custom handling for A2ml and IfData and generic handling for every other block.
 fn generate_block_writer(typename: &str, blockitems: &[DataItem]) -> TokenStream {
     match typename {
         "A2ml" | "IfData" => quote! {},
-        _ => generate_block_writer_generic(typename, blockitems)
+        _ => generate_block_writer_generic(typename, blockitems),
     }
 }
-
 
 // generate_block_writer_generic()
 // Generate a stringify() function for a block
@@ -84,7 +81,6 @@ fn generate_block_writer_generic(typename: &str, structitems: &[DataItem]) -> To
     }
 }
 
-
 // generate_struct_writer()
 // Generate a write function for a struct which occurs inside of a block.
 // The struct is written using the parent block's Writer
@@ -102,7 +98,6 @@ fn generate_struct_writer(typename: &str, structitems: &[DataItem]) -> TokenStre
     }
 }
 
-
 // generate_block_item_writers()
 // Generate a write command for every item in the block.
 fn generate_block_item_writers(structitems: &[DataItem]) -> Vec<TokenStream> {
@@ -113,8 +108,12 @@ fn generate_block_item_writers(structitems: &[DataItem]) -> Vec<TokenStream> {
         let posliteral = Literal::usize_unsuffixed(posidx);
         let location = quote! {self.__block_info.item_location.#posliteral};
         match &item.basetype {
-            BaseType::TaggedUnion { tuitems: taggeditems } |
-            BaseType::TaggedStruct { tsitems: taggeditems } => {
+            BaseType::TaggedUnion {
+                tuitems: taggeditems,
+            }
+            | BaseType::TaggedStruct {
+                tsitems: taggeditems,
+            } => {
                 let mut tgwriters = Vec::new();
                 for tgitem in taggeditems {
                     let tag = &tgitem.tag;
@@ -149,8 +148,13 @@ fn generate_block_item_writers(structitems: &[DataItem]) -> Vec<TokenStream> {
                 });
             }
             _ => {
-                let itemident = format_ident!("{}", item.varname.as_ref().unwrap() );
-                let write_cmd = generate_block_item_write_cmd(&item.basetype, quote! {self.#itemident}, location, 0);
+                let itemident = format_ident!("{}", item.varname.as_ref().unwrap());
+                let write_cmd = generate_block_item_write_cmd(
+                    &item.basetype,
+                    quote! {self.#itemident},
+                    location,
+                    0,
+                );
                 write_items.push(write_cmd);
                 posidx += 1;
             }
@@ -163,31 +167,47 @@ fn generate_block_item_writers(structitems: &[DataItem]) -> Vec<TokenStream> {
 // generate_block_item_write_cmd()
 // Generate the command to write a single item of a block based on its data type
 // The generated code fragments assume that a Writer called writer is available in the enclosing code
-fn generate_block_item_write_cmd(basetype: &BaseType, itemname: TokenStream, location: TokenStream, calldepth: usize) -> TokenStream {
+fn generate_block_item_write_cmd(
+    basetype: &BaseType,
+    itemname: TokenStream,
+    location: TokenStream,
+    calldepth: usize,
+) -> TokenStream {
     match basetype {
-        BaseType::Uchar |
-        BaseType::Char |
-        BaseType::Uint |
-        BaseType::Int |
-        BaseType::Ulong |
-        BaseType::Long |
-        BaseType::Uint64 |
-        BaseType::Int64 => { quote! { writer.add_integer(#itemname, #location.1, #location.0); } }
-        BaseType::Double |
-        BaseType::Float => { quote! { writer.add_float(#itemname, #location); } }
-        BaseType::Ident => { quote! {
-            writer.add_str(&#itemname, #location);
-        } }
-        BaseType::String => { quote! {
-            writer.add_quoted_string(&#itemname, #location);
-        } }
-        BaseType::EnumRef => { quote! {
-            writer.add_str(&#itemname.to_string(), #location);
-        } }
-        BaseType::StructRef => { quote! {
-            #itemname.stringify(&mut writer);
-        } }
-        BaseType::Array {arraytype, dim} => {
+        BaseType::Uchar
+        | BaseType::Char
+        | BaseType::Uint
+        | BaseType::Int
+        | BaseType::Ulong
+        | BaseType::Long
+        | BaseType::Uint64
+        | BaseType::Int64 => {
+            quote! { writer.add_integer(#itemname, #location.1, #location.0); }
+        }
+        BaseType::Double | BaseType::Float => {
+            quote! { writer.add_float(#itemname, #location); }
+        }
+        BaseType::Ident => {
+            quote! {
+                writer.add_str(&#itemname, #location);
+            }
+        }
+        BaseType::String => {
+            quote! {
+                writer.add_quoted_string(&#itemname, #location);
+            }
+        }
+        BaseType::EnumRef => {
+            quote! {
+                writer.add_str(&#itemname.to_string(), #location);
+            }
+        }
+        BaseType::StructRef => {
+            quote! {
+                #itemname.stringify(&mut writer);
+            }
+        }
+        BaseType::Array { arraytype, dim } => {
             if let BaseType::Char = arraytype.basetype {
                 generate_block_item_write_cmd(&BaseType::String, itemname, location, calldepth)
             } else {
@@ -199,7 +219,7 @@ fn generate_block_item_write_cmd(basetype: &BaseType, itemname: TokenStream, loc
                     &arraytype.basetype,
                     arrayelemname,
                     locationname,
-                    calldepth + 1
+                    calldepth + 1,
                 );
                 quote! {
                     for #idxident in 0..#dim {
@@ -213,21 +233,32 @@ fn generate_block_item_write_cmd(basetype: &BaseType, itemname: TokenStream, loc
             let seqitemident = format_ident!("seqitem{}", calldepth);
             let seqidxident = format_ident!("seqidx{}", calldepth);
             let default_location = generate_default_location(seqtype);
-            let seqlocation = quote! {(*#location.get(#seqidxident).unwrap_or_else(|| &#default_location))};
+            let seqlocation =
+                quote! {(*#location.get(#seqidxident).unwrap_or_else(|| &#default_location))};
 
             // in the write_cmd all the integer basetypes need an additional dereference, because .iter().enumerate() gives us references
             let write_cmd = match **seqtype {
-                BaseType::Double |
-                BaseType::Float |
-                BaseType::Char |
-                BaseType::Uchar |
-                BaseType::Int |
-                BaseType::Uint |
-                BaseType::Long |
-                BaseType::Ulong |
-                BaseType::Int64 |
-                BaseType::Uint64 => generate_block_item_write_cmd(seqtype, quote! {*#seqitemident}, seqlocation, calldepth + 1),
-                _                => generate_block_item_write_cmd(seqtype, quote! {#seqitemident}, seqlocation, calldepth + 1),
+                BaseType::Double
+                | BaseType::Float
+                | BaseType::Char
+                | BaseType::Uchar
+                | BaseType::Int
+                | BaseType::Uint
+                | BaseType::Long
+                | BaseType::Ulong
+                | BaseType::Int64
+                | BaseType::Uint64 => generate_block_item_write_cmd(
+                    seqtype,
+                    quote! {*#seqitemident},
+                    seqlocation,
+                    calldepth + 1,
+                ),
+                _ => generate_block_item_write_cmd(
+                    seqtype,
+                    quote! {#seqitemident},
+                    seqlocation,
+                    calldepth + 1,
+                ),
             };
             quote! {
                 for (#seqidxident, #seqitemident) in #itemname.iter().enumerate() {
@@ -236,23 +267,24 @@ fn generate_block_item_write_cmd(basetype: &BaseType, itemname: TokenStream, loc
             }
         }
         _ => {
-            panic!("generate_block_item_to_string_cmd can't be called for type {:#?}", basetype);
+            panic!(
+                "generate_block_item_to_string_cmd can't be called for type {:#?}",
+                basetype
+            );
         }
     }
 }
 
-
 fn generate_default_location(basetype: &BaseType) -> TokenStream {
     match basetype {
-        BaseType::Char |
-        BaseType::Uchar |
-        BaseType::Int |
-        BaseType::Uint |
-        BaseType::Long |
-        BaseType::Ulong |
-        BaseType::Int64 |
-        BaseType::Uint64 => quote! {(0, false)},
-        _ => quote! {0}
+        BaseType::Char
+        | BaseType::Uchar
+        | BaseType::Int
+        | BaseType::Uint
+        | BaseType::Long
+        | BaseType::Ulong
+        | BaseType::Int64
+        | BaseType::Uint64 => quote! {(0, false)},
+        _ => quote! {0},
     }
 }
-

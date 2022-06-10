@@ -8,13 +8,11 @@ pub(crate) mod a2mlspec;
 pub(crate) mod codegenerator;
 pub(crate) mod util;
 
-
 #[proc_macro]
 pub fn a2l_specification(tokens: TokenStream) -> TokenStream {
     let tokens2: proc_macro2::TokenStream = tokens.into();
     a2lspec::a2l_specification(tokens2).into()
 }
-
 
 /**
 The a2ml_specification! macro enables application to conveniently decode and use IF_DATA defined though A2ML.

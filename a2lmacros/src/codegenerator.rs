@@ -10,24 +10,21 @@ pub(crate) mod writer;
 
 use super::util::*;
 
-
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct EnumItem {
     pub(crate) name: String,
     pub(crate) value: Option<i32>,
     pub(crate) comment: Option<String>,
-    pub(crate) version_range: Option<(f32, f32)>
+    pub(crate) version_range: Option<(f32, f32)>,
 }
-
 
 #[derive(Debug)]
 pub(crate) struct DataItem {
     pub(crate) typename: Option<String>,
     pub(crate) basetype: BaseType,
     pub(crate) varname: Option<String>,
-    pub(crate) comment: Option<String>
+    pub(crate) comment: Option<String>,
 }
-
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct TaggedItem {
@@ -36,9 +33,8 @@ pub(crate) struct TaggedItem {
     pub(crate) is_block: bool,
     pub(crate) repeat: bool,
     pub(crate) required: bool,
-    pub(crate) version_range: Option<(f32, f32)>
+    pub(crate) version_range: Option<(f32, f32)>,
 }
-
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum BaseType {
@@ -57,33 +53,32 @@ pub(crate) enum BaseType {
     String, // text inside double qoutes
     Array {
         arraytype: Box<DataItem>,
-        dim: usize
+        dim: usize,
     },
     Sequence {
-        seqtype: Box<BaseType>
+        seqtype: Box<BaseType>,
     },
     Enum {
-        enumitems: Vec<EnumItem>
+        enumitems: Vec<EnumItem>,
     },
     EnumRef,
     Struct {
-        structitems: Vec<DataItem>
+        structitems: Vec<DataItem>,
     },
     StructRef,
     TaggedUnion {
-        tuitems: Vec<TaggedItem>
+        tuitems: Vec<TaggedItem>,
     },
     TaggedUnionRef,
     TaggedStruct {
-        tsitems: Vec<TaggedItem>
+        tsitems: Vec<TaggedItem>,
     },
     TaggedStructRef,
     Block {
         blockitems: Vec<DataItem>,
-        is_block: bool
-    }
+        is_block: bool,
+    },
 }
-
 
 //-----------------------------------------------------------------------------
 
@@ -117,8 +112,7 @@ fn generate_bare_typename(typename: &Option<String>, item: &BaseType) -> TokenSt
             let name = generate_bare_typename(typename, seqtype);
             quote! {Vec<#name>}
         }
-        BaseType::EnumRef |
-        BaseType::StructRef => {
+        BaseType::EnumRef | BaseType::StructRef => {
             let typename = typename.as_ref().unwrap();
             let name = format_ident!("{}", typename);
             quote! {#name}
@@ -131,10 +125,11 @@ fn generate_bare_typename(typename: &Option<String>, item: &BaseType) -> TokenSt
     }
 }
 
-
 // manual implementation of PartialEq to ignore comments when comparing for equality
 impl PartialEq for DataItem {
     fn eq(&self, other: &Self) -> bool {
-        self.typename == other.typename && self.basetype == other.basetype && self.varname == other.varname
+        self.typename == other.typename
+            && self.basetype == other.basetype
+            && self.varname == other.varname
     }
 }

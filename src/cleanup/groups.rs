@@ -1,5 +1,5 @@
-use std::collections::HashSet;
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 use crate::specification::*;
 
@@ -11,7 +11,6 @@ pub(crate) fn cleanup(module: &mut Module) {
     delete_empty_groups(module);
 }
 
-
 fn remove_invalid_object_references(module: &mut Module) {
     // a set of the names that a group could potentially refer to
     let refnames = build_refname_set(module);
@@ -19,21 +18,24 @@ fn remove_invalid_object_references(module: &mut Module) {
     for grp in &mut module.group {
         if let Some(ref_characteristic) = &mut grp.ref_characteristic {
             // retain only references to existing characteristics
-            ref_characteristic.identifier_list.retain(|item| refnames.get(item).is_some());
+            ref_characteristic
+                .identifier_list
+                .retain(|item| refnames.get(item).is_some());
             if ref_characteristic.identifier_list.is_empty() {
                 grp.ref_characteristic = None;
             }
         }
         if let Some(ref_measurement) = &mut grp.ref_measurement {
             // retain only references to existing measurements
-            ref_measurement.identifier_list.retain(|item| refnames.get(item).is_some());
+            ref_measurement
+                .identifier_list
+                .retain(|item| refnames.get(item).is_some());
             if ref_measurement.identifier_list.is_empty() {
                 grp.ref_measurement = None;
             }
         }
     }
 }
-
 
 fn build_refname_set(module: &Module) -> HashSet<String> {
     let mut refnames = HashSet::new();
@@ -52,7 +54,6 @@ fn build_refname_set(module: &Module) -> HashSet<String> {
 
     refnames
 }
-
 
 fn delete_empty_groups(module: &mut Module) {
     let mut name2idx = HashMap::<String, usize>::new();
@@ -93,7 +94,9 @@ fn delete_empty_groups(module: &mut Module) {
             }
             // if the group referencing the current group became empty after the
             // removal of the reference, then it is also queued for deletion
-            if used_groups.get(&module.group[*refidx].name).is_none() && is_group_empty(&module.group[*refidx]) {
+            if used_groups.get(&module.group[*refidx].name).is_none()
+                && is_group_empty(&module.group[*refidx])
+            {
                 delete_queue.push(*refidx);
             }
         }
@@ -101,7 +104,6 @@ fn delete_empty_groups(module: &mut Module) {
     let mut del_iter = to_delete.iter();
     module.group.retain(|_| !del_iter.next().unwrap());
 }
-
 
 fn get_used_groups(module: &Module) -> HashSet<String> {
     let mut used_groups = HashSet::<String>::new();
@@ -115,7 +117,6 @@ fn get_used_groups(module: &Module) -> HashSet<String> {
 
     used_groups
 }
-
 
 fn is_group_empty(group: &Group) -> bool {
     let sub_group_empty = if let Some(sg) = &group.sub_group {

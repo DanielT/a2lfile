@@ -13,4 +13,3 @@ pub(crate) fn cleanup(a2l_file: &mut A2lFile) {
         record_layouts::cleanup(module);
     }
 }
-

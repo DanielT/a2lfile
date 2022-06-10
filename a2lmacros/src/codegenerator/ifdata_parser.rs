@@ -29,7 +29,6 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
     result
 }
 
-
 fn generate_indirect_enum_parser(typename: &str, enumitems: &[EnumItem]) -> TokenStream {
     let name = format_ident!("{}", typename);
 
@@ -59,7 +58,6 @@ fn generate_indirect_enum_parser(typename: &str, enumitems: &[EnumItem]) -> Toke
     }
 }
 
-
 fn generate_indirect_struct_parser(typename: &str, structitems: &[DataItem]) -> TokenStream {
     let name = format_ident!("{}", typename);
     let structfields = generate_struct_field_intializers(structitems);
@@ -80,7 +78,6 @@ fn generate_indirect_struct_parser(typename: &str, structitems: &[DataItem]) -> 
     }
 }
 
-
 fn generate_indirect_block_parser(typename: &str, blockitems: &[DataItem]) -> TokenStream {
     let name = format_ident!("{}", typename);
     let structfields = generate_struct_field_intializers(blockitems);
@@ -98,16 +95,17 @@ fn generate_indirect_block_parser(typename: &str, blockitems: &[DataItem]) -> To
     }
 }
 
-
 fn generate_struct_field_intializers(items: &[DataItem]) -> Vec<TokenStream> {
     let mut parsers = Vec::new();
     let mut location_info = Vec::new();
     for (idx, item) in items.iter().enumerate() {
-        let item_getter = quote! {input_items.get(#idx).unwrap_or_else(|| &a2lfile::GenericIfData::None)};
+        let item_getter =
+            quote! {input_items.get(#idx).unwrap_or_else(|| &a2lfile::GenericIfData::None)};
         match &item.basetype {
             BaseType::Sequence { seqtype } => {
                 let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
-                let itemparser = generate_item_parser_call(quote! {seqitem}, &item.typename, seqtype);
+                let itemparser =
+                    generate_item_parser_call(quote! {seqitem}, &item.typename, seqtype);
                 let itemlocation = generate_item_location(quote! {seqitem}, seqtype);
                 parsers.push(quote! {
                     #itemname: {
@@ -130,8 +128,12 @@ fn generate_struct_field_intializers(items: &[DataItem]) -> Vec<TokenStream> {
                     }
                 });
             }
-            BaseType::TaggedUnion { tuitems: taggeditems } |
-            BaseType::TaggedStruct { tsitems: taggeditems } => {
+            BaseType::TaggedUnion {
+                tuitems: taggeditems,
+            }
+            | BaseType::TaggedStruct {
+                tsitems: taggeditems,
+            } => {
                 for tgitem in taggeditems {
                     let tag = &tgitem.tag;
                     let tgitemname = format_ident!("{}", make_varname(tag));
@@ -145,7 +147,11 @@ fn generate_struct_field_intializers(items: &[DataItem]) -> Vec<TokenStream> {
             }
             _ => {
                 let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
-                let itemparser = generate_item_parser_call(quote! {#item_getter}, &item.typename, &item.basetype);
+                let itemparser = generate_item_parser_call(
+                    quote! {#item_getter},
+                    &item.typename,
+                    &item.basetype,
+                );
                 let itemlocation = generate_item_location(quote! {#item_getter}, &item.basetype);
                 parsers.push(quote! {#itemname: #itemparser});
                 location_info.push(itemlocation);
@@ -169,8 +175,11 @@ fn generate_struct_field_intializers(items: &[DataItem]) -> Vec<TokenStream> {
     parsers
 }
 
-
-fn generate_item_parser_call(item_ident: TokenStream, typename: &Option<String>, basetype: &BaseType) -> TokenStream {
+fn generate_item_parser_call(
+    item_ident: TokenStream,
+    typename: &Option<String>,
+    basetype: &BaseType,
+) -> TokenStream {
     match basetype {
         BaseType::Char => quote! {#item_ident.get_integer_i8()?},
         BaseType::Int => quote! {#item_ident.get_integer_i16()?},
@@ -190,7 +199,11 @@ fn generate_item_parser_call(item_ident: TokenStream, typename: &Option<String>,
             } else {
                 let mut arrayelements = Vec::new();
                 for arrayidx in 0..*dim {
-                    arrayelements.push(generate_item_parser_call(quote! {arrayitems[#arrayidx]}, &arraytype.typename, &arraytype.basetype));
+                    arrayelements.push(generate_item_parser_call(
+                        quote! {arrayitems[#arrayidx]},
+                        &arraytype.typename,
+                        &arraytype.basetype,
+                    ));
                 }
                 quote! { {
                     let arrayitems = #item_ident.get_array()?;
@@ -199,33 +212,37 @@ fn generate_item_parser_call(item_ident: TokenStream, typename: &Option<String>,
                 //quote! {foo}
             }
         }
-        BaseType::EnumRef |
-        BaseType::StructRef => {
+        BaseType::EnumRef | BaseType::StructRef => {
             let typename = format_ident!("{}", typename.as_ref().unwrap());
             quote! {#typename::parse(&#item_ident)?}
         }
-        _ => panic!("impossible type {:?} in generate_item_parser_call", basetype)
+        _ => panic!(
+            "impossible type {:?} in generate_item_parser_call",
+            basetype
+        ),
     }
 }
 
-
 fn generate_item_location(item_ident: TokenStream, basetype: &BaseType) -> TokenStream {
     match basetype {
-        BaseType::Char |
-        BaseType::Int |
-        BaseType::Long |
-        BaseType::Int64 |
-        BaseType::Uchar |
-        BaseType::Uint |
-        BaseType::Ulong |
-        BaseType::Uint64 => quote! {(#item_ident.get_line()?, #item_ident.get_int_is_hex()?)},
-        BaseType::Array {arraytype, dim} => {
+        BaseType::Char
+        | BaseType::Int
+        | BaseType::Long
+        | BaseType::Int64
+        | BaseType::Uchar
+        | BaseType::Uint
+        | BaseType::Ulong
+        | BaseType::Uint64 => quote! {(#item_ident.get_line()?, #item_ident.get_int_is_hex()?)},
+        BaseType::Array { arraytype, dim } => {
             if arraytype.basetype == BaseType::Char {
                 quote! { #item_ident.get_line()? }
             } else {
                 let mut arraylocations = Vec::new();
                 for arrayidx in 0..*dim {
-                    arraylocations.push(generate_item_location(quote! {arrayitems[#arrayidx]}, &arraytype.basetype));
+                    arraylocations.push(generate_item_location(
+                        quote! {arrayitems[#arrayidx]},
+                        &arraytype.basetype,
+                    ));
                 }
                 quote! { {
                     let arrayitems = #item_ident.get_array()?;
@@ -233,6 +250,6 @@ fn generate_item_location(item_ident: TokenStream, basetype: &BaseType) -> Token
                 }}
             }
         }
-        _ => quote! { #item_ident.get_line()? }
+        _ => quote! { #item_ident.get_line()? },
     }
 }
