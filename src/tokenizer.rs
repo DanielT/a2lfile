@@ -452,137 +452,141 @@ fn make_include_filename(incname: &str, base_filename: &str) -> OsString {
 
 /*************************************************************************************************/
 
-#[test]
-fn tokenize_a2l_comment() {
-    let data = String::from("/**/");
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 0);
-    //assert_eq!(tok[0].ttype, A2lTokenType::BlockComment);
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let data = String::from("/*/*/");
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 0);
-    //assert_eq!(tok[0].ttype, A2lTokenType::BlockComment);
+    #[test]
+    fn tokenize_a2l_comment() {
+        let data = String::from("/**/");
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 0);
+        //assert_eq!(tok[0].ttype, A2lTokenType::BlockComment);
 
-    let data = String::from("/***********/");
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 0);
-    //assert_eq!(tok[0].ttype, A2lTokenType::BlockComment);
+        let data = String::from("/*/*/");
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 0);
+        //assert_eq!(tok[0].ttype, A2lTokenType::BlockComment);
 
-    let data = String::from("/***********/ abcdef");
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 1);
-    //assert_eq!(tok[0].ttype, A2lTokenType::BlockComment);
+        let data = String::from("/***********/");
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 0);
+        //assert_eq!(tok[0].ttype, A2lTokenType::BlockComment);
 
-    let data = String::from("//");
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 0);
-    //assert_eq!(tok[0].ttype, A2lTokenType::LineComment);
+        let data = String::from("/***********/ abcdef");
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 1);
+        //assert_eq!(tok[0].ttype, A2lTokenType::BlockComment);
 
-    let data = String::from("// abcdef");
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 0);
-    //assert_eq!(tok[0].ttype, A2lTokenType::LineComment);
+        let data = String::from("//");
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 0);
+        //assert_eq!(tok[0].ttype, A2lTokenType::LineComment);
 
-    let data = String::from("// abcdef\nabcde");
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 1);
-    //assert_eq!(tok[0].ttype, A2lTokenType::LineComment);
-    //assert_eq!(tok[1].data.line, 2);
-}
+        let data = String::from("// abcdef");
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 0);
+        //assert_eq!(tok[0].ttype, A2lTokenType::LineComment);
 
-#[test]
-fn tokenize_a2l_command() {
-    let data = String::from("/begin");
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 1);
-    assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Begin);
+        let data = String::from("// abcdef\nabcde");
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 1);
+        //assert_eq!(tok[0].ttype, A2lTokenType::LineComment);
+        //assert_eq!(tok[1].data.line, 2);
+    }
 
-    let data = String::from("/end");
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 1);
-    assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::End);
+    #[test]
+    fn tokenize_a2l_command() {
+        let data = String::from("/begin");
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Begin);
 
-    let data = String::from("/include");
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 1);
-    assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Include);
-}
-#[test]
-fn tokenize_a2l_string() {
-    /* empty string */
-    let data = String::from(r#" "" "#);
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 1);
-    assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
+        let data = String::from("/end");
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::End);
 
-    /* string containing a single double quote escaped as two double quotes */
-    let data = String::from(r#" """" "#);
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 1);
-    assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
+        let data = String::from("/include");
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Include);
+    }
+    #[test]
+    fn tokenize_a2l_string() {
+        /* empty string */
+        let data = String::from(r#" "" "#);
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
 
-    /* string containing a single double quote escaped with a backslash */
-    let data = String::from(r#" "\"" "#);
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 1);
-    assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
+        /* string containing a single double quote escaped as two double quotes */
+        let data = String::from(r#" """" "#);
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
 
-    /* a string containing text */
-    let data = String::from("\"sdf sdf sdf\"");
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 1);
-    assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
+        /* string containing a single double quote escaped with a backslash */
+        let data = String::from(r#" "\"" "#);
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
 
-    /* a string containing unicode characters */
-    let data = String::from("\"\u{1234}\u{2345}\"");
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 1);
-    assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
-}
+        /* a string containing text */
+        let data = String::from("\"sdf sdf sdf\"");
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
 
-#[test]
-fn tokenize_a2l_item() {
-    let data = String::from("foo_bar");
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 1);
-    assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Identifier);
-}
+        /* a string containing unicode characters */
+        let data = String::from("\"\u{1234}\u{2345}\"");
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
+    }
 
-#[test]
-fn tokenize_a2l_number() {
-    let data = String::from("0xabc1234");
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 1);
-    assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Number);
-}
+    #[test]
+    fn tokenize_a2l_item() {
+        let data = String::from("foo_bar");
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Identifier);
+    }
 
-#[test]
-fn tokenize_a2l_skip_whitespace() {
-    let data = String::from("");
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 0);
+    #[test]
+    fn tokenize_a2l_number() {
+        let data = String::from("0xabc1234");
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Number);
+    }
 
-    let data = String::from(" ");
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 0);
+    #[test]
+    fn tokenize_a2l_skip_whitespace() {
+        let data = String::from("");
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 0);
 
-    let data = String::from("\n\n ");
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 0);
-}
+        let data = String::from(" ");
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 0);
 
-#[test]
-fn tokenize_string_with_backslash() {
-    let data = String::from(r#" ident "\\" 0 "#);
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    assert_eq!(tokresult.tokens.len(), 3);
-}
+        let data = String::from("\n\n ");
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 0);
+    }
 
-#[test]
-fn tokenize_skip_a2ml() {
-    let data = String::from(
-        r##"
+    #[test]
+    fn tokenize_string_with_backslash() {
+        let data = String::from(r#" ident "\\" 0 "#);
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 3);
+    }
+
+    #[test]
+    fn tokenize_skip_a2ml() {
+        let data = String::from(
+            r##"
 ASAP2_VERSION 1 60
 /begin PROJECT Test "test test"
     /begin MODULE MODULE_NAME ""
@@ -596,10 +600,11 @@ ASAP2_VERSION 1 60
     /end MODULE
 /end PROJECT
 "##,
-    );
-    let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-    println!("token count: {}", tokresult.tokens.len());
-    assert_eq!(tokresult.tokens.len(), 20);
-    assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Identifier);
-    assert_eq!(tokresult.tokens[13].ttype, A2lTokenType::String); // a2ml body text
+        );
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        println!("token count: {}", tokresult.tokens.len());
+        assert_eq!(tokresult.tokens.len(), 20);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Identifier);
+        assert_eq!(tokresult.tokens[13].ttype, A2lTokenType::String); // a2ml body text
+    }
 }

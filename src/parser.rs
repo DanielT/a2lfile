@@ -787,92 +787,97 @@ fn unescape_string(text: &str) -> String {
     }
 }
 
-#[test]
-fn parsing_numbers_test() {
-    let input_text = r##"0 0x1 1.0e+2 1000 0 0.1 0x11 1.0e+2"##;
-    let tokenresult = super::tokenizer::tokenize("test_input".to_owned(), 0, input_text);
-    assert!(tokenresult.is_ok());
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let tokenresult = tokenresult.unwrap();
-    let mut log_msgs = Vec::<String>::new();
-    let mut parser = ParserState::new(
-        &tokenresult.tokens,
-        &tokenresult.filedata,
-        &tokenresult.filenames,
-        &mut log_msgs,
-        true,
-    );
-    let context = ParseContext {
-        element: "TEST".to_string(),
-        fileid: 0,
-        line: 0,
-        inside_block: true,
-    };
+    #[test]
+    fn parsing_numbers_test() {
+        let input_text = r##"0 0x1 1.0e+2 1000 0 0.1 0x11 1.0e+2"##;
+        let tokenresult = super::super::tokenizer::tokenize("test_input".to_owned(), 0, input_text);
+        assert!(tokenresult.is_ok());
 
-    // uint8: 0
-    let res = parser.get_integer_u8(&context);
-    assert!(res.is_ok());
-    let val = res.unwrap();
-    assert_eq!(val, (0, false));
+        let tokenresult = tokenresult.unwrap();
+        let mut log_msgs = Vec::<String>::new();
+        let mut parser = ParserState::new(
+            &tokenresult.tokens,
+            &tokenresult.filedata,
+            &tokenresult.filenames,
+            &mut log_msgs,
+            true,
+        );
+        let context = ParseContext {
+            element: "TEST".to_string(),
+            fileid: 0,
+            line: 0,
+            inside_block: true,
+        };
 
-    // uint8: 0x1
-    let res = parser.get_integer_u8(&context);
-    assert!(res.is_ok());
-    let val = res.unwrap();
-    assert_eq!(val, (1, true));
+        // uint8: 0
+        let res = parser.get_integer_u8(&context);
+        assert!(res.is_ok());
+        let val = res.unwrap();
+        assert_eq!(val, (0, false));
 
-    // uint8: 1.0e+2
-    let res = parser.get_integer_u8(&context);
-    assert!(res.is_err());
+        // uint8: 0x1
+        let res = parser.get_integer_u8(&context);
+        assert!(res.is_ok());
+        let val = res.unwrap();
+        assert_eq!(val, (1, true));
 
-    // uint8: 257
-    let res = parser.get_integer_u8(&context);
-    assert!(res.is_err());
+        // uint8: 1.0e+2
+        let res = parser.get_integer_u8(&context);
+        assert!(res.is_err());
 
-    // float: 0
-    let res = parser.get_float(&context);
-    assert!(res.is_ok());
-    let val = res.unwrap();
-    assert_eq!(val, 0f32);
+        // uint8: 257
+        let res = parser.get_integer_u8(&context);
+        assert!(res.is_err());
 
-    // float: 0.1
-    let res = parser.get_float(&context);
-    assert!(res.is_ok());
-    let val = res.unwrap();
-    assert_eq!(val, 0.1f32);
+        // float: 0
+        let res = parser.get_float(&context);
+        assert!(res.is_ok());
+        let val = res.unwrap();
+        assert_eq!(val, 0f32);
 
-    // float: 0x11
-    let res = parser.get_float(&context);
-    assert!(res.is_err());
+        // float: 0.1
+        let res = parser.get_float(&context);
+        assert!(res.is_ok());
+        let val = res.unwrap();
+        assert_eq!(val, 0.1f32);
 
-    // float: 1.0e+2
-    let res = parser.get_float(&context);
-    assert!(res.is_ok());
-    let val = res.unwrap();
-    assert_eq!(val, 100f32);
-}
+        // float: 0x11
+        let res = parser.get_float(&context);
+        assert!(res.is_err());
 
-#[test]
-fn test_unescape_string() {
-    // no escape
-    let result = unescape_string(" ");
-    assert_eq!(result, " ");
-    // "" -> "
-    let result = unescape_string(r#""""#);
-    assert_eq!(result, r#"""#);
-    // \" -> "
-    let result = unescape_string(r#"\""#);
-    assert_eq!(result, r#"""#);
-    // \\ -> \
-    let result = unescape_string(r#"\\"#);
-    assert_eq!(result, r#"\"#);
-    // \n -> (newline)
-    let result = unescape_string(r#"\n"#);
-    assert_eq!(result, "\n");
-    // \r -> (carriage return)
-    let result = unescape_string(r#"\r"#);
-    assert_eq!(result, "\r");
-    // \t -> (tab)
-    let result = unescape_string(r#"\t"#);
-    assert_eq!(result, "\t");
+        // float: 1.0e+2
+        let res = parser.get_float(&context);
+        assert!(res.is_ok());
+        let val = res.unwrap();
+        assert_eq!(val, 100f32);
+    }
+
+    #[test]
+    fn test_unescape_string() {
+        // no escape
+        let result = unescape_string(" ");
+        assert_eq!(result, " ");
+        // "" -> "
+        let result = unescape_string(r#""""#);
+        assert_eq!(result, r#"""#);
+        // \" -> "
+        let result = unescape_string(r#"\""#);
+        assert_eq!(result, r#"""#);
+        // \\ -> \
+        let result = unescape_string(r#"\\"#);
+        assert_eq!(result, r#"\"#);
+        // \n -> (newline)
+        let result = unescape_string(r#"\n"#);
+        assert_eq!(result, "\n");
+        // \r -> (carriage return)
+        let result = unescape_string(r#"\r"#);
+        assert_eq!(result, "\r");
+        // \t -> (tab)
+        let result = unescape_string(r#"\t"#);
+        assert_eq!(result, "\t");
+    }
 }
