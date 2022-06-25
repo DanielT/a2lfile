@@ -1,14 +1,15 @@
-use std::ffi::OsStr;
+use std::convert::AsRef;
 use std::fs::File;
 use std::io::Read;
+use std::path::Path;
 
-pub fn load(filename: &OsStr) -> Result<String, String> {
-    let mut file = match File::open(filename) {
+pub fn load<P: AsRef<Path>>(path: P) -> Result<String, String> {
+    let mut file = match File::open(&path) {
         Ok(file) => file,
         Err(error) => {
             return Err(format!(
                 "Error while loading {}: {}\n",
-                filename.to_string_lossy(),
+                path.as_ref().display(),
                 error
             ))
         }

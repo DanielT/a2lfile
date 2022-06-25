@@ -15,8 +15,10 @@ mod specification;
 mod tokenizer;
 mod writer;
 
+use std::convert::AsRef;
 use std::ffi::OsStr;
 use std::fmt::Write;
+use std::path::Path;
 // used internally
 use parser::{ParseContext, ParserState};
 use tokenizer::{A2lToken, A2lTokenType};
@@ -29,29 +31,29 @@ pub use specification::*;
 /**
 Load an a2l file
 
-a2ml_spec is optional and contains a String that is valid A2ML that can be used while parsing the file in addition to the A2ML that might be contained inside the A2ML block in the file.
+`a2ml_spec` is optional and contains a String that is valid A2ML that can be used while parsing the file in addition to the A2ML that might be contained inside the A2ML block in the file.
 If a definition is provided here and there is also an A2ML block in the file, then the definition provided here will be tried first during parsing.
 
-log_msgs is a reference to a Vec<String> which will receive all warning messages generated during parsing
+`log_msgs` is a reference to a Vec<String> which will receive all warning messages generated during parsing
 
-strict_parsing toggles strict parsing: If strict parsing is enabled, most warnings become errors.
+`strict_parsing` toggles strict parsing: If strict parsing is enabled, most warnings become errors.
 
 ```
-    let mut log_msgs = Vec::<String>::new();
-    match a2lfile::load(&std::ffi::OsString::from("example.a2l"), None, &mut log_msgs, true) {
-        Ok(a2l_file) => {/* do something with it*/},
-        Err(error_message) => println!("{}", error_message)
-    }
+let mut log_msgs = Vec::<String>::new();
+match a2lfile::load("example.a2l", None, &mut log_msgs, true) {
+    Ok(a2l_file) => {/* do something with it*/},
+    Err(error_message) => println!("{}", error_message)
+}
 ```
  */
-pub fn load(
-    filename: &OsStr,
+pub fn load<P: AsRef<Path>>(
+    path: P,
     a2ml_spec: Option<String>,
     log_msgs: &mut Vec<String>,
     strict_parsing: bool,
 ) -> Result<A2lFile, String> {
-    let filedata = loader::load(filename)?;
-    load_impl(filename, &filedata, log_msgs, strict_parsing, a2ml_spec)
+    let filedata = loader::load(&path)?;
+    load_impl(path, &filedata, log_msgs, strict_parsing, a2ml_spec)
 }
 
 /// load a2l data stored in a string
@@ -64,15 +66,16 @@ pub fn load_from_string(
     load_impl(OsStr::new(""), a2ldata, log_msgs, strict_parsing, a2ml_spec)
 }
 
-fn load_impl(
-    filename: &OsStr,
+fn load_impl<P: AsRef<Path>>(
+    path: P,
     filedata: &str,
     log_msgs: &mut Vec<String>,
     strict_parsing: bool,
     a2ml_spec: Option<String>,
 ) -> Result<A2lFile, String> {
     // tokenize the input data
-    let tokenresult = tokenizer::tokenize(filename.to_string_lossy().to_string(), 0, filedata)?;
+    let tokenresult =
+        tokenizer::tokenize(path.as_ref().to_string_lossy().to_string(), 0, filedata)?;
 
     if tokenresult.tokens.is_empty() {
         return Err("Error: File contains no a2l data".to_string());
@@ -174,9 +177,9 @@ impl A2lFile {
         self.stringify(0)
     }
 
-    /// write this A2lFile object to the given file
+    /// write this `A2lFile` object to the given file
     /// the banner will be placed inside a comment at the beginning of the file; "/*" an "*/" should not be part of the banner string
-    pub fn write(&self, filename: &OsStr, banner: Option<&str>) -> Result<(), String> {
+    pub fn write<P: AsRef<Path>>(&self, path: P, banner: Option<&str>) -> Result<(), String> {
         let mut outstr = "".to_string();
 
         let file_text = self.write_to_string();
@@ -191,10 +194,10 @@ impl A2lFile {
         }
         outstr.write_str(&file_text).unwrap();
 
-        if let Err(err) = std::fs::write(filename, outstr) {
+        if let Err(err) = std::fs::write(&path, outstr) {
             return Err(format!(
                 "Error while writing output {}: {}\n",
-                filename.to_string_lossy(),
+                path.as_ref().display(),
                 err
             ));
         }
