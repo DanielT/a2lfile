@@ -6,7 +6,7 @@
 
 - full support for files using A2L version 1.7.1
 - it is fast
-- the layout and formatting of the input file is preserved. The intention is that afer reading, modifying and then writing a file the resulting diff should be minimal
+- the layout and format of the input file is preserved. The intention is that after reading, modifying and then writing a file the resulting diff should be minimal
 - easy access to application-specific data inside of IF_DATA blocks is provided through a macro that generates code based on an A2ML specification
 
 ## What is an a2l file
