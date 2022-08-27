@@ -17,6 +17,7 @@ The consumer of the a2l file typically performs online calibration over a protoc
 If you have never seen an a2l file then you are unlikely to need this library.
 
 ## Tools
+
 The program [a2ltool](https://github.com/DanielT/a2ltool) is based on this library.
 
 ## Documentation
@@ -25,7 +26,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-a2lfile = "1.3.0"
+a2lfile = "1.3.1"
 ```
 
 A simple program based on the `a2lfile` library might look like this:
@@ -89,5 +90,5 @@ fn main() {
 
 Licensed under either of
 
-  * Apache License, Version 2.0 ([`LICENSE-APACHE`](./LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-  * MIT license ([`LICENSE-MIT`](./LICENSE-MIT) or http://opensource.org/licenses/MIT)
+- Apache License, Version 2.0 ([`LICENSE-APACHE`](./LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- MIT license ([`LICENSE-MIT`](./LICENSE-MIT) or http://opensource.org/licenses/MIT)

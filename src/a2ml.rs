@@ -242,10 +242,20 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
                 }
             }
             let num_text = &remaining[0..idx];
-            if let Ok(number) = num_text.parse::<i32>() {
-                amltokens.push(TokenType::Constant(number));
+            if let Some(hexval) = num_text.strip_prefix("0x") {
+                // hex constant
+                if let Ok(number) = i32::from_str_radix(hexval, 16) {
+                    amltokens.push(TokenType::Constant(number));
+                } else {
+                    return Err(format!("Invalid sequence in AML: {}", num_text));
+                }
             } else {
-                return Err(format!("Invalid sequence in AML: {}", num_text));
+                // not hex format -> must be decimal
+                if let Ok(number) = num_text.parse::<i32>() {
+                    amltokens.push(TokenType::Constant(number));
+                } else {
+                    return Err(format!("Invalid sequence in AML: {}", num_text));
+                }
             }
             remaining = &remaining[idx..];
         } else if c.is_ascii_alphabetic() || c == '_' {
@@ -1267,5 +1277,85 @@ impl PartialEq for GenericIfData {
 impl PartialEq for GenericIfDataTaggedItem {
     fn eq(&self, other: &Self) -> bool {
         self.tag == other.tag && self.data == other.data && self.is_block == other.is_block
+    }
+}
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn tokenize() {
+        let tokenvec = tokenize_a2ml("       ").unwrap();
+        assert!(tokenvec.is_empty());
+
+        let tokenvec = tokenize_a2ml("/* // */").unwrap();
+        assert!(tokenvec.is_empty());
+        let tokenvec = tokenize_a2ml("/*/*/").unwrap();
+        assert!(tokenvec.is_empty());
+        let tokenvec = tokenize_a2ml("/***/").unwrap();
+        assert!(tokenvec.is_empty());
+        let tokenvec = tokenize_a2ml("//*/").unwrap();
+        assert!(tokenvec.is_empty());
+
+        let tokenvec = tokenize_a2ml(r#""TAG""#).unwrap();
+        assert_eq!(tokenvec.len(), 1);
+        assert!(matches!(tokenvec[0], TokenType::Tag("TAG")));
+
+        let tokenvec = tokenize_a2ml(";").unwrap();
+        assert!(matches!(tokenvec[0], TokenType::Semicolon));
+
+        let tokenvec = tokenize_a2ml("0").unwrap();
+        assert!(matches!(tokenvec[0], TokenType::Constant(0)));
+
+        let tokenvec = tokenize_a2ml("0x03").unwrap();
+        assert!(matches!(tokenvec[0], TokenType::Constant(3)));
+
+        let tokenvec = tokenize_a2ml("123456").unwrap();
+        assert!(matches!(tokenvec[0], TokenType::Constant(123456)));
+    }
+
+    #[test]
+    fn parse() {
+        static TEST_INPUT: &str = r#"
+        /* comment */
+        struct SomeStruct {
+            uchar; // comment
+            uint;
+            ulong;
+            char;
+            int;
+            long;
+            float;
+            double;
+            uint[3];
+            enum {
+                "ANON_ENUM_A" = 0,
+                "ANUN_ENUM_B" = 1
+            };
+            enum xyz {
+                "SOME_ENUM_A" = 1,
+                "SOME_ENUM_B" = 0x2,
+                "SOME_EMUM_C" = 3
+            };
+            taggedunion {
+                "FOO" uint;
+                "BAR" uchar;
+            };
+            taggedstruct {
+                ("REP_ITEM" uint)*;
+                "NORMAL_ITEM" struct {
+                    char[128];
+                };
+                "REP_ITEM_INNER" (struct InnerRepStruct {
+                    uint;
+                })*;
+            };
+        };
+
+        block "IF_DATA" struct SomeStruct;
+"#;
+    parse_a2ml(TEST_INPUT).unwrap();
     }
 }

@@ -36,7 +36,14 @@ pub(crate) fn get_string(token_iter: &mut TokenStreamIter) -> String {
 
 pub(crate) fn get_integer(token_iter: &mut TokenStreamIter) -> i32 {
     match token_iter.next() {
-        Some(TokenTree::Literal(literal)) => literal.to_string().parse().unwrap(),
+        Some(TokenTree::Literal(literal)) => {
+            let strval = literal.to_string();
+            if let Some(suffix) = strval.strip_prefix("0x") {
+                i32::from_str_radix(suffix, 16).unwrap()
+            } else {
+                strval.parse().unwrap()
+            }
+        }
         Some(tok) => panic!("Expected an int literal, got: {:#?}", tok.to_string()),
         None => panic!("Expected an int literal, but reached the end of input"),
     }

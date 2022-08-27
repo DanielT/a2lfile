@@ -695,7 +695,7 @@ fn generate_a2ml_constant_of_item(
         }
         BaseType::Sequence { seqtype } => {
             outstring.push('(');
-            generate_a2ml_constant_of_item(outstring, typename, &**seqtype, indent_level, false);
+            generate_a2ml_constant_of_item(outstring, typename, seqtype, indent_level, false);
             outstring.push_str(")*");
         }
         BaseType::Enum { enumitems } => {
@@ -1414,6 +1414,7 @@ mod test {
                 enum SomeEnum {
                     "SOME_ENUM_A" = 1,
                     "SOME_ENUM_B" = 2,
+                    "SOME_EMUM_C" = 0x3,
                 } my_enum; // comment 10
                 taggedunion {
                     "FOO" uint ;

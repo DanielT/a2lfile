@@ -2,7 +2,7 @@ use std::ffi::OsString;
 
 use super::loader;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum A2lTokenType {
     Identifier,
     Begin,

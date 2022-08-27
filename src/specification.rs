@@ -7,7 +7,7 @@ use crate::tokenizer::A2lTokenType;
 use crate::writer;
 
 /// Describes the location and formatting of an a2l block within a file
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct BlockInfo<T> {
     pub incfile: Option<String>,
     pub line: u32,
