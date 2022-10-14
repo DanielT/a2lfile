@@ -14,6 +14,14 @@ ASAP2_VERSION 1 61
       ALIGNMENT_FLOAT32_IEEE 1
       ALIGNMENT_FLOAT64_IEEE 1
     /end MOD_COMMON
+    /begin COMPU_METHOD compumethod
+      ""
+      RAT_FUNC
+      "%6.3"
+      ""
+      COEFFS 0 1 0 0 0 1
+      REF_UNIT abc
+    /end COMPU_METHOD
   /end MODULE
 /end PROJECT"###;
 

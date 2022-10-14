@@ -1171,7 +1171,7 @@ a2l_specification! {
     }
 
     /// reference to a UNIT
-    block REF_UNIT {
+    keyword REF_UNIT {
         ident unit
     }
 
