@@ -132,6 +132,27 @@ pub(crate) fn tokenize(
                 line,
             });
             separated = false;
+        } else if tokens.last().unwrap().ttype == A2lTokenType::Include && !(filebytes[bytepos]).is_ascii_digit() && is_identchar(filebytes[bytepos]) {
+            // a file path
+            separator_check(separated, line)?;
+            while bytepos < datalen && is_pathchar(filebytes[bytepos]) {
+                bytepos += 1;
+            }
+            tokens.push(A2lToken {
+                ttype: A2lTokenType::Identifier,
+                startpos,
+                endpos: bytepos,
+                fileid,
+                line,
+            });
+            separated = false;
+
+            let (new_bytepos, new_line) = handle_a2ml(filetext, bytepos, line, fileid, &mut tokens);
+            if bytepos != new_bytepos {
+                separated = true;
+            }
+            bytepos = new_bytepos;
+            line = new_line;
         } else if !(filebytes[bytepos]).is_ascii_digit() && is_identchar(filebytes[bytepos]) {
             // an identifier
             separator_check(separated, line)?;
@@ -423,6 +444,12 @@ fn separator_check(separated: bool, line: u32) -> Result<(), String> {
 // count the number of newlines in a comment or string. This is needed to keep the line count accurate
 fn count_newlines(text: &[u8]) -> u32 {
     text.iter().map(|c| if *c == b'\n' { 1 } else { 0 }).sum()
+}
+
+// is_pathchar()
+// is this char allowed in a file path, extension of is_identchar()
+fn is_pathchar(c: u8) -> bool {
+    is_identchar(c) || c == b'\\' || c == b'/'
 }
 
 // is_identchar()
