@@ -132,7 +132,9 @@ pub(crate) fn tokenize(
                 line,
             });
             separated = false;
-        } else if tokens.last().unwrap().ttype == A2lTokenType::Include && !(filebytes[bytepos]).is_ascii_digit() && is_identchar(filebytes[bytepos]) {
+        } else if !tokens.is_empty() &&
+        tokens.last().unwrap().ttype == A2lTokenType::Include && 
+        !(filebytes[bytepos]).is_ascii_digit() && is_identchar(filebytes[bytepos]) {
             // a file path
             separator_check(separated, line)?;
             while bytepos < datalen && is_pathchar(filebytes[bytepos]) {
