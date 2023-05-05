@@ -636,4 +636,26 @@ ASAP2_VERSION 1 60
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Identifier);
         assert_eq!(tokresult.tokens[13].ttype, A2lTokenType::String); // a2ml body text
     }
+
+    #[test]
+    fn tokenize_include(){
+        let data = String::from(
+            r##"
+                /include ./tests/test.a2l
+                /include .\tests\test.a2l
+                /include ".\tests\test.a2l"
+                /include "./tests/test.a2l"
+            "##
+        );
+
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        println!("token count: {}", tokresult.tokens.len());
+        println!("file count: {}", tokresult.filenames.len());
+        assert_eq!(tokresult.tokens.len(), 0);
+        assert_eq!(tokresult.filenames.len(), 5); // original filename and each include
+        assert_eq!(tokresult.filenames[1], "./tests/test.a2l");
+        assert_eq!(tokresult.filenames[2], ".\\tests\\test.a2l");
+        assert_eq!(tokresult.filenames[1], "./tests/test.a2l");
+        assert_eq!(tokresult.filenames[2], ".\\tests\\test.a2l");
+    }
 }
