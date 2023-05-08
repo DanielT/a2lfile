@@ -29,11 +29,7 @@ pub(crate) struct TokenResult {
 }
 
 // tokenize()
-// Convert the text of an a2l file to tokens.
-// During tokenization the text is treated as ASCII, even though it is actually UTF-8. It is
-// possible to do this because characters outside of basic ASCII can actually only occur in
-// strings and comments. UTF-8 in strings is directly copied to the output, while comments are discarded.
-// An important extra goal of the tokenizer is to attach the source line number to each token so that error messages can give accurate location info
+// Runs the actual tokenizer, then ensures that any /include directives are resolved
 pub(crate) fn tokenize(
     filename: String,
     fileid: usize,
@@ -42,10 +38,94 @@ pub(crate) fn tokenize(
     let mut filenames: Vec<String> = vec![filename];
     let mut filedatas: Vec<String> = vec![filetext.to_owned()];
     let filebytes = filetext.as_bytes();
+    let mut next_fileid = fileid + 1;
+
+    let input_tokens = tokenize_core(fileid, filetext)?;
+    let mut include_directives: Vec<usize> = input_tokens
+        .iter()
+        .enumerate()
+        .filter_map(|(pos, A2lToken { ttype, .. })| {
+            if *ttype == A2lTokenType::Include {
+                Some(pos)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let tokens = if include_directives.is_empty() {
+        // default case: no include directives found
+        input_tokens
+    } else {
+        // the file contains include directives, and the indices of the Include tokens are stored in include_directives
+
+        // initialize the vector with all tokens up to the first include directive
+        let mut tokens = input_tokens[0..include_directives[0]].to_vec();
+        // extending include_directives with the last index of the input_tokens simplifies the logic, because then all blocks of tokens have a start and end index
+        include_directives.push(input_tokens.len());
+        for idx in 1..include_directives.len() {
+            // token_subseq contains all tokens between the previous include directive and the current one
+            let token_subseq =
+                &input_tokens[include_directives[idx - 1] + 1..include_directives[idx]];
+            if !token_subseq.is_empty()
+                && (token_subseq[0].ttype == A2lTokenType::String
+                    || token_subseq[0].ttype == A2lTokenType::Identifier)
+            {
+                let mut filename_start = token_subseq[0].startpos;
+                let mut filename_end = token_subseq[0].endpos;
+                if filebytes[filename_start] == b'"' && filebytes[filename_end - 1] == b'"' {
+                    filename_start += 1;
+                    filename_end -= 1;
+                }
+                // incname is the include filename from the filetext without the surrounding quotes
+                let incname = &filetext[filename_start..filename_end];
+                let incfilename = make_include_filename(incname, &filenames[0]);
+
+                // check if incname is an accessible file
+                let loadresult = loader::load(&incfilename);
+                if let Ok(incfiledata) = loadresult {
+                    let mut tokresult = tokenize(incname.to_owned(), next_fileid, &incfiledata)?;
+
+                    next_fileid += tokresult.filenames.len();
+
+                    // append the tokens from the included file(s)
+                    tokens.append(&mut tokresult.tokens);
+
+                    // also save the names of the included file(s)
+                    filenames.append(&mut tokresult.filenames);
+                    filedatas.append(&mut tokresult.filedata);
+                } else {
+                    return Err(format!("Error: Failed to load included file {}", incname));
+                }
+
+                // append the tokens between the include directives to the output
+                tokens.extend_from_slice(&token_subseq[1..]);
+            } else {
+                let line = input_tokens[include_directives[idx - 1]].line;
+                return Err(format!("Error: Failed to resolve include directive in {}:{line}, which was not follwed by a filename", &filenames[0]));
+            }
+        }
+        tokens
+    };
+
+    Ok(TokenResult {
+        tokens,
+        filenames,
+        filedata: filedatas,
+    })
+}
+
+// tokenize_core()
+// Convert the text of an a2l file to tokens.
+// During tokenization the text is treated as ASCII, even though it is actually UTF-8. It is
+// possible to do this because characters outside of basic ASCII can actually only occur in
+// strings and comments. UTF-8 in strings is directly copied to the output, while comments are discarded.
+// An important extra goal of the tokenizer is to attach the source line number to each token so that error messages can give accurate location info
+fn tokenize_core(fileid: usize, filetext: &str) -> Result<Vec<A2lToken>, String> {
+    let filebytes = filetext.as_bytes();
     let datalen = filebytes.len();
 
     let mut tokens: Vec<A2lToken> = Vec::with_capacity(datalen / 20);
-    let mut next_fileid = fileid + 1;
     let mut bytepos = 0;
     let mut separated = true;
     let mut line = 1;
@@ -132,9 +212,11 @@ pub(crate) fn tokenize(
                 line,
             });
             separated = false;
-        } else if !tokens.is_empty() &&
-        tokens.last().unwrap().ttype == A2lTokenType::Include && 
-        !(filebytes[bytepos]).is_ascii_digit() && is_identchar(filebytes[bytepos]) {
+        } else if !tokens.is_empty()
+            && tokens.last().unwrap().ttype == A2lTokenType::Include
+            && !(filebytes[bytepos]).is_ascii_digit()
+            && is_identchar(filebytes[bytepos])
+        {
             // a file path
             separator_check(separated, line)?;
             while bytepos < datalen && is_pathchar(filebytes[bytepos]) {
@@ -148,13 +230,6 @@ pub(crate) fn tokenize(
                 line,
             });
             separated = false;
-
-            let (new_bytepos, new_line) = handle_a2ml(filetext, bytepos, line, fileid, &mut tokens);
-            if bytepos != new_bytepos {
-                separated = true;
-            }
-            bytepos = new_bytepos;
-            line = new_line;
         } else if !(filebytes[bytepos]).is_ascii_digit() && is_identchar(filebytes[bytepos]) {
             // an identifier
             separator_check(separated, line)?;
@@ -215,54 +290,9 @@ pub(crate) fn tokenize(
                 line
             ));
         }
-
-        if tokens.len() >= 2 {
-            // process /include statements
-            // /include foo.a2l and /include "foo.a2l" are both valid
-            // /include is not permitted inside <A2ML> blocks
-            if tokens[tokens.len() - 2].ttype == A2lTokenType::Include
-                && (tokens[tokens.len() - 1].ttype == A2lTokenType::String
-                    || tokens[tokens.len() - 1].ttype == A2lTokenType::Identifier)
-            {
-                let prevtok = &tokens[tokens.len() - 1];
-                let mut filename_start = prevtok.startpos;
-                let mut filename_end = prevtok.endpos;
-                if filebytes[filename_start] == b'"' && filebytes[filename_end - 1] == b'"' {
-                    filename_start += 1;
-                    filename_end -= 1;
-                }
-                let incname = &filetext[filename_start..filename_end];
-
-                let incfilename = make_include_filename(incname, &filenames[0]);
-
-                // check if incname is an accessible file
-                let loadresult = loader::load(&incfilename);
-                if let Ok(incfiledata) = loadresult {
-                    let mut tokresult = tokenize(incname.to_owned(), next_fileid, &incfiledata)?;
-
-                    next_fileid += tokresult.filenames.len();
-
-                    // remove the include directive
-                    tokens.remove(tokens.len() - 1);
-                    tokens.remove(tokens.len() - 1);
-                    // and append the tokens from the included file(s)
-                    tokens.append(&mut tokresult.tokens);
-
-                    // also save the names of the included file(s)
-                    filenames.append(&mut tokresult.filenames);
-                    filedatas.append(&mut tokresult.filedata);
-                } else {
-                    return Err(format!("Error: Failed to load included file {}", incname));
-                }
-            }
-        }
     }
 
-    Ok(TokenResult {
-        tokens,
-        filenames,
-        filedata: filedatas,
-    })
+    Ok(tokens)
 }
 
 // skip_block_comment
@@ -537,9 +567,9 @@ mod tests {
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::End);
 
         let data = String::from("/include");
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-        assert_eq!(tokresult.tokens.len(), 1);
-        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Include);
+        let tokresult = tokenize_core(0, &data).expect("Error");
+        assert_eq!(tokresult.len(), 1);
+        assert_eq!(tokresult[0].ttype, A2lTokenType::Include);
     }
     #[test]
     fn tokenize_a2l_string() {
@@ -638,24 +668,26 @@ ASAP2_VERSION 1 60
     }
 
     #[test]
-    fn tokenize_include(){
+    fn tokenize_include() {
         let data = String::from(
             r##"
                 /include ./tests/test.a2l
                 /include .\tests\test.a2l
                 /include ".\tests\test.a2l"
                 /include "./tests/test.a2l"
-            "##
+            "##,
         );
 
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
-        println!("token count: {}", tokresult.tokens.len());
-        println!("file count: {}", tokresult.filenames.len());
-        assert_eq!(tokresult.tokens.len(), 0);
-        assert_eq!(tokresult.filenames.len(), 5); // original filename and each include
-        assert_eq!(tokresult.filenames[1], "./tests/test.a2l");
-        assert_eq!(tokresult.filenames[2], ".\\tests\\test.a2l");
-        assert_eq!(tokresult.filenames[1], "./tests/test.a2l");
-        assert_eq!(tokresult.filenames[2], ".\\tests\\test.a2l");
+        let tokresult = tokenize_core(0, &data).expect("Error");
+        assert_eq!(tokresult.len(), 8);
+        println!("{:?}", tokresult);
+        assert_eq!(tokresult[0].ttype, A2lTokenType::Include);
+        assert_eq!(tokresult[1].ttype, A2lTokenType::Identifier);
+        assert_eq!(tokresult[2].ttype, A2lTokenType::Include);
+        assert_eq!(tokresult[3].ttype, A2lTokenType::Identifier);
+        assert_eq!(tokresult[4].ttype, A2lTokenType::Include);
+        assert_eq!(tokresult[5].ttype, A2lTokenType::String);
+        assert_eq!(tokresult[6].ttype, A2lTokenType::Include);
+        assert_eq!(tokresult[7].ttype, A2lTokenType::String);
     }
 }
