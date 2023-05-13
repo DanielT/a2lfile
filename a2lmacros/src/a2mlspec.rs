@@ -148,7 +148,7 @@ fn parse_a2ml_type(
         "uchar" => (None, BaseType::Uchar),
         "uint" => (None, BaseType::Uint),
         "ulong" => (None, BaseType::Ulong),
-        "uin64" => (None, BaseType::Uint64),
+        "uint64" => (None, BaseType::Uint64),
         "float" => (None, BaseType::Float),
         "double" => (None, BaseType::Double),
         "ident" => (None, BaseType::Ident),

@@ -166,7 +166,7 @@ fn generate_indirect_store_simple_item(
             } else {
                 let arrayitem_locinfo = quote! {#locationinfo[idx]};
                 let parsercall = generate_indirect_store_simple_item(
-                    quote! {item},
+                    quote! {*item},
                     arrayitem_locinfo,
                     &arraytype.basetype,
                 );

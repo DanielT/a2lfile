@@ -290,7 +290,7 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
                 "ulong" => {
                     amltokens.push(TokenType::Ulong);
                 }
-                "iunt64" => {
+                "uint64" => {
                     amltokens.push(TokenType::Uint64);
                 }
                 "double" => {
