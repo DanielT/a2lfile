@@ -67,3 +67,43 @@ pub fn a2ml_specification(tokens: TokenStream) -> TokenStream {
     let tokens2: proc_macro2::TokenStream = tokens.into();
     a2mlspec::a2ml_specification(tokens2).into()
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use quote::quote;
+
+    #[test]
+    fn test_a2ml_specification() {
+        let input = quote! {
+<A2mlTest>
+block "IF_DATA" taggedunion if_data {
+    "CHAR" char a;
+    "INT" int b;
+    "LONG" long c;
+    "INT64" int64 d;
+    "UCHAR" uchar e;
+    "UINT" uint64 f;
+    "ULONG" ulong g;
+    "UINT64" uint64 h;
+    "DOUBLE" double i;
+    "STRUCT" struct structname {
+        char[256];
+        int;
+    };
+    block "BLOCK" taggedstruct tagged_struct {
+        "TAG1" int intval;
+    };
+    "ENUM" enum EnumTest {
+        "ENUMVAL1" = 1,
+        "ENUMVAL2"
+    } named_enum;
+    "ARRAY" int arr[3];
+    block "SEQUENCE" (char[256] name)*;
+    "NONE";
+};
+        };
+        let output = a2mlspec::a2ml_specification(input);
+        println!("{:#?}", output);
+    }
+}

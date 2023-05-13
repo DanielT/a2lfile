@@ -523,3 +523,223 @@ fn remove_unknown_ifdata_from_list(ifdata_list: &mut Vec<IfData>) {
         }
     }
 }
+
+#[cfg(test)]
+mod ifdata_test {
+    use crate::{self as a2lfile, IfData};
+
+    crate::a2ml_specification! {
+        <A2mlTest>
+
+        block "IF_DATA" taggedunion if_data {
+            "CHAR" char a;
+            "INT" int b;
+            "LONG" long c;
+            "INT64" int64 d;
+            "UCHAR" uchar e;
+            "UINT" uint64 f;
+            "ULONG" ulong g;
+            "UINT64" uint64 h;
+            "DOUBLE" double i;
+            "FLOAT" float j;
+            "STRUCT" struct structname {
+                char[256];
+                int;
+            };
+            block "BLOCK" taggedstruct tagged_struct {
+                "TAG1" int intval;
+            };
+            "ENUM" enum EnumTest {
+                "ENUMVAL1" = 1,
+                "ENUMVAL2"
+            } named_enum;
+            "ARRAY" uint arr[3];
+            block "SEQUENCE" (char[256] name)*;
+            "NONE";
+        };
+    }
+
+    #[test]
+    fn parse_ifdata()
+    {
+        let result = parse_helper(r##"CHAR 5 /end IFDATA"##);
+        assert!(result.is_ok());
+        let decoded_ifdata = check_and_decode(result);
+        assert!(matches!(decoded_ifdata.char, Some(Char{a: 5, ..})));
+
+        let result = parse_helper(r##"CHAR xyz /end IFDATA"##);
+        assert!(result.is_ok());
+        let (data, valid) = result.unwrap();
+        assert!(data.is_some());
+        assert_eq!(valid, false);
+
+        let result = parse_helper(r##"INT 5 /end IFDATA"##);
+        assert!(result.is_ok());
+        let decoded_ifdata = check_and_decode(result);
+        assert!(matches!(decoded_ifdata.int, Some(Int{b: 5, ..})));
+
+        let result = parse_helper(r##"INT xyz /end IFDATA"##);
+        assert!(result.is_ok());
+        let (data, valid) = result.unwrap();
+        assert!(data.is_some());
+        assert_eq!(valid, false);
+
+        let result = parse_helper(r##"LONG 5 /end IFDATA"##);
+        assert!(result.is_ok());
+        let decoded_ifdata = check_and_decode(result);
+        assert!(matches!(decoded_ifdata.long, Some(Long{c: 5, ..})));
+
+        let result = parse_helper(r##"LONG xyz /end IFDATA"##);
+        assert!(result.is_ok());
+        let (data, valid) = result.unwrap();
+        assert!(data.is_some());
+        assert_eq!(valid, false);
+
+        let result = parse_helper(r##"INT64 5 /end IFDATA"##);
+        assert!(result.is_ok());
+        let decoded_ifdata = check_and_decode(result);
+        assert!(matches!(decoded_ifdata.int64, Some(Int64{d: 5, ..})));
+
+        let result = parse_helper(r##"INT64 xyz /end IFDATA"##);
+        assert!(result.is_ok());
+        let (data, valid) = result.unwrap();
+        assert!(data.is_some());
+        assert_eq!(valid, false);
+    
+        let result = parse_helper(r##"UCHAR 5 /end IFDATA"##);
+        assert!(result.is_ok());
+        let decoded_ifdata = check_and_decode(result);
+        assert!(matches!(decoded_ifdata.uchar, Some(Uchar{e: 5, ..})));
+
+        let result = parse_helper(r##"UCHAR xyz /end IFDATA"##);
+        assert!(result.is_ok());
+        let (data, valid) = result.unwrap();
+        assert!(data.is_some());
+        assert_eq!(valid, false);
+
+        let result = parse_helper(r##"UINT 5 /end IFDATA"##);
+        assert!(result.is_ok());
+        let decoded_ifdata = check_and_decode(result);
+        assert!(matches!(decoded_ifdata.uint, Some(Uint{f: 5, ..})));
+
+        let result = parse_helper(r##"UINT xyz /end IFDATA"##);
+        assert!(result.is_ok());
+        let (data, valid) = result.unwrap();
+        assert!(data.is_some());
+        assert_eq!(valid, false);
+
+        let result = parse_helper(r##"ULONG 5 /end IFDATA"##);
+        assert!(result.is_ok());
+        let decoded_ifdata = check_and_decode(result);
+        assert!(matches!(decoded_ifdata.ulong, Some(Ulong{g: 5, ..})));
+
+        let result = parse_helper(r##"ULONG xyz /end IFDATA"##);
+        assert!(result.is_ok());
+        let (data, valid) = result.unwrap();
+        assert!(data.is_some());
+        assert_eq!(valid, false);
+
+        let result = parse_helper(r##"UINT64 5 /end IFDATA"##);
+        assert!(result.is_ok());
+        let decoded_ifdata = check_and_decode(result);
+        assert!(matches!(decoded_ifdata.uint64, Some(Uint64{h: 5, ..})));
+
+        let result = parse_helper(r##"UINT64 xyz /end IFDATA"##);
+        assert!(result.is_ok());
+        let (data, valid) = result.unwrap();
+        assert!(data.is_some());
+        assert_eq!(valid, false);
+
+        let result = parse_helper(r##"DOUBLE 5.5 /end IFDATA"##);
+        assert!(result.is_ok());
+        let decoded_ifdata = check_and_decode(result);
+        assert!(matches!(decoded_ifdata.double, Some(Double{..})));
+
+        let result = parse_helper(r##"DOUBLE xyz /end IFDATA"##);
+        assert!(result.is_ok());
+        let (data, valid) = result.unwrap();
+        assert!(data.is_some());
+        assert_eq!(valid, false);
+
+        let result = parse_helper(r##"FLOAT 5.5 /end IFDATA"##);
+        assert!(result.is_ok());
+        let decoded_ifdata = check_and_decode(result);
+        assert!(matches!(decoded_ifdata.float, Some(Float{..})));
+
+        let result = parse_helper(r##"FLOAT xyz /end IFDATA"##);
+        assert!(result.is_ok());
+        let (data, valid) = result.unwrap();
+        assert!(data.is_some());
+        assert_eq!(valid, false);
+
+        let result = parse_helper(r##"STRUCT "text value" 3 /end IFDATA"##);
+        assert!(result.is_ok());
+        let decoded_ifdata = check_and_decode(result);
+        let var_struct = decoded_ifdata.var_struct.unwrap();
+        assert_eq!(var_struct.item, "text value");
+        assert_eq!(var_struct.item_2, 3);
+
+        let result = parse_helper(r##"STRUCT 5.5 xyz /end IFDATA"##);
+        assert!(result.is_ok());
+        let (data, valid) = result.unwrap();
+        assert!(data.is_some());
+        assert_eq!(valid, false);
+
+        let result = parse_helper(r##"/begin BLOCK TAG1 3 /end BLOCK /end IFDATA"##);
+        assert!(result.is_ok());
+        let decoded_ifdata = check_and_decode(result);
+        assert_eq!(decoded_ifdata.block.unwrap().tag1.unwrap().intval, 3);
+
+        let result = parse_helper(r##"ENUM ENUMVAL2 /end IFDATA"##);
+        assert!(result.is_ok());
+        let decoded_ifdata = check_and_decode(result);
+        assert_eq!(decoded_ifdata.var_enum.unwrap().named_enum, EnumTest::Enumval2);
+
+        let result = parse_helper(r##"ENUM NOTVALID /end IFDATA"##);
+        assert!(result.is_ok());
+        let (data, valid) = result.unwrap();
+        assert!(data.is_some());
+        assert_eq!(valid, false);
+
+        let result = parse_helper(r##"ARRAY 7 8 9 /end IFDATA"##);
+        assert!(result.is_ok());
+        let decoded_ifdata = check_and_decode(result);
+        assert_eq!(decoded_ifdata.array.unwrap().arr, [7, 8, 9]);
+
+        let result = parse_helper(r##"ARRAY 7 8 "bad" /end IFDATA"##);
+        assert!(result.is_ok());
+        let (data, valid) = result.unwrap();
+        assert!(data.is_some());
+        assert_eq!(valid, false);
+
+        let result = parse_helper(r##"/begin SEQUENCE "name 1" "name 2" /end SEQUENCE /end IFDATA"##);
+        assert!(result.is_ok());
+        let decoded_ifdata = check_and_decode(result);
+        assert_eq!(decoded_ifdata.sequence.unwrap().item, ["name 1", "name 2"]);
+
+        let result = parse_helper(r##"NONE /end IFDATA"##);
+        assert!(result.is_ok());
+        let decoded_ifdata = check_and_decode(result);
+        assert!(decoded_ifdata.none.is_some());
+    }
+
+    fn parse_helper(ifdata: &str) -> Result<(Option<super::GenericIfData>, bool), super::ParseError> {
+        let token_result = a2lfile::tokenizer::tokenize("".to_string(), 0, ifdata.clone()).unwrap();
+        let mut log_msgs = Vec::new();
+        let ifdatas = [ifdata.to_string()];
+        let filenames = ["".to_string()];
+        let mut parser = super::ParserState::new(&token_result.tokens, &ifdatas, &filenames, &mut log_msgs, false);
+        parser.builtin_a2mlspec = Some(a2lfile::a2ml::parse_a2ml(A2MLTEST_TEXT).unwrap());
+        super::parse_ifdata(&mut parser, &a2lfile::ParseContext{fileid: 0, line: 0, element: "IFDATA".to_string(), inside_block:true })
+    }
+
+    fn check_and_decode(result: Result<(Option<super::GenericIfData>, bool), super::ParseError>) -> A2mlTest {
+        let (data, valid) = result.unwrap();
+        assert!(data.is_some());
+        assert_eq!(valid, true);
+        let mut if_data = IfData::new();
+        if_data.ifdata_items = data;
+        if_data.ifdata_valid = valid;
+        A2mlTest::load_from_ifdata(&if_data).unwrap()
+    }
+}

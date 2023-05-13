@@ -1280,7 +1280,6 @@ impl PartialEq for GenericIfDataTaggedItem {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -1296,6 +1295,8 @@ mod test {
         assert!(tokenvec.is_empty());
         let tokenvec = tokenize_a2ml("/***/").unwrap();
         assert!(tokenvec.is_empty());
+        let tokenvec_err = tokenize_a2ml("/* ");
+        assert!(tokenvec_err.is_err());
         let tokenvec = tokenize_a2ml("//*/").unwrap();
         assert!(tokenvec.is_empty());
 
@@ -1314,6 +1315,9 @@ mod test {
 
         let tokenvec = tokenize_a2ml("123456").unwrap();
         assert!(matches!(tokenvec[0], TokenType::Constant(123456)));
+
+        let err_result = tokenize_a2ml(r#" "unclosed "#);
+        assert!(err_result.is_err());
     }
 
     #[test]
@@ -1332,7 +1336,7 @@ mod test {
             uint[3];
             enum {
                 "ANON_ENUM_A" = 0,
-                "ANUN_ENUM_B" = 1
+                "ANON_ENUM_B" = 1
             };
             enum xyz {
                 "SOME_ENUM_A" = 1,
@@ -1356,6 +1360,86 @@ mod test {
 
         block "IF_DATA" struct SomeStruct;
 "#;
-    parse_a2ml(TEST_INPUT).unwrap();
+        let mut enum_hashmap_1 = HashMap::new();
+        enum_hashmap_1.insert("ANON_ENUM_B".to_string(), Some(1));
+        enum_hashmap_1.insert("ANON_ENUM_A".to_string(), Some(0));
+        let mut enum_hashmap_2 = HashMap::new();
+        enum_hashmap_2.insert("SOME_ENUM_A".to_string(), Some(1));
+        enum_hashmap_2.insert("SOME_ENUM_B".to_string(), Some(2));
+        enum_hashmap_2.insert("SOME_EMUM_C".to_string(), Some(3));
+        let mut taggedunion_hashmap = HashMap::new();
+        taggedunion_hashmap.insert("FOO".to_string(), A2mlTaggedTypeSpec {
+            tag: "FOO".to_string(),
+            item: A2mlTypeSpec::UInt,
+            is_block: false,
+            repeat: false,
+        });
+        taggedunion_hashmap.insert("BAR".to_string(), A2mlTaggedTypeSpec {
+            tag: "BAR".to_string(),
+            item: A2mlTypeSpec::UChar,
+            is_block: false,
+            repeat: false,
+        });
+        let mut taggedstruct_hashmap = HashMap::new();
+        taggedstruct_hashmap.insert(
+            "NORMAL_ITEM".to_string(),
+            A2mlTaggedTypeSpec {
+                tag: "NORMAL_ITEM".to_string(),
+                item: A2mlTypeSpec::Struct(vec![A2mlTypeSpec::Array(
+                    Box::new(A2mlTypeSpec::Char),
+                    128,
+                )]),
+                is_block: false,
+                repeat: false,
+            },
+        );
+        taggedstruct_hashmap.insert(
+            "REP_ITEM_INNER".to_string(),
+            A2mlTaggedTypeSpec {
+                tag: "REP_ITEM_INNER".to_string(),
+                item: A2mlTypeSpec::Sequence(
+                    Box::new(A2mlTypeSpec::Struct(
+                        vec![
+                            A2mlTypeSpec::UInt,
+                        ],
+                    )),
+                ),
+                is_block: false,
+                repeat: false,
+            },
+        );
+        taggedstruct_hashmap.insert(
+            "REP_ITEM".to_string(),
+            A2mlTaggedTypeSpec {
+                tag: "REP_ITEM".to_string(),
+                item: A2mlTypeSpec::UInt,
+                is_block: false,
+                repeat: true,
+            },
+        );
+        let expected_parse_result = A2mlTypeSpec::Struct(vec![
+            A2mlTypeSpec::UChar,
+            A2mlTypeSpec::UInt,
+            A2mlTypeSpec::ULong,
+            A2mlTypeSpec::Char,
+            A2mlTypeSpec::Int,
+            A2mlTypeSpec::Long,
+            A2mlTypeSpec::Float,
+            A2mlTypeSpec::Double,
+            A2mlTypeSpec::Array(
+                Box::new(A2mlTypeSpec::UInt),
+                3,
+            ),
+            A2mlTypeSpec::Enum(enum_hashmap_1),
+            A2mlTypeSpec::Enum(enum_hashmap_2),
+            A2mlTypeSpec::TaggedUnion(taggedunion_hashmap),
+            A2mlTypeSpec::TaggedStruct(taggedstruct_hashmap),
+        ]);
+
+        let parse_result = parse_a2ml(TEST_INPUT);
+        assert!(parse_result.is_ok());
+        let a2ml_spec = parse_result.unwrap();
+        println!("{:?}", a2ml_spec);
+        assert_eq!(a2ml_spec, expected_parse_result);
     }
 }

@@ -4,6 +4,37 @@ mod test {
 
     use a2lfile::*;
 
+    a2ml_specification! {
+        <A2mlTest>
+
+        block "IF_DATA" taggedunion if_data {
+            "CHAR" char a;
+            "INT" int b;
+            "LONG" long c;
+            "INT64" int64 d;
+            "UCHAR" uchar e;
+            "UINT" uint64 f;
+            "ULONG" ulong g;
+            "UINT64" uint64 h;
+            "DOUBLE" double i;
+            "FLOAT" float j;
+            "STRUCT" struct structname {
+                char[256];
+                int;
+            };
+            block "BLOCK" taggedstruct tagged_struct {
+                "TAG1" int intval;
+            };
+            "ENUM" enum EnumTest {
+                "ENUMVAL1" = 1,
+                "ENUMVAL2"
+            } named_enum;
+            "ARRAY" uint arr[3];
+            block "SEQUENCE" (char[256] name)*;
+            "NONE";
+        };
+    }
+
     const TEST_A2L: &str = r###"
 ASAP2_VERSION 1 61
 /begin PROJECT SOMETHING ""
@@ -40,7 +71,7 @@ ASAP2_VERSION 1 61
     }
 
     #[test]
-    fn all_elements() {
+    fn full_test() {
         // a minimal a2l file needs only a PROJECT containing a MODULE
         let mut project = a2lfile::Project::new(
             "new_project".to_string(),
@@ -62,11 +93,11 @@ ASAP2_VERSION 1 61
 
         let a2ml = A2ml::new(
             r##"
-        block IF_DATA taggedunion if_data {
-            "BLOCK_A" struct {
+        block "IF_DATA" taggedunion if_data {
+            block "BLOCK_A" struct {
                 int;
             };
-            "BLOCK_B" struct {
+            block "BLOCK_B" struct {
                 char[256];
             };
         };
@@ -659,7 +690,11 @@ ASAP2_VERSION 1 61
         unit.unit_conversion = Some(UnitConversion::new(0f64, 0f64));
 
         let mut ref_group = RefGroup::new();
-        ref_group.identifier_list = vec!["identifier".to_string(),  "name".to_string(), "other".to_string()];
+        ref_group.identifier_list = vec![
+            "identifier".to_string(),
+            "name".to_string(),
+            "other".to_string(),
+        ];
 
         let mut user_rights = UserRights::new("user_level_id".to_string());
         user_rights.read_only = Some(ReadOnly::new());
@@ -712,10 +747,31 @@ ASAP2_VERSION 1 61
 
         let a2ldata = a2l_file.write_to_string();
 
+        let result = a2l_file.write("test.a2l", None);
+        assert!(result.is_ok());
+        assert!(std::path::Path::new("test.a2l").exists());
+
         let mut log_msgs = Vec::<String>::new();
         let a2l_file2 = a2lfile::load_from_string(&a2ldata, None, &mut log_msgs, false);
-
         assert!(a2l_file2.is_ok());
+        let mut a2l_file2 = a2l_file2.unwrap();
+
+        let mut a2l_file3 = a2lfile::load(
+            "test.a2l",
+            Some(A2MLTEST_TEXT.to_string()),
+            &mut log_msgs,
+            false,
+        )
+        .unwrap();
+        let mut a2l_file4 = a2lfile::load_from_string(TEST_A2L, None, &mut log_msgs, false).unwrap();
+
+        a2l_file3.merge_modules(&mut a2l_file2);
+        a2l_file3.merge_modules(&mut a2l_file4);
+        a2l_file3.merge_includes();
+        a2l_file3.ifdata_cleanup();
+
+        let delete_result = std::fs::remove_file("test.a2l");
+        assert!(delete_result.is_ok());
     }
 
     #[test]
@@ -772,6 +828,5 @@ ASAP2_VERSION 1 61
         let mut log_msgs = Vec::<String>::new();
         let load_result = a2lfile::load_from_string(&data_good, None, &mut log_msgs, false);
         assert!(load_result.is_ok());
-
     }
 }
