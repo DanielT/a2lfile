@@ -57,6 +57,12 @@ ASAP2_VERSION 1 61
       COEFFS 0 1 0 0 0 1
       REF_UNIT abc
     /end COMPU_METHOD
+    /begin MEASUREMENT measurement ""
+      UBYTE CM.IDENTICAL 0 0 0 255
+      /begin IF_DATA ETK
+        KP_BLOB 0x13A30 INTERN 0x1 RASTER 0x4
+      /end IF_DATA
+    /end MEASUREMENT
   /end MODULE
 /end PROJECT"###;
 
@@ -92,8 +98,7 @@ ASAP2_VERSION 1 61
         a2l_file.a2ml_version = Some(A2mlVersion::new(1, 31));
 
         let a2ml = A2ml::new(
-            r##"
-        block "IF_DATA" taggedunion if_data {
+            r##"  block "IF_DATA" taggedunion if_data {
             block "BLOCK_A" struct {
                 int;
             };
@@ -124,7 +129,11 @@ ASAP2_VERSION 1 61
                 is_block: true,
             }],
         );
-        if_data_a.ifdata_items = Some(GenericIfData::TaggedUnion(if_data_content));
+        if_data_a.ifdata_items = Some(GenericIfData::Block {
+            incfile: None,
+            line: 0,
+            items: vec![GenericIfData::TaggedUnion(if_data_content)],
+        });
 
         let mut memory_segment = a2lfile::MemorySegment::new(
             "seg1".to_string(),
@@ -311,6 +320,14 @@ ASAP2_VERSION 1 61
         compu_method.ref_unit = Some(RefUnit::new("ref_unit".to_string()));
         compu_method.status_string_ref =
             Some(StatusStringRef::new("status_string_ref".to_string()));
+
+        let compu_method_2 = CompuMethod::new(
+            "compu_method_2".to_string(),
+            "display_identifier".to_string(),
+            ConversionType::TabVerb,
+            "format".to_string(),
+            "unit".to_string(),
+        );
 
         let mut compu_tab = CompuTab::new(
             "name".to_string(),
@@ -716,7 +733,7 @@ ASAP2_VERSION 1 61
         a2l_file.project.module[0].axis_pts = vec![axis_pts];
         a2l_file.project.module[0].blob = vec![blob];
         a2l_file.project.module[0].characteristic = vec![characteristic];
-        a2l_file.project.module[0].compu_method = vec![compu_method];
+        a2l_file.project.module[0].compu_method = vec![compu_method, compu_method_2];
         a2l_file.project.module[0].compu_tab = vec![compu_tab];
         a2l_file.project.module[0].compu_vtab = vec![compu_vtab];
         a2l_file.project.module[0].compu_vtab_range = vec![compu_vtab_range];
@@ -737,13 +754,64 @@ ASAP2_VERSION 1 61
         a2l_file.project.module[0].user_rights = vec![user_rights];
         a2l_file.project.module[0].variant_coding = Some(variant_coding);
 
-        a2l_file.reset_location();
+        let mut cloned_a2l_file = a2l_file.clone();
+        let unchanged_a2l_file = a2l_file.clone();
+        assert_eq!(a2l_file.project.module.len(), 1);
+        // merge_modules should be a no-op in this case, because the content of the merged file is the same as the original
+        a2l_file.merge_modules(&mut cloned_a2l_file);
+        a2l_file.write("merged.a2l", None).unwrap();
+        unchanged_a2l_file.write("orig.a2l", None).unwrap();
+        assert_eq!(a2l_file, unchanged_a2l_file);
+        assert_eq!(a2l_file.project.module.len(), 1);
+
+        let mut log_msgs = Vec::<String>::new();
+        let mut other_a2l_file =
+            a2lfile::load_from_string(TEST_A2L, None, &mut log_msgs, false).unwrap();
+        assert_eq!(a2l_file.project.module[0].measurement.len(), 1);
+        a2l_file.merge_modules(&mut other_a2l_file);
+        assert_eq!(a2l_file.project.module[0].measurement.len(), 2);
+
+        a2l_file.project.module[0].measurement[0].reset_location();
+        // initially the compu_methods are not sorted alphabetically
+        assert_eq!(a2l_file.project.module[0].compu_method[0].name, "name");
+        assert_eq!(
+            a2l_file.project.module[0].compu_method[1].name,
+            "compu_method_2"
+        );
         a2l_file.sort_new_items();
+        // now they are sorted alphabetically
+        assert_eq!(
+            a2l_file.project.module[0].compu_method[0].name,
+            "compu_method_2"
+        );
+        assert_eq!(a2l_file.project.module[0].compu_method[1].name, "name");
+
+        // the newly created elements do not have a uid, even after sort_new_items()
+        assert!(
+            a2l_file.project.module[0].characteristic[0]
+                .get_layout()
+                .uid
+                == 0
+        );
         a2l_file.sort();
-        a2l_file.cleanup();
+        // fully sorting the file assigns a uid to all elements
+        assert!(
+            a2l_file.project.module[0].characteristic[0]
+                .get_layout()
+                .uid
+                != 0
+        );
+        assert!(a2l_file.project.module[0].measurement[0].get_layout().uid != 0);
+
+        // the data above is not sane, there are multiple warnings reported in log_msgs
         let mut log_msgs = Vec::<String>::new();
         a2l_file.check(&mut log_msgs);
-        assert_ne!(log_msgs.len(), 0); // the data above is not sane, there are multiple errors
+        assert_ne!(log_msgs.len(), 0);
+
+        // the compu_methods in the a2l_file are not referenced by any other element, so they get removed by cleanup()
+        assert_eq!(a2l_file.project.module[0].compu_method.len(), 3);
+        a2l_file.cleanup();
+        assert_eq!(a2l_file.project.module[0].compu_method.len(), 0);
 
         let a2ldata = a2l_file.write_to_string();
 
@@ -751,10 +819,12 @@ ASAP2_VERSION 1 61
         assert!(result.is_ok());
         assert!(std::path::Path::new("test.a2l").exists());
 
+        // verify that the loaded data structure is identical to the original data structure
         let mut log_msgs = Vec::<String>::new();
         let a2l_file2 = a2lfile::load_from_string(&a2ldata, None, &mut log_msgs, false);
         assert!(a2l_file2.is_ok());
-        let mut a2l_file2 = a2l_file2.unwrap();
+        let a2l_file2 = a2l_file2.unwrap();
+        assert_eq!(a2l_file, a2l_file2);
 
         let mut a2l_file3 = a2lfile::load(
             "test.a2l",
@@ -763,12 +833,26 @@ ASAP2_VERSION 1 61
             false,
         )
         .unwrap();
-        let mut a2l_file4 = a2lfile::load_from_string(TEST_A2L, None, &mut log_msgs, false).unwrap();
+        assert_eq!(a2l_file2, a2l_file3);
 
-        a2l_file3.merge_modules(&mut a2l_file2);
-        a2l_file3.merge_modules(&mut a2l_file4);
+        // set the incfile propery of one element. This would normally indicate that is was loaded from an /include file
+        a2l_file3.project.module[0].measurement[0].get_layout_mut().incfile = Some("bla".to_string());
         a2l_file3.merge_includes();
+        // the incfile property should be removed from the measurement element
+        assert_eq!(a2l_file3.project.module[0].measurement[0].get_layout_mut().incfile, None);
+
+        // the first measurement was merged from the data that was loaded from the TEST_A2L string and then sorted to the beginning of the list.
+        // It contains an IF_DATA block, but the content is nonsense
+        assert_eq!(a2l_file3.project.module[0].measurement[0].if_data.len(), 1);
+        assert_eq!(a2l_file3.project.module[0].measurement[0].if_data[0].ifdata_valid, false);
+        // ifdata on the other measurement is valid
+        assert_eq!(a2l_file3.project.module[0].measurement[1].if_data.len(), 1);
+        assert_eq!(a2l_file3.project.module[0].measurement[1].if_data[0].ifdata_valid, true);
         a2l_file3.ifdata_cleanup();
+        // the nonsensical IF_DATA has been removed
+        assert_eq!(a2l_file3.project.module[0].measurement[0].if_data.len(), 0);
+        // valid ifdata is retained
+        assert_eq!(a2l_file3.project.module[0].measurement[1].if_data.len(), 1);
 
         let delete_result = std::fs::remove_file("test.a2l");
         assert!(delete_result.is_ok());
