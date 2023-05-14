@@ -821,7 +821,10 @@ fn merge_user_rights(orig_module: &mut Module, merge_module: &mut Module) {
     // there is no renaming here; as far as I can tell there is no requirement that there should only be one entry per user id
     while let Some(mut merge_user_rights) = merge_module.user_rights.pop() {
         merge_user_rights.reset_location();
-        orig_module.user_rights.push(merge_user_rights);
+        // don't create any exact duplicates, but copy everything else
+        if !orig_module.user_rights.iter().any(|user_rights| user_rights == &merge_user_rights) {
+            orig_module.user_rights.push(merge_user_rights);
+        }
     }
 }
 
