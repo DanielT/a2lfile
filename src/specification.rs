@@ -1589,7 +1589,7 @@ impl A2ml {
             .split("\r\n")
             .collect::<Vec<&str>>()
             .join("\n");
-        writer.add_str(&text_fixed, self.__block_info.item_location.0);
+        writer.add_str_raw(&text_fixed, self.__block_info.item_location.0);
         writer.finish()
     }
 }
