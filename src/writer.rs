@@ -33,8 +33,18 @@ impl Writer {
         }
     }
 
+    // add a string to the outout and prefix it with whitespace
     pub(crate) fn add_str(&mut self, text: &str, offset: u32) {
         self.add_whitespace(offset);
+        self.outstring.push_str(text);
+    }
+
+    // add a string to the output, prefixed with whitespace only if the string does not already contain any
+    // this is used to write A2ML blocks
+    pub(crate) fn add_str_raw(&mut self, text: &str, offset: u32) {
+        if !text.starts_with(|c: char| c.is_whitespace()) {
+            self.add_whitespace(offset);
+        }
         self.outstring.push_str(text);
     }
 
