@@ -1,4 +1,4 @@
-use std::ffi::OsString;
+use std::{ffi::OsString, path::Path};
 
 use super::loader;
 
@@ -82,7 +82,8 @@ pub(crate) fn tokenize(
                 let incfilename = make_include_filename(incname, &filenames[0]);
 
                 // check if incname is an accessible file
-                let loadresult = loader::load(&incfilename);
+                let incpathref = Path::new(&incfilename);
+                let loadresult = loader::load(incpathref);
                 if let Ok(incfiledata) = loadresult {
                     let mut tokresult = tokenize(incname.to_owned(), next_fileid, &incfiledata)?;
 
