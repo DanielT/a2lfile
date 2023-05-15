@@ -1,15 +1,14 @@
-use std::convert::AsRef;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-pub fn load<P: AsRef<Path>>(path: P) -> Result<String, String> {
+pub fn load(path: &Path) -> Result<String, String> {
     let mut file = match File::open(&path) {
         Ok(file) => file,
         Err(error) => {
             return Err(format!(
                 "Error while loading {}: {}\n",
-                path.as_ref().display(),
+                path.display(),
                 error
             ))
         }

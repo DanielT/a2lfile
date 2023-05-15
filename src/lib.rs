@@ -16,7 +16,6 @@ mod tokenizer;
 mod writer;
 
 use std::convert::AsRef;
-use std::ffi::OsStr;
 use std::fmt::Write;
 use std::path::Path;
 // used internally
@@ -90,22 +89,49 @@ pub fn load<P: AsRef<Path>>(
     log_msgs: &mut Vec<String>,
     strict_parsing: bool,
 ) -> Result<A2lFile, String> {
-    let filedata = loader::load(&path)?;
-    load_impl(path, &filedata, log_msgs, strict_parsing, a2ml_spec)
+    let pathref = path.as_ref();
+    let filedata = loader::load(pathref)?;
+    load_impl(pathref, &filedata, log_msgs, strict_parsing, a2ml_spec)
 }
 
-/// load a2l data stored in a string
+/**
+load a2l data stored in a string
+
+`a2ldata` contains the text of an a2l file.
+
+`a2ml_spec` is optional and contains a String that is valid A2ML that can be used while parsing the file in addition to the A2ML that might be contained inside the A2ML block in the file.
+If a definition is provided here and there is also an A2ML block in the file, then the definition provided here will be tried first during parsing.
+
+`log_msgs` is a reference to a `Vec<String>` which will receive all warning messages generated during parsing
+
+`strict_parsing` toggles strict parsing: If strict parsing is enabled, most warnings become errors.
+
+```rust
+let text = r#"
+ASAP2_VERSION 1 71
+/begin PROJECT new_project ""
+  /begin MODULE new_module ""
+  /end MODULE
+/end PROJECT
+"#;
+
+let mut log_msgs = Vec::<String>::new();
+let a2l = a2lfile::load_from_string(&text, None, &mut log_msgs, true).unwrap();
+assert_eq!(a2l.project.module[0].name, "new_module");
+```
+ */ 
 pub fn load_from_string(
     a2ldata: &str,
     a2ml_spec: Option<String>,
     log_msgs: &mut Vec<String>,
     strict_parsing: bool,
 ) -> Result<A2lFile, String> {
-    load_impl(OsStr::new(""), a2ldata, log_msgs, strict_parsing, a2ml_spec)
+    let pathref = Path::new("");
+    load_impl(pathref, a2ldata, log_msgs, strict_parsing, a2ml_spec)
 }
 
-fn load_impl<P: AsRef<Path>>(
-    path: P,
+fn load_impl(
+    path: &Path,
     filedata: &str,
     log_msgs: &mut Vec<String>,
     strict_parsing: bool,
@@ -113,7 +139,7 @@ fn load_impl<P: AsRef<Path>>(
 ) -> Result<A2lFile, String> {
     // tokenize the input data
     let tokenresult =
-        tokenizer::tokenize(path.as_ref().to_string_lossy().to_string(), 0, filedata)?;
+        tokenizer::tokenize(path.to_string_lossy().to_string(), 0, filedata)?;
 
     if tokenresult.tokens.is_empty() {
         return Err("Error: File contains no a2l data".to_string());
