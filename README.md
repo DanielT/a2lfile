@@ -1,5 +1,10 @@
 # `a2lfile`
 
+[![Github Actions](https://github.com/DanielT/a2lfile/actions/workflows/test.yml/badge.svg)](https://github.com/DanielT/a2lfile/actions)
+[![codecov](https://codecov.io/gh/DanielT/a2lfile/branch/main/graph/badge.svg)](https://codecov.io/gh/DanielT/a2lfile)
+[![license](https://img.shields.io/badge/license-Apache--2.0_OR_MIT-blue)](#license)
+
+
 `a2lfile` is a library that allows you to read, modify and write a2l files.
 
 ## Features
@@ -90,5 +95,5 @@ fn main() {
 
 Licensed under either of
 
-- Apache License, Version 2.0 ([`LICENSE-APACHE`](./LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-- MIT license ([`LICENSE-MIT`](./LICENSE-MIT) or http://opensource.org/licenses/MIT)
+- Apache License, Version 2.0 ([`LICENSE-APACHE`](./LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([`LICENSE-MIT`](./LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
