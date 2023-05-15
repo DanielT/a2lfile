@@ -29,12 +29,50 @@ pub use a2ml::{GenericIfData, GenericIfDataTaggedItem};
 pub use specification::*;
 
 /**
+Create a new a2l file
+
+```rust
+let new_a2l = a2lfile::new();
+assert_eq!(new_a2l.project.module.len(), 1);
+```
+
+The created file is equivalent to loading a string containing
+```text
+ASAP2_VERSION 1 71
+/begin PROJECT new_project ""
+  /begin MODULE new_module ""
+  /end MODULE
+/end PROJECT
+```
+ */
+pub fn new() -> A2lFile {
+    // a minimal a2l file needs only a PROJECT containing a MODULE
+    let mut project = Project::new(
+        "new_project".to_string(),
+        "".to_string(),
+    );
+    project.module = vec![Module::new(
+        "new_module".to_string(),
+        "".to_string(),
+    )];
+    let mut a2l_file = A2lFile::new(project);
+    // only one line break for PROJECT (after ASAP2_VERSION) instead of the default 2
+    a2l_file.project.get_layout_mut().start_offset = 1;
+    // only one line break for MODULE [0] instead of the default 2
+    a2l_file.project.module[0].get_layout_mut().start_offset = 1;
+    // also set ASAP2_VERSION 1.71
+    a2l_file.asap2_version = Some(Asap2Version::new(1, 71));
+
+    a2l_file
+}
+
+/**
 Load an a2l file
 
 `a2ml_spec` is optional and contains a String that is valid A2ML that can be used while parsing the file in addition to the A2ML that might be contained inside the A2ML block in the file.
 If a definition is provided here and there is also an A2ML block in the file, then the definition provided here will be tried first during parsing.
 
-`log_msgs` is a reference to a Vec<String> which will receive all warning messages generated during parsing
+`log_msgs` is a reference to a `Vec<String>` which will receive all warning messages generated during parsing
 
 `strict_parsing` toggles strict parsing: If strict parsing is enabled, most warnings become errors.
 
