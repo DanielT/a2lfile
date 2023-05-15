@@ -46,14 +46,8 @@ ASAP2_VERSION 1 71
  */
 pub fn new() -> A2lFile {
     // a minimal a2l file needs only a PROJECT containing a MODULE
-    let mut project = Project::new(
-        "new_project".to_string(),
-        "".to_string(),
-    );
-    project.module = vec![Module::new(
-        "new_module".to_string(),
-        "".to_string(),
-    )];
+    let mut project = Project::new("new_project".to_string(), "".to_string());
+    project.module = vec![Module::new("new_module".to_string(), "".to_string())];
     let mut a2l_file = A2lFile::new(project);
     // only one line break for PROJECT (after ASAP2_VERSION) instead of the default 2
     a2l_file.project.get_layout_mut().start_offset = 1;
@@ -119,7 +113,7 @@ let mut log_msgs = Vec::<String>::new();
 let a2l = a2lfile::load_from_string(&text, None, &mut log_msgs, true).unwrap();
 assert_eq!(a2l.project.module[0].name, "new_module");
 ```
- */ 
+ */
 pub fn load_from_string(
     a2ldata: &str,
     a2ml_spec: Option<String>,
@@ -138,8 +132,7 @@ fn load_impl(
     a2ml_spec: Option<String>,
 ) -> Result<A2lFile, String> {
     // tokenize the input data
-    let tokenresult =
-        tokenizer::tokenize(path.to_string_lossy().to_string(), 0, filedata)?;
+    let tokenresult = tokenizer::tokenize(path.to_string_lossy().to_string(), 0, filedata)?;
 
     if tokenresult.tokens.is_empty() {
         return Err("Error: File contains no a2l data".to_string());
@@ -321,5 +314,153 @@ impl A2lFile {
     /// specification provided during load or the specification in the A2ML block in the file
     pub fn ifdata_cleanup(&mut self) {
         ifdata::remove_unknown_ifdata(self);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn load_empty_file() {
+        let mut log_msgs = Vec::new();
+        let result = load_from_string("", None, &mut log_msgs, false);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(error, "Error: File contains no a2l data");
+    }
+
+    #[test]
+    fn bad_a2ml_data() {
+        let mut log_msgs = Vec::new();
+        let result = load_from_string(
+            r#"/begin PROJECT x "" /begin MODULE y "" /end MODULE /end PROJECT"#,
+            Some("x".to_string()),
+            &mut log_msgs,
+            false,
+        );
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.starts_with("Error: Failed to load built-in specification"))
+    }
+
+    #[test]
+    fn strict_parsing_version_error() {
+        // version is missing completely
+        let mut log_msgs = Vec::new();
+        let result = load_from_string(
+            r#"/begin PROJECT x "" /begin MODULE y "" /end MODULE /end PROJECT"#,
+            None,
+            &mut log_msgs,
+            true,
+        );
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(
+            error,
+            "File is not recognized as an a2l file. Mandatory version information is missing."
+        );
+
+        // version is damaged
+        let mut log_msgs = Vec::new();
+        let result = load_from_string(
+            r#"ASAP2_VERSION 1 /begin PROJECT"#,
+            None,
+            &mut log_msgs,
+            true,
+        );
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(
+            error,
+            "File is not recognized as an a2l file. Mandatory version information is missing."
+        );
+    }
+
+    #[test]
+    fn additional_tokens() {
+        // strict parsin off - no error
+        let mut log_msgs = Vec::new();
+        let result = load_from_string(
+            r#"ASAP2_VERSION 1 71 /begin PROJECT x "" /begin MODULE y "" /end MODULE /end PROJECT abcdef"#,
+            None,
+            &mut log_msgs,
+            false,
+        );
+        assert!(result.is_ok());
+        assert_eq!(log_msgs.len(), 1);
+
+        // strict parsing on - error
+        let mut log_msgs = Vec::new();
+        let result = load_from_string(
+            r#"ASAP2_VERSION 1 71 /begin PROJECT x "" /begin MODULE y "" /end MODULE /end PROJECT abcdef"#,
+            None,
+            &mut log_msgs,
+            true,
+        );
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.ends_with("after parsed a2l file content"));
+    }
+
+    #[test]
+    fn write_nonexistent_file() {
+        let a2l = new();
+        let result = a2l.write(
+            "__NONEXISTENT__/__FILE__/__PATH__/test.a2l",
+            Some("test case write_nonexistent_file()"),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn write_with_banner() {
+        let mut a2l = new();
+        a2l.asap2_version
+            .as_mut()
+            .unwrap()
+            .get_layout_mut()
+            .start_offset = 0;
+        let result = a2l.write("test.a2l", Some("test case write_nonexistent_file()"));
+        assert!(result.is_ok());
+        let file_text = String::from_utf8(std::fs::read("test.a2l").unwrap()).unwrap();
+        assert!(file_text.starts_with("/* test case write_nonexistent_file() */"));
+        std::fs::remove_file("test.a2l").unwrap();
+
+        a2l.asap2_version
+            .as_mut()
+            .unwrap()
+            .get_layout_mut()
+            .start_offset = 1;
+        let result = a2l.write("test.a2l", Some("test case write_nonexistent_file()"));
+        assert!(result.is_ok());
+        let file_text = String::from_utf8(std::fs::read("test.a2l").unwrap()).unwrap();
+        assert!(file_text.starts_with("/* test case write_nonexistent_file() */"));
+        std::fs::remove_file("test.a2l").unwrap();
+    }
+
+    #[test]
+    fn merge() {
+        // version is copied if non exists
+        let mut a2l = new();
+        let mut a2l_2 = new();
+        a2l.asap2_version = None;
+        a2l.merge_modules(&mut a2l_2);
+        assert!(a2l.asap2_version.is_some());
+
+        // version is updated if the merged file has a higher version
+        let mut a2l = new();
+        let mut a2l_2 = new();
+        a2l.asap2_version = Some(Asap2Version::new(1, 50));
+        a2l.merge_modules(&mut a2l_2);
+        assert!(a2l.asap2_version.is_some());
+        assert!(matches!(
+            a2l.asap2_version,
+            Some(Asap2Version {
+                version_no: 1,
+                upgrade_no: 71,
+                ..
+            })
+        ));
     }
 }
