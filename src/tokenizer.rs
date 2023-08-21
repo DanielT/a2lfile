@@ -326,13 +326,10 @@ fn find_string_end(filebytes: &[u8], mut bytepos: usize, line: u32) -> Result<us
 
     while bytepos < datalen && !end_found {
         if filebytes[bytepos] == b'"' {
-            /* the current char is a quote char */
-            if prev_quote || prev_bkslash {
-                /* this quote char has been escaped as either "" or \" */
-            } else {
-                /* this quote has not been escaped, so it's the first of a new escape sequence or the end of the string */
-                prev_quote = true;
-            }
+            // the current char is a quote char
+            // if either prev_quote or prev_bkslash is set, then this quote is escaped
+            // otherwise it's the start of a new double quote escape sequence or the end of the string
+            prev_quote = !(prev_quote || prev_bkslash);
             prev_bkslash = false;
         } else {
             /* current char is not a quote char */
@@ -572,6 +569,7 @@ mod tests {
         assert_eq!(tokresult.len(), 1);
         assert_eq!(tokresult[0].ttype, A2lTokenType::Include);
     }
+
     #[test]
     fn tokenize_a2l_string() {
         /* empty string */
@@ -586,8 +584,20 @@ mod tests {
         assert_eq!(tokresult.tokens.len(), 1);
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
 
+        /* string containing two instances of a single double quote escaped as two double quotes */
+        let data = String::from(r#"" ""x"" ""#);
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
+
         /* string containing a single double quote escaped with a backslash */
         let data = String::from(r#" "\"" "#);
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
+
+        /* string containing two instances of a single double quote escaped with a backslash */
+        let data = String::from(r#"" \"x\" ""#);
         let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
