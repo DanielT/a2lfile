@@ -1,6 +1,6 @@
 [package]
 name = "a2lfile"
-version = "1.3.3"
+version = "1.3.4"
 authors = ["Daniel Thaler <daniel@dthaler.de>"]
 edition = "2021"
 description = "read, modify and write a2l files"
