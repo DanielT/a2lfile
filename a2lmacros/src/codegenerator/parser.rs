@@ -217,7 +217,6 @@ fn generate_item_parser_call(typename: &Option<String>, item: &BaseType) -> Toke
                 let itemparser =
                     generate_item_parser_call(&arraytype.typename, &arraytype.basetype);
                 let names: Vec<Ident> = (0..(*dim))
-                    .into_iter()
                     .map(|x| format_ident!("__arrayitem_{}", x))
                     .collect();
                 let parsercalls = names.iter().map(|name| quote! {let #name = #itemparser;});

@@ -821,18 +821,31 @@ ASAP2_VERSION 1 61
         assert_eq!(a2l_file2, a2l_file3);
 
         // set the incfile propery of one element. This would normally indicate that is was loaded from an /include file
-        a2l_file3.project.module[0].measurement[0].get_layout_mut().incfile = Some("bla".to_string());
+        a2l_file3.project.module[0].measurement[0]
+            .get_layout_mut()
+            .incfile = Some("bla".to_string());
         a2l_file3.merge_includes();
         // the incfile property should be removed from the measurement element
-        assert_eq!(a2l_file3.project.module[0].measurement[0].get_layout_mut().incfile, None);
+        assert_eq!(
+            a2l_file3.project.module[0].measurement[0]
+                .get_layout_mut()
+                .incfile,
+            None
+        );
 
         // the first measurement was merged from the data that was loaded from the TEST_A2L string and then sorted to the beginning of the list.
         // It contains an IF_DATA block, but the content is nonsense
         assert_eq!(a2l_file3.project.module[0].measurement[0].if_data.len(), 1);
-        assert_eq!(a2l_file3.project.module[0].measurement[0].if_data[0].ifdata_valid, false);
+        assert_eq!(
+            a2l_file3.project.module[0].measurement[0].if_data[0].ifdata_valid,
+            false
+        );
         // ifdata on the other measurement is valid
         assert_eq!(a2l_file3.project.module[0].measurement[1].if_data.len(), 1);
-        assert_eq!(a2l_file3.project.module[0].measurement[1].if_data[0].ifdata_valid, true);
+        assert_eq!(
+            a2l_file3.project.module[0].measurement[1].if_data[0].ifdata_valid,
+            true
+        );
         a2l_file3.ifdata_cleanup();
         // the nonsensical IF_DATA has been removed
         assert_eq!(a2l_file3.project.module[0].measurement[0].if_data.len(), 0);

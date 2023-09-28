@@ -1703,6 +1703,12 @@ impl IfData {
     }
 }
 
+impl Default for IfData {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl A2lObject<()> for IfData {
     fn get_layout(&self) -> &BlockInfo<()> {
         &self.__block_info

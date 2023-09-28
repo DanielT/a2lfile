@@ -11,6 +11,7 @@ pub enum NameMapObject<'a> {
     Instance(&'a Instance),
 }
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, PartialEq)]
 pub enum NameMapCompuTab<'a> {
     CompuTab(&'a CompuTab),
@@ -18,6 +19,7 @@ pub enum NameMapCompuTab<'a> {
     CompuVtabRange(&'a CompuVtabRange),
 }
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, PartialEq)]
 pub enum NameMapTypedef<'a> {
     TypedefBlob(&'a TypedefBlob),

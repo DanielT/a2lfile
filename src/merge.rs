@@ -822,7 +822,11 @@ fn merge_user_rights(orig_module: &mut Module, merge_module: &mut Module) {
     while let Some(mut merge_user_rights) = merge_module.user_rights.pop() {
         merge_user_rights.reset_location();
         // don't create any exact duplicates, but copy everything else
-        if !orig_module.user_rights.iter().any(|user_rights| user_rights == &merge_user_rights) {
+        if !orig_module
+            .user_rights
+            .iter()
+            .any(|user_rights| user_rights == &merge_user_rights)
+        {
             orig_module.user_rights.push(merge_user_rights);
         }
     }

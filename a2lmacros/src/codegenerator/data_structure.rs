@@ -448,7 +448,6 @@ fn generate_item_locationinfo_init(item_basetype: &BaseType, initline: u32) -> T
             } else {
                 let item_loc_info_init = generate_item_locationinfo_init(&arraytype.basetype, 0);
                 let loc_info_init_list: Vec<TokenStream> = (0..(*dim))
-                    .into_iter()
                     .map(|_| quote! { #item_loc_info_init })
                     .collect();
                 quote! { [#(#loc_info_init_list),*] }

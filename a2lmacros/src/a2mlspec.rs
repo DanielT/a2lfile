@@ -1002,13 +1002,8 @@ fn fixup_make_dataitem(
     item: &DataItem,
     defined_types: &mut HashMap<String, BaseType>,
 ) -> DataItem {
-    let (new_typename, new_basetype) = fixup_data_type(
-        spec,
-        &item.typename,
-        &item.basetype,
-        &item.comment,
-        defined_types,
-    );
+    let (new_typename, new_basetype) =
+        fixup_data_type(spec, &item.typename, &item.basetype, defined_types);
     let varname = make_itemname(&item.varname, &new_typename);
     DataItem {
         typename: new_typename,
@@ -1022,7 +1017,6 @@ fn fixup_data_type(
     spec: &A2mlSpec,
     typename: &Option<String>,
     basetype: &BaseType,
-    comment: &Option<String>,
     defined_types: &mut HashMap<String, BaseType>,
 ) -> (Option<String>, BaseType) {
     match basetype {
@@ -1031,7 +1025,6 @@ fn fixup_data_type(
                 spec,
                 &arraytype.typename,
                 &arraytype.basetype,
-                comment,
                 defined_types,
             );
             let new_basetype = BaseType::Array {
@@ -1052,7 +1045,7 @@ fn fixup_data_type(
                 } => {
                     // seqence(seqence(x)) makes no sense, flatten it to just sequence(x)
                     let (new_typename, new_basetype) =
-                        fixup_data_type(spec, typename, inner_seqtype, comment, defined_types);
+                        fixup_data_type(spec, typename, inner_seqtype, defined_types);
                     (
                         new_typename,
                         BaseType::Sequence {
@@ -1070,7 +1063,7 @@ fn fixup_data_type(
                 }
                 _ => {
                     let (new_typename, new_basetype) =
-                        fixup_data_type(spec, typename, seqtype, comment, defined_types);
+                        fixup_data_type(spec, typename, seqtype, defined_types);
                     (
                         new_typename,
                         BaseType::Sequence {
@@ -1305,13 +1298,11 @@ fn make_enum_name(itemname: &Option<String>, enumitems: &[EnumItem]) -> String {
             .collect();
         let minlen = namechars.iter().map(|vec| vec.len()).min().unwrap();
         let mut prefixlen = minlen;
-        'outer_loop: for pos in 0..minlen {
+        for pos in 0..minlen {
             let nextchar = namechars[0][pos];
-            for enumidx in 1..enumitems.len() {
-                if namechars[enumidx][pos] != nextchar {
-                    prefixlen = pos;
-                    break 'outer_loop;
-                }
+            if namechars.iter().any(|enum_name| enum_name[pos] != nextchar) {
+                prefixlen = pos;
+                break;
             }
         }
 
@@ -1483,5 +1474,25 @@ mod test {
             codegenerator::data_structure::generate(typename, a2mltype);
             codegenerator::parser::generate(typename, a2mltype);
         }
+    }
+
+    #[test]
+    fn test_make_enum_name() {
+        let enumitems = vec![
+            EnumItem {
+                name: "SOME_ENUM_A".to_string(),
+                value: None,
+                comment: None,
+                version_range: None,
+            },
+            EnumItem {
+                name: "SOME_ENUM_B".to_string(),
+                value: None,
+                comment: None,
+                version_range: None,
+            },
+        ];
+        let enum_name = make_enum_name(&None, &enumitems);
+        assert_eq!(enum_name, "SomeEnum");
     }
 }

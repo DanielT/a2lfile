@@ -3,7 +3,7 @@ use std::io::Read;
 use std::path::Path;
 
 pub fn load(path: &Path) -> Result<String, String> {
-    let mut file = match File::open(&path) {
+    let mut file = match File::open(path) {
         Ok(file) => file,
         Err(error) => {
             return Err(format!(

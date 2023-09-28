@@ -1368,18 +1368,24 @@ mod test {
         enum_hashmap_2.insert("SOME_ENUM_B".to_string(), Some(2));
         enum_hashmap_2.insert("SOME_EMUM_C".to_string(), Some(3));
         let mut taggedunion_hashmap = HashMap::new();
-        taggedunion_hashmap.insert("FOO".to_string(), A2mlTaggedTypeSpec {
-            tag: "FOO".to_string(),
-            item: A2mlTypeSpec::UInt,
-            is_block: false,
-            repeat: false,
-        });
-        taggedunion_hashmap.insert("BAR".to_string(), A2mlTaggedTypeSpec {
-            tag: "BAR".to_string(),
-            item: A2mlTypeSpec::UChar,
-            is_block: false,
-            repeat: false,
-        });
+        taggedunion_hashmap.insert(
+            "FOO".to_string(),
+            A2mlTaggedTypeSpec {
+                tag: "FOO".to_string(),
+                item: A2mlTypeSpec::UInt,
+                is_block: false,
+                repeat: false,
+            },
+        );
+        taggedunion_hashmap.insert(
+            "BAR".to_string(),
+            A2mlTaggedTypeSpec {
+                tag: "BAR".to_string(),
+                item: A2mlTypeSpec::UChar,
+                is_block: false,
+                repeat: false,
+            },
+        );
         let mut taggedstruct_hashmap = HashMap::new();
         taggedstruct_hashmap.insert(
             "NORMAL_ITEM".to_string(),
@@ -1397,13 +1403,9 @@ mod test {
             "REP_ITEM_INNER".to_string(),
             A2mlTaggedTypeSpec {
                 tag: "REP_ITEM_INNER".to_string(),
-                item: A2mlTypeSpec::Sequence(
-                    Box::new(A2mlTypeSpec::Struct(
-                        vec![
-                            A2mlTypeSpec::UInt,
-                        ],
-                    )),
-                ),
+                item: A2mlTypeSpec::Sequence(Box::new(A2mlTypeSpec::Struct(vec![
+                    A2mlTypeSpec::UInt,
+                ]))),
                 is_block: false,
                 repeat: false,
             },
@@ -1426,10 +1428,7 @@ mod test {
             A2mlTypeSpec::Long,
             A2mlTypeSpec::Float,
             A2mlTypeSpec::Double,
-            A2mlTypeSpec::Array(
-                Box::new(A2mlTypeSpec::UInt),
-                3,
-            ),
+            A2mlTypeSpec::Array(Box::new(A2mlTypeSpec::UInt), 3),
             A2mlTypeSpec::Enum(enum_hashmap_1),
             A2mlTypeSpec::Enum(enum_hashmap_2),
             A2mlTypeSpec::TaggedUnion(taggedunion_hashmap),
