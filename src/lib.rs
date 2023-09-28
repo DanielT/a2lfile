@@ -18,6 +18,7 @@ mod writer;
 use std::convert::AsRef;
 use std::fmt::Write;
 use std::path::Path;
+pub use namemap::ModuleNameMap;
 // used internally
 use parser::{ParseContext, ParserState};
 use tokenizer::{A2lToken, A2lTokenType};
@@ -314,6 +315,14 @@ impl A2lFile {
     /// specification provided during load or the specification in the A2ML block in the file
     pub fn ifdata_cleanup(&mut self) {
         ifdata::remove_unknown_ifdata(self);
+    }
+}
+
+
+impl Module {
+    pub fn build_namemap(&self) -> ModuleNameMap {
+        let mut log_msgs = vec![];
+        ModuleNameMap::build(&self, &mut log_msgs)
     }
 }
 

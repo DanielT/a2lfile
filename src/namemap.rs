@@ -56,6 +56,23 @@ macro_rules! check_and_insert_multi {
     }
 }
 
+/// ModuleNameMap collects references to all items with a [Module] into HashMaps, making it possible to access them all by name.
+/// 
+/// There are several name spaces per module, each stored in a different HashMap in the ModuleNameMap:
+/// - object: `CHARACTERISTIC`, `MEASUREMENT`, `AXIS_PTS`, `BLOB`, `INSTANCE`
+/// - compu_method: `COMPU_METHOD`
+/// - compu_tab: `COMPU_VTAB`, `COMPU_VTAB_RANGE`, `COMPU_TAB`
+/// - frame: `FRAME`
+/// - function: `FUNCTION`
+/// - group: `GROUP`
+/// - memory_segment: `MEMORY_SEGMENT`
+/// - record_layout: `RECORD_LAYOUT`
+/// - transformer: `TRANSFORMER`
+/// - typedef: `TYPEDEF_AXIS`, `TYPEDEF_BLOB`, `TYPEDEF_CHARACTERISTIC`, `TYPEDEF_INSTANCE`, `TYPEDEF_MEASUREMENT`
+/// - unit: `UNIT`
+/// - variant: `VARIANT`
+/// 
+/// While the ModuleNameMap is holding these references, the borrow checker will prevent any of these items from being modified.
 #[derive(Debug, PartialEq)]
 pub struct ModuleNameMap<'a> {
     pub compu_method: HashMap<String, &'a CompuMethod>,
@@ -73,22 +90,7 @@ pub struct ModuleNameMap<'a> {
 }
 
 impl<'a> ModuleNameMap<'a> {
-    /*
-    There are several name spaces per module, officialy starting with 1.7, but this matches informal practice from previous versions.
-    The following name spaces are defined:
-    - CHARACTERISTIC, MEASUREMENT, AXIS_PTS, BLOB, INSTANCE
-    - COMPU_METHOD
-    - COMPU_VTAB, COMPU_VTAB_RANGE, COMPU_TAB
-    - FRAME
-    - FUNCTION
-    - GROUP
-    - MEMORY_SEGMENT
-    - RECORD_LAYOUT
-    - TRANSFORMER
-    - TYPEDEF_*
-    - UNIT
-    - VARIANT
-    */
+    /// build a new ModuleNameMap for the given [Module]
     pub fn build(module: &'a Module, log_msgs: &mut Vec<String>) -> Self {
         Self {
             compu_method: build_namemap_compu_method(module, log_msgs),
