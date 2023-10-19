@@ -249,6 +249,12 @@ pub fn load_fragment(a2ldata: &str) -> Result<Module, String> {
     Ok(module)
 }
 
+pub fn load_fragment_file<P: AsRef<Path>>(path: P) -> Result<Module, String> {
+    let pathref = path.as_ref();
+    let filedata = loader::load(pathref)?;
+    load_fragment(&filedata)
+}
+
 impl A2lFile {
     /// construct a string containing the whole a2l data of this A2lFile object
     pub fn write_to_string(&self) -> String {
