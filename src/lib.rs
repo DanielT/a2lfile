@@ -345,9 +345,17 @@ impl A2lFile {
 }
 
 impl Module {
+    /// build a map of all named elements inside the module
     pub fn build_namemap(&self) -> ModuleNameMap {
         let mut log_msgs = vec![];
         ModuleNameMap::build(&self, &mut log_msgs)
+    }
+
+    /// merge another module with this module
+    ///
+    /// Any elements in other that are not present in this module will be moved over. The other module will typically be empty at the end of the merge.
+    pub fn merge(&mut self, other: &mut Module) {
+        merge::merge_modules(self, other);
     }
 }
 
