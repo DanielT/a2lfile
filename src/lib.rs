@@ -15,13 +15,12 @@ mod specification;
 mod tokenizer;
 mod writer;
 
+pub use namemap::ModuleNameMap;
 use std::convert::AsRef;
 use std::fmt::Write;
 use std::path::Path;
-pub use namemap::ModuleNameMap;
 // used internally
 use parser::{ParseContext, ParserState};
-use tokenizer::{A2lToken, A2lTokenType};
 
 // re-export for the crate user
 pub use a2lmacros::a2ml_specification;
@@ -139,26 +138,17 @@ fn load_impl(
         return Err("Error: File contains no a2l data".to_string());
     }
 
-    // create a context for the parser. Ensure that the current line of the context is set to the first line that actually contains a token
-    let mut fake_token = A2lToken {
-        ttype: A2lTokenType::Identifier,
-        startpos: 0,
-        endpos: 0,
+    let firstline = tokenresult.tokens.get(0).map(|tok| tok.line).unwrap_or(1);
+    // create a context for the parser
+    let context = ParseContext {
+        element: "A2L_FILE".to_string(),
         fileid: 0,
-        line: 1,
+        line: firstline,
+        inside_block: false,
     };
-    let firstline = tokenresult.tokens.get(0).unwrap_or(&fake_token).line;
-    fake_token.line = firstline;
-    let context = &ParseContext::from_token("A2L_FILE", &fake_token, false);
 
     // create the parser state object
-    let mut parser = ParserState::new(
-        &tokenresult.tokens,
-        &tokenresult.filedata,
-        &tokenresult.filenames,
-        log_msgs,
-        strict_parsing,
-    );
+    let mut parser = ParserState::new(&tokenresult, log_msgs, strict_parsing);
 
     // if a built-in A2ml specification was passed as a string, then it is parsed here
     if let Some(spec) = a2ml_spec {
@@ -176,7 +166,7 @@ fn load_impl(
 
     // try to get the file version. Starting with 1.60, the ASAP2_VERSION element is mandatory. For
     // compatibility with old files, a missing version is only an error if strict parsing is requested
-    if let Err(version_error) = get_version(&mut parser, context) {
+    if let Err(version_error) = get_version(&mut parser, &context) {
         if !strict_parsing {
             parser.log_msgs.push(version_error);
         } else {
@@ -184,7 +174,7 @@ fn load_impl(
         }
     }
     // build the a2l data structures from the tokens
-    let a2l_file = match A2lFile::parse(&mut parser, context, 0) {
+    let a2l_file = match A2lFile::parse(&mut parser, &context, 0) {
         Ok(data) => data,
         Err(parse_error) => return Err(parser.stringify_parse_error(&parse_error, true)),
     };
@@ -227,6 +217,36 @@ fn get_version(parser: &mut ParserState, context: &ParseContext) -> Result<Asap2
         "File is not recognized as an a2l file. Mandatory version information is missing."
             .to_string(),
     )
+}
+
+/// load an a2l fragment
+///
+/// An a2l fragment is just the bare content of a module, without the enclosing PROJECT and MODULE.
+/// Because the fragment cannot specify a version, strict parsing is not available.
+pub fn load_fragment(a2ldata: &str) -> Result<Module, String> {
+    let fixed_a2ldata = format!(r#"fragment "" {a2ldata} /end MODULE"#);
+    // tokenize the input data
+    let tokenresult = tokenizer::tokenize("(fragment)".to_string(), 0, &fixed_a2ldata)?;
+    let firstline = tokenresult.tokens.get(0).map(|tok| tok.line).unwrap_or(1);
+    let context = ParseContext {
+        element: "MODULE".to_string(),
+        fileid: 0,
+        line: firstline,
+        inside_block: true,
+    };
+
+    // create the parser state object
+    let mut log_msgs = Vec::<String>::new();
+    let mut parser = ParserState::new(&tokenresult, &mut log_msgs, false);
+    parser.set_file_version(1, 71)?; // doesn't really matter with strict = false
+
+    // build the a2l data structures from the tokens
+    let module = match Module::parse(&mut parser, &context, 0) {
+        Ok(data) => data,
+        Err(parse_error) => return Err(parser.stringify_parse_error(&parse_error, true)),
+    };
+
+    Ok(module)
 }
 
 impl A2lFile {
@@ -317,7 +337,6 @@ impl A2lFile {
         ifdata::remove_unknown_ifdata(self);
     }
 }
-
 
 impl Module {
     pub fn build_namemap(&self) -> ModuleNameMap {
@@ -471,5 +490,30 @@ mod tests {
                 ..
             })
         ));
+    }
+
+    #[test]
+    fn test_load_fagment() {
+        // an empty string is a valid fragment
+        let result = load_fragment("");
+        assert!(result.is_ok());
+
+        // load a fragment with some data
+        let result = load_fragment(
+            r#"
+    /begin MEASUREMENT ASAM.M.SCALAR.UBYTE.IDENTICAL
+        "Scalar measurement"
+        UBYTE CM.IDENTICAL 0 0 0 255
+        ECU_ADDRESS 0x13A00
+        FORMAT "%5.0"    /* Note: Overwrites the format stated in the computation method */
+        DISPLAY_IDENTIFIER DI.ASAM.M.SCALAR.UBYTE.IDENTICAL    /* optional display identifier */
+        /begin IF_DATA ETK  KP_BLOB 0x13A00 INTERN 1 RASTER 2 /end IF_DATA
+    /end MEASUREMENT"#,
+        );
+        assert!(result.is_ok());
+
+        // random data is not a valid fragment
+        let result = load_fragment("12345");
+        assert!(result.is_err());
     }
 }

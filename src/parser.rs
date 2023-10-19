@@ -75,7 +75,21 @@ impl<'a> TokenIter<'a> {
 }
 
 impl<'a> ParserState<'a> {
-    pub fn new<'b>(
+    pub(crate) fn new<'b>(
+        tokenresult: &'b TokenResult,
+        log_msgs: &'b mut Vec<String>,
+        strict: bool,
+    ) -> ParserState<'b> {
+        Self::new_internal(
+            &tokenresult.tokens,
+            &tokenresult.filedata,
+            &tokenresult.filenames,
+            log_msgs,
+            strict,
+        )
+    }
+
+    pub(crate) fn new_internal<'b>(
         tokens: &'b [A2lToken],
         filedata: &'b [String],
         filenames: &'b [String],
@@ -799,13 +813,7 @@ mod tests {
 
         let tokenresult = tokenresult.unwrap();
         let mut log_msgs = Vec::<String>::new();
-        let mut parser = ParserState::new(
-            &tokenresult.tokens,
-            &tokenresult.filedata,
-            &tokenresult.filenames,
-            &mut log_msgs,
-            true,
-        );
+        let mut parser = ParserState::new(&tokenresult, &mut log_msgs, true);
         let context = ParseContext {
             element: "TEST".to_string(),
             fileid: 0,

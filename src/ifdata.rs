@@ -733,7 +733,7 @@ mod ifdata_test {
         let mut log_msgs = Vec::new();
         let ifdatas = [ifdata.to_string()];
         let filenames = ["".to_string()];
-        let mut parser = super::ParserState::new(
+        let mut parser = super::ParserState::new_internal(
             &token_result.tokens,
             &ifdatas,
             &filenames,
