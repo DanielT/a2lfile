@@ -1,20 +1,20 @@
+use crate::A2lError;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-pub fn load(path: &Path) -> Result<String, String> {
+pub fn load(path: &Path) -> Result<String, A2lError> {
     let mut file = match File::open(path) {
         Ok(file) => file,
         Err(error) => {
-            return Err(format!(
-                "Error while loading {}: {}\n",
-                path.display(),
-                error
-            ))
+            return Err(A2lError::FileOpenError {
+                filename: path.to_path_buf(),
+                ioerror: error,
+            });
         }
     };
 
-    let filedata = read_data(&mut file)?;
+    let filedata = read_data(&mut file, path)?;
     let utf8data = decode_raw_bytes(filedata);
 
     let data = if utf8data.len() > 2 && utf8data.starts_with('\u{feff}') {
@@ -27,16 +27,24 @@ pub fn load(path: &Path) -> Result<String, String> {
     Ok(data)
 }
 
-fn read_data(file: &mut File) -> Result<Vec<u8>, String> {
+fn read_data(file: &mut File, path: &Path) -> Result<Vec<u8>, A2lError> {
     let filesize = match file.metadata() {
         Ok(metadata) => metadata.len(),
-        Err(err) => return Err(format!("Error: failed to read file metadata: {}", err)),
+        Err(err) => {
+            return Err(A2lError::FileReadError {
+                filename: path.to_path_buf(),
+                ioerror: err,
+            })
+        }
     };
     let mut buffer = Vec::with_capacity(filesize as usize);
     let read_result = file.read_to_end(&mut buffer);
     match read_result {
         Ok(_) => Ok(buffer),
-        Err(err) => Err(format!("Error: failed to read from file: {}", err)),
+        Err(err) => Err(A2lError::FileReadError {
+            filename: path.to_path_buf(),
+            ioerror: err,
+        }),
     }
 }
 

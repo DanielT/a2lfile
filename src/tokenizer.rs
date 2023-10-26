@@ -1,6 +1,43 @@
 use std::{ffi::OsString, path::Path};
+use thiserror::Error;
 
 use super::loader;
+
+#[derive(Debug, Error)]
+pub enum TokenizerError {
+    #[error("{filename}:{line}: Failed to load included file {incname}")]
+    IncludeFileError {
+        filename: String,
+        line: u32,
+        incname: String,
+    },
+
+    #[error("{filename}:{line}: Include directive was not follwed by a filename")]
+    IncompleteIncludeError { filename: String, line: u32 },
+
+    #[error("{filename}:{line}: Input text \"{tokentext}...\" was not recognized as an a2l token")]
+    InvalidA2lToken {
+        filename: String,
+        line: u32,
+        tokentext: String,
+    },
+
+    #[error("{filename}:{line}: Invalid numerical constant \"{tokentext}\"")]
+    InvalidNumericalConstant {
+        filename: String,
+        line: u32,
+        tokentext: String,
+    },
+
+    #[error("{filename}:{line}: Block comment was not closed before the end of input was reached")]
+    UnclosedComment { filename: String, line: u32 },
+
+    #[error("{filename}:{line}: String was not closed before the end of input was reached")]
+    UnclosedString { filename: String, line: u32 },
+
+    #[error("{filename}:{line}: There is no whitespace separating the input tokens")]
+    MissingWhitespace { filename: String, line: u32 },
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum A2lTokenType {
@@ -34,13 +71,13 @@ pub(crate) fn tokenize(
     filename: String,
     fileid: usize,
     filetext: &str,
-) -> Result<TokenResult, String> {
-    let mut filenames: Vec<String> = vec![filename];
+) -> Result<TokenResult, TokenizerError> {
+    let mut filenames: Vec<String> = vec![filename.clone()];
     let mut filedatas: Vec<String> = vec![filetext.to_owned()];
     let filebytes = filetext.as_bytes();
     let mut next_fileid = fileid + 1;
 
-    let input_tokens = tokenize_core(fileid, filetext)?;
+    let input_tokens = tokenize_core(filename.clone(), fileid, filetext)?;
     let mut include_directives: Vec<usize> = input_tokens
         .iter()
         .enumerate()
@@ -96,14 +133,18 @@ pub(crate) fn tokenize(
                     filenames.append(&mut tokresult.filenames);
                     filedatas.append(&mut tokresult.filedata);
                 } else {
-                    return Err(format!("Error: Failed to load included file {}", incname));
+                    return Err(TokenizerError::IncludeFileError {
+                        filename,
+                        line: token_subseq[0].line,
+                        incname: incname.to_owned(),
+                    });
                 }
 
                 // append the tokens between the include directives to the output
                 tokens.extend_from_slice(&token_subseq[1..]);
             } else {
                 let line = input_tokens[include_directives[idx - 1]].line;
-                return Err(format!("Error: Failed to resolve include directive in {}:{line}, which was not follwed by a filename", &filenames[0]));
+                return Err(TokenizerError::IncompleteIncludeError { filename, line });
             }
         }
         tokens
@@ -122,7 +163,11 @@ pub(crate) fn tokenize(
 // possible to do this because characters outside of basic ASCII can actually only occur in
 // strings and comments. UTF-8 in strings is directly copied to the output, while comments are discarded.
 // An important extra goal of the tokenizer is to attach the source line number to each token so that error messages can give accurate location info
-fn tokenize_core(fileid: usize, filetext: &str) -> Result<Vec<A2lToken>, String> {
+fn tokenize_core(
+    filename: String,
+    fileid: usize,
+    filetext: &str,
+) -> Result<Vec<A2lToken>, TokenizerError> {
     let filebytes = filetext.as_bytes();
     let datalen = filebytes.len();
 
@@ -147,7 +192,12 @@ fn tokenize_core(fileid: usize, filetext: &str) -> Result<Vec<A2lToken>, String>
             if filebytes[bytepos] == b'*' {
                 // block comment
                 separated = true;
-                bytepos = skip_block_comment(filebytes, bytepos + 1, line)?;
+                bytepos = skip_block_comment(filebytes, bytepos + 1).map_err(|_| {
+                    TokenizerError::UnclosedComment {
+                        filename: filename.clone(),
+                        line,
+                    }
+                })?;
                 line += count_newlines(&filebytes[startpos..bytepos]);
             } else if filebytes[bytepos] == b'/' {
                 // line comment
@@ -156,7 +206,7 @@ fn tokenize_core(fileid: usize, filetext: &str) -> Result<Vec<A2lToken>, String>
                     bytepos += 1;
                 }
             } else if filebytes[bytepos..].starts_with(b"begin") {
-                separator_check(separated, line)?;
+                separator_check(separated, &filename, line)?;
                 bytepos += 5;
                 tokens.push(A2lToken {
                     ttype: A2lTokenType::Begin,
@@ -167,7 +217,7 @@ fn tokenize_core(fileid: usize, filetext: &str) -> Result<Vec<A2lToken>, String>
                 });
                 separated = false;
             } else if filebytes[bytepos..].starts_with(b"end") {
-                separator_check(separated, line)?;
+                separator_check(separated, &filename, line)?;
                 bytepos += 3;
                 tokens.push(A2lToken {
                     ttype: A2lTokenType::End,
@@ -178,7 +228,7 @@ fn tokenize_core(fileid: usize, filetext: &str) -> Result<Vec<A2lToken>, String>
                 });
                 separated = false;
             } else if filebytes[bytepos..].starts_with(b"include") {
-                separator_check(separated, line)?;
+                separator_check(separated, &filename, line)?;
                 bytepos += 7;
                 tokens.push(A2lToken {
                     ttype: A2lTokenType::Include,
@@ -194,16 +244,21 @@ fn tokenize_core(fileid: usize, filetext: &str) -> Result<Vec<A2lToken>, String>
                 } else {
                     datalen
                 };
-                return Err(format!(
-                    "Error: input text \"{}...\" on line {} was not recognized as an a2l token",
-                    String::from_utf8_lossy(&filebytes[startpos..endpos]),
-                    line
-                ));
+                return Err(TokenizerError::InvalidA2lToken {
+                    filename,
+                    line,
+                    tokentext: String::from_utf8_lossy(&filebytes[startpos..endpos]).into(),
+                });
             }
         } else if filebytes[bytepos] == b'"' {
             // a string
-            separator_check(separated, line)?;
-            bytepos = find_string_end(filebytes, bytepos + 1, line)?;
+            separator_check(separated, &filename, line)?;
+            bytepos = find_string_end(filebytes, bytepos + 1).map_err(|_| {
+                TokenizerError::UnclosedString {
+                    filename: filename.clone(),
+                    line,
+                }
+            })?;
             line += count_newlines(&filebytes[startpos..bytepos]);
             tokens.push(A2lToken {
                 ttype: A2lTokenType::String,
@@ -219,7 +274,7 @@ fn tokenize_core(fileid: usize, filetext: &str) -> Result<Vec<A2lToken>, String>
             && is_identchar(filebytes[bytepos])
         {
             // a file path
-            separator_check(separated, line)?;
+            separator_check(separated, &filename, line)?;
             while bytepos < datalen && is_pathchar(filebytes[bytepos]) {
                 bytepos += 1;
             }
@@ -233,7 +288,7 @@ fn tokenize_core(fileid: usize, filetext: &str) -> Result<Vec<A2lToken>, String>
             separated = false;
         } else if !(filebytes[bytepos]).is_ascii_digit() && is_identchar(filebytes[bytepos]) {
             // an identifier
-            separator_check(separated, line)?;
+            separator_check(separated, &filename, line)?;
             while bytepos < datalen && is_identchar(filebytes[bytepos]) {
                 bytepos += 1;
             }
@@ -254,22 +309,24 @@ fn tokenize_core(fileid: usize, filetext: &str) -> Result<Vec<A2lToken>, String>
             line = new_line;
         } else if filebytes[bytepos] == b'-' || is_numchar(filebytes[bytepos]) {
             // a number, in any format (integer, floating point or hexadecimal)
-            separator_check(separated, line)?;
+            separator_check(separated, &filename, line)?;
             bytepos += 1;
             while bytepos < datalen && is_numchar(filebytes[bytepos]) {
                 bytepos += 1;
             }
             let number = &filebytes[startpos..bytepos];
             if number == b"-" {
-                return Err(format!(
-                    "Error: Invalid numerical constant consisting of only \"-\" found on line {}",
-                    line
-                ));
+                return Err(TokenizerError::InvalidNumericalConstant {
+                    filename,
+                    line,
+                    tokentext: "-".to_owned(),
+                });
             } else if number == b"0x" {
-                return Err(format!(
-                    "Error: Invalid numerical constant consisting of only \"0x\" found on line {}",
-                    line
-                ));
+                return Err(TokenizerError::InvalidNumericalConstant {
+                    filename,
+                    line,
+                    tokentext: "0x".to_owned(),
+                });
             }
             tokens.push(A2lToken {
                 ttype: A2lTokenType::Number,
@@ -285,11 +342,11 @@ fn tokenize_core(fileid: usize, filetext: &str) -> Result<Vec<A2lToken>, String>
             } else {
                 datalen
             };
-            return Err(format!(
-                "failed to tokenize characters \"{}...\" on line {}",
-                String::from_utf8_lossy(&filebytes[startpos..endpos]),
-                line
-            ));
+            return Err(TokenizerError::InvalidA2lToken {
+                filename,
+                line,
+                tokentext: String::from_utf8_lossy(&filebytes[startpos..endpos]).into(),
+            });
         }
     }
 
@@ -298,7 +355,7 @@ fn tokenize_core(fileid: usize, filetext: &str) -> Result<Vec<A2lToken>, String>
 
 // skip_block_comment
 // finds the first byte position after the end of a block comment
-fn skip_block_comment(filebytes: &[u8], mut bytepos: usize, line: u32) -> Result<usize, String> {
+fn skip_block_comment(filebytes: &[u8], mut bytepos: usize) -> Result<usize, ()> {
     let datalen = filebytes.len();
 
     bytepos += 1;
@@ -307,7 +364,7 @@ fn skip_block_comment(filebytes: &[u8], mut bytepos: usize, line: u32) -> Result
     }
 
     if bytepos >= datalen {
-        return Err(format!("Error: end of input reached before */ was found to close the block comment that started on line {}", line));
+        return Err(());
     }
 
     // currently filebytes[bytepos] == b'/', but bytepos should be set to the first character after the block comment
@@ -318,7 +375,7 @@ fn skip_block_comment(filebytes: &[u8], mut bytepos: usize, line: u32) -> Result
 
 // find_string_end
 // finds the end of a string
-fn find_string_end(filebytes: &[u8], mut bytepos: usize, line: u32) -> Result<usize, String> {
+fn find_string_end(filebytes: &[u8], mut bytepos: usize) -> Result<usize, ()> {
     let datalen = filebytes.len();
     let mut end_found = false;
     let mut prev_quote = false;
@@ -357,10 +414,7 @@ fn find_string_end(filebytes: &[u8], mut bytepos: usize, line: u32) -> Result<us
             /* compensate for the fact that we weren't able to look one character past the end of the string */
             bytepos += 1;
         } else {
-            return Err(format!(
-                "Error: end of file found in unclosed string starting on line {}",
-                line
-            ));
+            return Err(());
         }
     }
     bytepos -= 1;
@@ -460,12 +514,12 @@ fn handle_a2ml(
 
 // separator_check
 // generate an error message if there is no whitespace (or a block comment) separating two tokens
-fn separator_check(separated: bool, line: u32) -> Result<(), String> {
+fn separator_check(separated: bool, filename: &str, line: u32) -> Result<(), TokenizerError> {
     if !separated {
-        return Err(format!(
-            "Error: There is no whitespace separating the input tokens on line {} ",
-            line
-        ));
+        return Err(TokenizerError::MissingWhitespace {
+            filename: filename.to_owned(),
+            line,
+        });
     }
     Ok(())
 }
@@ -565,7 +619,7 @@ mod tests {
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::End);
 
         let data = String::from("/include");
-        let tokresult = tokenize_core(0, &data).expect("Error");
+        let tokresult = tokenize_core("test".to_string(), 0, &data).expect("Error");
         assert_eq!(tokresult.len(), 1);
         assert_eq!(tokresult[0].ttype, A2lTokenType::Include);
     }
@@ -689,7 +743,7 @@ ASAP2_VERSION 1 60
             "##,
         );
 
-        let tokresult = tokenize_core(0, &data).expect("Error");
+        let tokresult = tokenize_core("test".to_string(), 0, &data).expect("Error");
         assert_eq!(tokresult.len(), 8);
         println!("{:?}", tokresult);
         assert_eq!(tokresult[0].ttype, A2lTokenType::Include);

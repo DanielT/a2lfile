@@ -165,7 +165,10 @@ fn merge_system_constant(orig_module: &mut Module, merge_module: &mut Module) {
     let orig_system_constant = &mut orig_module.mod_par.as_mut().unwrap().system_constant;
     let merge_system_constant = &mut merge_module.mod_par.as_mut().unwrap().system_constant;
 
-    let orig_sc_names: HashSet<String> = orig_system_constant.iter().map(|sc| sc.name.to_owned()).collect();
+    let orig_sc_names: HashSet<String> = orig_system_constant
+        .iter()
+        .map(|sc| sc.name.to_owned())
+        .collect();
 
     while let Some(mut merge_sysconst) = merge_system_constant.pop() {
         if !orig_sc_names.contains(&merge_sysconst.name) {

@@ -1,5 +1,5 @@
 use crate::a2ml::*;
-use crate::parser::{ParseContext, ParseError, ParserState};
+use crate::parser::{ParseContext, ParserError, ParserState};
 use crate::specification::*;
 use crate::tokenizer::*;
 use std::collections::HashMap;
@@ -13,7 +13,7 @@ use std::collections::HashMap;
 pub(crate) fn parse_ifdata(
     parser: &mut ParserState,
     context: &ParseContext,
-) -> Result<(Option<GenericIfData>, bool), ParseError> {
+) -> Result<(Option<GenericIfData>, bool), ParserError> {
     let mut result = None;
     let mut valid = false;
     // is there any content in the IF_DATA?
@@ -93,7 +93,7 @@ fn parse_ifdata_item(
     parser: &mut ParserState,
     context: &ParseContext,
     spec: &A2mlTypeSpec,
-) -> Result<GenericIfData, ParseError> {
+) -> Result<GenericIfData, ParserError> {
     Ok(match spec {
         A2mlTypeSpec::None => GenericIfData::None,
         A2mlTypeSpec::Char => GenericIfData::Char(
@@ -155,7 +155,7 @@ fn parse_ifdata_item(
             if enumspec.get(&enumitem).is_some() {
                 GenericIfData::EnumItem(pos, enumitem)
             } else {
-                return Err(ParseError::InvalidEnumValue(context.clone(), enumitem));
+                return Err(ParserError::invalid_enum_value(parser, context, &enumitem));
             }
         }
         A2mlTypeSpec::Struct(structspec) => {
@@ -195,7 +195,7 @@ fn parse_ifdata_taggedstruct(
     parser: &mut ParserState,
     context: &ParseContext,
     tsspec: &HashMap<String, A2mlTaggedTypeSpec>,
-) -> Result<HashMap<String, Vec<GenericIfDataTaggedItem>>, ParseError> {
+) -> Result<HashMap<String, Vec<GenericIfDataTaggedItem>>, ParserError> {
     let mut result = HashMap::<String, Vec<GenericIfDataTaggedItem>>::new();
     while let Some(taggeditem) = parse_ifdata_taggeditem(parser, context, tsspec)? {
         if let Some(itemvec) = result.get_mut(&taggeditem.tag) {
@@ -219,7 +219,7 @@ fn parse_ifdata_taggeditem(
     parser: &mut ParserState,
     context: &ParseContext,
     spec: &HashMap<String, A2mlTaggedTypeSpec>,
-) -> Result<Option<GenericIfDataTaggedItem>, ParseError> {
+) -> Result<Option<GenericIfDataTaggedItem>, ParserError> {
     let checkpoint = parser.get_tokenpos();
     // check if there is a tag
     if let Ok(Some((token, is_block, start_offset))) = parser.get_next_tag(context) {
@@ -249,7 +249,13 @@ fn parse_ifdata_taggeditem(
                 let endident = parser.expect_token(&newcontext, A2lTokenType::Identifier)?;
                 let endtag = parser.get_token_text(endident);
                 if endtag != tag {
-                    return Err(ParseError::IncorrectEndTag(newcontext, endtag.to_string()));
+                    return Err(ParserError::IncorrectEndTag {
+                        filename: parser.filenames[context.fileid].to_owned(),
+                        error_line: parser.last_token_position,
+                        tag: endtag.to_owned(),
+                        block: newcontext.element.to_owned(),
+                        block_line: newcontext.line,
+                    });
                 }
             }
 
@@ -297,7 +303,7 @@ fn parse_ifdata_make_block(
 pub(crate) fn parse_unknown_ifdata_start(
     parser: &mut ParserState,
     context: &ParseContext,
-) -> Result<GenericIfData, ParseError> {
+) -> Result<GenericIfData, ParserError> {
     let token_peek = parser.peek_token();
     // by convention, the elements inside of IF_DATA are wrapped in a taggedunion
     if let Some(A2lToken {
@@ -349,14 +355,14 @@ pub(crate) fn parse_unknown_ifdata(
     parser: &mut ParserState,
     context: &ParseContext,
     is_block: bool,
-) -> Result<GenericIfData, ParseError> {
+) -> Result<GenericIfData, ParserError> {
     let mut items: Vec<GenericIfData> = Vec::new();
     let offset = parser.get_current_line_offset();
 
     loop {
         let token_peek = parser.peek_token();
         if token_peek.is_none() {
-            return Err(ParseError::UnexpectedEOF(context.clone()));
+            return Err(ParserError::unexpected_eof(parser, context));
         }
         let token = token_peek.unwrap();
 
@@ -418,7 +424,7 @@ pub(crate) fn parse_unknown_ifdata(
 fn parse_unknown_taggedstruct(
     parser: &mut ParserState,
     context: &ParseContext,
-) -> Result<GenericIfData, ParseError> {
+) -> Result<GenericIfData, ParserError> {
     let mut tsitems: HashMap<String, Vec<GenericIfDataTaggedItem>> = HashMap::new();
 
     while let Ok(Some((token, is_block, start_offset))) = parser.get_next_tag(context) {
@@ -433,7 +439,13 @@ fn parse_unknown_taggedstruct(
             let endident = parser.expect_token(&newcontext, A2lTokenType::Identifier)?;
             let endtag = parser.get_token_text(endident);
             if endtag != tag {
-                return Err(ParseError::IncorrectEndTag(newcontext, endtag.to_string()));
+                return Err(ParserError::IncorrectEndTag {
+                    filename: parser.filenames[newcontext.fileid].to_owned(),
+                    error_line: parser.last_token_position,
+                    tag: endtag.to_owned(),
+                    block: newcontext.element.to_owned(),
+                    block_line: newcontext.line,
+                });
             }
         }
 
@@ -460,7 +472,11 @@ fn parse_unknown_taggedstruct(
         ..
     }) = parser.peek_token()
     {
-        return Err(ParseError::InvalidBegin(context.clone()));
+        return Err(ParserError::InvalidBegin {
+            filename: parser.filenames[context.fileid].to_owned(),
+            error_line: parser.last_token_position,
+            block: context.element.to_owned(),
+        });
     }
 
     Ok(GenericIfData::TaggedStruct(tsitems))
@@ -728,7 +744,7 @@ mod ifdata_test {
 
     fn parse_helper(
         ifdata: &str,
-    ) -> Result<(Option<super::GenericIfData>, bool), super::ParseError> {
+    ) -> Result<(Option<super::GenericIfData>, bool), super::ParserError> {
         let token_result = a2lfile::tokenizer::tokenize("".to_string(), 0, ifdata).unwrap();
         let mut log_msgs = Vec::new();
         let ifdatas = [ifdata.to_string()];
@@ -753,7 +769,7 @@ mod ifdata_test {
     }
 
     fn check_and_decode(
-        result: Result<(Option<super::GenericIfData>, bool), super::ParseError>,
+        result: Result<(Option<super::GenericIfData>, bool), super::ParserError>,
     ) -> A2mlTest {
         let (data, valid) = result.unwrap();
         assert!(data.is_some());

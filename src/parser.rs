@@ -1,5 +1,8 @@
-use super::tokenizer::*;
+use thiserror::Error;
+
 use crate::a2ml::*;
+use crate::tokenizer::*;
+use crate::A2lError;
 
 struct TokenIter<'a> {
     tokens: &'a [A2lToken],
@@ -9,10 +12,10 @@ struct TokenIter<'a> {
 pub struct ParserState<'a> {
     token_cursor: TokenIter<'a>,
     filedata: &'a [String],
-    filenames: &'a [String],
-    last_token_position: u32,
+    pub(crate) filenames: &'a [String],
+    pub(crate) last_token_position: u32,
     sequential_id: u32,
-    pub(crate) log_msgs: &'a mut Vec<String>,
+    pub(crate) log_msgs: &'a mut Vec<A2lError>,
     strict: bool,
     file_ver: f32,
     pub(crate) builtin_a2mlspec: Option<A2mlTypeSpec>,
@@ -27,25 +30,160 @@ pub struct ParseContext {
     pub line: u32,
     pub inside_block: bool,
 }
+#[derive(Debug, Error)]
+pub enum ParserError {
+    #[error("{filename}:{error_line}: expected token of type {expected_ttype:?}, got {actual_ttype:?} (\"{actual_text}\") inside block {element} starting on line {block_line}")]
+    UnexpectedTokenType {
+        filename: String,
+        error_line: u32,
+        block_line: u32,
+        element: String,
+        actual_ttype: A2lTokenType,
+        actual_text: String,
+        expected_ttype: A2lTokenType,
+    },
 
-#[derive(Debug)]
-pub enum ParseError {
-    UnexpectedTokenType(ParseContext, A2lTokenType, String, A2lTokenType),
-    MalformedNumber(ParseContext, String),
-    InvalidEnumValue(ParseContext, String),
-    InvalidMultiplicityTooMany(ParseContext, String),
-    InvalidMultiplicityNotPresent(ParseContext, String),
-    IncorrectElemType(ParseContext, String, bool),
-    IncorrectEndTag(ParseContext, String),
-    UnknownSubBlock(ParseContext, String),
-    UnexpectedEOF(ParseContext),
-    StringTooLong(ParseContext, String, usize, usize),
-    BlockRefDeprecated(ParseContext, String, f32, f32),
-    BlockRefTooNew(ParseContext, String, f32, f32),
-    EnumRefDeprecated(ParseContext, String, f32, f32),
-    EnumRefTooNew(ParseContext, String, f32, f32),
-    InvalidBegin(ParseContext),
-    A2mlError(String),
+    #[error("{filename}:{error_line}: string \"{numstr}\" could not be interpreted as a number")]
+    MalformedNumber {
+        filename: String,
+        error_line: u32,
+        numstr: String,
+    },
+
+    #[error("{filename}:{error_line}: expected an enum value, but \"{enumtxt}\" is not part of the enum (located inside block {block} starting on line {block_line})")]
+    InvalidEnumValue {
+        filename: String,
+        error_line: u32,
+        enumtxt: String,
+        block: String,
+        block_line: u32,
+    },
+
+    #[error("{filename}:{error_line}: optional element {tag} occurs too often within block {block} starting on line {block_line}")]
+    InvalidMultiplicityTooMany {
+        filename: String,
+        error_line: u32,
+        tag: String,
+        block: String,
+        block_line: u32,
+    },
+
+    #[error("{filename}:{error_line}: element {tag} is missing in block {block} starting on line {block_line}")]
+    InvalidMultiplicityNotPresent {
+        filename: String,
+        error_line: u32,
+        tag: String,
+        block: String,
+        block_line: u32,
+    },
+
+    #[error("{filename}:{error_line}: element {tag} in block {block} starting on line {block_line} must be enclosed in /begin and /end")]
+    IncorrectBlockError {
+        filename: String,
+        error_line: u32,
+        tag: String,
+        block: String,
+        block_line: u32,
+    },
+
+    #[error("{filename}:{error_line}: element {tag} in block {block} starting on line {block_line} may not be enclosed in /begin and /end")]
+    IncorrectKeywordError {
+        filename: String,
+        error_line: u32,
+        tag: String,
+        block: String,
+        block_line: u32,
+    },
+
+    #[error("{filename}:{error_line}: Wrong end tag {tag} found at the end of block {block} starting on line {block_line}")]
+    IncorrectEndTag {
+        filename: String,
+        error_line: u32,
+        tag: String,
+        block: String,
+        block_line: u32,
+    },
+
+    #[error("{filename}:{error_line}: Unknown sub-block {tag} found inside block {block} starting on line {block_line}")]
+    UnknownSubBlock {
+        filename: String,
+        error_line: u32,
+        tag: String,
+        block: String,
+        block_line: u32,
+    },
+
+    #[error("{filename}:{error_line}: encountered end of file while not done parsing block {block} starting on line {block_line}")]
+    UnexpectedEOF {
+        filename: String,
+        error_line: u32,
+        block: String,
+        block_line: u32,
+    },
+
+    #[error("{filename}:{error_line}: String \"{text}\" in block {block} is {length} bytes long, but the maximum allowed length is {max_length}")]
+    StringTooLong {
+        filename: String,
+        error_line: u32,
+        block: String,
+        text: String,
+        length: usize,
+        max_length: usize,
+    },
+
+    #[error("{filename}:{error_line}: Sub-block \"{tag}\" in block {block} is deprecated after version {limit_ver:.2}, but the file declares version {file_ver:.2}")]
+    BlockRefDeprecated {
+        filename: String,
+        error_line: u32,
+        block: String,
+        tag: String,
+        limit_ver: f32,
+        file_ver: f32,
+    },
+
+    #[error("{filename}:{error_line}: Sub-block \"{tag}\" in block {block} is available from version {limit_ver:.2}, but the file declares version {file_ver:.2}")]
+    BlockRefTooNew {
+        filename: String,
+        error_line: u32,
+        block: String,
+        tag: String,
+        limit_ver: f32,
+        file_ver: f32,
+    },
+
+    #[error("{filename}:{error_line}: Enum item \"{tag}\" in block {block} is deprecated after version {limit_ver:.2}, but the file declares version {file_ver:.2}")]
+    EnumRefDeprecated {
+        filename: String,
+        error_line: u32,
+        block: String,
+        tag: String,
+        limit_ver: f32,
+        file_ver: f32,
+    },
+
+    #[error("{filename}:{error_line}: Enum item \"{tag}\" in block {block} is available from version {limit_ver:.2}, but the file declares version {file_ver:.2}")]
+    EnumRefTooNew {
+        filename: String,
+        error_line: u32,
+        block: String,
+        tag: String,
+        limit_ver: f32,
+        file_ver: f32,
+    },
+
+    #[error("{filename}:{error_line}: /begin in block {block} is not followed by a valid tag")]
+    InvalidBegin {
+        filename: String,
+        error_line: u32,
+        block: String,
+    },
+
+    #[error("{filename}:{error_line}: A2ML parser reports {errmsg}")]
+    A2mlError {
+        filename: String,
+        error_line: u32,
+        errmsg: String,
+    },
 }
 
 // it pretends to be an Iter, but it really isn't
@@ -77,7 +215,7 @@ impl<'a> TokenIter<'a> {
 impl<'a> ParserState<'a> {
     pub(crate) fn new<'b>(
         tokenresult: &'b TokenResult,
-        log_msgs: &'b mut Vec<String>,
+        log_msgs: &'b mut Vec<A2lError>,
         strict: bool,
     ) -> ParserState<'b> {
         Self::new_internal(
@@ -93,7 +231,7 @@ impl<'a> ParserState<'a> {
         tokens: &'b [A2lToken],
         filedata: &'b [String],
         filenames: &'b [String],
-        log_msgs: &'b mut Vec<String>,
+        log_msgs: &'b mut Vec<A2lError>,
         strict: bool,
     ) -> ParserState<'b> {
         ParserState {
@@ -112,12 +250,12 @@ impl<'a> ParserState<'a> {
 
     // get_token
     // get one token from the list of tokens and unwrap it
-    pub fn get_token(&mut self, context: &ParseContext) -> Result<&'a A2lToken, ParseError> {
+    pub fn get_token(&mut self, context: &ParseContext) -> Result<&'a A2lToken, ParserError> {
         if let Some(token) = self.token_cursor.next() {
             self.last_token_position = token.line;
             Ok(token)
         } else {
-            Err(ParseError::UnexpectedEOF(context.clone()))
+            Err(ParserError::unexpected_eof(self, context))
         }
     }
 
@@ -129,12 +267,13 @@ impl<'a> ParserState<'a> {
         self.token_cursor.peek()
     }
 
-    pub(crate) fn log_warning(&mut self, parse_error: ParseError) {
-        self.log_msgs
-            .push(self.stringify_parse_error(&parse_error, false));
+    pub(crate) fn log_warning(&mut self, parse_error: ParserError) {
+        self.log_msgs.push(A2lError::ParserError {
+            parser_error: parse_error,
+        });
     }
 
-    pub fn error_or_log(&mut self, err: ParseError) -> Result<(), ParseError> {
+    pub fn error_or_log(&mut self, err: ParserError) -> Result<(), ParserError> {
         if self.strict {
             Err(err)
         } else {
@@ -188,7 +327,7 @@ impl<'a> ParserState<'a> {
         }
     }
 
-    pub fn set_file_version(&mut self, major: u16, minor: u16) -> Result<(), String> {
+    pub fn set_file_version(&mut self, major: u16, minor: u16) -> Result<(), A2lError> {
         self.file_ver = major as f32 + (minor as f32 / 100.0);
         Ok(())
     }
@@ -199,21 +338,25 @@ impl<'a> ParserState<'a> {
         tag: &str,
         min_ver: f32,
         max_ver: f32,
-    ) -> Result<(), ParseError> {
+    ) -> Result<(), ParserError> {
         if self.file_ver < min_ver {
-            self.error_or_log(ParseError::BlockRefTooNew(
-                context.clone(),
-                tag.to_string(),
-                self.file_ver,
-                min_ver,
-            ))?;
+            self.error_or_log(ParserError::BlockRefTooNew {
+                filename: self.filenames[context.fileid].to_owned(),
+                error_line: self.last_token_position,
+                block: context.element.to_owned(),
+                tag: tag.to_string(),
+                limit_ver: min_ver,
+                file_ver: self.file_ver,
+            })?;
         } else if self.file_ver > max_ver {
-            self.log_warning(ParseError::BlockRefDeprecated(
-                context.clone(),
-                tag.to_string(),
-                self.file_ver,
-                max_ver,
-            ));
+            self.log_warning(ParserError::BlockRefDeprecated {
+                filename: self.filenames[context.fileid].to_owned(),
+                error_line: self.last_token_position,
+                block: context.element.to_owned(),
+                tag: tag.to_string(),
+                limit_ver: max_ver,
+                file_ver: self.file_ver,
+            });
         }
         Ok(())
     }
@@ -224,41 +367,41 @@ impl<'a> ParserState<'a> {
         tag: &str,
         min_ver: f32,
         max_ver: f32,
-    ) -> Result<(), ParseError> {
+    ) -> Result<(), ParserError> {
         if self.file_ver < min_ver {
-            self.error_or_log(ParseError::EnumRefTooNew(
-                context.clone(),
-                tag.to_string(),
-                self.file_ver,
-                min_ver,
-            ))?;
+            self.error_or_log(ParserError::EnumRefTooNew {
+                filename: self.filenames[context.fileid].to_owned(),
+                error_line: self.last_token_position,
+                block: context.element.to_owned(),
+                tag: tag.to_string(),
+                limit_ver: min_ver,
+                file_ver: self.file_ver,
+            })?;
         } else if self.file_ver > max_ver {
-            self.log_warning(ParseError::EnumRefDeprecated(
-                context.clone(),
-                tag.to_string(),
-                self.file_ver,
-                max_ver,
-            ));
+            self.log_warning(ParserError::EnumRefDeprecated {
+                filename: self.filenames[context.fileid].to_owned(),
+                error_line: self.last_token_position,
+                block: context.element.to_owned(),
+                tag: tag.to_string(),
+                limit_ver: max_ver,
+                file_ver: self.file_ver,
+            });
         }
         Ok(())
     }
 
     // expect_token get a token which has to be of a particular type (hence: expect)
-    // getting a token of any other type is a ParseError
+    // getting a token of any other type is a ParserError
     pub fn expect_token(
         &mut self,
         context: &ParseContext,
         token_type: A2lTokenType,
-    ) -> Result<&'a A2lToken, ParseError> {
+    ) -> Result<&'a A2lToken, ParserError> {
         let token = self.get_token(context)?;
 
         if token.ttype != token_type {
-            let text = self.get_token_text(token);
-            return Err(ParseError::UnexpectedTokenType(
-                context.clone(),
-                token.ttype.clone(),
-                text.to_string(),
-                token_type,
+            return Err(ParserError::unexpected_token_type(
+                self, context, token, token_type,
             ));
         }
 
@@ -267,18 +410,20 @@ impl<'a> ParserState<'a> {
 
     // get_string()
     // Get the content of a String token as a string
-    pub fn get_string(&mut self, context: &ParseContext) -> Result<String, ParseError> {
-        let text = if let Some(A2lToken {
-            ttype: A2lTokenType::Identifier,
-            ..
-        }) = self.peek_token()
+    pub fn get_string(&mut self, context: &ParseContext) -> Result<String, ParserError> {
+        let text = if let Some(
+            token @ A2lToken {
+                ttype: A2lTokenType::Identifier,
+                ..
+            },
+        ) = self.peek_token()
         {
             // an identifier can be used in place of a string, if the parser is not strict
             let text = self.get_identifier(context)?;
-            self.error_or_log(ParseError::UnexpectedTokenType(
-                context.clone(),
-                A2lTokenType::Identifier,
-                text.clone(),
+            self.error_or_log(ParserError::unexpected_token_type(
+                self,
+                context,
+                token,
                 A2lTokenType::String,
             ))?;
             text
@@ -302,22 +447,24 @@ impl<'a> ParserState<'a> {
         &mut self,
         context: &ParseContext,
         maxlen: usize,
-    ) -> Result<String, ParseError> {
+    ) -> Result<String, ParserError> {
         let text = self.get_string(context)?;
         if text.len() > maxlen {
-            self.error_or_log(ParseError::StringTooLong(
-                context.clone(),
-                text.clone(),
-                maxlen,
-                text.len(),
-            ))?
+            self.error_or_log(ParserError::StringTooLong {
+                filename: self.filenames[context.fileid].to_owned(),
+                error_line: self.last_token_position,
+                block: context.element.to_owned(),
+                text: text.clone(),
+                length: text.len(),
+                max_length: maxlen,
+            })?
         }
         Ok(text)
     }
 
     // get_identifier()
     // Get the content of an Identifier token as a string
-    pub fn get_identifier(&mut self, context: &ParseContext) -> Result<String, ParseError> {
+    pub fn get_identifier(&mut self, context: &ParseContext) -> Result<String, ParserError> {
         let token = self.expect_token(context, A2lTokenType::Identifier)?;
         let text = self.get_token_text(token);
         Ok(String::from(text))
@@ -326,30 +473,24 @@ impl<'a> ParserState<'a> {
     // get_float()
     // Get the content of a Number token as a float
     // Since the Number token stores text internally, the text must be converted first
-    pub fn get_float(&mut self, context: &ParseContext) -> Result<f32, ParseError> {
+    pub fn get_float(&mut self, context: &ParseContext) -> Result<f32, ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         match text.parse::<f32>() {
             Ok(num) => Ok(num),
-            Err(_) => Err(ParseError::MalformedNumber(
-                context.clone(),
-                text.to_string(),
-            )),
+            Err(_) => Err(ParserError::malformed_number(self, context, text)),
         }
     }
 
     // get_double()
     // Get the content of a Number token as a double(f64)
     // Since the Number token stores text internally, the text must be converted first
-    pub fn get_double(&mut self, context: &ParseContext) -> Result<f64, ParseError> {
+    pub fn get_double(&mut self, context: &ParseContext) -> Result<f64, ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         match text.parse::<f64>() {
             Ok(num) => Ok(num),
-            Err(_) => Err(ParseError::MalformedNumber(
-                context.clone(),
-                text.to_string(),
-            )),
+            Err(_) => Err(ParserError::malformed_number(self, context, text)),
         }
     }
 
@@ -359,178 +500,130 @@ impl<'a> ParserState<'a> {
     // E.g. 0xffff is considered to be a valid signed int (i16); it is -1 in decimal notation.
     // I did not manage to decode this in a generic manner.
 
-    pub fn get_integer_i8(&mut self, context: &ParseContext) -> Result<(i8, bool), ParseError> {
+    pub fn get_integer_i8(&mut self, context: &ParseContext) -> Result<(i8, bool), ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
             match u8::from_str_radix(&text[2..], 16) {
                 Ok(num) => Ok((num as i8, true)),
-                Err(_) => Err(ParseError::MalformedNumber(
-                    context.clone(),
-                    text.to_string(),
-                )),
+                Err(_) => Err(ParserError::malformed_number(self, context, text)),
             }
         } else {
             match text.parse() {
                 Ok(num) => Ok((num, false)),
-                Err(_) => Err(ParseError::MalformedNumber(
-                    context.clone(),
-                    text.to_string(),
-                )),
+                Err(_) => Err(ParserError::malformed_number(self, context, text)),
             }
         }
     }
 
-    pub fn get_integer_u8(&mut self, context: &ParseContext) -> Result<(u8, bool), ParseError> {
+    pub fn get_integer_u8(&mut self, context: &ParseContext) -> Result<(u8, bool), ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
             match u8::from_str_radix(&text[2..], 16) {
                 Ok(num) => Ok((num, true)),
-                Err(_) => Err(ParseError::MalformedNumber(
-                    context.clone(),
-                    text.to_string(),
-                )),
+                Err(_) => Err(ParserError::malformed_number(self, context, text)),
             }
         } else {
             match text.parse() {
                 Ok(num) => Ok((num, false)),
-                Err(_) => Err(ParseError::MalformedNumber(
-                    context.clone(),
-                    text.to_string(),
-                )),
+                Err(_) => Err(ParserError::malformed_number(self, context, text)),
             }
         }
     }
 
-    pub fn get_integer_i16(&mut self, context: &ParseContext) -> Result<(i16, bool), ParseError> {
+    pub fn get_integer_i16(&mut self, context: &ParseContext) -> Result<(i16, bool), ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
             match u16::from_str_radix(&text[2..], 16) {
                 Ok(num) => Ok((num as i16, true)),
-                Err(_) => Err(ParseError::MalformedNumber(
-                    context.clone(),
-                    text.to_string(),
-                )),
+                Err(_) => Err(ParserError::malformed_number(self, context, text)),
             }
         } else {
             match text.parse() {
                 Ok(num) => Ok((num, false)),
-                Err(_) => Err(ParseError::MalformedNumber(
-                    context.clone(),
-                    text.to_string(),
-                )),
+                Err(_) => Err(ParserError::malformed_number(self, context, text)),
             }
         }
     }
 
-    pub fn get_integer_u16(&mut self, context: &ParseContext) -> Result<(u16, bool), ParseError> {
+    pub fn get_integer_u16(&mut self, context: &ParseContext) -> Result<(u16, bool), ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
             match u16::from_str_radix(&text[2..], 16) {
                 Ok(num) => Ok((num, true)),
-                Err(_) => Err(ParseError::MalformedNumber(
-                    context.clone(),
-                    text.to_string(),
-                )),
+                Err(_) => Err(ParserError::malformed_number(self, context, text)),
             }
         } else {
             match text.parse() {
                 Ok(num) => Ok((num, false)),
-                Err(_) => Err(ParseError::MalformedNumber(
-                    context.clone(),
-                    text.to_string(),
-                )),
+                Err(_) => Err(ParserError::malformed_number(self, context, text)),
             }
         }
     }
 
-    pub fn get_integer_i32(&mut self, context: &ParseContext) -> Result<(i32, bool), ParseError> {
+    pub fn get_integer_i32(&mut self, context: &ParseContext) -> Result<(i32, bool), ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
             match u32::from_str_radix(&text[2..], 16) {
                 Ok(num) => Ok((num as i32, true)),
-                Err(_) => Err(ParseError::MalformedNumber(
-                    context.clone(),
-                    text.to_string(),
-                )),
+                Err(_) => Err(ParserError::malformed_number(self, context, text)),
             }
         } else {
             match text.parse() {
                 Ok(num) => Ok((num, false)),
-                Err(_) => Err(ParseError::MalformedNumber(
-                    context.clone(),
-                    text.to_string(),
-                )),
+                Err(_) => Err(ParserError::malformed_number(self, context, text)),
             }
         }
     }
 
-    pub fn get_integer_u32(&mut self, context: &ParseContext) -> Result<(u32, bool), ParseError> {
+    pub fn get_integer_u32(&mut self, context: &ParseContext) -> Result<(u32, bool), ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
             match u32::from_str_radix(&text[2..], 16) {
                 Ok(num) => Ok((num, true)),
-                Err(_) => Err(ParseError::MalformedNumber(
-                    context.clone(),
-                    text.to_string(),
-                )),
+                Err(_) => Err(ParserError::malformed_number(self, context, text)),
             }
         } else {
             match text.parse() {
                 Ok(num) => Ok((num, false)),
-                Err(_) => Err(ParseError::MalformedNumber(
-                    context.clone(),
-                    text.to_string(),
-                )),
+                Err(_) => Err(ParserError::malformed_number(self, context, text)),
             }
         }
     }
 
-    pub fn get_integer_u64(&mut self, context: &ParseContext) -> Result<(u64, bool), ParseError> {
+    pub fn get_integer_u64(&mut self, context: &ParseContext) -> Result<(u64, bool), ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
             match u64::from_str_radix(&text[2..], 16) {
                 Ok(num) => Ok((num, true)),
-                Err(_) => Err(ParseError::MalformedNumber(
-                    context.clone(),
-                    text.to_string(),
-                )),
+                Err(_) => Err(ParserError::malformed_number(self, context, text)),
             }
         } else {
             match text.parse() {
                 Ok(num) => Ok((num, false)),
-                Err(_) => Err(ParseError::MalformedNumber(
-                    context.clone(),
-                    text.to_string(),
-                )),
+                Err(_) => Err(ParserError::malformed_number(self, context, text)),
             }
         }
     }
 
-    pub fn get_integer_i64(&mut self, context: &ParseContext) -> Result<(i64, bool), ParseError> {
+    pub fn get_integer_i64(&mut self, context: &ParseContext) -> Result<(i64, bool), ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
             match u64::from_str_radix(&text[2..], 16) {
                 Ok(num) => Ok((num as i64, true)),
-                Err(_) => Err(ParseError::MalformedNumber(
-                    context.clone(),
-                    text.to_string(),
-                )),
+                Err(_) => Err(ParserError::malformed_number(self, context, text)),
             }
         } else {
             match text.parse() {
                 Ok(num) => Ok((num, false)),
-                Err(_) => Err(ParseError::MalformedNumber(
-                    context.clone(),
-                    text.to_string(),
-                )),
+                Err(_) => Err(ParserError::malformed_number(self, context, text)),
             }
         }
     }
@@ -540,7 +633,7 @@ impl<'a> ParserState<'a> {
     pub fn get_next_tag(
         &mut self,
         context: &ParseContext,
-    ) -> Result<Option<(&'a A2lToken, bool, u32)>, ParseError> {
+    ) -> Result<Option<(&'a A2lToken, bool, u32)>, ParserError> {
         let mut is_block = false;
         let tokenpos = self.get_tokenpos();
         let start_offset = self.get_current_line_offset();
@@ -570,15 +663,14 @@ impl<'a> ParserState<'a> {
             if is_block {
                 if let Some(token) = token {
                     // an Identifier must follow after a /begin
-                    let errtext = self.get_token_text(token);
-                    Err(ParseError::UnexpectedTokenType(
-                        context.clone(),
-                        token.ttype.clone(),
-                        errtext.to_string(),
+                    Err(ParserError::unexpected_token_type(
+                        self,
+                        context,
+                        token,
                         A2lTokenType::Identifier,
                     ))
                 } else {
-                    Err(ParseError::UnexpectedEOF(context.clone()))
+                    Err(ParserError::unexpected_eof(self, context))
                 }
             } else {
                 // no tag? no problem!
@@ -595,11 +687,8 @@ impl<'a> ParserState<'a> {
         item_tag: &str,
         item_is_block: bool,
         stoplist: &[&str],
-    ) -> Result<(), ParseError> {
-        self.error_or_log(ParseError::UnknownSubBlock(
-            context.clone(),
-            item_tag.to_string(),
-        ))?;
+    ) -> Result<(), ParserError> {
+        self.error_or_log(ParserError::unknown_sub_block(self, context, item_tag))?;
         // make sure there actually is a next token by doing get_token() + undo_get_token() rather than peek()
         let _ = self.get_token(context)?;
         self.undo_get_token();
@@ -633,10 +722,7 @@ impl<'a> ParserState<'a> {
                             if text == item_tag {
                                 break;
                             } else {
-                                return Err(ParseError::IncorrectEndTag(
-                                    errcontext,
-                                    text.to_string(),
-                                ));
+                                return Err(ParserError::incorrect_end_tag(self, &errcontext, text));
                             }
                         }
                     } else {
@@ -660,7 +746,7 @@ impl<'a> ParserState<'a> {
                 _ => {
                     // once balance == 0 is reachd for a block, the next tag should be an Identifier
                     if item_is_block && balance == 0 {
-                        return Err(ParseError::IncorrectEndTag(errcontext, text.to_string()));
+                        return Err(ParserError::incorrect_end_tag(self, &errcontext, text));
                     }
                     // else: ignore the token
                 }
@@ -675,74 +761,13 @@ impl<'a> ParserState<'a> {
         context: &ParseContext,
         tag: &str,
         is_error: bool,
-    ) -> Result<(), ParseError> {
+    ) -> Result<(), ParserError> {
         if is_error {
-            self.error_or_log(ParseError::InvalidMultiplicityTooMany(
-                context.clone(),
-                tag.to_string(),
+            self.error_or_log(ParserError::invalid_multiplicity_too_many(
+                self, context, tag,
             ))?;
         }
         Ok(())
-    }
-
-    // stringify_parse_error()
-    // Generate error messages for the various parse errors
-    // Handling the error info this way opens up the possibility of passing ParseError data to the caller of the parser
-    pub fn stringify_parse_error(&self, err: &ParseError, is_err: bool) -> String {
-        let prefix = if is_err { "Error" } else { "Warning" };
-        match err {
-            ParseError::UnexpectedTokenType(context, actual_ttype, actual_text, expected_ttype) => {
-                format!("{} on line {}: expected token of type {:?}, got {:?} (\"{}\") inside block {} starting on line {}", prefix, self.last_token_position, expected_ttype, actual_ttype, actual_text, context.element, context.line)
-            }
-            ParseError::MalformedNumber(_context, numstr) => {
-                format!("{} on line {}: string \"{}\" could not be interpreted as a number", prefix, self.last_token_position, numstr)
-            }
-            ParseError::InvalidEnumValue(context, enval) => {
-                format!("{} on line {}: expected an enum value, but \"{}\" is not part of the enum (located inside block {} starting on line {})", prefix, self.last_token_position, enval, context.element, context.line)
-            }
-            ParseError::InvalidMultiplicityTooMany(context, tag) => {
-                format!("{} on line {}: optional element {} occurs too often within block {} starting on line {}", prefix, self.last_token_position, tag, context.element, context.line)
-            }
-            ParseError::InvalidMultiplicityNotPresent(context, tag) => {
-                format!("{} on line {}: element {} is missing in block {} starting on line {}", prefix, self.last_token_position, tag, context.element, context.line)
-            }
-            ParseError::IncorrectElemType(context, tag, is_block) => {
-                match is_block {
-                    true => format!("{} on line {}: element {} in block {} starting on line {} must be enclosed in /begin and /end", prefix, self.last_token_position, tag, context.element, context.line),
-                    false => format!("{} on line {}: element {} in block {} starting on line {} must not be enclosed in /begin and /end", prefix, self.last_token_position, tag, context.element, context.line)
-                }
-            }
-            ParseError::UnexpectedEOF(context) => {
-                format!("{} on line {}: encountered end of input while not done parsing block {} starting on line {}", prefix, self.last_token_position, context.element, context.line)
-            }
-            ParseError::UnknownSubBlock(context, tag) => {
-                format!("{} on line {}: Unknown sub-block {} found inside block {} starting on line {}", prefix, self.last_token_position, tag, context.element, context.line)
-            }
-            ParseError::IncorrectEndTag(context, tag) => {
-                format!("{} on line {}: Wrong end tag {} found at the end of block {} starting on line {}", prefix, self.last_token_position, tag, context.element, context.line)
-            }
-            ParseError::StringTooLong(context, text, maxlen, actual_len) => {
-                format!("{} on line {}: String \"{}\" in block {} is {} bytes long, but the maximum allowed length is {}", prefix, self.last_token_position, text, context.element, actual_len, maxlen)
-            }
-            ParseError::BlockRefTooNew(context, tag, file_version, min_version) => {
-                format!("{} on line {}: Sub-block \"{}\" in block {} is available from version {:.2}, but the file declares version {:.2}", prefix, self.last_token_position, tag, context.element, min_version, file_version)
-            }
-            ParseError::BlockRefDeprecated(context, tag, file_version, max_version) => {
-                format!("{} on line {}: Sub-block \"{}\" in block {} is deprecated after version {:.2}, but the file declares version {:.2}", prefix, self.last_token_position, tag, context.element, max_version, file_version)
-            }
-            ParseError::EnumRefTooNew(context, tag, file_version, min_version) => {
-                format!("{} on line {}: enum item \"{}\" in block {} is available from version {:.2}, but the file declares version {:.2}", prefix, self.last_token_position, tag, context.element, min_version, file_version)
-            }
-            ParseError::EnumRefDeprecated(context, tag, file_version, max_version) => {
-                format!("{} on line {}: enum item \"{}\" in block {} is deprecated after version {:.2}, but the file declares version {:.2}", prefix, self.last_token_position, tag, context.element, max_version, file_version)
-            }
-            ParseError::InvalidBegin(context) => {
-                format!("{} on line {}: /begin in block {} is not followed by a valid tag", prefix, self.last_token_position, context.element)
-            }
-            ParseError::A2mlError(errmsg) => {
-                format!("{} in A2ML block starting on line {}: {}", prefix, self.last_token_position, errmsg)
-            }
-        }
     }
 }
 
@@ -753,6 +778,102 @@ impl ParseContext {
             fileid: token.fileid,
             line: token.line,
             inside_block: is_block,
+        }
+    }
+}
+
+impl ParserError {
+    pub(crate) fn unexpected_token_type(
+        parser: &ParserState,
+        context: &ParseContext,
+        token: &A2lToken,
+        expected_ttype: A2lTokenType,
+    ) -> Self {
+        Self::UnexpectedTokenType {
+            filename: parser.filenames[context.fileid].to_owned(),
+            error_line: parser.last_token_position,
+            block_line: context.line,
+            element: context.element.to_owned(),
+            actual_ttype: token.ttype.clone(),
+            actual_text: parser.get_token_text(token).to_owned(),
+            expected_ttype,
+        }
+    }
+
+    pub(crate) fn malformed_number(
+        parser: &ParserState,
+        context: &ParseContext,
+        numstr: &str,
+    ) -> Self {
+        Self::MalformedNumber {
+            filename: parser.filenames[context.fileid].to_owned(),
+            error_line: parser.last_token_position,
+            numstr: numstr.to_owned(),
+        }
+    }
+
+    pub(crate) fn invalid_enum_value(
+        parser: &ParserState,
+        context: &ParseContext,
+        enumitem: &str,
+    ) -> Self {
+        Self::InvalidEnumValue {
+            filename: parser.filenames[context.fileid].to_owned(),
+            error_line: parser.last_token_position,
+            enumtxt: enumitem.to_owned(),
+            block: context.element.to_owned(),
+            block_line: context.line,
+        }
+    }
+
+    pub(crate) fn invalid_multiplicity_too_many(
+        parser: &ParserState,
+        context: &ParseContext,
+        tag: &str,
+    ) -> Self {
+        Self::InvalidMultiplicityTooMany {
+            filename: parser.filenames[context.fileid].to_owned(),
+            error_line: parser.last_token_position,
+            tag: tag.to_string(),
+            block: context.element.clone(),
+            block_line: context.line,
+        }
+    }
+
+    pub(crate) fn incorrect_end_tag(
+        parser: &ParserState,
+        context: &ParseContext,
+        tag: &str,
+    ) -> Self {
+        Self::IncorrectEndTag {
+            filename: parser.filenames[context.fileid].to_owned(),
+            error_line: parser.last_token_position,
+            tag: tag.to_owned(),
+            block: context.element.to_owned(),
+            block_line: context.line,
+        }
+    }
+
+    pub(crate) fn unknown_sub_block(
+        parser: &ParserState,
+        context: &ParseContext,
+        tag: &str,
+    ) -> Self {
+        Self::UnknownSubBlock {
+            filename: parser.filenames[context.fileid].to_owned(),
+            error_line: parser.last_token_position,
+            tag: tag.to_owned(),
+            block: context.element.to_owned(),
+            block_line: context.line,
+        }
+    }
+
+    pub(crate) fn unexpected_eof(parser: &ParserState, context: &ParseContext) -> Self {
+        Self::UnexpectedEOF {
+            filename: parser.filenames[context.fileid].to_owned(),
+            error_line: parser.last_token_position,
+            block: context.element.to_owned(),
+            block_line: context.line,
         }
     }
 }
@@ -812,7 +933,7 @@ mod tests {
         assert!(tokenresult.is_ok());
 
         let tokenresult = tokenresult.unwrap();
-        let mut log_msgs = Vec::<String>::new();
+        let mut log_msgs = Vec::<A2lError>::new();
         let mut parser = ParserState::new(&tokenresult, &mut log_msgs, true);
         let context = ParseContext {
             element: "TEST".to_string(),

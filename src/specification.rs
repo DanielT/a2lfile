@@ -2,7 +2,7 @@ use a2lmacros::a2l_specification;
 
 use crate::a2ml;
 use crate::ifdata;
-use crate::parser::{ParseContext, ParseError, ParserState};
+use crate::parser::{ParseContext, ParserError, ParserState};
 use crate::tokenizer::A2lTokenType;
 use crate::writer;
 
@@ -1548,7 +1548,7 @@ impl A2ml {
         parser: &mut ParserState,
         context: &ParseContext,
         start_offset: u32,
-    ) -> Result<Self, ParseError> {
+    ) -> Result<Self, ParserError> {
         let fileid = parser.get_incfilename(context.fileid);
         let line = context.line;
         let uid = parser.get_next_id();
@@ -1559,13 +1559,23 @@ impl A2ml {
 
         match a2ml::parse_a2ml(&a2ml_text) {
             Ok(a2mlspec) => parser.file_a2mlspec = Some(a2mlspec),
-            Err(errmsg) => parser.error_or_log(ParseError::A2mlError(errmsg))?,
+            Err(errmsg) => parser.error_or_log(ParserError::A2mlError {
+                filename: parser.filenames[context.fileid].to_owned(),
+                error_line: parser.last_token_position,
+                errmsg,
+            })?,
         }
 
         parser.expect_token(context, A2lTokenType::End)?;
         let ident = parser.get_identifier(context)?;
         if ident != "A2ML" {
-            parser.error_or_log(ParseError::IncorrectEndTag(context.clone(), ident))?;
+            parser.error_or_log(ParserError::IncorrectEndTag {
+                filename: parser.filenames[context.fileid].to_owned(),
+                error_line: parser.last_token_position,
+                tag: ident.to_owned(),
+                block: context.element.to_owned(),
+                block_line: context.line,
+            })?;
         }
 
         Ok(A2ml {
@@ -1665,7 +1675,7 @@ impl IfData {
         parser: &mut ParserState,
         context: &ParseContext,
         start_offset: u32,
-    ) -> Result<Self, ParseError> {
+    ) -> Result<Self, ParserError> {
         let fileid = parser.get_incfilename(context.fileid);
         let line = context.line;
         let uid = parser.get_next_id();
@@ -1676,7 +1686,13 @@ impl IfData {
         parser.expect_token(context, A2lTokenType::End)?;
         let ident = parser.get_identifier(context)?;
         if ident != "IF_DATA" {
-            parser.error_or_log(ParseError::IncorrectEndTag(context.clone(), ident))?;
+            parser.error_or_log(ParserError::IncorrectEndTag {
+                filename: parser.filenames[context.fileid].to_owned(),
+                error_line: parser.last_token_position,
+                tag: ident.to_owned(),
+                block: context.element.to_owned(),
+                block_line: context.line,
+            })?;
         }
 
         Ok(IfData {

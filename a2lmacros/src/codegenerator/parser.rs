@@ -57,11 +57,17 @@ fn generate_enum_parser(typename: &str, enumitems: &[EnumItem]) -> TokenStream {
 
     quote! {
         impl #name {
-            pub(crate) fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParseError> {
+            pub(crate) fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParserError> {
                 let enumname = parser.get_identifier(context)?;
                 match &*enumname {
                     #(#match_branches)*
-                    _ => Err(ParseError::InvalidEnumValue(context.clone(), enumname))
+                    _ => Err(ParserError::InvalidEnumValue{
+                        filename: parser.filenames[context.fileid].to_owned(),
+                        error_line: parser.last_token_position,
+                        enumtxt: enumname,
+                        block: context.element.to_owned(),
+                        block_line: context.line
+                    })
                 }
             }
         }
@@ -97,7 +103,13 @@ fn generate_block_parser_generic(
             parser.expect_token(context, A2lTokenType::End)?;
             let ident = parser.get_identifier(context)?;
             if ident != context.element {
-                parser.error_or_log(ParseError::IncorrectEndTag(context.clone(), ident))?;
+                parser.error_or_log(ParserError::IncorrectEndTag {
+                    filename: parser.filenames[context.fileid].to_owned(),
+                    error_line: parser.last_token_position,
+                    tag: ident.to_owned(),
+                    block: context.element.to_owned(),
+                    block_line: context.line,
+                })?;
             }
         }
     } else {
@@ -108,7 +120,7 @@ fn generate_block_parser_generic(
 
     quote! {
         impl #name {
-            pub(crate) fn parse(parser: &mut ParserState, context: &ParseContext, __start_offset: u32) -> Result<Self, ParseError> {
+            pub(crate) fn parse(parser: &mut ParserState, context: &ParseContext, __start_offset: u32) -> Result<Self, ParserError> {
                 let __location_incfile = parser.get_incfilename(context.fileid);
                 let __location_line = context.line;
                 let __uid = parser.get_next_id();
@@ -377,7 +389,13 @@ fn generate_taggeditem_match_arms(
             if item.required {
                 multiplicity_check.extend(quote! {
                     if #itemname.len() == 0 {
-                        parser.error_or_log(ParseError::InvalidMultiplicityNotPresent(context.clone(), #tag_string.to_string()))?;
+                        parser.error_or_log(ParserError::InvalidMultiplicityNotPresent {
+                            filename: parser.filenames[context.fileid].to_owned(),
+                            error_line: parser.last_token_position,
+                            tag: #tag_string.to_string(),
+                            block: context.element.clone(),
+                            block_line: context.line,
+                        })?;
                     }
                 });
             }
@@ -396,7 +414,13 @@ fn generate_taggeditem_match_arms(
                     let #itemname = if let Some(value) = #tmp_itemname {
                         value
                     } else {
-                        return Err(ParseError::InvalidMultiplicityNotPresent(context.clone(), #tag_string.to_string()));
+                        return Err(ParserError::InvalidMultiplicityNotPresent {
+                            filename: parser.filenames[context.fileid].to_owned(),
+                            error_line: parser.last_token_position,
+                            tag: #tag_string.to_string(),
+                            block: context.element.clone(),
+                            block_line: context.line,
+                        });
                     };
                 });
             } else {
@@ -480,7 +504,23 @@ fn generate_taggeditem_parser_core(
             }
         }
         if expect_block != is_block {
-            parser.error_or_log(ParseError::IncorrectElemType(context.clone(), tag.to_string(), expect_block))?;
+            if expect_block {
+                parser.error_or_log(ParserError::IncorrectBlockError{
+                    filename: parser.filenames[context.fileid].to_owned(),
+                    error_line: parser.last_token_position,
+                    tag: tag.to_string(),
+                    block: context.element.clone(),
+                    block_line: context.line,
+                })?;
+            } else {
+                parser.error_or_log(ParserError::IncorrectKeywordError{
+                    filename: parser.filenames[context.fileid].to_owned(),
+                    error_line: parser.last_token_position,
+                    tag: tag.to_string(),
+                    block: context.element.clone(),
+                    block_line: context.line,
+                })?;
+            }
         }
     }
 }

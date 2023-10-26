@@ -16,9 +16,13 @@ mod tokenizer;
 mod writer;
 
 pub use namemap::ModuleNameMap;
+pub use parser::ParserError;
 use std::convert::AsRef;
 use std::fmt::Write;
 use std::path::Path;
+use std::path::PathBuf;
+use thiserror::Error;
+pub use tokenizer::TokenizerError;
 // used internally
 use parser::{ParseContext, ParserState};
 
@@ -26,6 +30,51 @@ use parser::{ParseContext, ParserState};
 pub use a2lmacros::a2ml_specification;
 pub use a2ml::{GenericIfData, GenericIfDataTaggedItem};
 pub use specification::*;
+
+#[derive(Debug, Error)]
+pub enum A2lError {
+    /// FileOpenError: An IoError that occurred while loading a file
+    #[error("Failed to load {filename}: {ioerror}")]
+    FileOpenError {
+        filename: PathBuf,
+        ioerror: std::io::Error,
+    },
+
+    /// FileReadError: An IoError that occurred while reading from a file
+    #[error("Could not read from {filename}: {ioerror}")]
+    FileReadError {
+        filename: PathBuf,
+        ioerror: std::io::Error,
+    },
+
+    /// EmptyFileError: No A2lTokens found in the file
+    #[error("File \"{filename}\" contains no a2l data")]
+    EmptyFileError { filename: PathBuf },
+
+    /// InvalidBuiltinA2mlSpec: Parse error while processing a built-in a2ml specification
+    #[error("Failed to load built-in a2ml specification: {parse_err}")]
+    InvalidBuiltinA2mlSpec { parse_err: String },
+
+    /// MissingVerionInfo: no version information in the file
+    #[error("File is not recognized as an a2l file. Mandatory version information is missing.")]
+    MissingVerionInfo,
+
+    ///
+    #[error("Tokenizer error: {tokenizer_error}")]
+    TokenizerError { tokenizer_error: TokenizerError },
+
+    ///
+    #[error("Parser error: {parser_error}")]
+    ParserError { parser_error: ParserError },
+
+    /// AdditionalTokensError parsing finished without consuming all data in the file
+    #[error("{filename}:{error_line}: unexpected additional data \"{text}...\" after parsed a2l file content")]
+    AdditionalTokensError {
+        filename: String,
+        error_line: u32,
+        text: String,
+    },
+}
 
 /**
 Create a new a2l file
@@ -70,7 +119,8 @@ If a definition is provided here and there is also an A2ML block in the file, th
 `strict_parsing` toggles strict parsing: If strict parsing is enabled, most warnings become errors.
 
 ```
-let mut log_msgs = Vec::<String>::new();
+# use a2lfile::A2lError;
+let mut log_msgs = Vec::<A2lError>::new();
 match a2lfile::load("example.a2l", None, &mut log_msgs, true) {
     Ok(a2l_file) => {/* do something with it*/},
     Err(error_message) => println!("{}", error_message)
@@ -80,9 +130,9 @@ match a2lfile::load("example.a2l", None, &mut log_msgs, true) {
 pub fn load<P: AsRef<Path>>(
     path: P,
     a2ml_spec: Option<String>,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
     strict_parsing: bool,
-) -> Result<A2lFile, String> {
+) -> Result<A2lFile, A2lError> {
     let pathref = path.as_ref();
     let filedata = loader::load(pathref)?;
     load_impl(pathref, &filedata, log_msgs, strict_parsing, a2ml_spec)
@@ -101,6 +151,7 @@ If a definition is provided here and there is also an A2ML block in the file, th
 `strict_parsing` toggles strict parsing: If strict parsing is enabled, most warnings become errors.
 
 ```rust
+# use a2lfile::A2lError;
 let text = r#"
 ASAP2_VERSION 1 71
 /begin PROJECT new_project ""
@@ -109,7 +160,7 @@ ASAP2_VERSION 1 71
 /end PROJECT
 "#;
 
-let mut log_msgs = Vec::<String>::new();
+let mut log_msgs = Vec::<A2lError>::new();
 let a2l = a2lfile::load_from_string(&text, None, &mut log_msgs, true).unwrap();
 assert_eq!(a2l.project.module[0].name, "new_module");
 ```
@@ -117,9 +168,9 @@ assert_eq!(a2l.project.module[0].name, "new_module");
 pub fn load_from_string(
     a2ldata: &str,
     a2ml_spec: Option<String>,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
     strict_parsing: bool,
-) -> Result<A2lFile, String> {
+) -> Result<A2lFile, A2lError> {
     let pathref = Path::new("");
     load_impl(pathref, a2ldata, log_msgs, strict_parsing, a2ml_spec)
 }
@@ -127,15 +178,18 @@ pub fn load_from_string(
 fn load_impl(
     path: &Path,
     filedata: &str,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
     strict_parsing: bool,
     a2ml_spec: Option<String>,
-) -> Result<A2lFile, String> {
+) -> Result<A2lFile, A2lError> {
     // tokenize the input data
-    let tokenresult = tokenizer::tokenize(path.to_string_lossy().to_string(), 0, filedata)?;
+    let tokenresult = tokenizer::tokenize(path.to_string_lossy().to_string(), 0, filedata)
+        .map_err(|tokenizer_error| A2lError::TokenizerError { tokenizer_error })?;
 
     if tokenresult.tokens.is_empty() {
-        return Err("Error: File contains no a2l data".to_string());
+        return Err(A2lError::EmptyFileError {
+            filename: path.to_path_buf(),
+        });
     }
 
     let firstline = tokenresult.tokens.get(0).map(|tok| tok.line).unwrap_or(1);
@@ -152,15 +206,9 @@ fn load_impl(
 
     // if a built-in A2ml specification was passed as a string, then it is parsed here
     if let Some(spec) = a2ml_spec {
-        let ret = a2ml::parse_a2ml(&spec);
-        if let Ok(parsed_spec) = ret {
-            parser.builtin_a2mlspec = Some(parsed_spec);
-        } else {
-            // this shouldn't happen; if it does then there is a bug in the a2ml_specification! macro
-            return Err(format!(
-                "Error: Failed to load built-in specification: {}",
-                ret.unwrap_err()
-            ));
+        match a2ml::parse_a2ml(&spec) {
+            Ok(parsed_spec) => parser.builtin_a2mlspec = Some(parsed_spec),
+            Err(parse_err) => return Err(A2lError::InvalidBuiltinA2mlSpec { parse_err }),
         }
     }
 
@@ -176,26 +224,31 @@ fn load_impl(
     // build the a2l data structures from the tokens
     let a2l_file = match A2lFile::parse(&mut parser, &context, 0) {
         Ok(data) => data,
-        Err(parse_error) => return Err(parser.stringify_parse_error(&parse_error, true)),
+        Err(parse_error) => {
+            return Err(A2lError::ParserError {
+                parser_error: parse_error,
+            })
+        }
     };
 
     // make sure this is the end of the input, i.e. no additional data after the parsed data
     if let Some(token) = parser.peek_token() {
+        let additional_tokens_err = A2lError::AdditionalTokensError {
+            filename: parser.filenames[token.fileid].to_owned(),
+            error_line: parser.last_token_position,
+            text: parser.get_token_text(token).to_owned(),
+        };
         if !strict_parsing {
-            parser.log_msgs.push(
-                format!("Warning on line {}: unexpected additional data \"{}...\" after parsed a2l file content", token.line, parser.get_token_text(token))
-            );
+            parser.log_msgs.push(additional_tokens_err);
         } else {
-            return Err(
-                format!("Error on line {}: unexpected additional data \"{}...\" after parsed a2l file content", token.line, parser.get_token_text(token))
-            );
+            return Err(additional_tokens_err);
         }
     }
 
     Ok(a2l_file)
 }
 
-fn get_version(parser: &mut ParserState, context: &ParseContext) -> Result<Asap2Version, String> {
+fn get_version(parser: &mut ParserState, context: &ParseContext) -> Result<Asap2Version, A2lError> {
     if let Some(token) = parser.peek_token() {
         let ident = parser.get_identifier(context);
         let ver_context = ParseContext::from_token("", token, false);
@@ -213,20 +266,18 @@ fn get_version(parser: &mut ParserState, context: &ParseContext) -> Result<Asap2
     // for compatibility with 1.50 and earlier, also make it possible to catch the error and continue
     parser.set_tokenpos(0);
     parser.set_file_version(1, 50)?;
-    Err(
-        "File is not recognized as an a2l file. Mandatory version information is missing."
-            .to_string(),
-    )
+    Err(A2lError::MissingVerionInfo)
 }
 
 /// load an a2l fragment
 ///
 /// An a2l fragment is just the bare content of a module, without the enclosing PROJECT and MODULE.
 /// Because the fragment cannot specify a version, strict parsing is not available.
-pub fn load_fragment(a2ldata: &str) -> Result<Module, String> {
+pub fn load_fragment(a2ldata: &str) -> Result<Module, A2lError> {
     let fixed_a2ldata = format!(r#"fragment "" {a2ldata} /end MODULE"#);
     // tokenize the input data
-    let tokenresult = tokenizer::tokenize("(fragment)".to_string(), 0, &fixed_a2ldata)?;
+    let tokenresult = tokenizer::tokenize("(fragment)".to_string(), 0, &fixed_a2ldata)
+        .map_err(|tokenizer_error| A2lError::TokenizerError { tokenizer_error })?;
     let firstline = tokenresult.tokens.get(0).map(|tok| tok.line).unwrap_or(1);
     let context = ParseContext {
         element: "MODULE".to_string(),
@@ -236,20 +287,24 @@ pub fn load_fragment(a2ldata: &str) -> Result<Module, String> {
     };
 
     // create the parser state object
-    let mut log_msgs = Vec::<String>::new();
+    let mut log_msgs = Vec::<A2lError>::new();
     let mut parser = ParserState::new(&tokenresult, &mut log_msgs, false);
     parser.set_file_version(1, 71)?; // doesn't really matter with strict = false
 
     // build the a2l data structures from the tokens
     let module = match Module::parse(&mut parser, &context, 0) {
         Ok(data) => data,
-        Err(parse_error) => return Err(parser.stringify_parse_error(&parse_error, true)),
+        Err(parse_error) => {
+            return Err(A2lError::ParserError {
+                parser_error: parse_error,
+            })
+        } //Err(parser.stringify_parse_error(&parse_error, true)),
     };
 
     Ok(module)
 }
 
-pub fn load_fragment_file<P: AsRef<Path>>(path: P) -> Result<Module, String> {
+pub fn load_fragment_file<P: AsRef<Path>>(path: P) -> Result<Module, A2lError> {
     let pathref = path.as_ref();
     let filedata = loader::load(pathref)?;
     load_fragment(&filedata)
@@ -348,7 +403,7 @@ impl Module {
     /// build a map of all named elements inside the module
     pub fn build_namemap(&self) -> ModuleNameMap {
         let mut log_msgs = vec![];
-        ModuleNameMap::build(&self, &mut log_msgs)
+        ModuleNameMap::build(self, &mut log_msgs)
     }
 
     /// merge another module with this module
@@ -369,7 +424,7 @@ mod tests {
         let result = load_from_string("", None, &mut log_msgs, false);
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error, "Error: File contains no a2l data");
+        assert!(matches!(error, A2lError::EmptyFileError { .. }));
     }
 
     #[test]
@@ -383,7 +438,7 @@ mod tests {
         );
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert!(error.starts_with("Error: Failed to load built-in specification"))
+        assert!(matches!(error, A2lError::InvalidBuiltinA2mlSpec { .. }));
     }
 
     #[test]
@@ -398,10 +453,7 @@ mod tests {
         );
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(
-            error,
-            "File is not recognized as an a2l file. Mandatory version information is missing."
-        );
+        assert!(matches!(error, A2lError::MissingVerionInfo));
 
         // version is damaged
         let mut log_msgs = Vec::new();
@@ -413,15 +465,12 @@ mod tests {
         );
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(
-            error,
-            "File is not recognized as an a2l file. Mandatory version information is missing."
-        );
+        assert!(matches!(error, A2lError::MissingVerionInfo));
     }
 
     #[test]
     fn additional_tokens() {
-        // strict parsin off - no error
+        // strict parsing off - no error
         let mut log_msgs = Vec::new();
         let result = load_from_string(
             r#"ASAP2_VERSION 1 71 /begin PROJECT x "" /begin MODULE y "" /end MODULE /end PROJECT abcdef"#,
@@ -442,7 +491,7 @@ mod tests {
         );
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert!(error.ends_with("after parsed a2l file content"));
+        assert!(matches!(error, A2lError::AdditionalTokensError { .. }));
     }
 
     #[test]

@@ -57,7 +57,7 @@ macro_rules! check_and_insert_multi {
 }
 
 /// ModuleNameMap collects references to all items with a [Module] into HashMaps, making it possible to access them all by name.
-/// 
+///
 /// There are several name spaces per module, each stored in a different HashMap in the ModuleNameMap:
 /// - object: `CHARACTERISTIC`, `MEASUREMENT`, `AXIS_PTS`, `BLOB`, `INSTANCE`
 /// - compu_method: `COMPU_METHOD`
@@ -71,7 +71,7 @@ macro_rules! check_and_insert_multi {
 /// - typedef: `TYPEDEF_AXIS`, `TYPEDEF_BLOB`, `TYPEDEF_CHARACTERISTIC`, `TYPEDEF_INSTANCE`, `TYPEDEF_MEASUREMENT`
 /// - unit: `UNIT`
 /// - variant: `VARIANT`
-/// 
+///
 /// While the ModuleNameMap is holding these references, the borrow checker will prevent any of these items from being modified.
 #[derive(Debug, PartialEq)]
 pub struct ModuleNameMap<'a> {
