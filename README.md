@@ -4,7 +4,6 @@
 [![codecov](https://codecov.io/gh/DanielT/a2lfile/branch/main/graph/badge.svg)](https://codecov.io/gh/DanielT/a2lfile)
 [![license](https://img.shields.io/badge/license-Apache--2.0_OR_MIT-blue)](#license)
 
-
 `a2lfile` is a library that allows you to read, modify and write a2l files.
 
 ## Features
@@ -31,7 +30,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-a2lfile = "1.3.4"
+a2lfile = "1.4"
 ```
 
 A simple program based on the `a2lfile` library might look like this:
