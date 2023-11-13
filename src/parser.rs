@@ -4,6 +4,8 @@ use crate::a2ml::*;
 use crate::tokenizer::*;
 use crate::A2lError;
 
+const MAX_IDENT: usize = 1024;
+
 struct TokenIter<'a> {
     tokens: &'a [A2lToken],
     pos: usize,
@@ -31,6 +33,7 @@ pub struct ParseContext {
     pub inside_block: bool,
 }
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum ParserError {
     #[error("{filename}:{error_line}: expected token of type {expected_ttype:?}, got {actual_ttype:?} (\"{actual_text}\") inside block {element} starting on line {block_line}")]
     UnexpectedTokenType {
@@ -175,6 +178,16 @@ pub enum ParserError {
     InvalidBegin {
         filename: String,
         error_line: u32,
+        block: String,
+    },
+
+    #[error(
+        "{filename}:{error_line}: The string '{ident}' in block {block} is not a valid identifier"
+    )]
+    InvalidIdentifier {
+        filename: String,
+        error_line: u32,
+        ident: String,
         block: String,
     },
 
@@ -467,6 +480,14 @@ impl<'a> ParserState<'a> {
     pub fn get_identifier(&mut self, context: &ParseContext) -> Result<String, ParserError> {
         let token = self.expect_token(context, A2lTokenType::Identifier)?;
         let text = self.get_token_text(token);
+        if text.as_bytes()[0].is_ascii_digit() || text.len() > MAX_IDENT {
+            self.error_or_log(ParserError::InvalidIdentifier {
+                filename: self.filenames[context.fileid].to_owned(),
+                error_line: self.last_token_position,
+                block: context.element.to_owned(),
+                ident: text.to_owned(),
+            })?
+        }
         Ok(String::from(text))
     }
 
@@ -722,7 +743,11 @@ impl<'a> ParserState<'a> {
                             if text == item_tag {
                                 break;
                             } else {
-                                return Err(ParserError::incorrect_end_tag(self, &errcontext, text));
+                                return Err(ParserError::incorrect_end_tag(
+                                    self,
+                                    &errcontext,
+                                    text,
+                                ));
                             }
                         }
                     } else {
@@ -1008,5 +1033,36 @@ mod tests {
         // \t -> (tab)
         let result = unescape_string(r#"\t"#);
         assert_eq!(result, "\t");
+    }
+
+    #[test]
+    fn parsing_identifiers_test() {
+        let input_text = r##"ident 0ident 123"##;
+        let tokenresult = super::super::tokenizer::tokenize("test_input".to_owned(), 0, input_text);
+        assert!(tokenresult.is_ok());
+
+        let tokenresult = tokenresult.unwrap();
+        let mut log_msgs = Vec::<A2lError>::new();
+        let mut parser = ParserState::new(&tokenresult, &mut log_msgs, true);
+        let context = ParseContext {
+            element: "TEST".to_string(),
+            fileid: 0,
+            line: 0,
+            inside_block: true,
+        };
+
+        // identifier: ident
+        let res = parser.get_identifier(&context);
+        assert!(res.is_ok());
+        let val = res.unwrap();
+        assert_eq!(val, "ident");
+
+        // bad identifier - identifiers may not start with a number
+        let res = parser.get_identifier(&context);
+        assert!(matches!(res, Err(ParserError::InvalidIdentifier { .. })));
+
+        // not an identifier
+        let res = parser.get_identifier(&context);
+        assert!(res.is_err());
     }
 }

@@ -37,8 +37,7 @@ pub(crate) fn a2ml_specification(tokens: TokenStream) -> TokenStream {
     result.extend(generate_a2ml_constant(&spec));
     let outtypes = fixup_output_datatypes(&spec);
 
-    let mut typesvec: Vec<(&String, &DataItem)> =
-        outtypes.iter().map(|(key, val)| (key, val)).collect();
+    let mut typesvec: Vec<(&String, &DataItem)> = outtypes.iter().collect();
     typesvec.sort_by(|a, b| a.0.cmp(b.0));
 
     for (typename, a2mltype) in typesvec {

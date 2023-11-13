@@ -21,8 +21,7 @@ pub(crate) fn a2l_specification(tokens: TokenStream) -> TokenStream {
 
     let types = build_typelist(structs, enums);
 
-    let mut typesvec: Vec<(&String, &DataItem)> =
-        types.iter().map(|(key, val)| (key, val)).collect();
+    let mut typesvec: Vec<(&String, &DataItem)> = types.iter().collect();
     typesvec.sort_by(|a, b| a.0.cmp(b.0));
 
     let mut result = TokenStream::new();

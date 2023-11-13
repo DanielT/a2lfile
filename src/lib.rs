@@ -32,6 +32,7 @@ pub use a2ml::{GenericIfData, GenericIfDataTaggedItem};
 pub use specification::*;
 
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum A2lError {
     /// FileOpenError: An IoError that occurred while loading a file
     #[error("Failed to load {filename}: {ioerror}")]
@@ -192,7 +193,7 @@ fn load_impl(
         });
     }
 
-    let firstline = tokenresult.tokens.get(0).map(|tok| tok.line).unwrap_or(1);
+    let firstline = tokenresult.tokens.first().map(|tok| tok.line).unwrap_or(1);
     // create a context for the parser
     let context = ParseContext {
         element: "A2L_FILE".to_string(),
@@ -278,7 +279,7 @@ pub fn load_fragment(a2ldata: &str) -> Result<Module, A2lError> {
     // tokenize the input data
     let tokenresult = tokenizer::tokenize("(fragment)".to_string(), 0, &fixed_a2ldata)
         .map_err(|tokenizer_error| A2lError::TokenizerError { tokenizer_error })?;
-    let firstline = tokenresult.tokens.get(0).map(|tok| tok.line).unwrap_or(1);
+    let firstline = tokenresult.tokens.first().map(|tok| tok.line).unwrap_or(1);
     let context = ParseContext {
         element: "MODULE".to_string(),
         fileid: 0,

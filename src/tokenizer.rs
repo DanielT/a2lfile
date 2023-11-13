@@ -4,6 +4,7 @@ use thiserror::Error;
 use super::loader;
 
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum TokenizerError {
     #[error("{filename}:{line}: Failed to load included file {incname}")]
     IncludeFileError {
@@ -314,27 +315,42 @@ fn tokenize_core(
             while bytepos < datalen && is_numchar(filebytes[bytepos]) {
                 bytepos += 1;
             }
-            let number = &filebytes[startpos..bytepos];
-            if number == b"-" {
-                return Err(TokenizerError::InvalidNumericalConstant {
-                    filename,
+            if bytepos == datalen || !is_identchar(filebytes[bytepos]) {
+                let number = &filebytes[startpos..bytepos];
+                if number == b"-" {
+                    return Err(TokenizerError::InvalidNumericalConstant {
+                        filename,
+                        line,
+                        tokentext: "-".to_owned(),
+                    });
+                } else if number == b"0x" {
+                    return Err(TokenizerError::InvalidNumericalConstant {
+                        filename,
+                        line,
+                        tokentext: "0x".to_owned(),
+                    });
+                }
+                tokens.push(A2lToken {
+                    ttype: A2lTokenType::Number,
+                    startpos,
+                    endpos: bytepos,
+                    fileid,
                     line,
-                    tokentext: "-".to_owned(),
                 });
-            } else if number == b"0x" {
-                return Err(TokenizerError::InvalidNumericalConstant {
-                    filename,
+            } else if bytepos < datalen && is_identchar(filebytes[bytepos]) {
+                // this is actually an identifier that starts with a number, which is not standard compliant
+                // it is still worth recognizing, in oder to give better error messages and also the error can be bypassed if strict is false
+                while bytepos < datalen && is_identchar(filebytes[bytepos]) {
+                    bytepos += 1;
+                }
+                tokens.push(A2lToken {
+                    ttype: A2lTokenType::Identifier,
+                    startpos,
+                    endpos: bytepos,
+                    fileid,
                     line,
-                    tokentext: "0x".to_owned(),
                 });
             }
-            tokens.push(A2lToken {
-                ttype: A2lTokenType::Number,
-                startpos,
-                endpos: bytepos,
-                fileid,
-                line,
-            });
             separated = false;
         } else {
             let endpos = if startpos + 10 < datalen {
@@ -683,6 +699,11 @@ mod tests {
         let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Number);
+
+        let data = String::from("0ident");
+        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Identifier);
     }
 
     #[test]
