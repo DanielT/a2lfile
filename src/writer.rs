@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
 use std::collections::HashSet;
-use std::convert::TryInto;
 use std::fmt::Write;
 
 use crate::specification::BlockInfo;
@@ -84,7 +83,7 @@ impl Writer {
     where
         T: std::convert::Into<f64>,
     {
-        let value_conv = value.try_into().unwrap();
+        let value_conv = value.into();
         self.add_whitespace(offset);
         if value_conv == 0f64 {
             self.outstring.push('0');
