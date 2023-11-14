@@ -76,6 +76,16 @@ pub enum A2lError {
         text: String,
     },
 }
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum A2lWriteError {
+    /// FileWriteError: An IoError that occurred while writing from a file
+    #[error("Could not write to {filename}: {ioerror}")]
+    FileWriteError {
+        filename: PathBuf,
+        ioerror: std::io::Error,
+    },
+}
 
 /**
 Create a new a2l file
@@ -319,7 +329,11 @@ impl A2lFile {
 
     /// write this `A2lFile` object to the given file
     /// the banner will be placed inside a comment at the beginning of the file; "/*" an "*/" should not be part of the banner string
-    pub fn write<P: AsRef<Path>>(&self, path: P, banner: Option<&str>) -> Result<(), String> {
+    pub fn write<P: AsRef<Path>>(
+        &self,
+        path: P,
+        banner: Option<&str>,
+    ) -> Result<(), A2lWriteError> {
         let mut outstr = "".to_string();
 
         let file_text = self.write_to_string();
@@ -334,13 +348,10 @@ impl A2lFile {
         }
         outstr.write_str(&file_text).unwrap();
 
-        if let Err(err) = std::fs::write(&path, outstr) {
-            return Err(format!(
-                "Error while writing output {}: {}\n",
-                path.as_ref().display(),
-                err
-            ));
-        }
+        std::fs::write(&path, outstr).map_err(|ioerror| A2lWriteError::FileWriteError {
+            filename: path.as_ref().to_path_buf(),
+            ioerror,
+        })?;
 
         Ok(())
     }
