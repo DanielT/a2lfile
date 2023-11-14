@@ -32,7 +32,7 @@ impl Writer {
         }
     }
 
-    // add a string to the outout and prefix it with whitespace
+    // add a string to the output and prefix it with whitespace
     pub(crate) fn add_str(&mut self, text: &str, offset: u32) {
         self.add_whitespace(offset);
         self.outstring.push_str(text);
