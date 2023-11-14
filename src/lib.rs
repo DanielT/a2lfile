@@ -217,10 +217,10 @@ fn load_impl(
 
     // if a built-in A2ml specification was passed as a string, then it is parsed here
     if let Some(spec) = a2ml_spec {
-        match a2ml::parse_a2ml(&spec) {
-            Ok(parsed_spec) => parser.builtin_a2mlspec = Some(parsed_spec),
-            Err(parse_err) => return Err(A2lError::InvalidBuiltinA2mlSpec { parse_err }),
-        }
+        parser.builtin_a2mlspec = Some(
+            a2ml::parse_a2ml(&spec)
+                .map_err(|parse_err| A2lError::InvalidBuiltinA2mlSpec { parse_err })?,
+        );
     }
 
     // try to get the file version. Starting with 1.60, the ASAP2_VERSION element is mandatory. For
@@ -233,14 +233,8 @@ fn load_impl(
         }
     }
     // build the a2l data structures from the tokens
-    let a2l_file = match A2lFile::parse(&mut parser, &context, 0) {
-        Ok(data) => data,
-        Err(parse_error) => {
-            return Err(A2lError::ParserError {
-                parser_error: parse_error,
-            })
-        }
-    };
+    let a2l_file = A2lFile::parse(&mut parser, &context, 0)
+        .map_err(|parser_error| A2lError::ParserError { parser_error })?;
 
     // make sure this is the end of the input, i.e. no additional data after the parsed data
     if let Some(token) = parser.peek_token() {
@@ -303,16 +297,8 @@ pub fn load_fragment(a2ldata: &str) -> Result<Module, A2lError> {
     parser.set_file_version(1, 71)?; // doesn't really matter with strict = false
 
     // build the a2l data structures from the tokens
-    let module = match Module::parse(&mut parser, &context, 0) {
-        Ok(data) => data,
-        Err(parse_error) => {
-            return Err(A2lError::ParserError {
-                parser_error: parse_error,
-            })
-        } //Err(parser.stringify_parse_error(&parse_error, true)),
-    };
-
-    Ok(module)
+    Module::parse(&mut parser, &context, 0)
+        .map_err(|parser_error| A2lError::ParserError { parser_error })
 }
 
 pub fn load_fragment_file<P: AsRef<Path>>(path: P) -> Result<Module, A2lError> {
