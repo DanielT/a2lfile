@@ -20,7 +20,7 @@ fn remove_invalid_object_references(module: &mut Module) {
             // retain only references to existing characteristics
             ref_characteristic
                 .identifier_list
-                .retain(|item| refnames.get(item).is_some());
+                .retain(|item| refnames.contains(item));
             if ref_characteristic.identifier_list.is_empty() {
                 grp.ref_characteristic = None;
             }
@@ -29,7 +29,7 @@ fn remove_invalid_object_references(module: &mut Module) {
             // retain only references to existing measurements
             ref_measurement
                 .identifier_list
-                .retain(|item| refnames.get(item).is_some());
+                .retain(|item| refnames.contains(item));
             if ref_measurement.identifier_list.is_empty() {
                 grp.ref_measurement = None;
             }

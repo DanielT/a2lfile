@@ -20,9 +20,8 @@ pub(crate) fn cleanup(module: &mut Module) {
             used_record_layouts.insert(s_rec_layout.name.to_owned());
         }
     }
-
     // remove all unused RECORD_LAYOUTs
     module
         .record_layout
-        .retain(|item| used_record_layouts.get(&item.name).is_some());
+        .retain(|item| used_record_layouts.contains(&item.name));
 }
