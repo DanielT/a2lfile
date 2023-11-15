@@ -15,7 +15,7 @@ mod specification;
 mod tokenizer;
 mod writer;
 
-pub use namemap::ModuleNameMap;
+pub use namemap::{ModuleNameMap, NameMapCompuTab, NameMapObject, NameMapTypedef};
 pub use parser::ParserError;
 use std::convert::AsRef;
 use std::fmt::Write;
