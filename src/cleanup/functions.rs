@@ -146,7 +146,7 @@ fn remove_broken_func_refs(module: &mut Module) {
         if let Some(function_list) = &mut axispts.function_list {
             function_list
                 .name_list
-                .retain(|name| existing_functions.get(name).is_some());
+                .retain(|name| existing_functions.contains(name));
         }
     }
 
@@ -154,7 +154,7 @@ fn remove_broken_func_refs(module: &mut Module) {
         if let Some(function_list) = &mut chara.function_list {
             function_list
                 .name_list
-                .retain(|name| existing_functions.get(name).is_some());
+                .retain(|name| existing_functions.contains(name));
         }
     }
 
@@ -162,7 +162,7 @@ fn remove_broken_func_refs(module: &mut Module) {
         if let Some(function_list) = &mut meas.function_list {
             function_list
                 .name_list
-                .retain(|name| existing_functions.get(name).is_some());
+                .retain(|name| existing_functions.contains(name));
         }
     }
 
@@ -170,7 +170,7 @@ fn remove_broken_func_refs(module: &mut Module) {
         if let Some(function_list) = &mut group.function_list {
             function_list
                 .name_list
-                .retain(|name| existing_functions.get(name).is_some());
+                .retain(|name| existing_functions.contains(name));
         }
     }
 
@@ -178,7 +178,7 @@ fn remove_broken_func_refs(module: &mut Module) {
         if let Some(sub_functions) = &mut function.sub_function {
             sub_functions
                 .identifier_list
-                .retain(|name| existing_functions.get(name).is_some());
+                .retain(|name| existing_functions.contains(name));
         }
     }
 }
@@ -210,27 +210,27 @@ fn remove_broken_object_refs(module: &mut Module) {
         if let Some(ref_characteristic) = &mut func.ref_characteristic {
             ref_characteristic
                 .identifier_list
-                .retain(|ident| object_names.get(ident).is_some());
+                .retain(|ident| object_names.contains(ident));
         }
         if let Some(def_characteristic) = &mut func.def_characteristic {
             def_characteristic
                 .identifier_list
-                .retain(|ident| object_names.get(ident).is_some());
+                .retain(|ident| object_names.contains(ident));
         }
         if let Some(in_measurement) = &mut func.in_measurement {
             in_measurement
                 .identifier_list
-                .retain(|ident| object_names.get(ident).is_some());
+                .retain(|ident| object_names.contains(ident));
         }
         if let Some(loc_measurement) = &mut func.loc_measurement {
             loc_measurement
                 .identifier_list
-                .retain(|ident| object_names.get(ident).is_some());
+                .retain(|ident| object_names.contains(ident));
         }
         if let Some(out_measurement) = &mut func.out_measurement {
             out_measurement
                 .identifier_list
-                .retain(|ident| object_names.get(ident).is_some());
+                .retain(|ident| object_names.contains(ident));
         }
     }
 }

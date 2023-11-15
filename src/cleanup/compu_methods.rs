@@ -98,7 +98,7 @@ fn remove_unused_compumethods(module: &mut Module) {
 
     module
         .compu_method
-        .retain(|item| used_compumethods.get(&item.name).is_some());
+        .retain(|item| used_compumethods.contains(&item.name));
 }
 
 fn remove_unused_sub_elements(module: &mut Module) {
@@ -117,13 +117,13 @@ fn remove_unused_sub_elements(module: &mut Module) {
 
     module
         .compu_tab
-        .retain(|item| used_compu_tabs.get(&item.name).is_some());
+        .retain(|item| used_compu_tabs.contains(&item.name));
     module
         .compu_vtab
-        .retain(|item| used_compu_tabs.get(&item.name).is_some());
+        .retain(|item| used_compu_tabs.contains(&item.name));
     module
         .compu_vtab_range
-        .retain(|item| used_compu_tabs.get(&item.name).is_some());
+        .retain(|item| used_compu_tabs.contains(&item.name));
 
     // remove all unused UNITs
     for unit in &module.unit {
@@ -134,7 +134,7 @@ fn remove_unused_sub_elements(module: &mut Module) {
 
     module
         .unit
-        .retain(|item| used_units.get(&item.name).is_some());
+        .retain(|item| used_units.contains(&item.name));
 }
 
 fn remove_invalid_sub_element_refs(module: &mut Module) {
