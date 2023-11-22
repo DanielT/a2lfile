@@ -1,4 +1,4 @@
-use proc_macro2::*;
+use proc_macro2::{Delimiter, TokenStream, TokenTree};
 
 pub(crate) type TokenStreamIter = std::iter::Peekable<proc_macro2::token_stream::IntoIter>;
 
@@ -26,7 +26,7 @@ pub(crate) fn get_string(token_iter: &mut TokenStreamIter) -> String {
 
             match stripped {
                 Some(val) => val.to_owned(),
-                None => panic!("expected a string in double-quotes, got {}", raw_string),
+                None => panic!("expected a string in double-quotes, got {raw_string}"),
             }
         }
         Some(tok) => panic!("Expected a string, got: {:#?}", tok.to_string()),
@@ -87,8 +87,7 @@ pub(crate) fn require_punct(token_iter: &mut TokenStreamIter, reqchar: char) {
     let cur_pkchar = get_punct(token_iter);
     assert_eq!(
         cur_pkchar, reqchar,
-        "Punctuation character '{}' is required in this position, but '{}' was found instead",
-        reqchar, cur_pkchar
+        "Punctuation character '{reqchar}' is required in this position, but '{cur_pkchar}' was found instead"
     );
 }
 
@@ -156,7 +155,7 @@ const RUST_RESERVED_KEYWORDS: [&str; 51] = [
 pub(crate) fn make_varname(blkname: &str) -> String {
     let mut lcname = blkname.to_ascii_lowercase();
     if RUST_RESERVED_KEYWORDS.iter().any(|kw| kw == &lcname) {
-        lcname = format!("var_{}", lcname);
+        lcname = format!("var_{lcname}");
     }
     lcname
 }

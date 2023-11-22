@@ -1,4 +1,4 @@
-use crate::specification::*;
+use crate::specification::{A2lFile, A2lObject, A2lObjectName};
 use std::cmp::Ordering;
 
 pub(crate) fn sort_new_items(a2l_file: &mut A2lFile) {
@@ -70,7 +70,7 @@ pub(crate) fn sort_new_items(a2l_file: &mut A2lFile) {
                     } else {
                         item.get_layout_mut().uid = maxid * 2 + 1;
                     }
-                })
+                });
             }
         }
 
@@ -87,7 +87,7 @@ pub(crate) fn sort_new_items(a2l_file: &mut A2lFile) {
                     } else {
                         item.get_layout_mut().uid = maxid * 2 + 1;
                     }
-                })
+                });
             }
         }
 

@@ -1,4 +1,4 @@
-use crate::namemap::*;
+use crate::namemap::ModuleNameMap;
 use crate::specification::*;
 use std::collections::HashMap;
 
@@ -437,8 +437,7 @@ fn check_reference_list<T>(
     for ident in identifier_list {
         if map.get(ident).is_none() {
             log_msgs.push(format!(
-                "In {} on line {}: Reference to nonexistent {} \"{}\"",
-                container_type, line, ref_type, ident
+                "In {container_type} on line {line}: Reference to nonexistent {ref_type} \"{ident}\""
             ));
         }
     }
@@ -454,7 +453,7 @@ fn check_group_structure(grouplist: &[Group], log_msgs: &mut Vec<String>) {
 
     for group in grouplist {
         groupinfo.insert(
-            group.name.to_owned(),
+            group.name.clone(),
             GroupInfo {
                 is_root: group.root.is_some(),
                 parents: Vec::new(),

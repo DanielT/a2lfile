@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use crate::specification::*;
+use crate::specification::{Function, FunctionList, Module};
 
 pub(crate) fn cleanup(module: &mut Module) {
     // remove any references to non-existent functions. Usually there shouldn't be any.
@@ -17,7 +17,7 @@ pub(crate) fn cleanup(module: &mut Module) {
 
     let mut name2idx = HashMap::<String, usize>::new();
     for (idx, func) in module.function.iter().enumerate() {
-        name2idx.insert(func.name.to_owned(), idx);
+        name2idx.insert(func.name.clone(), idx);
     }
 
     let mut user_of = vec![Vec::<usize>::new(); module.function.len()];
@@ -138,7 +138,7 @@ fn remove_broken_func_refs(module: &mut Module) {
     let existing_functions: HashSet<String> = module
         .function
         .iter()
-        .map(|func| func.name.to_owned())
+        .map(|func| func.name.clone())
         .collect();
 
     // keep only references to existing functions, dropping any that don't exist
@@ -188,21 +188,21 @@ fn remove_broken_object_refs(module: &mut Module) {
 
     // collect the names of all objects a function might refer to
     for characteristic in &module.characteristic {
-        object_names.insert(characteristic.name.to_owned());
+        object_names.insert(characteristic.name.clone());
     }
     for measurement in &module.measurement {
-        object_names.insert(measurement.name.to_owned());
+        object_names.insert(measurement.name.clone());
     }
     for instance in &module.instance {
-        object_names.insert(instance.name.to_owned());
+        object_names.insert(instance.name.clone());
     }
     // I've seen a file where a FUNCTION referred to an AXIS_PTS in its REF_CHARACTERISTIC, so AXIS_PTS is definitely needed
     for axis_pts in &module.axis_pts {
-        object_names.insert(axis_pts.name.to_owned());
+        object_names.insert(axis_pts.name.clone());
     }
     // Not sure if functions can refer to BLOBs, but it won't hurt to have these names in the set
     for blob in &module.blob {
-        object_names.insert(blob.name.to_owned());
+        object_names.insert(blob.name.clone());
     }
 
     // retain only references to existing objects

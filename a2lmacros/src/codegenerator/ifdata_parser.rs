@@ -3,7 +3,7 @@ use quote::format_ident;
 use quote::quote;
 
 use super::{BaseType, DataItem, EnumItem};
-use crate::util::*;
+use crate::util::{make_varname, ucname_to_typename};
 
 //-----------------------------------------------------------------------------
 // "indirect" parsing of IF_DATA -> parsing generic IF_DATA in GenericIfData structures into application-specific data structures
@@ -22,7 +22,7 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
             result.extend(generate_indirect_block_parser(typename, blockitems));
         }
         _ => {
-            panic!("only block, struct and enum are allowed as top-level types, but {} = {:#?} was encountered", typename, dataitem);
+            panic!("only block, struct and enum are allowed as top-level types, but {typename} = {dataitem:#?} was encountered");
         }
     }
 
@@ -105,8 +105,8 @@ fn generate_struct_field_intializers(items: &[DataItem]) -> Vec<TokenStream> {
             BaseType::Sequence { seqtype } => {
                 let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
                 let itemparser =
-                    generate_item_parser_call(quote! {seqitem}, &item.typename, seqtype);
-                let itemlocation = generate_item_location(quote! {seqitem}, seqtype);
+                    generate_item_parser_call(&quote! {seqitem}, &item.typename, seqtype);
+                let itemlocation = generate_item_location(&quote! {seqitem}, seqtype);
                 parsers.push(quote! {
                     #itemname: {
                         let seqitems = #item_getter.get_sequence()?;
@@ -148,11 +148,11 @@ fn generate_struct_field_intializers(items: &[DataItem]) -> Vec<TokenStream> {
             _ => {
                 let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
                 let itemparser = generate_item_parser_call(
-                    quote! {#item_getter},
+                    &quote! {#item_getter},
                     &item.typename,
                     &item.basetype,
                 );
-                let itemlocation = generate_item_location(quote! {#item_getter}, &item.basetype);
+                let itemlocation = generate_item_location(&quote! {#item_getter}, &item.basetype);
                 parsers.push(quote! {#itemname: #itemparser});
                 location_info.push(itemlocation);
             }
@@ -176,7 +176,7 @@ fn generate_struct_field_intializers(items: &[DataItem]) -> Vec<TokenStream> {
 }
 
 fn generate_item_parser_call(
-    item_ident: TokenStream,
+    item_ident: &TokenStream,
     typename: &Option<String>,
     basetype: &BaseType,
 ) -> TokenStream {
@@ -200,7 +200,7 @@ fn generate_item_parser_call(
                 let mut arrayelements = Vec::new();
                 for arrayidx in 0..*dim {
                     arrayelements.push(generate_item_parser_call(
-                        quote! {arrayitems[#arrayidx]},
+                        &quote! {arrayitems[#arrayidx]},
                         &arraytype.typename,
                         &arraytype.basetype,
                     ));
@@ -216,14 +216,11 @@ fn generate_item_parser_call(
             let typename = format_ident!("{}", typename.as_ref().unwrap());
             quote! {#typename::parse(&#item_ident)?}
         }
-        _ => panic!(
-            "impossible type {:?} in generate_item_parser_call",
-            basetype
-        ),
+        _ => panic!("impossible type {basetype:?} in generate_item_parser_call"),
     }
 }
 
-fn generate_item_location(item_ident: TokenStream, basetype: &BaseType) -> TokenStream {
+fn generate_item_location(item_ident: &TokenStream, basetype: &BaseType) -> TokenStream {
     match basetype {
         BaseType::Char
         | BaseType::Int
@@ -240,7 +237,7 @@ fn generate_item_location(item_ident: TokenStream, basetype: &BaseType) -> Token
                 let mut arraylocations = Vec::new();
                 for arrayidx in 0..*dim {
                     arraylocations.push(generate_item_location(
-                        quote! {arrayitems[#arrayidx]},
+                        &quote! {arrayitems[#arrayidx]},
                         &arraytype.basetype,
                     ));
                 }

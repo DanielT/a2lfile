@@ -1,4 +1,4 @@
-use crate::specification::*;
+use crate::specification::A2lFile;
 
 mod compu_methods;
 mod functions;

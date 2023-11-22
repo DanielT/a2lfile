@@ -8,7 +8,7 @@ use proc_macro2::TokenTree;
 use quote::format_ident;
 use quote::quote;
 
-use super::codegenerator::*;
+use super::codegenerator::{BaseType, DataItem, EnumItem, TaggedItem};
 use super::util::*;
 
 #[derive(Debug)]
@@ -23,7 +23,7 @@ struct A2mlTypeList {
     list: Vec<(String, BaseType)>,
 }
 
-/// a2ml_specification - entry point for the proc_macro a2ml_specification!
+/// `a2ml_specification` - entry point for the `proc_macro` `a2ml_specification`!
 /// the function processes the provided specification and generates appropriate data structures and parser functions from it
 pub(crate) fn a2ml_specification(tokens: TokenStream) -> TokenStream {
     let mut iter: TokenStreamIter = tokens.into_iter().peekable();
@@ -84,11 +84,11 @@ Grammar for A2ML:
     constant = for enums this is defined as a signed 32 bit int
 */
 
-/// parse_specification - parses the tokens from the compiler into a data structure
+/// `parse_specification` - parses the tokens from the compiler into a data structure
 /// the format of the specification is basically A2ML.
 /// There are two extensions to the A2ML grammar:
 /// Firstly, all variables can be named, e.g.
-///     uint some_name;
+///     uint `some_name`;
 /// instead of just
 ///     uint;
 /// Secondly, comments starting with /// are preserved and copied into the resulting code
@@ -155,7 +155,7 @@ fn parse_a2ml_type(
         "struct" => parse_a2ml_type_struct(token_iter, types),
         "taggedstruct" => parse_a2ml_type_taggedstruct(token_iter, types),
         "taggedunion" => parse_a2ml_type_taggedunion(token_iter, types),
-        _ => panic!("unexpected token {:?} in type declaration", tok_start),
+        _ => panic!("unexpected token {tok_start:?} in type declaration"),
     }
 }
 
@@ -222,8 +222,7 @@ fn parse_a2ml_type_enum(
             let refenum = types.get_enum(&name);
             assert!(
                 refenum.is_some(),
-                "enum {} was referenced but not defined",
-                name
+                "enum {name} was referenced but not defined"
             );
 
             (Some(name), BaseType::EnumRef)
@@ -275,8 +274,7 @@ fn parse_a2ml_type_struct(
             let refstruct = types.get_struct(&name);
             assert!(
                 refstruct.is_some(),
-                "struct {} was referenced but not defined",
-                name
+                "struct {name} was referenced but not defined"
             );
 
             (Some(name), BaseType::StructRef)
@@ -322,8 +320,7 @@ fn parse_a2ml_type_taggedstruct(
             let refts = types.get_taggedstruct(&name);
             assert!(
                 refts.is_some(),
-                "taggedstruct {} was referenced but not defined",
-                name
+                "taggedstruct {name} was referenced but not defined"
             );
 
             (Some(name), BaseType::TaggedStructRef)
@@ -368,8 +365,7 @@ fn parse_a2ml_type_taggedunion(
             let reftu = types.get_taggedunion(&name);
             assert!(
                 reftu.is_some(),
-                "taggedunion {} was referenced but not defined",
-                name
+                "taggedunion {name} was referenced but not defined"
             );
 
             (Some(name), BaseType::TaggedUnionRef)
@@ -415,10 +411,7 @@ fn parse_a2ml_taggeditem(
         if &*ident == "block" {
             is_block = true;
         } else {
-            panic!(
-                "Identifier {} is not allowed in the definition of a tagged item",
-                ident
-            );
+            panic!("Identifier {ident} is not allowed in the definition of a tagged item");
         }
     }
 
@@ -452,7 +445,7 @@ fn parse_a2ml_taggeditem(
             }
         }
         tok => {
-            panic!("got {:#?} while attempting to parse tagged item", tok);
+            panic!("got {tok:#?} while attempting to parse tagged item");
         }
     }
 }
@@ -534,9 +527,9 @@ fn parse_optional_name(token_iter: &mut TokenStreamIter) -> Option<String> {
     }
 }
 
-/// A2mlTypeList is a wrapper around Vec<(name, BaseType)>
+/// `A2mlTypeList` is a wrapper around Vec<(name, `BaseType`)>
 /// It provides functions to get various entries from the list.
-/// Unlike a HashMap, it preserves the ordering of the elements, which is needed when generating the a2ml-constant
+/// Unlike a `HashMap`, it preserves the ordering of the elements, which is needed when generating the a2ml-constant
 impl A2mlTypeList {
     fn get_item(&self, name: &str, kind: std::mem::Discriminant<BaseType>) -> Option<&BaseType> {
         let findresult = self
@@ -609,7 +602,7 @@ fn generate_a2ml_constant(spec: &A2mlSpec) -> proc_macro2::TokenStream {
     let constname = format_ident!("{}_TEXT", spec.name.to_ascii_uppercase());
     let mut result = quote! {};
 
-    let mut definition = "".to_string();
+    let mut definition = String::new();
     for (name, item) in &spec.types.list {
         generate_a2ml_constant_of_item(
             &mut definition,
@@ -835,7 +828,7 @@ fn generate_a2ml_constant_of_taggeditems(
     taggeditems: &[TaggedItem],
     indent_level: usize,
 ) {
-    for tgitem in taggeditems.iter() {
+    for tgitem in taggeditems {
         outstring.push_str(&get_indent_string(indent_level));
         // on taggedunions tgitem.repeat is never true
         if tgitem.repeat {
@@ -982,7 +975,7 @@ fn fixup_add_data_to_struct(
                     new_structitems.push(fixup_make_dataitem(spec, sitem, defined_types));
                 }
             } else {
-                panic!("invalid struct reference {} in a2ml spec", typename);
+                panic!("invalid struct reference {typename} in a2ml spec");
             }
         }
         BaseType::None => {
@@ -1089,14 +1082,14 @@ fn fixup_data_type(
                 let new_enumname = fixup_add_type(typename, newenum, defined_types);
                 (Some(new_enumname), BaseType::EnumRef)
             } else {
-                panic!("failed to resolve enum reference {}", typename);
+                panic!("failed to resolve enum reference {typename}");
             }
         }
         BaseType::Struct { structitems } => {
             if let Some(name) = typename {
                 fixup_struct(name, structitems, spec, defined_types)
             } else {
-                panic!("unnamed struct {:#?} found in a position where no name can be derived from context.", basetype);
+                panic!("unnamed struct {basetype:#?} found in a position where no name can be derived from context.");
             }
         }
         BaseType::StructRef => {
@@ -1104,7 +1097,7 @@ fn fixup_data_type(
             if let Some(BaseType::Struct { structitems }) = spec.types.get_struct(typename) {
                 fixup_struct(typename, structitems, spec, defined_types)
             } else {
-                panic!("failed to resolve struct reference {}", typename)
+                panic!("failed to resolve struct reference {typename}")
             }
         }
         BaseType::TaggedUnion { tuitems } => (
@@ -1123,7 +1116,7 @@ fn fixup_data_type(
                     },
                 )
             } else {
-                panic!("failed to resolve taggedunion reference {}", typename)
+                panic!("failed to resolve taggedunion reference {typename}")
             }
         }
         BaseType::TaggedStruct { tsitems } => (
@@ -1143,7 +1136,7 @@ fn fixup_data_type(
                     },
                 )
             } else {
-                panic!("failed to resolve taggedstruct reference {}", typename)
+                panic!("failed to resolve taggedstruct reference {typename}")
             }
         }
         BaseType::None => (None, BaseType::None),
@@ -1234,10 +1227,10 @@ fn fixup_add_type(
             if *item == newitem {
                 type_exists = true;
                 break;
-            } else {
-                suffix += 1;
-                new_itemname = format!("{}{}", itemname, suffix);
             }
+
+            suffix += 1;
+            new_itemname = format!("{itemname}{suffix}");
         } else {
             type_exists = false;
             break;
@@ -1272,7 +1265,7 @@ fn fixup_make_varnames_unique(structitems: &mut Vec<DataItem>) {
             let mut idx = 1;
             while names.get(&tmp_varname).is_some() {
                 idx += 1;
-                tmp_varname = format!("{}_{}", varname, idx);
+                tmp_varname = format!("{varname}_{idx}");
             }
             if &tmp_varname != varname {
                 item.varname = Some(tmp_varname.clone());
@@ -1295,7 +1288,7 @@ fn make_enum_name(itemname: &Option<String>, enumitems: &[EnumItem]) -> String {
             .iter()
             .map(|item| item.name.chars().collect())
             .collect();
-        let minlen = namechars.iter().map(|vec| vec.len()).min().unwrap();
+        let minlen = namechars.iter().map(std::vec::Vec::len).min().unwrap();
         let mut prefixlen = minlen;
         for pos in 0..minlen {
             let nextchar = namechars[0][pos];

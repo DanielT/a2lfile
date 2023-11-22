@@ -8,7 +8,7 @@ pub(crate) mod ifdata_writer;
 pub(crate) mod parser;
 pub(crate) mod writer;
 
-use super::util::*;
+use super::util::{make_varname, ucname_to_typename};
 
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct EnumItem {

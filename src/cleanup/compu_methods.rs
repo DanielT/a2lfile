@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::specification::*;
+use crate::specification::Module;
 
 pub(crate) fn cleanup(module: &mut Module) {
     // remove references to non-existent COMPU_METHODs
@@ -20,7 +20,7 @@ fn remove_invalid_compumethod_refs(module: &mut Module) {
     let mut existing_compumethods: HashSet<String> = module
         .compu_method
         .iter()
-        .map(|item| item.name.to_owned())
+        .map(|item| item.name.clone())
         .collect();
     existing_compumethods.insert("NO_COMPU_METHOD".to_string());
     for axis_pts in &mut module.axis_pts {
@@ -75,25 +75,25 @@ fn remove_invalid_compumethod_refs(module: &mut Module) {
 fn remove_unused_compumethods(module: &mut Module) {
     let mut used_compumethods = HashSet::<String>::new();
     for axis_pts in &mut module.axis_pts {
-        used_compumethods.insert(axis_pts.conversion.to_owned());
+        used_compumethods.insert(axis_pts.conversion.clone());
     }
     for characteristic in &mut module.characteristic {
         for axis_descr in &mut characteristic.axis_descr {
-            used_compumethods.insert(axis_descr.conversion.to_owned());
+            used_compumethods.insert(axis_descr.conversion.clone());
         }
-        used_compumethods.insert(characteristic.conversion.to_owned());
+        used_compumethods.insert(characteristic.conversion.clone());
     }
     for measurement in &mut module.measurement {
-        used_compumethods.insert(measurement.conversion.to_owned());
+        used_compumethods.insert(measurement.conversion.clone());
     }
     for typedef_axis in &mut module.typedef_axis {
-        used_compumethods.insert(typedef_axis.conversion.to_owned());
+        used_compumethods.insert(typedef_axis.conversion.clone());
     }
     for typedef_characteristic in &mut module.typedef_characteristic {
-        used_compumethods.insert(typedef_characteristic.conversion.to_owned());
+        used_compumethods.insert(typedef_characteristic.conversion.clone());
     }
     for typedef_measurement in &mut module.typedef_measurement {
-        used_compumethods.insert(typedef_measurement.conversion.to_owned());
+        used_compumethods.insert(typedef_measurement.conversion.clone());
     }
 
     module
@@ -108,10 +108,10 @@ fn remove_unused_sub_elements(module: &mut Module) {
     // remove all unused COMPU_TABs, COMPU_VTABs and COMPU_VTAB_RANGEs
     for compu_method in &module.compu_method {
         if let Some(compu_tab_ref) = &compu_method.compu_tab_ref {
-            used_compu_tabs.insert(compu_tab_ref.conversion_table.to_owned());
+            used_compu_tabs.insert(compu_tab_ref.conversion_table.clone());
         }
         if let Some(ref_unit) = &compu_method.ref_unit {
-            used_units.insert(ref_unit.unit.to_owned());
+            used_units.insert(ref_unit.unit.clone());
         }
     }
 
@@ -128,34 +128,29 @@ fn remove_unused_sub_elements(module: &mut Module) {
     // remove all unused UNITs
     for unit in &module.unit {
         if let Some(ref_unit) = &unit.ref_unit {
-            used_units.insert(ref_unit.unit.to_owned());
+            used_units.insert(ref_unit.unit.clone());
         }
     }
 
-    module
-        .unit
-        .retain(|item| used_units.contains(&item.name));
+    module.unit.retain(|item| used_units.contains(&item.name));
 }
 
 fn remove_invalid_sub_element_refs(module: &mut Module) {
     // build the set of all COMPU_TAB* names
     let mut existing_compu_tabs = HashSet::<String>::new();
     for compu_tab in &module.compu_tab {
-        existing_compu_tabs.insert(compu_tab.name.to_owned());
+        existing_compu_tabs.insert(compu_tab.name.clone());
     }
     for compu_vtab in &module.compu_vtab {
-        existing_compu_tabs.insert(compu_vtab.name.to_owned());
+        existing_compu_tabs.insert(compu_vtab.name.clone());
     }
     for compu_vtab_range in &module.compu_vtab_range {
-        existing_compu_tabs.insert(compu_vtab_range.name.to_owned());
+        existing_compu_tabs.insert(compu_vtab_range.name.clone());
     }
 
     // build the set of all UNIT names
-    let existing_units: HashSet<String> = module
-        .unit
-        .iter()
-        .map(|unit| unit.name.to_owned())
-        .collect();
+    let existing_units: HashSet<String> =
+        module.unit.iter().map(|unit| unit.name.clone()).collect();
 
     for compu_method in &mut module.compu_method {
         // if a reference to a non-existent COMPU_TAB exists, delete it

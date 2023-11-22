@@ -4,7 +4,7 @@ use quote::format_ident;
 use quote::quote;
 
 use super::{BaseType, DataItem, EnumItem, TaggedItem};
-use crate::util::*;
+use crate::util::{make_varname, ucname_to_typename};
 
 pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
     let mut result = TokenStream::new();
@@ -20,7 +20,7 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
             result.extend(generate_indirect_block_writer(typename, blockitems));
         }
         _ => {
-            panic!("only block, struct and enum are allowed as top-level types, but {} = {:#?} was encountered", typename, dataitem);
+            panic!("only block, struct and enum are allowed as top-level types, but {typename} = {dataitem:#?} was encountered");
         }
     }
 
@@ -92,7 +92,7 @@ fn generate_indirect_store_item(structitems: &[DataItem]) -> Vec<TokenStream> {
                 let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
                 let locationinfo = quote! {(*#location.get(idx).unwrap_or_else(|| &0))};
                 let parsercall =
-                    generate_indirect_store_simple_item(quote! {item}, locationinfo, seqtype);
+                    generate_indirect_store_simple_item(&quote! {item}, &locationinfo, seqtype);
                 storageidx += 1;
                 quote! {a2lfile::GenericIfData::Sequence({
                     let mut sequence_content = Vec::new();
@@ -114,8 +114,8 @@ fn generate_indirect_store_item(structitems: &[DataItem]) -> Vec<TokenStream> {
                 let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
                 storageidx += 1;
                 generate_indirect_store_simple_item(
-                    quote! {self.#itemname},
-                    location,
+                    &quote! {self.#itemname},
+                    &location,
                     &item.basetype,
                 )
             }
@@ -125,8 +125,8 @@ fn generate_indirect_store_item(structitems: &[DataItem]) -> Vec<TokenStream> {
 }
 
 fn generate_indirect_store_simple_item(
-    itemname: TokenStream,
-    locationinfo: TokenStream,
+    itemname: &TokenStream,
+    locationinfo: &TokenStream,
     basetype: &BaseType,
 ) -> TokenStream {
     match basetype {
@@ -166,8 +166,8 @@ fn generate_indirect_store_simple_item(
             } else {
                 let arrayitem_locinfo = quote! {#locationinfo[idx]};
                 let parsercall = generate_indirect_store_simple_item(
-                    quote! {*item},
-                    arrayitem_locinfo,
+                    &quote! {*item},
+                    &arrayitem_locinfo,
                     &arraytype.basetype,
                 );
                 quote! {a2lfile::GenericIfData::Array({
@@ -188,10 +188,7 @@ fn generate_indirect_store_simple_item(
         BaseType::Sequence { .. }
         | BaseType::TaggedUnion { .. }
         | BaseType::TaggedStruct { .. } => {
-            panic!(
-                "should no be able to reach this function with type {:?}",
-                basetype
-            )
+            panic!("should no be able to reach this function with type {basetype:?}")
         }
         _ => quote! {},
     }

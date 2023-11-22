@@ -15,7 +15,7 @@ pub fn load(path: &Path) -> Result<String, A2lError> {
     };
 
     let filedata = read_data(&mut file, path)?;
-    let utf8data = decode_raw_bytes(filedata);
+    let utf8data = decode_raw_bytes(&filedata);
 
     let data = if utf8data.len() > 2 && utf8data.starts_with('\u{feff}') {
         // it has a BOM, strip that off here
@@ -37,7 +37,8 @@ fn read_data(file: &mut File, path: &Path) -> Result<Vec<u8>, A2lError> {
             })
         }
     };
-    let mut buffer = Vec::with_capacity(filesize as usize);
+    let bufsize = usize::try_from(filesize).unwrap_or(usize::MAX); // filesize > 4GB on 32bit systems - is it sane ?!?
+    let mut buffer = Vec::with_capacity(bufsize);
     let read_result = file.read_to_end(&mut buffer);
     match read_result {
         Ok(_) => Ok(buffer),
@@ -48,7 +49,7 @@ fn read_data(file: &mut File, path: &Path) -> Result<Vec<u8>, A2lError> {
     }
 }
 
-fn decode_raw_bytes(filedata: Vec<u8>) -> String {
+fn decode_raw_bytes(filedata: &[u8]) -> String {
     /* an a2l file must have either a BOM or a character from the basic ASCII set as the first character in the file
     we can use this to guess the encoding, because we expect to see nul-bytes in the first character if UTF-16 or UTF-32 is used. */
 
@@ -117,7 +118,7 @@ fn decode_raw_bytes(filedata: Vec<u8>) -> String {
     }
 
     /* try to handle the data as pure utf-8 */
-    if let Ok(converted) = String::from_utf8(filedata.clone()) {
+    if let Ok(converted) = String::from_utf8(filedata.to_vec()) {
         return converted;
     }
 
@@ -137,45 +138,45 @@ mod tests {
     fn decode_raw_bytes_u32() {
         // big endian
         let data: Vec<u8> = vec![0, 0, 0, 65, 0, 0, 0, 66];
-        assert_eq!(decode_raw_bytes(data), String::from("AB"));
+        assert_eq!(decode_raw_bytes(&data), String::from("AB"));
         // big endian, with BOM
         let data: Vec<u8> = vec![0, 0, 0xfe, 0xff, 0, 0, 0, 65, 0, 0, 0, 66];
-        assert_eq!(decode_raw_bytes(data), String::from("\u{feff}AB"));
+        assert_eq!(decode_raw_bytes(&data), String::from("\u{feff}AB"));
         // little endian
         let data: Vec<u8> = vec![65, 0, 0, 0, 66, 0, 0, 0];
-        assert_eq!(decode_raw_bytes(data), String::from("AB"));
+        assert_eq!(decode_raw_bytes(&data), String::from("AB"));
         // little endian, with BOM
         let data: Vec<u8> = vec![0xff, 0xfe, 0, 0, 65, 0, 0, 0, 66, 0, 0, 0];
-        assert_eq!(decode_raw_bytes(data), String::from("\u{feff}AB"));
+        assert_eq!(decode_raw_bytes(&data), String::from("\u{feff}AB"));
         // mixed endian (error)
         let data: Vec<u8> = vec![0, 0, 0, 65, 66, 0, 0, 00];
-        assert_ne!(decode_raw_bytes(data), String::from("AB"));
+        assert_ne!(decode_raw_bytes(&data), String::from("AB"));
     }
 
     #[test]
     fn decode_raw_bytes_u16() {
         // big endian
         let data: Vec<u8> = vec![65, 0, 66, 0, 65, 0, 66, 0];
-        assert_eq!(decode_raw_bytes(data), String::from("ABAB"));
+        assert_eq!(decode_raw_bytes(&data), String::from("ABAB"));
         // big endian, with BOM
         let data: Vec<u8> = vec![0xff, 0xfe, 65, 0, 66, 0, 65, 0, 66, 0];
-        assert_eq!(decode_raw_bytes(data), String::from("\u{feff}ABAB"));
+        assert_eq!(decode_raw_bytes(&data), String::from("\u{feff}ABAB"));
         // little endian
         let data: Vec<u8> = vec![00, 65, 0, 66, 0, 65, 0, 66];
-        assert_eq!(decode_raw_bytes(data), String::from("ABAB"));
+        assert_eq!(decode_raw_bytes(&data), String::from("ABAB"));
         // little endian, with BOM
         let data: Vec<u8> = vec![0xfe, 0xff, 00, 65, 0, 66, 0, 65, 0, 66];
-        assert_eq!(decode_raw_bytes(data), String::from("\u{feff}ABAB"));
+        assert_eq!(decode_raw_bytes(&data), String::from("\u{feff}ABAB"));
         // mixed endian
         let data: Vec<u8> = vec![00, 65, 0, 66, 65, 0, 66, 00];
-        assert_ne!(decode_raw_bytes(data), String::from("ABAB"));
+        assert_ne!(decode_raw_bytes(&data), String::from("ABAB"));
     }
 
     #[test]
     fn decode_raw_bytes_u8() {
         let data: Vec<u8> = vec![65, 66, 65, 66];
-        assert_eq!(decode_raw_bytes(data), String::from("ABAB"));
+        assert_eq!(decode_raw_bytes(&data), String::from("ABAB"));
         let data: Vec<u8> = vec![239, 187, 191, 65, 66];
-        assert_eq!(decode_raw_bytes(data), String::from("\u{feff}AB"));
+        assert_eq!(decode_raw_bytes(&data), String::from("\u{feff}AB"));
     }
 }

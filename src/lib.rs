@@ -18,7 +18,6 @@ mod writer;
 pub use namemap::{ModuleNameMap, NameMapCompuTab, NameMapObject, NameMapTypedef};
 pub use parser::ParserError;
 use std::convert::AsRef;
-use std::fmt::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -75,10 +74,7 @@ pub enum A2lError {
         error_line: u32,
         text: String,
     },
-}
-#[derive(Debug, Error)]
-#[non_exhaustive]
-pub enum A2lWriteError {
+
     /// FileWriteError: An IoError that occurred while writing from a file
     #[error("Could not write to {filename}: {ioerror}")]
     FileWriteError {
@@ -104,10 +100,11 @@ ASAP2_VERSION 1 71
 /end PROJECT
 ```
  */
+#[must_use]
 pub fn new() -> A2lFile {
     // a minimal a2l file needs only a PROJECT containing a MODULE
-    let mut project = Project::new("new_project".to_string(), "".to_string());
-    project.module = vec![Module::new("new_module".to_string(), "".to_string())];
+    let mut project = Project::new("new_project".to_string(), String::new());
+    project.module = vec![Module::new("new_module".to_string(), String::new())];
     let mut a2l_file = A2lFile::new(project);
     // only one line break for PROJECT (after ASAP2_VERSION) instead of the default 2
     a2l_file.project.get_layout_mut().start_offset = 1;
@@ -129,6 +126,7 @@ If a definition is provided here and there is also an A2ML block in the file, th
 
 `strict_parsing` toggles strict parsing: If strict parsing is enabled, most warnings become errors.
 
+# Example
 ```
 # use a2lfile::A2lError;
 let mut log_msgs = Vec::<A2lError>::new();
@@ -137,6 +135,10 @@ match a2lfile::load("example.a2l", None, &mut log_msgs, true) {
     Err(error_message) => println!("{}", error_message)
 }
 ```
+
+# Errors
+
+An `A2lError` provides details information if loading the file fails.
  */
 pub fn load<P: AsRef<Path>>(
     path: P,
@@ -161,6 +163,8 @@ If a definition is provided here and there is also an A2ML block in the file, th
 
 `strict_parsing` toggles strict parsing: If strict parsing is enabled, most warnings become errors.
 
+# Example
+
 ```rust
 # use a2lfile::A2lError;
 let text = r#"
@@ -175,6 +179,10 @@ let mut log_msgs = Vec::<A2lError>::new();
 let a2l = a2lfile::load_from_string(&text, None, &mut log_msgs, true).unwrap();
 assert_eq!(a2l.project.module[0].name, "new_module");
 ```
+
+# Errors
+
+An `A2lError` provides details information if loading the data fails.
  */
 pub fn load_from_string(
     a2ldata: &str,
@@ -203,7 +211,7 @@ fn load_impl(
         });
     }
 
-    let firstline = tokenresult.tokens.first().map(|tok| tok.line).unwrap_or(1);
+    let firstline = tokenresult.tokens.first().map_or(1, |tok| tok.line);
     // create a context for the parser
     let context = ParseContext {
         element: "A2L_FILE".to_string(),
@@ -226,11 +234,10 @@ fn load_impl(
     // try to get the file version. Starting with 1.60, the ASAP2_VERSION element is mandatory. For
     // compatibility with old files, a missing version is only an error if strict parsing is requested
     if let Err(version_error) = get_version(&mut parser, &context) {
-        if !strict_parsing {
-            parser.log_msgs.push(version_error);
-        } else {
+        if strict_parsing {
             return Err(version_error);
         }
+        parser.log_msgs.push(version_error);
     }
     // build the a2l data structures from the tokens
     let a2l_file = A2lFile::parse(&mut parser, &context, 0)
@@ -239,15 +246,14 @@ fn load_impl(
     // make sure this is the end of the input, i.e. no additional data after the parsed data
     if let Some(token) = parser.peek_token() {
         let additional_tokens_err = A2lError::AdditionalTokensError {
-            filename: parser.filenames[token.fileid].to_owned(),
+            filename: parser.filenames[token.fileid].clone(),
             error_line: parser.last_token_position,
             text: parser.get_token_text(token).to_owned(),
         };
-        if !strict_parsing {
-            parser.log_msgs.push(additional_tokens_err);
-        } else {
+        if strict_parsing {
             return Err(additional_tokens_err);
         }
+        parser.log_msgs.push(additional_tokens_err);
     }
 
     Ok(a2l_file)
@@ -262,7 +268,7 @@ fn get_version(parser: &mut ParserState, context: &ParseContext) -> Result<Asap2
                 let version = Asap2Version::parse(parser, &ver_context, 0);
                 if let Ok(version) = version {
                     parser.set_tokenpos(0);
-                    parser.set_file_version(version.version_no, version.upgrade_no)?;
+                    parser.set_file_version(version.version_no, version.upgrade_no);
                     return Ok(version);
                 }
             }
@@ -270,7 +276,7 @@ fn get_version(parser: &mut ParserState, context: &ParseContext) -> Result<Asap2
     }
     // for compatibility with 1.50 and earlier, also make it possible to catch the error and continue
     parser.set_tokenpos(0);
-    parser.set_file_version(1, 50)?;
+    parser.set_file_version(1, 50);
     Err(A2lError::MissingVerionInfo)
 }
 
@@ -278,12 +284,16 @@ fn get_version(parser: &mut ParserState, context: &ParseContext) -> Result<Asap2
 ///
 /// An a2l fragment is just the bare content of a module, without the enclosing PROJECT and MODULE.
 /// Because the fragment cannot specify a version, strict parsing is not available.
+///
+/// # Errors
+///
+/// If reading or parsing of the file fails, the `A2lError` will give details about the problem.
 pub fn load_fragment(a2ldata: &str) -> Result<Module, A2lError> {
     let fixed_a2ldata = format!(r#"fragment "" {a2ldata} /end MODULE"#);
     // tokenize the input data
     let tokenresult = tokenizer::tokenize("(fragment)".to_string(), 0, &fixed_a2ldata)
         .map_err(|tokenizer_error| A2lError::TokenizerError { tokenizer_error })?;
-    let firstline = tokenresult.tokens.first().map(|tok| tok.line).unwrap_or(1);
+    let firstline = tokenresult.tokens.first().map_or(1, |tok| tok.line);
     let context = ParseContext {
         element: "MODULE".to_string(),
         fileid: 0,
@@ -294,13 +304,18 @@ pub fn load_fragment(a2ldata: &str) -> Result<Module, A2lError> {
     // create the parser state object
     let mut log_msgs = Vec::<A2lError>::new();
     let mut parser = ParserState::new(&tokenresult, &mut log_msgs, false);
-    parser.set_file_version(1, 71)?; // doesn't really matter with strict = false
+    parser.set_file_version(1, 71); // doesn't really matter with strict = false
 
     // build the a2l data structures from the tokens
     Module::parse(&mut parser, &context, 0)
         .map_err(|parser_error| A2lError::ParserError { parser_error })
 }
 
+/// load an a2l fragment from a file
+///
+/// # Errors
+///
+/// If reading or parsing of the file fails, the `A2lError` will give details about the problem.
 pub fn load_fragment_file<P: AsRef<Path>>(path: P) -> Result<Module, A2lError> {
     let pathref = path.as_ref();
     let filedata = loader::load(pathref)?;
@@ -308,33 +323,34 @@ pub fn load_fragment_file<P: AsRef<Path>>(path: P) -> Result<Module, A2lError> {
 }
 
 impl A2lFile {
-    /// construct a string containing the whole a2l data of this A2lFile object
+    /// construct a string containing the whole a2l data of this `A2lFile` object
+    #[must_use]
     pub fn write_to_string(&self) -> String {
         self.stringify(0)
     }
 
     /// write this `A2lFile` object to the given file
     /// the banner will be placed inside a comment at the beginning of the file; "/*" an "*/" should not be part of the banner string
-    pub fn write<P: AsRef<Path>>(
-        &self,
-        path: P,
-        banner: Option<&str>,
-    ) -> Result<(), A2lWriteError> {
-        let mut outstr = "".to_string();
+    ///
+    /// # Errors
+    ///
+    /// [`A2lError::FileWriteError`] if writing the file fails.
+    pub fn write<P: AsRef<Path>>(&self, path: P, banner: Option<&str>) -> Result<(), A2lError> {
+        let mut outstr = String::new();
 
         let file_text = self.write_to_string();
 
         if let Some(banner_text) = banner {
-            outstr = format!("/* {} */", banner_text);
+            outstr = format!("/* {banner_text} */");
             // if the first line is empty (first charachter is \n), then the banner is placed on the empty line
             // otherwise a newline is added
             if !file_text.starts_with('\n') {
-                outstr.write_char('\n').unwrap();
+                outstr.push('\n');
             }
         }
-        outstr.write_str(&file_text).unwrap();
+        outstr.push_str(&file_text);
 
-        std::fs::write(&path, outstr).map_err(|ioerror| A2lWriteError::FileWriteError {
+        std::fs::write(&path, outstr).map_err(|ioerror| A2lError::FileWriteError {
             filename: path.as_ref().to_path_buf(),
             ioerror,
         })?;
@@ -377,20 +393,20 @@ impl A2lFile {
     /// sort the data in the a2l file.
     /// This changes the order in which the blocks will be written to an output file
     pub fn sort(&mut self) {
-        sort::sort(self)
+        sort::sort(self);
     }
 
     /// sort newly added or merged blocks into sensible locations between the existing blocks
     pub fn sort_new_items(&mut self) {
-        sort::sort_new_items(self)
+        sort::sort_new_items(self);
     }
 
-    /// cleanup: remove unused GROUPs, RECORD_LAYOUTs, COMPU_METHODs, COMPU_(V)TABs and UNITs
+    /// cleanup: remove unused GROUPs, `RECORD_LAYOUTs`, `COMPU_METHODs`, COMPU_(V)TABs and UNITs
     pub fn cleanup(&mut self) {
         cleanup::cleanup(self);
     }
 
-    /// cleanup IF_DATA: remove any IF_DATA blocks that could not be parsed using either the
+    /// cleanup `IF_DATA`: remove any `IF_DATA` blocks that could not be parsed using either the
     /// specification provided during load or the specification in the A2ML block in the file
     pub fn ifdata_cleanup(&mut self) {
         ifdata::remove_unknown_ifdata(self);
@@ -399,6 +415,7 @@ impl A2lFile {
 
 impl Module {
     /// build a map of all named elements inside the module
+    #[must_use]
     pub fn build_namemap(&self) -> ModuleNameMap {
         let mut log_msgs = vec![];
         ModuleNameMap::build(self, &mut log_msgs)

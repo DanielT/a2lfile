@@ -1,7 +1,7 @@
 use thiserror::Error;
 
-use crate::a2ml::*;
-use crate::tokenizer::*;
+use crate::a2ml::A2mlTypeSpec;
+use crate::tokenizer::{A2lToken, A2lTokenType, TokenResult};
 use crate::A2lError;
 
 const MAX_IDENT: usize = 1024;
@@ -336,13 +336,12 @@ impl<'a> ParserState<'a> {
         if fileid == 0 || fileid >= self.filenames.len() {
             None
         } else {
-            Some(self.filenames[fileid].to_owned())
+            Some(self.filenames[fileid].clone())
         }
     }
 
-    pub fn set_file_version(&mut self, major: u16, minor: u16) -> Result<(), A2lError> {
-        self.file_ver = major as f32 + (minor as f32 / 100.0);
-        Ok(())
+    pub fn set_file_version(&mut self, major: u16, minor: u16) {
+        self.file_ver = f32::from(major) + (f32::from(minor) / 100.0);
     }
 
     pub fn check_block_version(
@@ -354,18 +353,18 @@ impl<'a> ParserState<'a> {
     ) -> Result<(), ParserError> {
         if self.file_ver < min_ver {
             self.error_or_log(ParserError::BlockRefTooNew {
-                filename: self.filenames[context.fileid].to_owned(),
+                filename: self.filenames[context.fileid].clone(),
                 error_line: self.last_token_position,
-                block: context.element.to_owned(),
+                block: context.element.clone(),
                 tag: tag.to_string(),
                 limit_ver: min_ver,
                 file_ver: self.file_ver,
             })?;
         } else if self.file_ver > max_ver {
             self.log_warning(ParserError::BlockRefDeprecated {
-                filename: self.filenames[context.fileid].to_owned(),
+                filename: self.filenames[context.fileid].clone(),
                 error_line: self.last_token_position,
-                block: context.element.to_owned(),
+                block: context.element.clone(),
                 tag: tag.to_string(),
                 limit_ver: max_ver,
                 file_ver: self.file_ver,
@@ -383,18 +382,18 @@ impl<'a> ParserState<'a> {
     ) -> Result<(), ParserError> {
         if self.file_ver < min_ver {
             self.error_or_log(ParserError::EnumRefTooNew {
-                filename: self.filenames[context.fileid].to_owned(),
+                filename: self.filenames[context.fileid].clone(),
                 error_line: self.last_token_position,
-                block: context.element.to_owned(),
+                block: context.element.clone(),
                 tag: tag.to_string(),
                 limit_ver: min_ver,
                 file_ver: self.file_ver,
             })?;
         } else if self.file_ver > max_ver {
             self.log_warning(ParserError::EnumRefDeprecated {
-                filename: self.filenames[context.fileid].to_owned(),
+                filename: self.filenames[context.fileid].clone(),
                 error_line: self.last_token_position,
-                block: context.element.to_owned(),
+                block: context.element.clone(),
                 tag: tag.to_string(),
                 limit_ver: max_ver,
                 file_ver: self.file_ver,
@@ -464,13 +463,13 @@ impl<'a> ParserState<'a> {
         let text = self.get_string(context)?;
         if text.len() > maxlen {
             self.error_or_log(ParserError::StringTooLong {
-                filename: self.filenames[context.fileid].to_owned(),
+                filename: self.filenames[context.fileid].clone(),
                 error_line: self.last_token_position,
-                block: context.element.to_owned(),
+                block: context.element.clone(),
                 text: text.clone(),
                 length: text.len(),
                 max_length: maxlen,
-            })?
+            })?;
         }
         Ok(text)
     }
@@ -482,11 +481,11 @@ impl<'a> ParserState<'a> {
         let text = self.get_token_text(token);
         if text.as_bytes()[0].is_ascii_digit() || text.len() > MAX_IDENT {
             self.error_or_log(ParserError::InvalidIdentifier {
-                filename: self.filenames[context.fileid].to_owned(),
+                filename: self.filenames[context.fileid].clone(),
                 error_line: self.last_token_position,
-                block: context.element.to_owned(),
+                block: context.element.clone(),
                 ident: text.to_owned(),
-            })?
+            })?;
         }
         Ok(String::from(text))
     }
@@ -737,7 +736,7 @@ impl<'a> ParserState<'a> {
                 }
                 A2lTokenType::Identifier => {
                     if item_is_block {
-                        // the current ungknown item started with /begin ITEM_TAG, so it must end with /end ITEM_TAG.
+                        // the current unknown item started with /begin ITEM_TAG, so it must end with /end ITEM_TAG.
                         // the stoplist is not relevant
                         if balance == 0 {
                             if text == item_tag {
@@ -815,10 +814,10 @@ impl ParserError {
         expected_ttype: A2lTokenType,
     ) -> Self {
         Self::UnexpectedTokenType {
-            filename: parser.filenames[context.fileid].to_owned(),
+            filename: parser.filenames[context.fileid].clone(),
             error_line: parser.last_token_position,
             block_line: context.line,
-            element: context.element.to_owned(),
+            element: context.element.clone(),
             actual_ttype: token.ttype.clone(),
             actual_text: parser.get_token_text(token).to_owned(),
             expected_ttype,
@@ -831,7 +830,7 @@ impl ParserError {
         numstr: &str,
     ) -> Self {
         Self::MalformedNumber {
-            filename: parser.filenames[context.fileid].to_owned(),
+            filename: parser.filenames[context.fileid].clone(),
             error_line: parser.last_token_position,
             numstr: numstr.to_owned(),
         }
@@ -843,10 +842,10 @@ impl ParserError {
         enumitem: &str,
     ) -> Self {
         Self::InvalidEnumValue {
-            filename: parser.filenames[context.fileid].to_owned(),
+            filename: parser.filenames[context.fileid].clone(),
             error_line: parser.last_token_position,
             enumtxt: enumitem.to_owned(),
-            block: context.element.to_owned(),
+            block: context.element.clone(),
             block_line: context.line,
         }
     }
@@ -857,7 +856,7 @@ impl ParserError {
         tag: &str,
     ) -> Self {
         Self::InvalidMultiplicityTooMany {
-            filename: parser.filenames[context.fileid].to_owned(),
+            filename: parser.filenames[context.fileid].clone(),
             error_line: parser.last_token_position,
             tag: tag.to_string(),
             block: context.element.clone(),
@@ -871,10 +870,10 @@ impl ParserError {
         tag: &str,
     ) -> Self {
         Self::IncorrectEndTag {
-            filename: parser.filenames[context.fileid].to_owned(),
+            filename: parser.filenames[context.fileid].clone(),
             error_line: parser.last_token_position,
             tag: tag.to_owned(),
-            block: context.element.to_owned(),
+            block: context.element.clone(),
             block_line: context.line,
         }
     }
@@ -885,19 +884,19 @@ impl ParserError {
         tag: &str,
     ) -> Self {
         Self::UnknownSubBlock {
-            filename: parser.filenames[context.fileid].to_owned(),
+            filename: parser.filenames[context.fileid].clone(),
             error_line: parser.last_token_position,
             tag: tag.to_owned(),
-            block: context.element.to_owned(),
+            block: context.element.clone(),
             block_line: context.line,
         }
     }
 
     pub(crate) fn unexpected_eof(parser: &ParserState, context: &ParseContext) -> Self {
         Self::UnexpectedEOF {
-            filename: parser.filenames[context.fileid].to_owned(),
+            filename: parser.filenames[context.fileid].clone(),
             error_line: parser.last_token_position,
-            block: context.element.to_owned(),
+            block: context.element.clone(),
             block_line: context.line,
         }
     }

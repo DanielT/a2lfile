@@ -4,7 +4,7 @@ use quote::format_ident;
 use quote::quote;
 
 use super::{generate_bare_typename, BaseType, DataItem, EnumItem, TaggedItem};
-use crate::util::*;
+use crate::util::{make_varname, ucname_to_typename};
 
 // generate
 // generate parser function implementations for the set of types of A2l
@@ -26,7 +26,7 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
             result.extend(generate_block_parser(typename, blockitems, *is_block));
         }
         _ => {
-            panic!("only block, struct and enum are allowed as top-level types, but {} = {:#?} was encountered", typename, dataitem);
+            panic!("only block, struct and enum are allowed as top-level types, but {typename} = {dataitem:#?} was encountered");
         }
     }
     result
@@ -248,7 +248,7 @@ fn generate_item_parser_call(typename: &Option<String>, item: &BaseType) -> Toke
             let name = format_ident!("{}", typename);
             quote! { (parser.get_current_line_offset(), #name::parse(parser, context, 0)?) }
         }
-        _ => panic!("forbidden type: {:#?}", item),
+        _ => panic!("forbidden type: {item:#?}"),
     }
 }
 

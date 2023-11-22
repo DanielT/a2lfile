@@ -2,7 +2,7 @@ use proc_macro2::{Literal, TokenStream};
 use quote::format_ident;
 use quote::quote;
 
-use super::*;
+use super::{make_varname, ucname_to_typename, BaseType, DataItem, EnumItem};
 
 // generate()
 // Generate a pub fn stringify() function for all data types in the specification
@@ -20,7 +20,7 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
             result.extend(generate_block_writer(typename, blockitems));
         }
         _ => {
-            panic!("only block, struct and enum are allowed as top-level types, but {} = {:#?} was encountered", typename, dataitem);
+            panic!("only block, struct and enum are allowed as top-level types, but {typename} = {dataitem:#?} was encountered");
         }
     }
 
@@ -267,10 +267,7 @@ fn generate_block_item_write_cmd(
             }
         }
         _ => {
-            panic!(
-                "generate_block_item_to_string_cmd can't be called for type {:#?}",
-                basetype
-            );
+            panic!("generate_block_item_to_string_cmd can't be called for type {basetype:#?}");
         }
     }
 }

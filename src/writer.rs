@@ -72,10 +72,10 @@ impl Writer {
         T: std::fmt::Display + std::fmt::UpperHex,
     {
         self.add_whitespace(offset);
-        if !is_hex {
-            write!(self.outstring, "{}", value).unwrap();
+        if is_hex {
+            write!(self.outstring, "0x{value:0X}").unwrap();
         } else {
-            write!(self.outstring, "0x{:0X}", value).unwrap();
+            write!(self.outstring, "{value}").unwrap();
         }
     }
 
@@ -91,9 +91,9 @@ impl Writer {
             || (-0.0001 < value_conv && value_conv < 0.0001)
             || 1e+10 < value_conv
         {
-            write!(self.outstring, "{:e}", value_conv).unwrap();
+            write!(self.outstring, "{value_conv:e}").unwrap();
         } else {
-            write!(self.outstring, "{}", value_conv).unwrap();
+            write!(self.outstring, "{value_conv}").unwrap();
         }
     }
 
@@ -128,17 +128,14 @@ impl Writer {
     }
 
     fn add_whitespace(&mut self, offset: u32) {
-        match offset {
-            0 => {
-                self.outstring.push(' ');
+        if offset == 0 {
+            self.outstring.push(' ');
+        } else {
+            for _ in 0..offset {
+                self.outstring.push('\n');
             }
-            _ => {
-                for _ in 0..offset {
-                    self.outstring.push('\n');
-                }
-                for _ in 0..self.indent {
-                    self.outstring.push_str("  ");
-                }
+            for _ in 0..self.indent {
+                self.outstring.push_str("  ");
             }
         }
     }

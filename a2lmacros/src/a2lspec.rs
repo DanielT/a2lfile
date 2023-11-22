@@ -1,5 +1,5 @@
 use crate::codegenerator;
-use crate::codegenerator::*;
+use crate::codegenerator::{BaseType, DataItem, EnumItem, TaggedItem};
 use crate::util::*;
 use proc_macro2::Delimiter;
 use proc_macro2::TokenStream;
@@ -53,10 +53,7 @@ fn parse_input(token_iter: &mut TokenStreamIter) -> (Vec<StructInfo>, Vec<DataIt
             }
             "enum" => enums.push(parse_enum(token_iter, comment)),
             _ => {
-                panic!(
-                    "expected a keyword of the a2l specification in this position, got {}",
-                    ident
-                );
+                panic!("expected a keyword of the a2l specification in this position, got {ident}");
             }
         }
     }
@@ -65,19 +62,19 @@ fn parse_input(token_iter: &mut TokenStreamIter) -> (Vec<StructInfo>, Vec<DataIt
 }
 
 fn parse_doc_comments(token_iter: &mut TokenStreamIter) -> Option<String> {
-    let mut comment = "".to_string();
+    let mut comment = String::new();
     while let Some(comment_line) = parse_optional_comment(token_iter) {
-        if !comment.is_empty() {
-            comment = format!("{}\n{}", comment, comment_line);
-        } else {
+        if comment.is_empty() {
             comment = comment_line;
+        } else {
+            comment = format!("{comment}\n{comment_line}");
         }
     }
 
-    if !comment.is_empty() {
-        Some(comment)
-    } else {
+    if comment.is_empty() {
         None
+    } else {
+        Some(comment)
     }
 }
 
@@ -202,7 +199,7 @@ fn parse_blockitem_single(block_token_iter: &mut TokenStreamIter) -> DataItem {
             if let Some(TokenTree::Literal(lit)) = arrspec_tokens.into_iter().next() {
                 let arraydim = match lit.to_string().parse() {
                     Ok(val) => val,
-                    Err(error) => panic!("{} is not a valid array index: {}", lit, error),
+                    Err(error) => panic!("{lit} is not a valid array index: {error}"),
                 };
 
                 dataitem = DataItem {
@@ -290,7 +287,7 @@ fn parse_optitem(block_token_iter: &mut TokenStreamIter) -> Vec<TaggedItem> {
             '*' => {
                 repeat = true;
             }
-            c => panic!("multiplicity constraints must be one of !+*, got '{}'", c),
+            c => panic!("multiplicity constraints must be one of !+*, got '{c}'"),
         }
     }
 
@@ -302,9 +299,9 @@ fn parse_optitem(block_token_iter: &mut TokenStreamIter) -> Vec<TaggedItem> {
         blocks.push(TaggedItem {
             tag: blockname.to_owned(),
             item: DataItem {
-                typename: Some(ref_typename.to_owned()),
+                typename: Some(ref_typename.clone()),
                 basetype: BaseType::StructRef,
-                varname: Some(varnames[idx].to_owned()),
+                varname: Some(varnames[idx].clone()),
                 comment: None,
             },
             is_block: false, // don't know that yet, it will be fixed later
@@ -425,8 +422,7 @@ fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<Str
         let oldval = typelist.insert(typename.clone(), e);
         assert!(
             oldval.is_none(),
-            "duplicate enum name {} in a2l specification",
-            typename
+            "duplicate enum name {typename} in a2l specification"
         );
     }
 
@@ -523,8 +519,7 @@ fn unwrap_nested_structs(
                 // the struct type already exists in the output types. Some sequences (identifier_list) occur frequently
                 assert_eq!(
                     existing_type.basetype, *seqtype,
-                    "type {} has multiple incompatible definitions",
-                    typename
+                    "type {typename} has multiple incompatible definitions"
                 );
                 // no need to insert the type, because it exists and is compatible
             } else {

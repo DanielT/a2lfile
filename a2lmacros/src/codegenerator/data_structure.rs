@@ -35,7 +35,7 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
             ));
         }
         _ => {
-            panic!("only block, struct and enum are allowed as top-level types, but {} = {:#?} was encountered", typename, dataitem);
+            panic!("only block, struct and enum are allowed as top-level types, but {typename} = {dataitem:#?} was encountered");
         }
     }
 
@@ -100,7 +100,7 @@ fn generate_block_data_structure_generic(
         generate_block_data_structure_constructor(typename, structitems, is_struct, is_block);
     let partialeq = generate_block_data_structure_partialeq(typename, structitems);
     let trait_location =
-        generate_block_data_structure_trait_location(typename, structitems, location_spec);
+        generate_block_data_structure_trait_location(typename, structitems, &location_spec);
     let trait_name = generate_block_data_structure_trait_name(typename, structitems);
 
     quote! {
@@ -173,8 +173,7 @@ fn generate_struct_item_definition(item: &DataItem) -> TokenStream {
         _ => {
             assert!(
                 item.varname.is_some(),
-                "bad varname for struct item {:#?}",
-                item
+                "bad varname for struct item {item:#?}"
             );
 
             let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
@@ -335,17 +334,11 @@ fn generate_block_data_structure_constructor(
         && structitems[1].basetype == BaseType::String;
 
     for item in structitems {
-        let initline = if (named_block && locationinfo.len() == 2)
-            || (is_struct && locationinfo.is_empty())
-            || (!named_block && is_block && locationinfo.is_empty())
-        {
-            // - if it's a named block, then the first two items go on the same line as /begin FOO, followed by a line break
-            // - structs have a line break before the first element
-            // - any other random block has the line break right after /begin FOO
-            1
-        } else {
-            0
-        };
+        let initline = u32::from(
+            (named_block && locationinfo.len() == 2)
+                || (is_struct && locationinfo.is_empty())
+                || (!named_block && is_block && locationinfo.is_empty()),
+        );
 
         match &item.basetype {
             BaseType::Sequence { .. } => {
@@ -516,7 +509,7 @@ fn generate_block_data_structure_partialeq(
 // generate the function calls inside a structs merge_includes() function that also merge the child elements
 // this is only a concern for structs and optional elements, because other items do not track an include location
 // and are always assumed to be inside the same file
-fn make_merge_commands(name_prefix: TokenStream, structitems: &[DataItem]) -> Vec<TokenStream> {
+fn make_merge_commands(name_prefix: &TokenStream, structitems: &[DataItem]) -> Vec<TokenStream> {
     let mut merge_commands = Vec::<TokenStream>::new();
     for item in structitems {
         match &item.basetype {
@@ -556,7 +549,7 @@ fn make_merge_commands(name_prefix: TokenStream, structitems: &[DataItem]) -> Ve
                 merge_commands.push(quote! {
                     #newprefix.__block_info.incfile = None;
                 });
-                merge_commands.extend(make_merge_commands(newprefix, items));
+                merge_commands.extend(make_merge_commands(&newprefix, items));
             }
             _ => {}
         }
@@ -568,10 +561,10 @@ fn make_merge_commands(name_prefix: TokenStream, structitems: &[DataItem]) -> Ve
 fn generate_block_data_structure_trait_location(
     typename: &str,
     structitems: &[DataItem],
-    location_spec: TokenStream,
+    location_spec: &TokenStream,
 ) -> TokenStream {
     let typeident = format_ident!("{}", typename);
-    let merge_commands = make_merge_commands(quote! {self}, structitems);
+    let merge_commands = make_merge_commands(&quote! {self}, structitems);
 
     quote! {
         impl A2lObject<#location_spec> for #typeident {

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use crate::specification::*;
+use crate::specification::{A2lObjectName, Group, Module};
 
 pub(crate) fn cleanup(module: &mut Module) {
     // in all groups, remove references to non-existent CHARACTERISTICs, MEASUREMENTs, etc.
@@ -58,7 +58,7 @@ fn build_refname_set(module: &Module) -> HashSet<String> {
 fn delete_empty_groups(module: &mut Module) {
     let mut name2idx = HashMap::<String, usize>::new();
     for (idx, grp) in module.group.iter().enumerate() {
-        name2idx.insert(grp.name.to_owned(), idx);
+        name2idx.insert(grp.name.clone(), idx);
     }
     let used_groups = get_used_groups(module);
     let mut user_of = vec![Vec::<usize>::new(); module.group.len()];

@@ -193,7 +193,7 @@ fn tokenize_core(
             if filebytes[bytepos] == b'*' {
                 // block comment
                 separated = true;
-                bytepos = skip_block_comment(filebytes, bytepos + 1).map_err(|_| {
+                bytepos = skip_block_comment(filebytes, bytepos + 1).map_err(|()| {
                     TokenizerError::UnclosedComment {
                         filename: filename.clone(),
                         line,
@@ -254,7 +254,7 @@ fn tokenize_core(
         } else if filebytes[bytepos] == b'"' {
             // a string
             separator_check(separated, &filename, line)?;
-            bytepos = find_string_end(filebytes, bytepos + 1).map_err(|_| {
+            bytepos = find_string_end(filebytes, bytepos + 1).map_err(|()| {
                 TokenizerError::UnclosedString {
                     filename: filename.clone(),
                     line,
@@ -543,7 +543,7 @@ fn separator_check(separated: bool, filename: &str, line: u32) -> Result<(), Tok
 // count_newlines()
 // count the number of newlines in a comment or string. This is needed to keep the line count accurate
 fn count_newlines(text: &[u8]) -> u32 {
-    text.iter().map(|c| if *c == b'\n' { 1 } else { 0 }).sum()
+    text.iter().map(|c| u32::from(*c == b'\n')).sum()
 }
 
 // is_pathchar()

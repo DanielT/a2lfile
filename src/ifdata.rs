@@ -1,7 +1,7 @@
-use crate::a2ml::*;
+use crate::a2ml::{A2mlTaggedTypeSpec, A2mlTypeSpec, GenericIfData, GenericIfDataTaggedItem};
 use crate::parser::{ParseContext, ParserError, ParserState};
-use crate::specification::*;
-use crate::tokenizer::*;
+use crate::specification::{A2lFile, IfData};
+use crate::tokenizer::{A2lToken, A2lTokenType};
 use std::collections::HashMap;
 
 // parse_ifdata()
@@ -250,10 +250,10 @@ fn parse_ifdata_taggeditem(
                 let endtag = parser.get_token_text(endident);
                 if endtag != tag {
                     return Err(ParserError::IncorrectEndTag {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].clone(),
                         error_line: parser.last_token_position,
                         tag: endtag.to_owned(),
-                        block: newcontext.element.to_owned(),
+                        block: newcontext.element.clone(),
                         block_line: newcontext.line,
                     });
                 }
@@ -382,16 +382,13 @@ pub(crate) fn parse_unknown_ifdata(
             }
             A2lTokenType::Number => {
                 let line_offset = parser.get_current_line_offset();
-                match parser.get_integer_i32(context) {
-                    Ok(num) => {
-                        items.push(GenericIfData::Long(line_offset, num));
-                    }
-                    Err(_) => {
-                        // try again, looks like the number is a float instead
-                        parser.undo_get_token();
-                        let floatnum = parser.get_float(context)?; // if this also returns an error, it is neither int nor float, which is a genuine parse error
-                        items.push(GenericIfData::Float(line_offset, floatnum));
-                    }
+                if let Ok(num) = parser.get_integer_i32(context) {
+                    items.push(GenericIfData::Long(line_offset, num));
+                } else {
+                    // try again, looks like the number is a float instead
+                    parser.undo_get_token();
+                    let floatnum = parser.get_float(context)?; // if this also returns an error, it is neither int nor float, which is a genuine parse error
+                    items.push(GenericIfData::Float(line_offset, floatnum));
                 }
             }
             A2lTokenType::Begin => {
@@ -407,7 +404,7 @@ pub(crate) fn parse_unknown_ifdata(
                 // the end of this unknown block. Contained unknown blocks are handled recursively, so we don't see their /end tags in this loop
                 break;
             }
-            _ => { /* A2lTokenType::Include doesn't matter here */ }
+            A2lTokenType::Include => { /* A2lTokenType::Include doesn't matter here */ }
         }
     }
 
@@ -440,10 +437,10 @@ fn parse_unknown_taggedstruct(
             let endtag = parser.get_token_text(endident);
             if endtag != tag {
                 return Err(ParserError::IncorrectEndTag {
-                    filename: parser.filenames[newcontext.fileid].to_owned(),
+                    filename: parser.filenames[newcontext.fileid].clone(),
                     error_line: parser.last_token_position,
                     tag: endtag.to_owned(),
-                    block: newcontext.element.to_owned(),
+                    block: newcontext.element.clone(),
                     block_line: newcontext.line,
                 });
             }
@@ -473,9 +470,9 @@ fn parse_unknown_taggedstruct(
     }) = parser.peek_token()
     {
         return Err(ParserError::InvalidBegin {
-            filename: parser.filenames[context.fileid].to_owned(),
+            filename: parser.filenames[context.fileid].clone(),
             error_line: parser.last_token_position,
-            block: context.element.to_owned(),
+            block: context.element.clone(),
         });
     }
 

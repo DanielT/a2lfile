@@ -56,23 +56,23 @@ macro_rules! check_and_insert_multi {
     }
 }
 
-/// ModuleNameMap collects references to all items with a [Module] into HashMaps, making it possible to access them all by name.
+/// `ModuleNameMap` collects references to all items with a [Module] into `HashMaps`, making it possible to access them all by name.
 ///
-/// There are several name spaces per module, each stored in a different HashMap in the ModuleNameMap:
-/// - object: `CHARACTERISTIC`, `MEASUREMENT`, `AXIS_PTS`, `BLOB`, `INSTANCE`
-/// - compu_method: `COMPU_METHOD`
-/// - compu_tab: `COMPU_VTAB`, `COMPU_VTAB_RANGE`, `COMPU_TAB`
-/// - frame: `FRAME`
-/// - function: `FUNCTION`
-/// - group: `GROUP`
-/// - memory_segment: `MEMORY_SEGMENT`
-/// - record_layout: `RECORD_LAYOUT`
-/// - transformer: `TRANSFORMER`
-/// - typedef: `TYPEDEF_AXIS`, `TYPEDEF_BLOB`, `TYPEDEF_CHARACTERISTIC`, `TYPEDEF_INSTANCE`, `TYPEDEF_MEASUREMENT`
-/// - unit: `UNIT`
-/// - variant: `VARIANT`
+/// There are several name spaces per module, each stored in a different `HashMap` in the `ModuleNameMap`:
+/// - `object`: `CHARACTERISTIC`, `MEASUREMENT`, `AXIS_PTS`, `BLOB`, `INSTANCE`
+/// - `compu_method`: `COMPU_METHOD`
+/// - `compu_tab`: `COMPU_VTAB`, `COMPU_VTAB_RANGE`, `COMPU_TAB`
+/// - `frame`: `FRAME`
+/// - `function`: `FUNCTION`
+/// - `group`: `GROUP`
+/// - `memory_segment`: `MEMORY_SEGMENT`
+/// - `record_layout`: `RECORD_LAYOUT`
+/// - `transformer`: `TRANSFORMER`
+/// - `typedef`: `TYPEDEF_AXIS`, `TYPEDEF_BLOB`, `TYPEDEF_CHARACTERISTIC`, `TYPEDEF_INSTANCE`, `TYPEDEF_MEASUREMENT`
+/// - `unit`: `UNIT`
+/// - `variant`: `VARIANT`
 ///
-/// While the ModuleNameMap is holding these references, the borrow checker will prevent any of these items from being modified.
+/// While the `ModuleNameMap` is holding these references, the borrow checker will prevent any of these items from being modified.
 #[derive(Debug, PartialEq)]
 pub struct ModuleNameMap<'a> {
     pub compu_method: HashMap<String, &'a CompuMethod>,
@@ -90,7 +90,7 @@ pub struct ModuleNameMap<'a> {
 }
 
 impl<'a> ModuleNameMap<'a> {
-    /// build a new ModuleNameMap for the given [Module]
+    /// build a new `ModuleNameMap` for the given [Module]
     pub fn build(module: &'a Module, log_msgs: &mut Vec<String>) -> Self {
         Self {
             compu_method: build_namemap_compu_method(module, log_msgs),
@@ -115,7 +115,7 @@ pub(crate) fn build_namemap_unit<'a>(
 ) -> HashMap<String, &'a Unit> {
     let mut namelist_unit = HashMap::<String, &'a Unit>::new();
     for unit in &module.unit {
-        check_and_insert!(namelist_unit, unit.name.to_owned(), unit, log_msgs, "UNIT");
+        check_and_insert!(namelist_unit, unit.name.clone(), unit, log_msgs, "UNIT");
     }
     namelist_unit
 }
@@ -128,7 +128,7 @@ pub(crate) fn build_namemap_typedef<'a>(
     for typedef_axis in &module.typedef_axis {
         check_and_insert_multi!(
             namelist_typedef,
-            typedef_axis.name.to_owned(),
+            typedef_axis.name.clone(),
             NameMapTypedef::TypedefAxis(typedef_axis),
             log_msgs,
             "TYPEDEF_AXIS"
@@ -137,7 +137,7 @@ pub(crate) fn build_namemap_typedef<'a>(
     for typedef_blob in &module.typedef_blob {
         check_and_insert_multi!(
             namelist_typedef,
-            typedef_blob.name.to_owned(),
+            typedef_blob.name.clone(),
             NameMapTypedef::TypedefBlob(typedef_blob),
             log_msgs,
             "TYPEDEF_BLOB"
@@ -146,7 +146,7 @@ pub(crate) fn build_namemap_typedef<'a>(
     for typedef_characteristic in &module.typedef_characteristic {
         check_and_insert_multi!(
             namelist_typedef,
-            typedef_characteristic.name.to_owned(),
+            typedef_characteristic.name.clone(),
             NameMapTypedef::TypedefCharacteristic(typedef_characteristic),
             log_msgs,
             "TYPEDEF_CHARACTERISTIC"
@@ -155,7 +155,7 @@ pub(crate) fn build_namemap_typedef<'a>(
     for typedef_measurement in &module.typedef_measurement {
         check_and_insert_multi!(
             namelist_typedef,
-            typedef_measurement.name.to_owned(),
+            typedef_measurement.name.clone(),
             NameMapTypedef::TypedefMeasurement(typedef_measurement),
             log_msgs,
             "TYPEDEF_MEASUREMENT"
@@ -164,7 +164,7 @@ pub(crate) fn build_namemap_typedef<'a>(
     for typedef_structure in &module.typedef_structure {
         check_and_insert_multi!(
             namelist_typedef,
-            typedef_structure.name.to_owned(),
+            typedef_structure.name.clone(),
             NameMapTypedef::TypedefStructure(typedef_structure),
             log_msgs,
             "TYPEDEF_STRUCTURE"
@@ -181,7 +181,7 @@ pub(crate) fn build_namemap_record_layout<'a>(
     for record_layout in &module.record_layout {
         check_and_insert!(
             namelist_record_layout,
-            record_layout.name.to_owned(),
+            record_layout.name.clone(),
             record_layout,
             log_msgs,
             "RECORD_LAYOUT"
@@ -199,7 +199,7 @@ pub(crate) fn build_namemap_memory_segment<'a>(
         for memory_segment in &mod_par.memory_segment {
             check_and_insert!(
                 namelist_memory_segment,
-                memory_segment.name.to_owned(),
+                memory_segment.name.clone(),
                 memory_segment,
                 log_msgs,
                 "MEMORY_SEGMENT"
@@ -217,7 +217,7 @@ pub(crate) fn build_namemap_compu_tab<'a>(
     for compu_tab in &module.compu_tab {
         check_and_insert_multi!(
             namelist_compu_tab,
-            compu_tab.name.to_owned(),
+            compu_tab.name.clone(),
             NameMapCompuTab::CompuTab(compu_tab),
             log_msgs,
             "COMPU_TAB"
@@ -226,7 +226,7 @@ pub(crate) fn build_namemap_compu_tab<'a>(
     for compu_vtab in &module.compu_vtab {
         check_and_insert_multi!(
             namelist_compu_tab,
-            compu_vtab.name.to_owned(),
+            compu_vtab.name.clone(),
             NameMapCompuTab::CompuVtab(compu_vtab),
             log_msgs,
             "COMPU_VTAB"
@@ -235,7 +235,7 @@ pub(crate) fn build_namemap_compu_tab<'a>(
     for compu_vtab_range in &module.compu_vtab_range {
         check_and_insert_multi!(
             namelist_compu_tab,
-            compu_vtab_range.name.to_owned(),
+            compu_vtab_range.name.clone(),
             NameMapCompuTab::CompuVtabRange(compu_vtab_range),
             log_msgs,
             "COMPU_VTAB_RANGE"
@@ -252,7 +252,7 @@ pub(crate) fn build_namemap_compu_method<'a>(
     for compu_method in &module.compu_method {
         check_and_insert!(
             namelist_compu_method,
-            compu_method.name.to_owned(),
+            compu_method.name.clone(),
             compu_method,
             log_msgs,
             "COMPU_METHOD"
@@ -269,7 +269,7 @@ pub(crate) fn build_namemap_transformer<'a>(
     for transformer in &module.transformer {
         check_and_insert!(
             namelist_transformer,
-            transformer.name.to_owned(),
+            transformer.name.clone(),
             transformer,
             log_msgs,
             "TRANSFORMER"
@@ -286,7 +286,7 @@ pub(crate) fn build_namemap_object<'a>(
     for measurement in &module.measurement {
         check_and_insert_multi!(
             namelist_object,
-            measurement.name.to_owned(),
+            measurement.name.clone(),
             NameMapObject::Measurement(measurement),
             log_msgs,
             "MEASUREMENT"
@@ -295,7 +295,7 @@ pub(crate) fn build_namemap_object<'a>(
     for characteristic in &module.characteristic {
         check_and_insert_multi!(
             namelist_object,
-            characteristic.name.to_owned(),
+            characteristic.name.clone(),
             NameMapObject::Characteristic(characteristic),
             log_msgs,
             "CHARACTERISTIC"
@@ -304,7 +304,7 @@ pub(crate) fn build_namemap_object<'a>(
     for axis_pts in &module.axis_pts {
         check_and_insert_multi!(
             namelist_object,
-            axis_pts.name.to_owned(),
+            axis_pts.name.clone(),
             NameMapObject::AxisPts(axis_pts),
             log_msgs,
             "AXIS_PTS"
@@ -313,7 +313,7 @@ pub(crate) fn build_namemap_object<'a>(
     for blob in &module.blob {
         check_and_insert_multi!(
             namelist_object,
-            blob.name.to_owned(),
+            blob.name.clone(),
             NameMapObject::Blob(blob),
             log_msgs,
             "BLOB"
@@ -322,7 +322,7 @@ pub(crate) fn build_namemap_object<'a>(
     for instance in &module.instance {
         check_and_insert_multi!(
             namelist_object,
-            instance.name.to_owned(),
+            instance.name.clone(),
             NameMapObject::Instance(instance),
             log_msgs,
             "INSTANCE"
@@ -340,7 +340,7 @@ pub(crate) fn build_namemap_variant<'a>(
         for var_criterion in &variant_coding.var_criterion {
             check_and_insert!(
                 namelist_variant,
-                var_criterion.name.to_owned(),
+                var_criterion.name.clone(),
                 var_criterion,
                 log_msgs,
                 "VAR_CRITERION"
@@ -356,13 +356,7 @@ pub(crate) fn build_namemap_group<'a>(
 ) -> HashMap<String, &'a Group> {
     let mut namelist_group = HashMap::<String, &'a Group>::new();
     for group in &module.group {
-        check_and_insert!(
-            namelist_group,
-            group.name.to_owned(),
-            group,
-            log_msgs,
-            "GROUP"
-        );
+        check_and_insert!(namelist_group, group.name.clone(), group, log_msgs, "GROUP");
     }
     namelist_group
 }
@@ -373,13 +367,7 @@ pub(crate) fn build_namemap_frame<'a>(
 ) -> HashMap<String, &'a Frame> {
     let mut namelist_frame = HashMap::<String, &'a Frame>::new();
     for frame in &module.frame {
-        check_and_insert!(
-            namelist_frame,
-            frame.name.to_owned(),
-            frame,
-            log_msgs,
-            "FRAME"
-        );
+        check_and_insert!(namelist_frame, frame.name.clone(), frame, log_msgs, "FRAME");
     }
     namelist_frame
 }
@@ -392,7 +380,7 @@ pub(crate) fn build_namemap_function<'a>(
     for function in &module.function {
         check_and_insert!(
             namelist_function,
-            function.name.to_owned(),
+            function.name.clone(),
             function,
             log_msgs,
             "FUNCTION"
