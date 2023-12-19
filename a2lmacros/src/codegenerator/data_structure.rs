@@ -401,6 +401,7 @@ fn generate_block_data_structure_constructor(
 
     quote! {
         impl #typeident {
+            #[allow(clippy::too_many_arguments)]
             pub fn new(#(#newargs),*) -> Self {
                 Self {
                     #(#fieldinit),*
