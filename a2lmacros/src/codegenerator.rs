@@ -1,6 +1,9 @@
+use std::str::FromStr;
+
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
+use quote::ToTokens;
 
 pub(crate) mod data_structure;
 pub(crate) mod ifdata_parser;
@@ -10,12 +13,23 @@ pub(crate) mod writer;
 
 use super::util::{make_varname, ucname_to_typename};
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub(crate) enum A2lVersion {
+    V1_5_0,
+    V1_5_1,
+    V1_6_0,
+    V1_6_1,
+    V1_7_0,
+    V1_7_1,
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct EnumItem {
     pub(crate) name: String,
     pub(crate) value: Option<i32>,
     pub(crate) comment: Option<String>,
-    pub(crate) version_range: Option<(f32, f32)>,
+    pub(crate) version_upper: Option<A2lVersion>,
+    pub(crate) version_lower: Option<A2lVersion>,
 }
 
 #[derive(Debug)]
@@ -33,7 +47,8 @@ pub(crate) struct TaggedItem {
     pub(crate) is_block: bool,
     pub(crate) repeat: bool,
     pub(crate) required: bool,
-    pub(crate) version_range: Option<(f32, f32)>,
+    pub(crate) version_upper: Option<A2lVersion>,
+    pub(crate) version_lower: Option<A2lVersion>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -131,5 +146,34 @@ impl PartialEq for DataItem {
         self.typename == other.typename
             && self.basetype == other.basetype
             && self.varname == other.varname
+    }
+}
+
+impl FromStr for A2lVersion {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "1.50" => Ok(A2lVersion::V1_5_0),
+            "1.51" => Ok(A2lVersion::V1_5_1),
+            "1.60" => Ok(A2lVersion::V1_6_0),
+            "1.61" => Ok(A2lVersion::V1_6_1),
+            "1.70" => Ok(A2lVersion::V1_7_0),
+            "1.71" => Ok(A2lVersion::V1_7_1),
+            _ => Err(format!("{s} is not a valid A2L version")),
+        }
+    }
+}
+
+impl ToTokens for A2lVersion {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            A2lVersion::V1_5_0 => tokens.extend(quote! {A2lVersion::V1_5_0}),
+            A2lVersion::V1_5_1 => tokens.extend(quote! {A2lVersion::V1_5_1}),
+            A2lVersion::V1_6_0 => tokens.extend(quote! {A2lVersion::V1_6_0}),
+            A2lVersion::V1_6_1 => tokens.extend(quote! {A2lVersion::V1_6_1}),
+            A2lVersion::V1_7_0 => tokens.extend(quote! {A2lVersion::V1_7_0}),
+            A2lVersion::V1_7_1 => tokens.extend(quote! {A2lVersion::V1_7_1}),
+        }
     }
 }

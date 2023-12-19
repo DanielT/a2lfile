@@ -1,5 +1,7 @@
 use proc_macro2::{Delimiter, TokenStream, TokenTree};
 
+use crate::codegenerator::A2lVersion;
+
 pub(crate) type TokenStreamIter = std::iter::Peekable<proc_macro2::token_stream::IntoIter>;
 
 pub(crate) fn get_ident(token_iter: &mut TokenStreamIter) -> String {
@@ -49,11 +51,11 @@ pub(crate) fn get_integer(token_iter: &mut TokenStreamIter) -> i32 {
     }
 }
 
-pub(crate) fn get_float(token_iter: &mut TokenStreamIter) -> f32 {
+pub(crate) fn get_version(token_iter: &mut TokenStreamIter) -> A2lVersion {
     match token_iter.next() {
         Some(TokenTree::Literal(literal)) => literal.to_string().parse().unwrap(),
-        Some(tok) => panic!("Expected a float literal, got: {:#?}", tok.to_string()),
-        None => panic!("Expected a float literal, but reached the end of input"),
+        Some(tok) => panic!("Expected a literal, got: {:#?}", tok.to_string()),
+        None => panic!("Expected a literal, but reached the end of input"),
     }
 }
 

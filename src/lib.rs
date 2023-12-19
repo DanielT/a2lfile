@@ -23,6 +23,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 pub use tokenizer::TokenizerError;
 // used internally
+use parser::A2lVersion;
 use parser::{ParseContext, ParserState};
 
 // re-export for the crate user
@@ -55,25 +56,13 @@ pub enum A2lError {
     #[error("Failed to load built-in a2ml specification: {parse_err}")]
     InvalidBuiltinA2mlSpec { parse_err: String },
 
-    /// MissingVerionInfo: no version information in the file
-    #[error("File is not recognized as an a2l file. Mandatory version information is missing.")]
-    MissingVerionInfo,
-
-    ///
+    /// TokenizerError: Failed to tokenize the input
     #[error("Tokenizer error: {tokenizer_error}")]
     TokenizerError { tokenizer_error: TokenizerError },
 
-    ///
+    /// ParserError: Invalid data, the file could not be parsed
     #[error("Parser error: {parser_error}")]
     ParserError { parser_error: ParserError },
-
-    /// AdditionalTokensError parsing finished without consuming all data in the file
-    #[error("{filename}:{error_line}: unexpected additional data \"{text}...\" after parsed a2l file content")]
-    AdditionalTokensError {
-        filename: String,
-        error_line: u32,
-        text: String,
-    },
 
     /// FileWriteError: An IoError that occurred while writing from a file
     #[error("Could not write to {filename}: {ioerror}")]
@@ -211,15 +200,6 @@ fn load_impl(
         });
     }
 
-    let firstline = tokenresult.tokens.first().map_or(1, |tok| tok.line);
-    // create a context for the parser
-    let context = ParseContext {
-        element: "A2L_FILE".to_string(),
-        fileid: 0,
-        line: firstline,
-        inside_block: false,
-    };
-
     // create the parser state object
     let mut parser = ParserState::new(&tokenresult, log_msgs, strict_parsing);
 
@@ -231,53 +211,12 @@ fn load_impl(
         );
     }
 
-    // try to get the file version. Starting with 1.60, the ASAP2_VERSION element is mandatory. For
-    // compatibility with old files, a missing version is only an error if strict parsing is requested
-    if let Err(version_error) = get_version(&mut parser, &context) {
-        if strict_parsing {
-            return Err(version_error);
-        }
-        parser.log_msgs.push(version_error);
-    }
     // build the a2l data structures from the tokens
-    let a2l_file = A2lFile::parse(&mut parser, &context, 0)
+    let a2l_file = parser
+        .parse_file()
         .map_err(|parser_error| A2lError::ParserError { parser_error })?;
 
-    // make sure this is the end of the input, i.e. no additional data after the parsed data
-    if let Some(token) = parser.peek_token() {
-        let additional_tokens_err = A2lError::AdditionalTokensError {
-            filename: parser.filenames[token.fileid].clone(),
-            error_line: parser.last_token_position,
-            text: parser.get_token_text(token).to_owned(),
-        };
-        if strict_parsing {
-            return Err(additional_tokens_err);
-        }
-        parser.log_msgs.push(additional_tokens_err);
-    }
-
     Ok(a2l_file)
-}
-
-fn get_version(parser: &mut ParserState, context: &ParseContext) -> Result<Asap2Version, A2lError> {
-    if let Some(token) = parser.peek_token() {
-        let ident = parser.get_identifier(context);
-        let ver_context = ParseContext::from_token("", token, false);
-        if let Ok(tag) = ident {
-            if tag == "ASAP2_VERSION" {
-                let version = Asap2Version::parse(parser, &ver_context, 0);
-                if let Ok(version) = version {
-                    parser.set_tokenpos(0);
-                    parser.set_file_version(version.version_no, version.upgrade_no);
-                    return Ok(version);
-                }
-            }
-        }
-    }
-    // for compatibility with 1.50 and earlier, also make it possible to catch the error and continue
-    parser.set_tokenpos(0);
-    parser.set_file_version(1, 50);
-    Err(A2lError::MissingVerionInfo)
 }
 
 /// load an a2l fragment
@@ -304,7 +243,7 @@ pub fn load_fragment(a2ldata: &str) -> Result<Module, A2lError> {
     // create the parser state object
     let mut log_msgs = Vec::<A2lError>::new();
     let mut parser = ParserState::new(&tokenresult, &mut log_msgs, false);
-    parser.set_file_version(1, 71); // doesn't really matter with strict = false
+    parser.set_file_version(A2lVersion::V1_7_1); // doesn't really matter with strict = false
 
     // build the a2l data structures from the tokens
     Module::parse(&mut parser, &context, 0)
@@ -468,7 +407,12 @@ mod tests {
         );
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert!(matches!(error, A2lError::MissingVerionInfo));
+        assert!(matches!(
+            error,
+            A2lError::ParserError {
+                parser_error: ParserError::MissingVersionInfo
+            }
+        ));
 
         // version is damaged
         let mut log_msgs = Vec::new();
@@ -480,7 +424,12 @@ mod tests {
         );
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert!(matches!(error, A2lError::MissingVerionInfo));
+        assert!(matches!(
+            error,
+            A2lError::ParserError {
+                parser_error: ParserError::MissingVersionInfo
+            }
+        ));
     }
 
     #[test]
@@ -506,7 +455,12 @@ mod tests {
         );
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert!(matches!(error, A2lError::AdditionalTokensError { .. }));
+        assert!(matches!(
+            error,
+            A2lError::ParserError {
+                parser_error: ParserError::AdditionalTokensError { .. }
+            }
+        ));
     }
 
     #[test]

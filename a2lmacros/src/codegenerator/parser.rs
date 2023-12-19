@@ -2,6 +2,7 @@ use proc_macro2::Ident;
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
+use quote::TokenStreamExt;
 
 use super::{generate_bare_typename, BaseType, DataItem, EnumItem, TaggedItem};
 use crate::util::{make_varname, ucname_to_typename};
@@ -43,10 +44,15 @@ fn generate_enum_parser(typename: &str, enumitems: &[EnumItem]) -> TokenStream {
         let entag = &enitem.name;
 
         let mut version_check = quote! {};
-        if let Some((min_ver, max_ver)) = enitem.version_range {
-            version_check = quote! {
-                parser.check_enumitem_version(context, #entag, #min_ver, #max_ver)?;
-            };
+        if let Some(min_ver) = enitem.version_lower {
+            version_check.append_all(quote! {
+                parser.check_enumitem_version_lower(context, #entag, #min_ver)?;
+            });
+        }
+        if let Some(max_ver) = enitem.version_upper {
+            version_check.append_all(quote! {
+                parser.check_enumitem_version_upper(context, #entag, #max_ver)?;
+            });
         }
 
         match_branches.push(quote! {#entag => {
@@ -434,9 +440,14 @@ fn generate_taggeditem_match_arms(
         }
 
         let mut version_check = quote! {};
-        if let Some((min_ver, max_ver)) = item.version_range {
-            version_check.extend(quote! {
-                parser.check_block_version(context, #tag_string, #min_ver, #max_ver)?;
+        if let Some(min_ver) = item.version_lower {
+            version_check.append_all(quote! {
+                parser.check_block_version_lower(context, #tag_string, #min_ver)?;
+            });
+        }
+        if let Some(max_ver) = item.version_upper {
+            version_check.append_all(quote! {
+                parser.check_block_version_upper(context, #tag_string, #max_ver)?;
             });
         }
 

@@ -2,7 +2,7 @@ use a2lmacros::a2l_specification;
 
 use crate::a2ml;
 use crate::ifdata;
-use crate::parser::{ParseContext, ParserError, ParserState};
+use crate::parser::{A2lVersion, ParseContext, ParserError, ParserState};
 use crate::tokenizer::A2lTokenType;
 use crate::writer;
 

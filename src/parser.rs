@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use thiserror::Error;
 
 use crate::a2ml::A2mlTypeSpec;
@@ -11,6 +12,16 @@ struct TokenIter<'a> {
     pos: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum A2lVersion {
+    V1_5_0,
+    V1_5_1,
+    V1_6_0,
+    V1_6_1,
+    V1_7_0,
+    V1_7_1,
+}
+
 pub struct ParserState<'a> {
     token_cursor: TokenIter<'a>,
     filedata: &'a [String],
@@ -19,7 +30,7 @@ pub struct ParserState<'a> {
     sequential_id: u32,
     pub(crate) log_msgs: &'a mut Vec<A2lError>,
     strict: bool,
-    file_ver: f32,
+    file_ver: A2lVersion,
     pub(crate) builtin_a2mlspec: Option<A2mlTypeSpec>,
     pub(crate) file_a2mlspec: Option<A2mlTypeSpec>,
 }
@@ -140,8 +151,8 @@ pub enum ParserError {
         error_line: u32,
         block: String,
         tag: String,
-        limit_ver: f32,
-        file_ver: f32,
+        limit_ver: A2lVersion,
+        file_ver: A2lVersion,
     },
 
     #[error("{filename}:{error_line}: Sub-block \"{tag}\" in block {block} is available from version {limit_ver:.2}, but the file declares version {file_ver:.2}")]
@@ -150,8 +161,8 @@ pub enum ParserError {
         error_line: u32,
         block: String,
         tag: String,
-        limit_ver: f32,
-        file_ver: f32,
+        limit_ver: A2lVersion,
+        file_ver: A2lVersion,
     },
 
     #[error("{filename}:{error_line}: Enum item \"{tag}\" in block {block} is deprecated after version {limit_ver:.2}, but the file declares version {file_ver:.2}")]
@@ -160,8 +171,8 @@ pub enum ParserError {
         error_line: u32,
         block: String,
         tag: String,
-        limit_ver: f32,
-        file_ver: f32,
+        limit_ver: A2lVersion,
+        file_ver: A2lVersion,
     },
 
     #[error("{filename}:{error_line}: Enum item \"{tag}\" in block {block} is available from version {limit_ver:.2}, but the file declares version {file_ver:.2}")]
@@ -170,8 +181,8 @@ pub enum ParserError {
         error_line: u32,
         block: String,
         tag: String,
-        limit_ver: f32,
-        file_ver: f32,
+        limit_ver: A2lVersion,
+        file_ver: A2lVersion,
     },
 
     #[error("{filename}:{error_line}: /begin in block {block} is not followed by a valid tag")]
@@ -197,6 +208,22 @@ pub enum ParserError {
         error_line: u32,
         errmsg: String,
     },
+
+    /// AdditionalTokensError parsing finished without consuming all data in the file
+    #[error("{filename}:{error_line}: unexpected additional data \"{text}...\" after parsed a2l file content")]
+    AdditionalTokensError {
+        filename: String,
+        error_line: u32,
+        text: String,
+    },
+
+    /// MissingVerionInfo: no version information in the file
+    #[error("File is not recognized as an a2l file. Mandatory version information is missing.")]
+    MissingVersionInfo,
+
+    /// Theversion number in the file dos not correspond to a known A2L specification
+    #[error("File has invalid version {major} {minor}")]
+    InvalidVersion { major: u16, minor: u16 },
 }
 
 // it pretends to be an Iter, but it really isn't
@@ -255,15 +282,74 @@ impl<'a> ParserState<'a> {
             sequential_id: 0,
             log_msgs,
             strict,
-            file_ver: 0f32,
+            file_ver: A2lVersion::V1_7_1,
             file_a2mlspec: None,
             builtin_a2mlspec: None,
         }
     }
 
+    pub(crate) fn parse_file(&mut self) -> Result<crate::A2lFile, ParserError> {
+        let firstline = self.token_cursor.tokens.first().map_or(1, |tok| tok.line);
+        // create a context for the parser
+        let context = ParseContext {
+            element: "A2L_FILE".to_string(),
+            fileid: 0,
+            line: firstline,
+            inside_block: false,
+        };
+
+        // try to get the file version. Starting with 1.60, the ASAP2_VERSION element is mandatory. For
+        // compatibility with old files, a missing version is only an error if strict parsing is requested
+        self.file_ver = self.parse_version(&context)?;
+
+        // parse the file
+        let a2l_file = crate::A2lFile::parse(self, &context, 0)?;
+
+        // make sure this is the end of the input, i.e. no additional data after the parsed data
+        if let Some(token) = self.peek_token() {
+            self.error_or_log(ParserError::AdditionalTokensError {
+                filename: self.filenames[token.fileid].clone(),
+                error_line: self.last_token_position,
+                text: self.get_token_text(token).to_owned(),
+            })?;
+        }
+
+        Ok(a2l_file)
+    }
+
+    fn parse_version(&mut self, context: &ParseContext) -> Result<crate::A2lVersion, ParserError> {
+        if let Some(token) = self.peek_token() {
+            let ident = self.get_identifier(context);
+            let ver_context = ParseContext::from_token("", token, false);
+            if let Ok("ASAP2_VERSION") = ident.as_deref() {
+                let version_result = crate::Asap2Version::parse(self, &ver_context, 0)
+                    .map_err(|_| ParserError::MissingVersionInfo)
+                    .and_then(|ver| A2lVersion::new(ver.version_no, ver.upgrade_no));
+
+                // reset the input, the consumed tokens will be needed again by A2lFile::parse
+                self.set_tokenpos(0);
+
+                return match version_result {
+                    Ok(ver) => Ok(ver),
+                    Err(err) => {
+                        // couldn't parse the version, but the file appears to have one
+                        self.error_or_log(err)?;
+                        Ok(A2lVersion::V1_7_1)
+                    }
+                };
+            }
+        }
+        // for compatibility with 1.50 and earlier, also make it possible to catch the error and continue
+        self.set_tokenpos(0);
+        self.error_or_log(ParserError::MissingVersionInfo)?;
+        Ok(A2lVersion::V1_5_1)
+    }
     // get_token
     // get one token from the list of tokens and unwrap it
-    pub fn get_token(&mut self, context: &ParseContext) -> Result<&'a A2lToken, ParserError> {
+    pub(crate) fn get_token(
+        &mut self,
+        context: &ParseContext,
+    ) -> Result<&'a A2lToken, ParserError> {
         if let Some(token) = self.token_cursor.next() {
             self.last_token_position = token.line;
             Ok(token)
@@ -272,7 +358,7 @@ impl<'a> ParserState<'a> {
         }
     }
 
-    pub fn undo_get_token(&mut self) {
+    pub(crate) fn undo_get_token(&mut self) {
         self.token_cursor.back();
     }
 
@@ -286,7 +372,7 @@ impl<'a> ParserState<'a> {
         });
     }
 
-    pub fn error_or_log(&mut self, err: ParserError) -> Result<(), ParserError> {
+    pub(crate) fn error_or_log(&mut self, err: ParserError) -> Result<(), ParserError> {
         if self.strict {
             Err(err)
         } else {
@@ -295,20 +381,20 @@ impl<'a> ParserState<'a> {
         }
     }
 
-    pub fn get_tokenpos(&self) -> usize {
+    pub(crate) fn get_tokenpos(&self) -> usize {
         self.token_cursor.pos
     }
 
-    pub fn set_tokenpos(&mut self, newpos: usize) {
+    pub(crate) fn set_tokenpos(&mut self, newpos: usize) {
         self.token_cursor.pos = newpos;
     }
 
-    pub fn get_token_text(&self, token: &'a A2lToken) -> &'a str {
+    pub(crate) fn get_token_text(&self, token: &'a A2lToken) -> &'a str {
         let data = &self.filedata[token.fileid];
         &data[token.startpos..token.endpos]
     }
 
-    pub fn get_current_line_offset(&self) -> u32 {
+    pub(crate) fn get_current_line_offset(&self) -> u32 {
         if self.token_cursor.pos > 0 && self.token_cursor.pos < self.token_cursor.tokens.len() {
             let prev_line = self.token_cursor.tokens[self.token_cursor.pos - 1].line;
             let prev_fileid = self.token_cursor.tokens[self.token_cursor.pos - 1].fileid;
@@ -327,12 +413,12 @@ impl<'a> ParserState<'a> {
         }
     }
 
-    pub fn get_next_id(&mut self) -> u32 {
+    pub(crate) fn get_next_id(&mut self) -> u32 {
         self.sequential_id += 1;
         self.sequential_id
     }
 
-    pub fn get_incfilename(&self, fileid: usize) -> Option<String> {
+    pub(crate) fn get_incfilename(&self, fileid: usize) -> Option<String> {
         if fileid == 0 || fileid >= self.filenames.len() {
             None
         } else {
@@ -340,16 +426,15 @@ impl<'a> ParserState<'a> {
         }
     }
 
-    pub fn set_file_version(&mut self, major: u16, minor: u16) {
-        self.file_ver = f32::from(major) + (f32::from(minor) / 100.0);
+    pub(crate) fn set_file_version(&mut self, version: A2lVersion) {
+        self.file_ver = version;
     }
 
-    pub fn check_block_version(
+    pub(crate) fn check_block_version_lower(
         &mut self,
         context: &ParseContext,
         tag: &str,
-        min_ver: f32,
-        max_ver: f32,
+        min_ver: A2lVersion,
     ) -> Result<(), ParserError> {
         if self.file_ver < min_ver {
             self.error_or_log(ParserError::BlockRefTooNew {
@@ -360,7 +445,17 @@ impl<'a> ParserState<'a> {
                 limit_ver: min_ver,
                 file_ver: self.file_ver,
             })?;
-        } else if self.file_ver > max_ver {
+        }
+        Ok(())
+    }
+
+    pub(crate) fn check_block_version_upper(
+        &mut self,
+        context: &ParseContext,
+        tag: &str,
+        max_ver: A2lVersion,
+    ) -> Result<(), ParserError> {
+        if self.file_ver > max_ver {
             self.log_warning(ParserError::BlockRefDeprecated {
                 filename: self.filenames[context.fileid].clone(),
                 error_line: self.last_token_position,
@@ -373,12 +468,11 @@ impl<'a> ParserState<'a> {
         Ok(())
     }
 
-    pub fn check_enumitem_version(
+    pub(crate) fn check_enumitem_version_lower(
         &mut self,
         context: &ParseContext,
         tag: &str,
-        min_ver: f32,
-        max_ver: f32,
+        min_ver: A2lVersion,
     ) -> Result<(), ParserError> {
         if self.file_ver < min_ver {
             self.error_or_log(ParserError::EnumRefTooNew {
@@ -389,7 +483,17 @@ impl<'a> ParserState<'a> {
                 limit_ver: min_ver,
                 file_ver: self.file_ver,
             })?;
-        } else if self.file_ver > max_ver {
+        }
+        Ok(())
+    }
+
+    pub(crate) fn check_enumitem_version_upper(
+        &mut self,
+        context: &ParseContext,
+        tag: &str,
+        max_ver: A2lVersion,
+    ) -> Result<(), ParserError> {
+        if self.file_ver > max_ver {
             self.log_warning(ParserError::EnumRefDeprecated {
                 filename: self.filenames[context.fileid].clone(),
                 error_line: self.last_token_position,
@@ -404,7 +508,7 @@ impl<'a> ParserState<'a> {
 
     // expect_token get a token which has to be of a particular type (hence: expect)
     // getting a token of any other type is a ParserError
-    pub fn expect_token(
+    pub(crate) fn expect_token(
         &mut self,
         context: &ParseContext,
         token_type: A2lTokenType,
@@ -422,7 +526,7 @@ impl<'a> ParserState<'a> {
 
     // get_string()
     // Get the content of a String token as a string
-    pub fn get_string(&mut self, context: &ParseContext) -> Result<String, ParserError> {
+    pub(crate) fn get_string(&mut self, context: &ParseContext) -> Result<String, ParserError> {
         let text = if let Some(
             token @ A2lToken {
                 ttype: A2lTokenType::Identifier,
@@ -455,7 +559,7 @@ impl<'a> ParserState<'a> {
 
     // get_string_maxlen()
     // Get the content of a String token as a string. Trigger an error if the string is longer than maxlen
-    pub fn get_string_maxlen(
+    pub(crate) fn get_string_maxlen(
         &mut self,
         context: &ParseContext,
         maxlen: usize,
@@ -476,7 +580,7 @@ impl<'a> ParserState<'a> {
 
     // get_identifier()
     // Get the content of an Identifier token as a string
-    pub fn get_identifier(&mut self, context: &ParseContext) -> Result<String, ParserError> {
+    pub(crate) fn get_identifier(&mut self, context: &ParseContext) -> Result<String, ParserError> {
         let token = self.expect_token(context, A2lTokenType::Identifier)?;
         let text = self.get_token_text(token);
         if text.as_bytes()[0].is_ascii_digit() || text.len() > MAX_IDENT {
@@ -493,7 +597,7 @@ impl<'a> ParserState<'a> {
     // get_float()
     // Get the content of a Number token as a float
     // Since the Number token stores text internally, the text must be converted first
-    pub fn get_float(&mut self, context: &ParseContext) -> Result<f32, ParserError> {
+    pub(crate) fn get_float(&mut self, context: &ParseContext) -> Result<f32, ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         match text.parse::<f32>() {
@@ -505,7 +609,7 @@ impl<'a> ParserState<'a> {
     // get_double()
     // Get the content of a Number token as a double(f64)
     // Since the Number token stores text internally, the text must be converted first
-    pub fn get_double(&mut self, context: &ParseContext) -> Result<f64, ParserError> {
+    pub(crate) fn get_double(&mut self, context: &ParseContext) -> Result<f64, ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         match text.parse::<f64>() {
@@ -520,7 +624,10 @@ impl<'a> ParserState<'a> {
     // E.g. 0xffff is considered to be a valid signed int (i16); it is -1 in decimal notation.
     // I did not manage to decode this in a generic manner.
 
-    pub fn get_integer_i8(&mut self, context: &ParseContext) -> Result<(i8, bool), ParserError> {
+    pub(crate) fn get_integer_i8(
+        &mut self,
+        context: &ParseContext,
+    ) -> Result<(i8, bool), ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
@@ -536,7 +643,10 @@ impl<'a> ParserState<'a> {
         }
     }
 
-    pub fn get_integer_u8(&mut self, context: &ParseContext) -> Result<(u8, bool), ParserError> {
+    pub(crate) fn get_integer_u8(
+        &mut self,
+        context: &ParseContext,
+    ) -> Result<(u8, bool), ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
@@ -552,7 +662,10 @@ impl<'a> ParserState<'a> {
         }
     }
 
-    pub fn get_integer_i16(&mut self, context: &ParseContext) -> Result<(i16, bool), ParserError> {
+    pub(crate) fn get_integer_i16(
+        &mut self,
+        context: &ParseContext,
+    ) -> Result<(i16, bool), ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
@@ -568,7 +681,10 @@ impl<'a> ParserState<'a> {
         }
     }
 
-    pub fn get_integer_u16(&mut self, context: &ParseContext) -> Result<(u16, bool), ParserError> {
+    pub(crate) fn get_integer_u16(
+        &mut self,
+        context: &ParseContext,
+    ) -> Result<(u16, bool), ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
@@ -584,7 +700,10 @@ impl<'a> ParserState<'a> {
         }
     }
 
-    pub fn get_integer_i32(&mut self, context: &ParseContext) -> Result<(i32, bool), ParserError> {
+    pub(crate) fn get_integer_i32(
+        &mut self,
+        context: &ParseContext,
+    ) -> Result<(i32, bool), ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
@@ -600,7 +719,10 @@ impl<'a> ParserState<'a> {
         }
     }
 
-    pub fn get_integer_u32(&mut self, context: &ParseContext) -> Result<(u32, bool), ParserError> {
+    pub(crate) fn get_integer_u32(
+        &mut self,
+        context: &ParseContext,
+    ) -> Result<(u32, bool), ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
@@ -616,7 +738,10 @@ impl<'a> ParserState<'a> {
         }
     }
 
-    pub fn get_integer_u64(&mut self, context: &ParseContext) -> Result<(u64, bool), ParserError> {
+    pub(crate) fn get_integer_u64(
+        &mut self,
+        context: &ParseContext,
+    ) -> Result<(u64, bool), ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
@@ -632,7 +757,10 @@ impl<'a> ParserState<'a> {
         }
     }
 
-    pub fn get_integer_i64(&mut self, context: &ParseContext) -> Result<(i64, bool), ParserError> {
+    pub(crate) fn get_integer_i64(
+        &mut self,
+        context: &ParseContext,
+    ) -> Result<(i64, bool), ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
@@ -650,7 +778,7 @@ impl<'a> ParserState<'a> {
 
     // get_next_tag()
     // get the tag of the next item of a taggedstruct or taggedunion
-    pub fn get_next_tag(
+    pub(crate) fn get_next_tag(
         &mut self,
         context: &ParseContext,
     ) -> Result<Option<(&'a A2lToken, bool, u32)>, ParserError> {
@@ -701,7 +829,7 @@ impl<'a> ParserState<'a> {
 
     // handle_unknown_taggedstruct_tag
     // perform error recovery if an unknown tag is found inside a taggedstruct and strict parsing is off
-    pub fn handle_unknown_taggedstruct_tag(
+    pub(crate) fn handle_unknown_taggedstruct_tag(
         &mut self,
         context: &ParseContext,
         item_tag: &str,
@@ -780,7 +908,7 @@ impl<'a> ParserState<'a> {
         Ok(())
     }
 
-    pub fn handle_multiplicity_error(
+    pub(crate) fn handle_multiplicity_error(
         &mut self,
         context: &ParseContext,
         tag: &str,
@@ -796,7 +924,7 @@ impl<'a> ParserState<'a> {
 }
 
 impl ParseContext {
-    pub fn from_token(text: &str, token: &A2lToken, is_block: bool) -> ParseContext {
+    pub(crate) fn from_token(text: &str, token: &A2lToken, is_block: bool) -> ParseContext {
         ParseContext {
             element: text.to_string(),
             fileid: token.fileid,
@@ -943,6 +1071,32 @@ fn unescape_string(text: &str) -> String {
         output_chars.iter().collect()
     } else {
         text.to_owned()
+    }
+}
+
+impl A2lVersion {
+    pub fn new(major: u16, minor: u16) -> Result<Self, ParserError> {
+        match (major, minor) {
+            (1, 51) => Ok(A2lVersion::V1_5_1),
+            (1, 60) => Ok(A2lVersion::V1_6_0),
+            (1, 61) => Ok(A2lVersion::V1_6_1),
+            (1, 70) => Ok(A2lVersion::V1_7_0),
+            (1, 71) => Ok(A2lVersion::V1_7_1),
+            _ => Err(ParserError::InvalidVersion { major, minor }),
+        }
+    }
+}
+
+impl Display for A2lVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            A2lVersion::V1_5_0 => f.write_str("1.5.0"),
+            A2lVersion::V1_5_1 => f.write_str("1.5.1"),
+            A2lVersion::V1_6_0 => f.write_str("1.6.0"),
+            A2lVersion::V1_6_1 => f.write_str("1.6.1"),
+            A2lVersion::V1_7_0 => f.write_str("1.7.0"),
+            A2lVersion::V1_7_1 => f.write_str("1.7.1"),
+        }
     }
 }
 

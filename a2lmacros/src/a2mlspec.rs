@@ -207,7 +207,8 @@ fn parse_a2ml_type_enum(
                 name: tag,
                 value,
                 comment,
-                version_range: None,
+                version_lower: None,
+                version_upper: None,
             });
         }
         (
@@ -441,7 +442,8 @@ fn parse_a2ml_taggeditem(
                 is_block,
                 repeat: multi,
                 required: false,
-                version_range: None,
+                version_lower: None,
+                version_upper: None,
             }
         }
         tok => {
@@ -1206,7 +1208,8 @@ fn fixup_taggeditems(
             is_block: tgitem.is_block,
             repeat: tgitem.repeat,
             required: false,
-            version_range: None,
+            version_lower: None,
+            version_upper: None,
         });
     }
 
@@ -1475,13 +1478,15 @@ mod test {
                 name: "SOME_ENUM_A".to_string(),
                 value: None,
                 comment: None,
-                version_range: None,
+                version_lower: None,
+                version_upper: None,
             },
             EnumItem {
                 name: "SOME_ENUM_B".to_string(),
                 value: None,
                 comment: None,
-                version_range: None,
+                version_lower: None,
+                version_upper: None,
             },
         ];
         let enum_name = make_enum_name(&None, &enumitems);

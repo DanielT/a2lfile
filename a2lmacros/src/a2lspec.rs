@@ -1,5 +1,5 @@
 use crate::codegenerator;
-use crate::codegenerator::{BaseType, DataItem, EnumItem, TaggedItem};
+use crate::codegenerator::{A2lVersion, BaseType, DataItem, EnumItem, TaggedItem};
 use crate::util::*;
 use proc_macro2::Delimiter;
 use proc_macro2::TokenStream;
@@ -292,7 +292,7 @@ fn parse_optitem(block_token_iter: &mut TokenStreamIter) -> Vec<TaggedItem> {
     }
 
     // finally, there can also be a version range, e.g (1.0 .. 1.61), or (.. 1.50), or (1.70 ..)
-    let version_range = get_optional_version_range(block_token_iter);
+    let (version_lower, version_upper) = get_optional_version_range(block_token_iter);
 
     let ref_typename = typename_from_names(&blocknames);
     for (idx, blockname) in blocknames.iter().enumerate() {
@@ -307,24 +307,26 @@ fn parse_optitem(block_token_iter: &mut TokenStreamIter) -> Vec<TaggedItem> {
             is_block: false, // don't know that yet, it will be fixed later
             repeat,
             required,
-            version_range,
+            version_lower,
+            version_upper,
         });
     }
 
     blocks
 }
 
-fn get_optional_version_range(token_iter: &mut TokenStreamIter) -> Option<(f32, f32)> {
-    let mut version_range = None;
+fn get_optional_version_range(
+    token_iter: &mut TokenStreamIter,
+) -> (Option<A2lVersion>, Option<A2lVersion>) {
     if let Some(TokenTree::Group(g)) = token_iter.peek() {
         if g.delimiter() == Delimiter::Parenthesis {
             let range_tokens = get_group(token_iter, Delimiter::Parenthesis);
             let mut range_token_iter = range_tokens.into_iter().peekable();
 
             // get the minimum version
-            let mut min_ver = 0.0;
+            let mut min_ver = None;
             if let Some(TokenTree::Literal(_)) = range_token_iter.peek() {
-                min_ver = get_float(&mut range_token_iter);
+                min_ver = Some(get_version(&mut range_token_iter));
             }
 
             // min and max versions are separated by ".."
@@ -332,15 +334,16 @@ fn get_optional_version_range(token_iter: &mut TokenStreamIter) -> Option<(f32, 
             require_punct(&mut range_token_iter, '.');
 
             // get the maximum version
-            let mut max_ver = std::f32::MAX;
+            let mut max_ver = None;
             if let Some(TokenTree::Literal(_)) = range_token_iter.peek() {
-                max_ver = get_float(&mut range_token_iter);
+                max_ver = Some(get_version(&mut range_token_iter));
             }
-            version_range = Some((min_ver, max_ver));
+
+            return (min_ver, max_ver);
         }
     }
 
-    version_range
+    (None, None)
 }
 
 fn parse_enum(token_iter: &mut TokenStreamIter, comment: Option<String>) -> DataItem {
@@ -354,13 +357,14 @@ fn parse_enum(token_iter: &mut TokenStreamIter, comment: Option<String>) -> Data
         let name = get_ident(&mut enum_token_iter);
 
         // there can also be a version range, e.g (1.0 .. 1.61), or (.. 1.50), or (1.70 ..)
-        let version_range = get_optional_version_range(&mut enum_token_iter);
+        let (version_lower, version_upper) = get_optional_version_range(&mut enum_token_iter);
 
         items.push(EnumItem {
             name,
             value: None,
             comment: None,
-            version_range,
+            version_lower,
+            version_upper,
         });
 
         /* if there are further items in the enum, there must be a ',' as a separator */
