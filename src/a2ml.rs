@@ -820,7 +820,7 @@ impl GenericIfData {
                 line,
                 items,
             } => Ok((incfile.clone(), *line, items)),
-            _ => Err("strucutal mismatch: get_block_items called on something that is not a Block"),
+            _ => Err("structural mismatch: get_block_items called on something that is not a Block"),
         }
     }
 
@@ -830,7 +830,7 @@ impl GenericIfData {
         match self {
             GenericIfData::Struct(file, line, blockitems) => Ok((file.clone(), *line, blockitems)),
             _ => {
-                Err("strucutal mismatch: get_struct_items called on something that is not a Struct")
+                Err("structural mismatch: get_struct_items called on something that is not a Struct")
             }
         }
     }
@@ -846,7 +846,7 @@ impl GenericIfData {
             | GenericIfData::Long(_, (_, is_hex))
             | GenericIfData::Int64(_, (_, is_hex)) => Ok(*is_hex),
             _ => {
-                Err("strucutal mismatch: get_int_is_hex called on something that is not an integer")
+                Err("structural mismatch: get_int_is_hex called on something that is not an integer")
             }
         }
     }
@@ -855,7 +855,7 @@ impl GenericIfData {
         if let GenericIfData::UChar(_, (val, _)) = self {
             Ok(*val)
         } else {
-            Err("strucutal mismatch: get_integer_u8 called on something that is not a UChar")
+            Err("structural mismatch: get_integer_u8 called on something that is not a UChar")
         }
     }
 
@@ -863,7 +863,7 @@ impl GenericIfData {
         if let GenericIfData::UInt(_, (val, _)) = self {
             Ok(*val)
         } else {
-            Err("strucutal mismatch: get_integer_u16 called on something that is not a UInt")
+            Err("structural mismatch: get_integer_u16 called on something that is not a UInt")
         }
     }
 
@@ -871,7 +871,7 @@ impl GenericIfData {
         if let GenericIfData::ULong(_, (val, _)) = self {
             Ok(*val)
         } else {
-            Err("strucutal mismatch: get_integer_u32 called on something that is not a ULong")
+            Err("structural mismatch: get_integer_u32 called on something that is not a ULong")
         }
     }
 
@@ -879,7 +879,7 @@ impl GenericIfData {
         if let GenericIfData::UInt64(_, (val, _)) = self {
             Ok(*val)
         } else {
-            Err("strucutal mismatch: get_integer_u64 called on something that is not a UInt64")
+            Err("structural mismatch: get_integer_u64 called on something that is not a UInt64")
         }
     }
 
@@ -887,7 +887,7 @@ impl GenericIfData {
         if let GenericIfData::Char(_, (val, _)) = self {
             Ok(*val)
         } else {
-            Err("strucutal mismatch: get_integer_i8 called on something that is not a Char")
+            Err("structural mismatch: get_integer_i8 called on something that is not a Char")
         }
     }
 
@@ -895,7 +895,7 @@ impl GenericIfData {
         if let GenericIfData::Int(_, (val, _)) = self {
             Ok(*val)
         } else {
-            Err("strucutal mismatch: get_integer_i16 called on something that is not an Int")
+            Err("structural mismatch: get_integer_i16 called on something that is not an Int")
         }
     }
 
@@ -903,7 +903,7 @@ impl GenericIfData {
         if let GenericIfData::Long(_, (val, _)) = self {
             Ok(*val)
         } else {
-            Err("strucutal mismatch: get_integer_i32 called on something that is not a Long")
+            Err("structural mismatch: get_integer_i32 called on something that is not a Long")
         }
     }
 
@@ -911,7 +911,7 @@ impl GenericIfData {
         if let GenericIfData::Int64(_, (val, _)) = self {
             Ok(*val)
         } else {
-            Err("strucutal mismatch: get_integer_i64 called on something that is not an Int64")
+            Err("structural mismatch: get_integer_i64 called on something that is not an Int64")
         }
     }
 
@@ -919,7 +919,7 @@ impl GenericIfData {
         if let GenericIfData::Float(_, val) = self {
             Ok(*val)
         } else {
-            Err("strucutal mismatch: get_float called on something that is not a Float")
+            Err("structural mismatch: get_float called on something that is not a Float")
         }
     }
 
@@ -927,7 +927,7 @@ impl GenericIfData {
         if let GenericIfData::Double(_, val) = self {
             Ok(*val)
         } else {
-            Err("strucutal mismatch: get_double called on something that is not a Double")
+            Err("structural mismatch: get_double called on something that is not a Double")
         }
     }
 
@@ -935,7 +935,7 @@ impl GenericIfData {
         if let GenericIfData::String(_, val) = self {
             Ok(val.to_owned())
         } else {
-            Err("strucutal mismatch: get_stringval called on something that is not a String")
+            Err("structural mismatch: get_stringval called on something that is not a String")
         }
     }
 
@@ -943,7 +943,7 @@ impl GenericIfData {
         if let GenericIfData::Array(arrayitems) = self {
             Ok(arrayitems)
         } else {
-            Err("strucutal mismatch: get_array called on something that is not an Array")
+            Err("structural mismatch: get_array called on something that is not an Array")
         }
     }
 
@@ -951,7 +951,7 @@ impl GenericIfData {
         if let GenericIfData::Sequence(seqitems) = self {
             Ok(seqitems)
         } else {
-            Err("strucutal mismatch: get_sequence called on something that is not a Sequence")
+            Err("structural mismatch: get_sequence called on something that is not a Sequence")
         }
     }
 
@@ -971,7 +971,7 @@ impl GenericIfData {
             | GenericIfData::EnumItem(line, _)
             | GenericIfData::Struct(_, line, _)
             | GenericIfData::Block { line, .. } => Ok(*line),
-            _ => Err("strucutal mismatch: get_line called on something that has no line info"),
+            _ => Err("structural mismatch: get_line called on something that has no line info"),
         }
     }
 
@@ -993,7 +993,7 @@ impl GenericIfData {
                     Ok(None)
                 }
             }
-            _ => Err("strucutal mismatch: get_single_optitem called on unsuitable element"),
+            _ => Err("structural mismatch: get_single_optitem called on unsuitable element"),
         }
     }
 
@@ -1017,7 +1017,7 @@ impl GenericIfData {
                 }
                 Ok(resultvec)
             }
-            _ => Err("strucutal mismatch: get_multiple_optitems called on unsuitable element"),
+            _ => Err("structural mismatch: get_multiple_optitems called on unsuitable element"),
         }
     }
 }
