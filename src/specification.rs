@@ -45,6 +45,12 @@ pub trait A2lObjectName {
     fn get_name(&self) -> &str;
 }
 
+pub(crate) trait PositionRestricted {
+    fn pos_restrict(&self) -> Option<u16> {
+        None
+    }
+}
+
 a2l_specification! {
     /// Contains all the objects of an A2lfile
     ///
@@ -1763,6 +1769,239 @@ impl PartialEq for IfData {
     }
 }
 
+// top-level file elements - ASAP2_VERSION must always be first
+// ------------------
+impl PositionRestricted for Asap2Version {
+    fn pos_restrict(&self) -> Option<u16> {
+        Some(1)
+    }
+}
+impl PositionRestricted for A2mlVersion {
+    fn pos_restrict(&self) -> Option<u16> {
+        Some(2)
+    }
+}
+impl PositionRestricted for Project {
+    fn pos_restrict(&self) -> Option<u16> {
+        Some(3)
+    }
+}
+// keywords under RECORD_LAYOUT - output position is restricted based on the position value in the data
+// ------------------
+impl PositionRestricted for AxisPtsDim {
+    fn pos_restrict(&self) -> Option<u16> {
+        Some(self.position)
+    }
+}
+impl PositionRestricted for AxisRescaleDim {
+    fn pos_restrict(&self) -> Option<u16> {
+        Some(self.position)
+    }
+}
+impl PositionRestricted for DistOpDim {
+    fn pos_restrict(&self) -> Option<u16> {
+        Some(self.position)
+    }
+}
+impl PositionRestricted for FncValues {
+    fn pos_restrict(&self) -> Option<u16> {
+        Some(self.position)
+    }
+}
+impl PositionRestricted for Identification {
+    fn pos_restrict(&self) -> Option<u16> {
+        Some(self.position)
+    }
+}
+impl PositionRestricted for NoAxisPtsDim {
+    fn pos_restrict(&self) -> Option<u16> {
+        Some(self.position)
+    }
+}
+impl PositionRestricted for NoRescaleDim {
+    fn pos_restrict(&self) -> Option<u16> {
+        Some(self.position)
+    }
+}
+impl PositionRestricted for OffsetDim {
+    fn pos_restrict(&self) -> Option<u16> {
+        Some(self.position)
+    }
+}
+impl PositionRestricted for Reserved {
+    fn pos_restrict(&self) -> Option<u16> {
+        Some(self.position)
+    }
+}
+impl PositionRestricted for RipAddrDim {
+    fn pos_restrict(&self) -> Option<u16> {
+        Some(self.position)
+    }
+}
+impl PositionRestricted for ShiftOpDim {
+    fn pos_restrict(&self) -> Option<u16> {
+        Some(self.position)
+    }
+}
+impl PositionRestricted for SrcAddrDim {
+    fn pos_restrict(&self) -> Option<u16> {
+        Some(self.position)
+    }
+}
+
+// others, without position restrictions
+// ------------------
+impl PositionRestricted for A2lFile {}
+impl PositionRestricted for A2ml {}
+impl PositionRestricted for AddrEpk {}
+impl PositionRestricted for AddressType {}
+impl PositionRestricted for AlignmentByte {}
+impl PositionRestricted for AlignmentFloat16Ieee {}
+impl PositionRestricted for AlignmentFloat32Ieee {}
+impl PositionRestricted for AlignmentFloat64Ieee {}
+impl PositionRestricted for AlignmentInt64 {}
+impl PositionRestricted for AlignmentLong {}
+impl PositionRestricted for AlignmentWord {}
+impl PositionRestricted for Annotation {}
+impl PositionRestricted for AnnotationLabel {}
+impl PositionRestricted for AnnotationOrigin {}
+impl PositionRestricted for AnnotationText {}
+impl PositionRestricted for ArComponent {}
+impl PositionRestricted for ArPrototypeOf {}
+impl PositionRestricted for ArraySize {}
+impl PositionRestricted for AxisDescr {}
+impl PositionRestricted for AxisPts {}
+impl PositionRestricted for AxisPtsRef {}
+impl PositionRestricted for BitMask {}
+impl PositionRestricted for BitOperation {}
+impl PositionRestricted for Blob {}
+impl PositionRestricted for ByteOrder {}
+impl PositionRestricted for CalibrationAccess {}
+impl PositionRestricted for CalibrationHandle {}
+impl PositionRestricted for CalibrationHandleText {}
+impl PositionRestricted for CalibrationMethod {}
+impl PositionRestricted for Characteristic {}
+impl PositionRestricted for Coeffs {}
+impl PositionRestricted for CoeffsLinear {}
+impl PositionRestricted for ComparisonQuantity {}
+impl PositionRestricted for CompuMethod {}
+impl PositionRestricted for CompuTab {}
+impl PositionRestricted for CompuTabRef {}
+impl PositionRestricted for CompuVtab {}
+impl PositionRestricted for CompuVtabRange {}
+impl PositionRestricted for ConsistentExchange {}
+impl PositionRestricted for Conversion {}
+impl PositionRestricted for CpuType {}
+impl PositionRestricted for CurveAxisRef {}
+impl PositionRestricted for Customer {}
+impl PositionRestricted for CustomerNo {}
+impl PositionRestricted for DataSize {}
+impl PositionRestricted for DefCharacteristic {}
+impl PositionRestricted for DefaultValue {}
+impl PositionRestricted for DefaultValueNumeric {}
+impl PositionRestricted for DependentCharacteristic {}
+impl PositionRestricted for Deposit {}
+impl PositionRestricted for Discrete {}
+impl PositionRestricted for DisplayIdentifier {}
+impl PositionRestricted for Ecu {}
+impl PositionRestricted for EcuAddress {}
+impl PositionRestricted for EcuAddressExtension {}
+impl PositionRestricted for EcuCalibrationOffset {}
+impl PositionRestricted for Encoding {}
+impl PositionRestricted for Epk {}
+impl PositionRestricted for ErrorMask {}
+impl PositionRestricted for ExtendedLimits {}
+impl PositionRestricted for FixAxisPar {}
+impl PositionRestricted for FixAxisParDist {}
+impl PositionRestricted for FixAxisParList {}
+impl PositionRestricted for FixNoAxisPtsDim {}
+impl PositionRestricted for Format {}
+impl PositionRestricted for Formula {}
+impl PositionRestricted for FormulaInv {}
+impl PositionRestricted for Frame {}
+impl PositionRestricted for FrameMeasurement {}
+impl PositionRestricted for Function {}
+impl PositionRestricted for FunctionList {}
+impl PositionRestricted for FunctionVersion {}
+impl PositionRestricted for Group {}
+impl PositionRestricted for GuardRails {}
+impl PositionRestricted for Header {}
+impl PositionRestricted for IfData {}
+impl PositionRestricted for InMeasurement {}
+impl PositionRestricted for InputQuantity {}
+impl PositionRestricted for Instance {}
+impl PositionRestricted for Layout {}
+impl PositionRestricted for LeftShift {}
+impl PositionRestricted for Limits {}
+impl PositionRestricted for LocMeasurement {}
+impl PositionRestricted for MapList {}
+impl PositionRestricted for MatrixDim {}
+impl PositionRestricted for MaxGrad {}
+impl PositionRestricted for MaxRefresh {}
+impl PositionRestricted for Measurement {}
+impl PositionRestricted for MemoryLayout {}
+impl PositionRestricted for MemorySegment {}
+impl PositionRestricted for ModCommon {}
+impl PositionRestricted for ModPar {}
+impl PositionRestricted for ModelLink {}
+impl PositionRestricted for Module {}
+impl PositionRestricted for Monotony {}
+impl PositionRestricted for NoOfInterfaces {}
+impl PositionRestricted for Number {}
+impl PositionRestricted for OutMeasurement {}
+impl PositionRestricted for Overwrite {}
+impl PositionRestricted for PhoneNo {}
+impl PositionRestricted for PhysUnit {}
+impl PositionRestricted for ProjectNo {}
+impl PositionRestricted for ReadOnly {}
+impl PositionRestricted for ReadWrite {}
+impl PositionRestricted for RecordLayout {}
+impl PositionRestricted for RefCharacteristic {}
+impl PositionRestricted for RefGroup {}
+impl PositionRestricted for RefMeasurement {}
+impl PositionRestricted for RefMemorySegment {}
+impl PositionRestricted for RefUnit {}
+impl PositionRestricted for RightShift {}
+impl PositionRestricted for Root {}
+impl PositionRestricted for SRecLayout {}
+impl PositionRestricted for SiExponents {}
+impl PositionRestricted for SignExtend {}
+impl PositionRestricted for StaticAddressOffsets {}
+impl PositionRestricted for StaticRecordLayout {}
+impl PositionRestricted for StatusStringRef {}
+impl PositionRestricted for StepSize {}
+impl PositionRestricted for StructureComponent {}
+impl PositionRestricted for SubFunction {}
+impl PositionRestricted for SubGroup {}
+impl PositionRestricted for Supplier {}
+impl PositionRestricted for SymbolLink {}
+impl PositionRestricted for SymbolTypeLink {}
+impl PositionRestricted for SystemConstant {}
+impl PositionRestricted for Transformer {}
+impl PositionRestricted for TransformerInObjects {}
+impl PositionRestricted for TransformerOutObjects {}
+impl PositionRestricted for TypedefAxis {}
+impl PositionRestricted for TypedefBlob {}
+impl PositionRestricted for TypedefCharacteristic {}
+impl PositionRestricted for TypedefMeasurement {}
+impl PositionRestricted for TypedefStructure {}
+impl PositionRestricted for Unit {}
+impl PositionRestricted for UnitConversion {}
+impl PositionRestricted for User {}
+impl PositionRestricted for UserRights {}
+impl PositionRestricted for VarAddress {}
+impl PositionRestricted for VarCharacteristic {}
+impl PositionRestricted for VarCriterion {}
+impl PositionRestricted for VarForbiddenComb {}
+impl PositionRestricted for VarMeasurement {}
+impl PositionRestricted for VarNaming {}
+impl PositionRestricted for VarSelectionCharacteristic {}
+impl PositionRestricted for VarSeparator {}
+impl PositionRestricted for VariantCoding {}
+impl PositionRestricted for Version {}
+impl PositionRestricted for Virtual {}
+impl PositionRestricted for VirtualCharacteristic {}
+
 #[cfg(test)]
 mod test {
     use crate::*;
@@ -1952,18 +2191,18 @@ A2ML_VERSION 1 31
         /end MOD_PAR
         /begin RECORD_LAYOUT record_layout_name
             AXIS_PTS_X 1 SWORD INDEX_INCR DIRECT
-            AXIS_RESCALE_X 1 SWORD 1 INDEX_INCR DIRECT
-            DIST_OP_X 1 SWORD
+            AXIS_RESCALE_X 2 SWORD 1 INDEX_INCR DIRECT
+            DIST_OP_X 3 SWORD
             FIX_NO_AXIS_PTS_X 1
-            FNC_VALUES 1 SWORD ROW_DIR DIRECT
-            IDENTIFICATION 1 SWORD
-            NO_AXIS_PTS_X 1 SWORD
-            NO_RESCALE_X 1 SWORD
-            OFFSET_X 1 SWORD
-            RESERVED 1 WORD
-            RIP_ADDR_X 1 SWORD
-            SRC_ADDR_X 1 SWORD
-            SHIFT_OP_X 1 SWORD
+            FNC_VALUES 4 SWORD ROW_DIR DIRECT
+            RESERVED 5 WORD
+            RIP_ADDR_X 6 SWORD
+            SRC_ADDR_X 7 SWORD
+            SHIFT_OP_X 8 SWORD
+            IDENTIFICATION 9 SWORD
+            NO_AXIS_PTS_X 10 SWORD
+            NO_RESCALE_X 11 SWORD
+            OFFSET_X 12 SWORD
             STATIC_RECORD_LAYOUT
             STATIC_ADDRESS_OFFSETS
         /end RECORD_LAYOUT
@@ -2013,7 +2252,7 @@ A2ML_VERSION 1 31
             /begin VAR_CHARACTERISTIC name criterion_name
                 /begin VAR_ADDRESS 0x1234
                 /end VAR_ADDRESS
-            /end VAR_CHARACTERISTIC
+            /end VAR_CHARACTERISTIC 
             VAR_NAMING NUMERIC
             VAR_SEPARATOR "."
         /end VARIANT_CODING
@@ -2371,30 +2610,30 @@ A2ML_VERSION 1 31
             AddrType::Direct,
         ));
         record_layout.axis_rescale_x = Some(AxisRescaleDim::new(
-            1,
+            2,
             DataType::Sword,
             1,
             IndexOrder::IndexIncr,
             AddrType::Direct,
         ));
-        record_layout.dist_op_x = Some(DistOpDim::new(1, DataType::Sword));
+        record_layout.dist_op_x = Some(DistOpDim::new(3, DataType::Sword));
         record_layout.fix_no_axis_pts_x = Some(FixNoAxisPtsDim::new(1));
         record_layout.fnc_values = Some(FncValues::new(
-            1,
+            4,
             DataType::Sword,
             IndexMode::RowDir,
             AddrType::Direct,
         ));
-        record_layout.identification = Some(Identification::new(1, DataType::Sword));
-        record_layout.no_axis_pts_x = Some(NoAxisPtsDim::new(1, DataType::Sword));
-        record_layout.no_rescale_x = Some(NoRescaleDim::new(1, DataType::Sword));
-        record_layout.offset_x = Some(OffsetDim::new(1, DataType::Sword));
+        record_layout.identification = Some(Identification::new(9, DataType::Sword));
+        record_layout.no_axis_pts_x = Some(NoAxisPtsDim::new(10, DataType::Sword));
+        record_layout.no_rescale_x = Some(NoRescaleDim::new(11, DataType::Sword));
+        record_layout.offset_x = Some(OffsetDim::new(12, DataType::Sword));
         record_layout
             .reserved
-            .push(Reserved::new(1, DataTypeSize::Word));
-        record_layout.rip_addr_x = Some(RipAddrDim::new(1, DataType::Sword));
-        record_layout.src_addr_x = Some(SrcAddrDim::new(1, DataType::Sword));
-        record_layout.shift_op_x = Some(ShiftOpDim::new(1, DataType::Sword));
+            .push(Reserved::new(5, DataTypeSize::Word));
+        record_layout.rip_addr_x = Some(RipAddrDim::new(6, DataType::Sword));
+        record_layout.src_addr_x = Some(SrcAddrDim::new(7, DataType::Sword));
+        record_layout.shift_op_x = Some(ShiftOpDim::new(8, DataType::Sword));
         record_layout.static_address_offsets = Some(StaticAddressOffsets::new());
         record_layout.static_record_layout = Some(StaticRecordLayout::new());
         module.record_layout.push(record_layout);
@@ -2507,7 +2746,10 @@ A2ML_VERSION 1 31
         variant_coding.var_naming = Some(VarNaming::new(VarNamingTag::Numeric));
         variant_coding.var_separator = Some(VarSeparator::new(".".to_string()));
         module.variant_coding = Some(variant_coding);
-
         assert_eq!(a2l_file, a2l_file5);
+
+        let serialized3 = a2l_file5.write_to_string();
+        let a2l_file6 = load_from_string(&serialized3, None, &mut log_msgs, false).unwrap();
+        assert_eq!(a2l_file, a2l_file6);
     }
 }

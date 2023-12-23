@@ -124,19 +124,49 @@ fn generate_block_item_writers(structitems: &[DataItem]) -> Vec<TokenStream> {
                         tgwriters.push(quote! {
                             for #tgname in &self.#tgname {
                                 let #tgname_out = #tgname.stringify(indent + 1);
-                                tgroup.push(writer::TaggedItemInfo::build(#tag, #tgname_out, #is_block, &#tgname.__block_info));
+                                tgroup.push(writer::TaggedItemInfo {
+                                    tag: #tag,
+                                    item_text: #tgname_out,
+                                    is_block: #is_block,
+                                    incfile: &#tgname.__block_info.incfile,
+                                    uid: #tgname.__block_info.uid,
+                                    line: #tgname.__block_info.line,
+                                    start_offset: #tgname.__block_info.start_offset,
+                                    end_offset: #tgname.__block_info.end_offset,
+                                    position_restriction: #tgname.pos_restrict(),
+                                });
                             }
                         });
                     } else if tgitem.required {
                         tgwriters.push(quote! {
                             let #tgname_out = self.#tgname.stringify(indent + 1);
-                            tgroup.push(writer::TaggedItemInfo::build(#tag, #tgname_out, #is_block, &self.#tgname.__block_info));
+                            tgroup.push(writer::TaggedItemInfo {
+                                tag: #tag,
+                                item_text: #tgname_out,
+                                is_block: #is_block,
+                                incfile: &self.#tgname.__block_info.incfile,
+                                uid: self.#tgname.__block_info.uid,
+                                line: self.#tgname.__block_info.line,
+                                start_offset: self.#tgname.__block_info.start_offset,
+                                end_offset: self.#tgname.__block_info.end_offset,
+                                position_restriction: self.#tgname.pos_restrict(),
+                            });
                         });
                     } else {
                         tgwriters.push(quote! {
                             if let Some(#tgname) = &self.#tgname {
                                 let #tgname_out = #tgname.stringify(indent + 1);
-                                tgroup.push(writer::TaggedItemInfo::build(#tag, #tgname_out, #is_block, &#tgname.__block_info));
+                                tgroup.push(writer::TaggedItemInfo {
+                                    tag: #tag,
+                                    item_text: #tgname_out,
+                                    is_block: #is_block,
+                                    incfile: &#tgname.__block_info.incfile,
+                                    uid: #tgname.__block_info.uid,
+                                    line: #tgname.__block_info.line,
+                                    start_offset: #tgname.__block_info.start_offset,
+                                    end_offset: #tgname.__block_info.end_offset,
+                                    position_restriction: #tgname.pos_restrict(),
+                                });
                             }
                         });
                     }

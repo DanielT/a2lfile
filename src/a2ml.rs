@@ -1087,10 +1087,17 @@ impl GenericIfData {
                 let mut tgroup = Vec::new();
                 for tgitemlist in taggeditems.values() {
                     for tgitem in tgitemlist {
-                        tgroup.push(TaggedItemInfo::build_generic(
-                            tgitem.data.write(indent + 1),
-                            tgitem,
-                        ));
+                        tgroup.push(TaggedItemInfo {
+                            tag: &tgitem.tag,
+                            incfile: &tgitem.incfile,
+                            uid: tgitem.uid,
+                            line: tgitem.line,
+                            start_offset: tgitem.start_offset,
+                            end_offset: tgitem.end_offset,
+                            is_block: tgitem.is_block,
+                            item_text: tgitem.data.write(indent + 1),
+                            position_restriction: None,
+                        });
                     }
                 }
                 writer.add_group(tgroup);

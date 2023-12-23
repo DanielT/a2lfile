@@ -2,24 +2,23 @@ use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::fmt::Write;
 
-use crate::specification::BlockInfo;
-use crate::GenericIfDataTaggedItem;
-
 #[derive(Debug)]
 pub(crate) struct Writer {
     indent: usize,
     outstring: String,
 }
 
+#[derive(Debug, Clone)]
 pub(crate) struct TaggedItemInfo<'a> {
-    tag: &'a str,
-    incfile: &'a Option<String>,
-    uid: u32,
-    line: u32,
-    start_offset: u32,
-    end_offset: u32,
-    is_block: bool,
-    item_text: String,
+    pub(crate) tag: &'a str,
+    pub(crate) incfile: &'a Option<String>,
+    pub(crate) uid: u32,
+    pub(crate) line: u32,
+    pub(crate) start_offset: u32,
+    pub(crate) end_offset: u32,
+    pub(crate) is_block: bool,
+    pub(crate) item_text: String,
+    pub(crate) position_restriction: Option<u16>,
 }
 
 impl Writer {
@@ -98,7 +97,11 @@ impl Writer {
     }
 
     pub(crate) fn add_group(&mut self, mut group: Vec<TaggedItemInfo>) {
+        // intially sort the group items by their id / name / etc
         group.sort_by(Self::sort_function);
+        // apply position restrictions if there are any restricted items, e.g. at the top level and inside RECORD_LAYOUT
+        apply_position_restrictions(&mut group);
+
         let mut included_files = HashSet::<String>::new();
 
         for item in group {
@@ -163,37 +166,24 @@ impl Writer {
     }
 }
 
-impl<'a> TaggedItemInfo<'a> {
-    // build a TaggedItemInfo from a normal block which has BlockInfo
-    pub(crate) fn build<T>(
-        tag: &'a str,
-        item_text: String,
-        is_block: bool,
-        block_info: &'a BlockInfo<T>,
-    ) -> Self {
-        Self {
-            tag,
-            incfile: &block_info.incfile,
-            uid: block_info.uid,
-            line: block_info.line,
-            start_offset: block_info.start_offset,
-            end_offset: block_info.end_offset,
-            is_block,
-            item_text,
-        }
-    }
+fn apply_position_restrictions(group: &mut Vec<TaggedItemInfo>) {
+    let positions: Vec<usize> = group
+        .iter()
+        .enumerate()
+        .filter(|(_, item)| item.position_restriction.is_some())
+        .map(|(idx, _)| idx)
+        .collect();
+    let len = positions.len();
+    if len > 1 {
+        let mut items: Vec<TaggedItemInfo> = group
+            .iter()
+            .filter(|item| item.position_restriction.is_some())
+            .cloned()
+            .collect();
+        items.sort_by(|a, b| a.position_restriction.cmp(&b.position_restriction));
 
-    // build a TaggedItemInfo from a generic IF_DATA block which has GenericIfDataTaggedItem information
-    pub(crate) fn build_generic(item_text: String, gti: &'a GenericIfDataTaggedItem) -> Self {
-        Self {
-            tag: &gti.tag,
-            incfile: &gti.incfile,
-            line: gti.line,
-            uid: gti.uid,
-            start_offset: gti.start_offset,
-            end_offset: gti.end_offset,
-            is_block: gti.is_block,
-            item_text,
+        for idx in 0..len {
+            group[positions[idx]] = items[idx].clone();
         }
     }
 }
