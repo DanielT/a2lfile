@@ -90,8 +90,8 @@ fn decode_raw_bytes(filedata: &[u8]) -> String {
     }
 
     /* check UTF-16
-     * Big endian bom is 0xfe 0xff. Without BOM, the fist character should be 0x00 0x??
-     * little endian bom is 0xff 0xfe. Without BOM, the fist character should be 0x?? 0x00 */
+     * Big endian bom is 0xfe 0xff. Without BOM, the first character should be 0x00 0x??
+     * little endian bom is 0xff 0xfe. Without BOM, the first character should be 0x?? 0x00 */
     if (filedata.len() % 2 == 0) && (filedata.len() > 1) {
         let u16conversion: Option<fn([u8; 2]) -> u16> = if ((filedata[0] == 0)
             && (filedata[1] != 0))
@@ -133,6 +133,12 @@ fn decode_raw_bytes(filedata: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn load_nonexistent_file() {
+        let result = load(&Path::new("file/does/not/exist"));
+        assert!(result.is_err());
+    }
 
     #[test]
     fn decode_raw_bytes_u32() {
@@ -178,5 +184,11 @@ mod tests {
         assert_eq!(decode_raw_bytes(&data), String::from("ABAB"));
         let data: Vec<u8> = vec![239, 187, 191, 65, 66];
         assert_eq!(decode_raw_bytes(&data), String::from("\u{feff}AB"));
+    }
+
+    #[test]
+    fn decode_decode_raw_bytes_ascii() {
+        let data: Vec<u8> = vec![0xa9]; // "©"
+        assert_eq!(decode_raw_bytes(&data), String::from("\u{00a9}"));
     }
 }

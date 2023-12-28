@@ -911,4 +911,789 @@ ASAP2_VERSION 1 61
         let load_result = a2lfile::load_from_string(&data_good, None, &mut log_msgs, false);
         assert!(load_result.is_ok());
     }
+
+    // a test file that contains one of each specified block
+    static TEST_A2L_2: &str = r#"ASAP2_VERSION 1 71
+        A2ML_VERSION 1 31
+        /begin PROJECT prj ""
+            /begin HEADER "abc"
+                PROJECT_NO ident_12345
+                VERSION "version_string"
+            /end HEADER
+            /begin MODULE mod "long_identifier"
+                /begin A2ML
+                    block "IF_DATA" struct {
+                        int;
+                    };
+                /end A2ML
+                /begin AXIS_PTS axispts_name "long_identifier" 0x1234 input_qty deposit_record 0 conversion 3 0.0 10.0
+                    /begin ANNOTATION
+                        ANNOTATION_LABEL "label" ANNOTATION_ORIGIN "origin"
+                        /begin ANNOTATION_TEXT
+                        /end ANNOTATION_TEXT
+                    /end ANNOTATION
+                    GUARD_RAILS READ_ONLY
+                /end AXIS_PTS
+                /begin BLOB blob_name "long_identifier" 0x1234 100
+                /end BLOB
+                /begin CHARACTERISTIC characteristic_name "long_identifier" VALUE 0x1234 deposit_ident 0 conversion 0.0 10.0
+                    /begin AXIS_DESCR STD_AXIS input_quantity conversion 1 0 100
+                        AXIS_PTS_REF axis_points BYTE_ORDER MSB_LAST CURVE_AXIS_REF curve_axis DEPOSIT ABSOLUTE
+                        EXTENDED_LIMITS -100 200 FIX_AXIS_PAR 0 0 0 FIX_AXIS_PAR_DIST 0 0 0
+                        FORMAT "%1.1" MAX_GRAD 1 READ_ONLY STEP_SIZE 1
+                        /begin FIX_AXIS_PAR_LIST 0
+                        /end FIX_AXIS_PAR_LIST
+                    /end AXIS_DESCR
+                    COMPARISON_QUANTITY name
+                    /begin DEPENDENT_CHARACTERISTIC "formula"
+                        name
+                    /end DEPENDENT_CHARACTERISTIC
+                    /begin MAP_LIST
+                    /end MAP_LIST
+                    NUMBER 1
+                /end CHARACTERISTIC
+                /begin COMPU_METHOD compu_method_name "" IDENTICAL "%4.2" "unit"
+                    COEFFS 1 2 3 4 5 6
+                    COEFFS_LINEAR 1 2
+                    COMPU_TAB_REF compu_tab
+                    /begin FORMULA formula
+                        FORMULA_INV "inverse"
+                    /end FORMULA
+                    REF_UNIT unit
+                    STATUS_STRING_REF status_string
+                /end COMPU_METHOD
+                /begin COMPU_TAB compu_tab_name "long_identifier" IDENTICAL 2
+                    1 22
+                    2 33
+                    DEFAULT_VALUE "abc"
+                    DEFAULT_VALUE_NUMERIC 44
+                /end COMPU_TAB
+                /begin COMPU_VTAB compu_vtab_name "long_identifier" IDENTICAL 2
+                    1 "abc"
+                    2 "def"
+                    DEFAULT_VALUE "abc"
+                /end COMPU_VTAB
+                /begin COMPU_VTAB_RANGE compu_vtab_range_name "long_identifier" 2
+                    1 2 "abc"
+                    DEFAULT_VALUE "abc"
+                /end COMPU_VTAB_RANGE
+                /begin FRAME frame_name "long_identifier" 1 2
+                    FRAME_MEASUREMENT measurement_name
+                /end FRAME
+                /begin FUNCTION function_name "long_identifier"
+                    AR_COMPONENT "ar_component"
+                    FUNCTION_VERSION "version-1.1.1"
+                    /begin DEF_CHARACTERISTIC characteristic_name
+                    /end DEF_CHARACTERISTIC
+                    /begin IN_MEASUREMENT in_measurement_name
+                    /end IN_MEASUREMENT
+                    /begin LOC_MEASUREMENT loc_measurement_name
+                    /end LOC_MEASUREMENT
+                    /begin OUT_MEASUREMENT out_measurement_name
+                    /end OUT_MEASUREMENT
+                    /begin REF_CHARACTERISTIC ref_characteristic_name
+                    /end REF_CHARACTERISTIC
+                    /begin SUB_FUNCTION sub_function
+                    /end SUB_FUNCTION
+                /end FUNCTION
+                /begin GROUP group_name "long_identifier"
+                    /begin FUNCTION_LIST
+                    /end FUNCTION_LIST
+                    /begin REF_CHARACTERISTIC
+                    /end REF_CHARACTERISTIC
+                    /begin REF_MEASUREMENT
+                    /end REF_MEASUREMENT
+                    ROOT
+                    /begin SUB_GROUP
+                    /end SUB_GROUP
+                /end GROUP
+                /begin IF_DATA
+                    1
+                /end IF_DATA
+                /begin INSTANCE instance_name "long_identifier" type_ref 0x1234
+                    ADDRESS_TYPE PLONGLONG
+                    CALIBRATION_ACCESS CALIBRATION
+                    DISPLAY_IDENTIFIER display_identifier
+                    ECU_ADDRESS_EXTENSION 0x3000
+                    LAYOUT ROW_DIR
+                    MATRIX_DIM 3
+                    MAX_REFRESH 1 1
+                    MODEL_LINK "model link"
+                    /begin OVERWRITE overwrite_name 0
+                        CONVERSION conversion_name
+                        EXTENDED_LIMITS -100 1000
+                        FORMAT "%1.3"
+                        INPUT_QUANTITY input_quantity
+                        LIMITS 0 100
+                        MONOTONY MON_INCREASE
+                        PHYS_UNIT "unit"
+                    /end OVERWRITE
+                    READ_ONLY
+                    SYMBOL_LINK "symbol name" 0x1234
+                /end INSTANCE
+                /begin MEASUREMENT measurement_name "long_identifier" FLOAT32_IEEE conversion 1 1.0 0 100
+                    ARRAY_SIZE 1
+                    BIT_MASK 0xF0
+                    /begin BIT_OPERATION
+                        LEFT_SHIFT 1
+                        RIGHT_SHIFT 2
+                        SIGN_EXTEND
+                    /end BIT_OPERATION
+                    BYTE_ORDER MSB_LAST
+                    DISCRETE
+                    DISPLAY_IDENTIFIER display_identifier
+                    ECU_ADDRESS 0x1234
+                    ECU_ADDRESS_EXTENSION 0x4444
+                    ERROR_MASK 0xab
+                    FORMAT "%1.2"
+                    LAYOUT COLUMN_DIR
+                    MATRIX_DIM 1 2 3
+                    MAX_REFRESH 1 1
+                    MODEL_LINK "model link"
+                    PHYS_UNIT "unit"
+                    READ_WRITE
+                    REF_MEMORY_SEGMENT memory_segment
+                    SYMBOL_LINK "symbol" 0x1234
+                    /begin VIRTUAL
+                        ident
+                    /end VIRTUAL
+                /end MEASUREMENT
+                /begin MOD_COMMON "description"
+                    ALIGNMENT_BYTE 1
+                    ALIGNMENT_FLOAT16_IEEE 2
+                    ALIGNMENT_FLOAT32_IEEE 4
+                    ALIGNMENT_FLOAT64_IEEE 8
+                    ALIGNMENT_INT64 8
+                    ALIGNMENT_LONG 4
+                    ALIGNMENT_WORD 2
+                    BYTE_ORDER MSB_LAST
+                    DATA_SIZE 42
+                    DEPOSIT ABSOLUTE
+                    S_REC_LAYOUT name
+                /end MOD_COMMON
+                /begin MOD_PAR "Comment"
+                    ADDR_EPK 0x1234567
+                    /begin CALIBRATION_METHOD "InCircuit" 1
+                        /begin CALIBRATION_HANDLE 1 2 3 4 5
+                            CALIBRATION_HANDLE_TEXT "txt"
+                        /end CALIBRATION_HANDLE
+                    /end CALIBRATION_METHOD
+                    CPU_TYPE "leg"
+                    CUSTOMER "c"
+                    CUSTOMER_NO "1"
+                    ECU "e"
+                    ECU_CALIBRATION_OFFSET 1
+                    EPK "e"
+                    /begin MEMORY_LAYOUT PRG_DATA 0x1234 1 0 0 0 0 0
+                    /end MEMORY_LAYOUT
+                    /begin MEMORY_SEGMENT memory_segment "long_identifier" DATA RAM EXTERN 0 0 0 0 0 0 0
+                    /end MEMORY_SEGMENT
+                    NO_OF_INTERFACES 1
+                    PHONE_NO "1"
+                    SUPPLIER "s"
+                    SYSTEM_CONSTANT "c" "1"
+                    USER "u"
+                    VERSION "1"
+                /end MOD_PAR
+                /begin RECORD_LAYOUT record_layout_name
+                    AXIS_PTS_X 1 SWORD INDEX_INCR DIRECT
+                    AXIS_RESCALE_X 2 SWORD 1 INDEX_INCR DIRECT
+                    DIST_OP_X 3 SWORD
+                    FIX_NO_AXIS_PTS_X 1
+                    FNC_VALUES 4 SWORD ROW_DIR DIRECT
+                    RESERVED 5 WORD
+                    RIP_ADDR_X 6 SWORD
+                    SRC_ADDR_X 7 SWORD
+                    SHIFT_OP_X 8 SWORD
+                    IDENTIFICATION 9 SWORD
+                    NO_AXIS_PTS_X 10 SWORD
+                    NO_RESCALE_X 11 SWORD
+                    OFFSET_X 12 SWORD
+                    STATIC_RECORD_LAYOUT
+                    STATIC_ADDRESS_OFFSETS
+                /end RECORD_LAYOUT
+                /begin TRANSFORMER transformer_name "version string" "dll32" "dll64" 1 ON_CHANGE inverse_transformer
+                    /begin TRANSFORMER_IN_OBJECTS
+                    /end TRANSFORMER_IN_OBJECTS
+                    /begin TRANSFORMER_OUT_OBJECTS
+                    /end TRANSFORMER_OUT_OBJECTS
+                /end TRANSFORMER
+                /begin TYPEDEF_AXIS typedef_axis_name "long_identifier" input_quantity record_layout 0 conversion 1 0 100
+                    BYTE_ORDER MSB_LAST
+                    MONOTONY MON_DECREASE
+                    STEP_SIZE 3
+                /end TYPEDEF_AXIS
+                /begin TYPEDEF_BLOB typedef_blob_name "long_identifier" 1
+                    ADDRESS_TYPE DIRECT
+                /end TYPEDEF_BLOB
+                /begin TYPEDEF_CHARACTERISTIC typedef_characteristic_name "long_identifier" VALUE record_layout 0 conversion 0 100
+                    BIT_MASK 0x22
+                    DISCRETE
+                    ENCODING UTF8
+                /end TYPEDEF_CHARACTERISTIC
+                /begin TYPEDEF_MEASUREMENT typedef_measurement_name "long_identifier" UBYTE conversion 1 1 0 100
+                    ADDRESS_TYPE DIRECT
+                /end TYPEDEF_MEASUREMENT
+                /begin TYPEDEF_STRUCTURE typedef_structure_name "long_identifier" 1
+                    CONSISTENT_EXCHANGE
+                    /begin STRUCTURE_COMPONENT component_name component_type 1
+                        ADDRESS_TYPE DIRECT
+                        LAYOUT COLUMN_DIR
+                        MATRIX_DIM 1
+                        SYMBOL_TYPE_LINK "abc"
+                    /end STRUCTURE_COMPONENT
+                    SYMBOL_TYPE_LINK "abcdef"
+                /end TYPEDEF_STRUCTURE
+                /begin UNIT unit_name "long_identifier" "x" DERIVED
+                    REF_UNIT ref_unit
+                    SI_EXPONENTS 1 2 3 4 5 6 7
+                    UNIT_CONVERSION 1 1
+                /end UNIT
+                /begin USER_RIGHTS user
+                    READ_ONLY
+                    /begin REF_GROUP group
+                    /end REF_GROUP
+                /end USER_RIGHTS
+                /begin USER_RIGHTS user2
+                /end USER_RIGHTS
+                /begin VARIANT_CODING
+                    /begin VAR_CHARACTERISTIC name criterion_name
+                        /begin VAR_ADDRESS 0x1234
+                        /end VAR_ADDRESS
+                    /end VAR_CHARACTERISTIC 
+                    VAR_NAMING NUMERIC
+                    VAR_SEPARATOR "."
+                /end VARIANT_CODING
+            /end MODULE
+        /end PROJECT
+        "#;
+    #[test]
+    fn specification_test() {
+        let mut log_msgs = Vec::new();
+        let mut a2l_file = load_from_string(TEST_A2L_2, None, &mut log_msgs, false).unwrap();
+        let mut a2l_file2 = a2l_file.clone();
+        assert_eq!(a2l_file, a2l_file2);
+
+        let serialized = a2l_file2.write_to_string();
+        // unfortunately minor formatting differences (whitespace, floats) prevent comparison of the serialized text
+        let a2l_file3 = load_from_string(&serialized, None, &mut log_msgs, false).unwrap();
+        assert_eq!(a2l_file, a2l_file3);
+
+        // reset the location, serialize & reload again
+        a2l_file2.reset_location();
+        a2l_file2.project.reset_location();
+        a2l_file2.project.module[0].reset_location();
+        a2l_file2.project.module[0].characteristic[0].reset_location();
+        let serialized2 = a2l_file2.write_to_string();
+        let a2l_file4 = load_from_string(&serialized2, None, &mut log_msgs, false).unwrap();
+        // serialized text is not equal, because location info was reset with reset_location() and some elements were arranged differently
+        assert_ne!(serialized, serialized2);
+        // the files are still equal, because location info is not considered when comparing data
+        assert_eq!(a2l_file3, a2l_file4);
+
+        // create the same file using the API
+        let mut a2l_file5 = new();
+        a2l_file5.asap2_version = Some(Asap2Version::new(1, 71));
+        a2l_file5.a2ml_version = Some(A2mlVersion::new(1, 31));
+        a2l_file5.project.name = "prj".to_string();
+        let mut header = Header::new("abc".to_string());
+        header.project_no = Some(ProjectNo::new("ident_12345".to_string()));
+        header.version = Some(Version::new("version_string".to_string()));
+        a2l_file5.project.header = Some(header);
+        let module = &mut a2l_file5.project.module[0];
+        module.name = "mod".to_string();
+        module.long_identifier = "long_identifier".to_string();
+        module.a2ml = Some(A2ml::new(
+            r#"
+                    block "IF_DATA" struct {
+                        int;
+                    };"#
+            .to_string(),
+        ));
+        let mut axis_pts = AxisPts::new(
+            "axispts_name".to_string(),
+            "long_identifier".to_string(),
+            0x1234,
+            "input_qty".to_string(),
+            "deposit_record".to_string(),
+            0.0,
+            "conversion".to_string(),
+            3,
+            0.0,
+            10.0,
+        );
+        let mut annotation = Annotation::new();
+        annotation.annotation_label = Some(AnnotationLabel::new("label".to_string()));
+        annotation.annotation_origin = Some(AnnotationOrigin::new("origin".to_string()));
+        annotation.annotation_text = Some(AnnotationText::new());
+        axis_pts.annotation.push(annotation);
+        axis_pts.guard_rails = Some(GuardRails::new());
+        axis_pts.read_only = Some(ReadOnly::new());
+        module.axis_pts.push(axis_pts);
+        let blob = Blob::new(
+            "blob_name".to_string(),
+            "long_identifier".to_string(),
+            0x1234,
+            100,
+        );
+        module.blob.push(blob);
+        let mut characteristic = Characteristic::new(
+            "characteristic_name".to_string(),
+            "long_identifier".to_string(),
+            CharacteristicType::Value,
+            0x1234,
+            "deposit_ident".to_string(),
+            0.0,
+            "conversion".to_string(),
+            0.0,
+            10.0,
+        );
+        let mut axis_descr = AxisDescr::new(
+            AxisDescrAttribute::StdAxis,
+            "input_quantity".to_string(),
+            "conversion".to_string(),
+            1,
+            0.0,
+            100.0,
+        );
+        axis_descr.axis_pts_ref = Some(AxisPtsRef::new("axis_points".to_string()));
+        axis_descr.byte_order = Some(ByteOrder::new(ByteOrderEnum::MsbLast));
+        axis_descr.curve_axis_ref = Some(CurveAxisRef::new("curve_axis".to_string()));
+        axis_descr.deposit = Some(Deposit::new(DepositMode::Absolute));
+        axis_descr.extended_limits = Some(ExtendedLimits::new(-100.0, 200.0));
+        axis_descr.fix_axis_par = Some(FixAxisPar::new(0, 0, 0));
+        axis_descr.fix_axis_par_dist = Some(FixAxisParDist::new(0, 0, 0));
+        let mut fix_axis_par_list = FixAxisParList::new();
+        fix_axis_par_list.axis_pts_value_list.push(0.0);
+        axis_descr.fix_axis_par_list = Some(fix_axis_par_list);
+        axis_descr.format = Some(Format::new("%1.1".to_string()));
+        axis_descr.max_grad = Some(MaxGrad::new(1.0));
+        axis_descr.read_only = Some(ReadOnly::new());
+        axis_descr.step_size = Some(StepSize::new(1.0));
+        characteristic.axis_descr.push(axis_descr);
+        characteristic.comparison_quantity = Some(ComparisonQuantity::new("name".to_string()));
+        let mut dependent_characteristic = DependentCharacteristic::new("formula".to_string());
+        dependent_characteristic
+            .characteristic_list
+            .push("name".to_string());
+        characteristic.dependent_characteristic = Some(dependent_characteristic);
+        characteristic.map_list = Some(MapList::new());
+        characteristic.number = Some(Number::new(1));
+        module.characteristic.push(characteristic);
+        let mut compu_method = CompuMethod::new(
+            "compu_method_name".to_string(),
+            "".to_string(),
+            ConversionType::Identical,
+            "%4.2".to_string(),
+            "unit".to_string(),
+        );
+        compu_method.coeffs = Some(Coeffs::new(1.0, 2.0, 3.0, 4.0, 5.0, 6.0));
+        compu_method.coeffs_linear = Some(CoeffsLinear::new(1.0, 2.0));
+        compu_method.compu_tab_ref = Some(CompuTabRef::new("compu_tab".to_string()));
+        let mut formula = Formula::new("formula".to_string());
+        formula.formula_inv = Some(FormulaInv::new("inverse".to_string()));
+        compu_method.formula = Some(formula);
+        compu_method.ref_unit = Some(RefUnit::new("unit".to_string()));
+        compu_method.status_string_ref = Some(StatusStringRef::new("status_string".to_string()));
+        module.compu_method.push(compu_method);
+        let mut compu_tab = CompuTab::new(
+            "compu_tab_name".to_string(),
+            "long_identifier".to_string(),
+            ConversionType::Identical,
+            2,
+        );
+        compu_tab.tab_entry.push(TabEntryStruct::new(1.0, 22.0));
+        compu_tab.tab_entry.push(TabEntryStruct::new(2.0, 33.0));
+        compu_tab.default_value = Some(DefaultValue::new("abc".to_string()));
+        compu_tab.default_value_numeric = Some(DefaultValueNumeric::new(44.0));
+        module.compu_tab.push(compu_tab);
+        let mut compu_vtab = CompuVtab::new(
+            "compu_vtab_name".to_string(),
+            "long_identifier".to_string(),
+            ConversionType::Identical,
+            2,
+        );
+        compu_vtab
+            .value_pairs
+            .push(ValuePairsStruct::new(1.0, "abc".to_string()));
+        compu_vtab
+            .value_pairs
+            .push(ValuePairsStruct::new(2.0, "def".to_string()));
+        compu_vtab.default_value = Some(DefaultValue::new("abc".to_string()));
+        module.compu_vtab.push(compu_vtab);
+        let mut compu_vtab_range = CompuVtabRange::new(
+            "compu_vtab_range_name".to_string(),
+            "long_identifier".to_string(),
+            2,
+        );
+        compu_vtab_range
+            .value_triples
+            .push(ValueTriplesStruct::new(1.0, 2.0, "abc".to_string()));
+        compu_vtab_range.default_value = Some(DefaultValue::new("abc".to_string()));
+        module.compu_vtab_range.push(compu_vtab_range);
+        let mut frame = Frame::new(
+            "frame_name".to_string(),
+            "long_identifier".to_string(),
+            1,
+            2,
+        );
+        let mut frame_measurement = FrameMeasurement::new();
+        frame_measurement
+            .identifier_list
+            .push("measurement_name".to_string());
+        frame.frame_measurement = Some(frame_measurement);
+        module.frame.push(frame);
+        let mut function =
+            Function::new("function_name".to_string(), "long_identifier".to_string());
+        function.ar_component = Some(ArComponent::new("ar_component".to_string()));
+        function.function_version = Some(FunctionVersion::new("version-1.1.1".to_string()));
+        let mut def_characteristic = DefCharacteristic::new();
+        def_characteristic
+            .identifier_list
+            .push("characteristic_name".to_string());
+        function.def_characteristic = Some(def_characteristic);
+        let mut in_measurement = InMeasurement::new();
+        in_measurement
+            .identifier_list
+            .push("in_measurement_name".to_string());
+        function.in_measurement = Some(in_measurement);
+        let mut loc_measurement = LocMeasurement::new();
+        loc_measurement
+            .identifier_list
+            .push("loc_measurement_name".to_string());
+        function.loc_measurement = Some(loc_measurement);
+        let mut out_measurement = OutMeasurement::new();
+        out_measurement
+            .identifier_list
+            .push("out_measurement_name".to_string());
+        function.out_measurement = Some(out_measurement);
+        let mut ref_characteristic = RefCharacteristic::new();
+        ref_characteristic
+            .identifier_list
+            .push("ref_characteristic_name".to_string());
+        function.ref_characteristic = Some(ref_characteristic);
+        let mut sub_function = SubFunction::new();
+        sub_function
+            .identifier_list
+            .push("sub_function".to_string());
+        function.sub_function = Some(sub_function);
+        module.function.push(function);
+        let mut group = Group::new("group_name".to_string(), "long_identifier".to_string());
+        group.function_list = Some(FunctionList::new());
+        group.ref_characteristic = Some(RefCharacteristic::new());
+        group.ref_measurement = Some(RefMeasurement::new());
+        group.root = Some(Root::new());
+        group.sub_group = Some(SubGroup::new());
+        module.group.push(group);
+        let mut if_data = IfData::new();
+        if_data.ifdata_items = Some(GenericIfData::Block {
+            incfile: None,
+            line: 0,
+            items: vec![GenericIfData::Int(1, (1, false))],
+        });
+        if_data.ifdata_valid = true;
+        module.if_data.push(if_data);
+        let mut instance = Instance::new(
+            "instance_name".to_string(),
+            "long_identifier".to_string(),
+            "type_ref".to_string(),
+            0x1234,
+        );
+        instance.address_type = Some(AddressType::new(AddrType::Plonglong));
+        instance.calibration_access =
+            Some(CalibrationAccess::new(CalibrationAccessEnum::Calibration));
+        instance.display_identifier =
+            Some(DisplayIdentifier::new("display_identifier".to_string()));
+        instance.ecu_address_extension = Some(EcuAddressExtension::new(0x3000));
+        instance.layout = Some(Layout::new(IndexMode::RowDir));
+        let mut matrix_dim = MatrixDim::new();
+        matrix_dim.dim_list.push(3);
+        instance.matrix_dim = Some(matrix_dim);
+        instance.max_refresh = Some(MaxRefresh::new(1, 1));
+        instance.model_link = Some(ModelLink::new("model link".to_string()));
+        let mut overwrite = Overwrite::new("overwrite_name".to_string(), 0);
+        overwrite.conversion = Some(Conversion::new("conversion_name".to_string()));
+        overwrite.extended_limits = Some(ExtendedLimits::new(-100.0, 1000.0));
+        overwrite.format = Some(Format::new("%1.3".to_string()));
+        overwrite.input_quantity = Some(InputQuantity::new("input_quantity".to_string()));
+        overwrite.limits = Some(Limits::new(0.0, 100.0));
+        overwrite.monotony = Some(Monotony::new(MonotonyType::MonIncrease));
+        overwrite.phys_unit = Some(PhysUnit::new("unit".to_string()));
+        instance.overwrite.push(overwrite);
+        instance.read_only = Some(ReadOnly::new());
+        instance.symbol_link = Some(SymbolLink::new("symbol name".to_string(), 0x1234));
+        module.instance.push(instance);
+        let mut measurement = Measurement::new(
+            "measurement_name".to_string(),
+            "long_identifier".to_string(),
+            DataType::Float32Ieee,
+            "conversion".to_string(),
+            1,
+            1.0,
+            0.0,
+            100.0,
+        );
+        measurement.array_size = Some(ArraySize::new(1));
+        measurement.bit_mask = Some(BitMask::new(0xF0));
+        let mut bit_operation = BitOperation::new();
+        bit_operation.left_shift = Some(LeftShift::new(1));
+        bit_operation.right_shift = Some(RightShift::new(2));
+        bit_operation.sign_extend = Some(SignExtend::new());
+        measurement.bit_operation = Some(bit_operation);
+        measurement.byte_order = Some(ByteOrder::new(ByteOrderEnum::MsbLast));
+        measurement.discrete = Some(Discrete::new());
+        measurement.display_identifier =
+            Some(DisplayIdentifier::new("display_identifier".to_string()));
+        measurement.ecu_address = Some(EcuAddress::new(0x1234));
+        measurement.ecu_address_extension = Some(EcuAddressExtension::new(0x4444));
+        measurement.error_mask = Some(ErrorMask::new(0xab));
+        measurement.format = Some(Format::new("%1.2".to_string()));
+        measurement.layout = Some(Layout::new(IndexMode::ColumnDir));
+        let mut matrix_dim = MatrixDim::new();
+        matrix_dim.dim_list.append(&mut vec![1, 2, 3]);
+        measurement.matrix_dim = Some(matrix_dim);
+        measurement.max_refresh = Some(MaxRefresh::new(1, 1));
+        measurement.model_link = Some(ModelLink::new("model link".to_string()));
+        measurement.phys_unit = Some(PhysUnit::new("unit".to_string()));
+        measurement.read_write = Some(ReadWrite::new());
+        measurement.ref_memory_segment = Some(RefMemorySegment::new("memory_segment".to_string()));
+        measurement.symbol_link = Some(SymbolLink::new("symbol".to_string(), 0x1234));
+        let mut var_virtual = Virtual::new();
+        var_virtual.measuring_channel_list.push("ident".to_string());
+        measurement.var_virtual = Some(var_virtual);
+        module.measurement.push(measurement);
+        let mut mod_common = ModCommon::new("description".to_string());
+        mod_common.alignment_byte = Some(AlignmentByte::new(1));
+        mod_common.alignment_float16_ieee = Some(AlignmentFloat16Ieee::new(2));
+        mod_common.alignment_float32_ieee = Some(AlignmentFloat32Ieee::new(4));
+        mod_common.alignment_float64_ieee = Some(AlignmentFloat64Ieee::new(8));
+        mod_common.alignment_int64 = Some(AlignmentInt64::new(8));
+        mod_common.alignment_long = Some(AlignmentLong::new(4));
+        mod_common.alignment_word = Some(AlignmentWord::new(2));
+        mod_common.byte_order = Some(ByteOrder::new(ByteOrderEnum::MsbLast));
+        mod_common.data_size = Some(DataSize::new(42));
+        mod_common.deposit = Some(Deposit::new(DepositMode::Absolute));
+        mod_common.s_rec_layout = Some(SRecLayout::new("name".to_string()));
+        module.mod_common = Some(mod_common);
+        let mut mod_par = ModPar::new("Comment".to_string());
+        mod_par.addr_epk.push(AddrEpk::new(0x1234567));
+        let mut calibration_method = CalibrationMethod::new("InCircuit".to_string(), 1);
+        let mut calibration_handle = CalibrationHandle::new();
+        calibration_handle.handle_list = vec![1, 2, 3, 4, 5];
+        calibration_handle.calibration_handle_text =
+            Some(CalibrationHandleText::new("txt".to_string()));
+        calibration_method.calibration_handle = Some(calibration_handle);
+        mod_par.calibration_method.push(calibration_method);
+        mod_par.cpu_type = Some(CpuType::new("leg".to_string()));
+        mod_par.customer = Some(Customer::new("c".to_string()));
+        mod_par.customer_no = Some(CustomerNo::new("1".to_string()));
+        mod_par.ecu = Some(Ecu::new("e".to_string()));
+        mod_par.ecu_calibration_offset = Some(EcuCalibrationOffset::new(1));
+        mod_par.epk = Some(Epk::new("e".to_string()));
+        mod_par
+            .memory_layout
+            .push(MemoryLayout::new(ProgType::PrgData, 0x1234, 1, [0; 5]));
+        mod_par.memory_segment.push(MemorySegment::new(
+            "memory_segment".to_string(),
+            "long_identifier".to_string(),
+            PrgType::Data,
+            MemoryType::Ram,
+            MemoryAttribute::Extern,
+            0,
+            0,
+            [0; 5],
+        ));
+        mod_par.no_of_interfaces = Some(NoOfInterfaces::new(1));
+        mod_par.phone_no = Some(PhoneNo::new("1".to_string()));
+        mod_par.supplier = Some(Supplier::new("s".to_string()));
+        mod_par
+            .system_constant
+            .push(SystemConstant::new("c".to_string(), "1".to_string()));
+        mod_par.user = Some(User::new("u".to_string()));
+        mod_par.version = Some(Version::new("1".to_string()));
+        module.mod_par = Some(mod_par);
+        let mut record_layout = RecordLayout::new("record_layout_name".to_string());
+        record_layout.axis_pts_x = Some(AxisPtsDim::new(
+            1,
+            DataType::Sword,
+            IndexOrder::IndexIncr,
+            AddrType::Direct,
+        ));
+        record_layout.axis_rescale_x = Some(AxisRescaleDim::new(
+            2,
+            DataType::Sword,
+            1,
+            IndexOrder::IndexIncr,
+            AddrType::Direct,
+        ));
+        record_layout.dist_op_x = Some(DistOpDim::new(3, DataType::Sword));
+        record_layout.fix_no_axis_pts_x = Some(FixNoAxisPtsDim::new(1));
+        record_layout.fnc_values = Some(FncValues::new(
+            4,
+            DataType::Sword,
+            IndexMode::RowDir,
+            AddrType::Direct,
+        ));
+        record_layout.identification = Some(Identification::new(9, DataType::Sword));
+        record_layout.no_axis_pts_x = Some(NoAxisPtsDim::new(10, DataType::Sword));
+        record_layout.no_rescale_x = Some(NoRescaleDim::new(11, DataType::Sword));
+        record_layout.offset_x = Some(OffsetDim::new(12, DataType::Sword));
+        record_layout
+            .reserved
+            .push(Reserved::new(5, DataTypeSize::Word));
+        record_layout.rip_addr_x = Some(RipAddrDim::new(6, DataType::Sword));
+        record_layout.src_addr_x = Some(SrcAddrDim::new(7, DataType::Sword));
+        record_layout.shift_op_x = Some(ShiftOpDim::new(8, DataType::Sword));
+        record_layout.static_address_offsets = Some(StaticAddressOffsets::new());
+        record_layout.static_record_layout = Some(StaticRecordLayout::new());
+        module.record_layout.push(record_layout);
+        let mut transformer = Transformer::new(
+            "transformer_name".to_string(),
+            "version string".to_string(),
+            "dll32".to_string(),
+            "dll64".to_string(),
+            1,
+            TransformerTrigger::OnChange,
+            "inverse_transformer".to_string(),
+        );
+        transformer.transformer_in_objects = Some(TransformerInObjects::new());
+        transformer.transformer_out_objects = Some(TransformerOutObjects::new());
+        module.transformer.push(transformer);
+        let mut typedef_axis = TypedefAxis::new(
+            "typedef_axis_name".to_string(),
+            "long_identifier".to_string(),
+            "input_quantity".to_string(),
+            "record_layout".to_string(),
+            0.0,
+            "conversion".to_string(),
+            1,
+            0.0,
+            100.0,
+        );
+        typedef_axis.byte_order = Some(ByteOrder::new(ByteOrderEnum::MsbLast));
+        typedef_axis.monotony = Some(Monotony::new(MonotonyType::MonDecrease));
+        typedef_axis.step_size = Some(StepSize::new(3.0));
+        module.typedef_axis.push(typedef_axis);
+        let mut typedef_blob = TypedefBlob::new(
+            "typedef_blob_name".to_string(),
+            "long_identifier".to_string(),
+            1,
+        );
+        typedef_blob.address_type = Some(AddressType::new(AddrType::Direct));
+        module.typedef_blob.push(typedef_blob);
+        let mut typedef_characteristic = TypedefCharacteristic::new(
+            "typedef_characteristic_name".to_string(),
+            "long_identifier".to_string(),
+            CharacteristicType::Value,
+            "record_layout".to_string(),
+            0.0,
+            "conversion".to_string(),
+            0.0,
+            100.0,
+        );
+        typedef_characteristic.bit_mask = Some(BitMask::new(0x22));
+        typedef_characteristic.discrete = Some(Discrete::new());
+        typedef_characteristic.encoding = Some(Encoding::new(CharacterEncoding::Utf8));
+        module.typedef_characteristic.push(typedef_characteristic);
+        let mut typedef_measurement = TypedefMeasurement::new(
+            "typedef_measurement_name".to_string(),
+            "long_identifier".to_string(),
+            DataType::Ubyte,
+            "conversion".to_string(),
+            1,
+            1.0,
+            0.0,
+            100.0,
+        );
+        typedef_measurement.address_type = Some(AddressType::new(AddrType::Direct));
+        module.typedef_measurement.push(typedef_measurement);
+        let mut typedef_structure = TypedefStructure::new(
+            "typedef_structure_name".to_string(),
+            "long_identifier".to_string(),
+            1,
+        );
+        typedef_structure.consistent_exchange = Some(ConsistentExchange::new());
+        let mut structure_component = StructureComponent::new(
+            "component_name".to_string(),
+            "component_type".to_string(),
+            1,
+        );
+        structure_component.address_type = Some(AddressType::new(AddrType::Direct));
+        structure_component.layout = Some(Layout::new(IndexMode::ColumnDir));
+        let mut matrix_dim = MatrixDim::new();
+        matrix_dim.dim_list.push(1);
+        structure_component.matrix_dim = Some(matrix_dim);
+        structure_component.symbol_type_link = Some(SymbolTypeLink::new("abc".to_string()));
+        typedef_structure
+            .structure_component
+            .push(structure_component);
+        typedef_structure.symbol_type_link = Some(SymbolTypeLink::new("abcdef".to_string()));
+        module.typedef_structure.push(typedef_structure);
+        let mut unit = Unit::new(
+            "unit_name".to_string(),
+            "long_identifier".to_string(),
+            "x".to_string(),
+            UnitType::Derived,
+        );
+        unit.ref_unit = Some(RefUnit::new("ref_unit".to_string()));
+        unit.si_exponents = Some(SiExponents::new(1, 2, 3, 4, 5, 6, 7));
+        unit.unit_conversion = Some(UnitConversion::new(1.0, 1.0));
+        module.unit.push(unit);
+        let mut user_rights = UserRights::new("user".to_string());
+        user_rights.read_only = Some(ReadOnly::new());
+        let mut ref_group = RefGroup::new();
+        ref_group.identifier_list.push("group".to_string());
+        user_rights.ref_group.push(ref_group);
+        module.user_rights.push(user_rights);
+        module
+            .user_rights
+            .push(UserRights::new("user2".to_string()));
+
+        let mut variant_coding = VariantCoding::new();
+        let mut var_characteristic = VarCharacteristic::new("name".to_string());
+        var_characteristic
+            .criterion_name_list
+            .push("criterion_name".to_string());
+        let mut var_address = VarAddress::new();
+        var_address.address_list.push(0x1234);
+        var_characteristic.var_address = Some(var_address);
+        variant_coding.var_characteristic.push(var_characteristic);
+        variant_coding.var_naming = Some(VarNaming::new(VarNamingTag::Numeric));
+        variant_coding.var_separator = Some(VarSeparator::new(".".to_string()));
+        module.variant_coding = Some(variant_coding);
+        assert_eq!(a2l_file, a2l_file5);
+
+        // verify store + load round trip of newly created data
+        let serialized3 = a2l_file5.write_to_string();
+        let a2l_file6 = load_from_string(&serialized3, None, &mut log_msgs, false).unwrap();
+        assert_eq!(a2l_file, a2l_file6);
+
+        let mut a2l_file7 = a2l_file5.clone();
+
+        // a2l_file5 was not loaded from a file/string, so the elements have no layout info
+        assert_eq!(a2l_file5.project.get_layout().uid, 0);
+        assert_eq!(a2l_file5.project.module[0].get_layout().uid, 0);
+        assert_eq!(
+            a2l_file5.project.module[0].measurement[0].get_layout().uid,
+            0
+        );
+
+        // sorting does not affect equality
+        a2l_file.sort();
+        assert_eq!(a2l_file, a2l_file5);
+        a2l_file5.sort();
+        assert_eq!(a2l_file, a2l_file5);
+
+        // after sorting, the data contains uids to indicate the desired ordering
+        assert_ne!(a2l_file5.project.get_layout().uid, 0);
+        assert_ne!(a2l_file5.project.module[0].get_layout().uid, 0);
+        assert_ne!(
+            a2l_file5.project.module[0].measurement[0].get_layout().uid,
+            0
+        );
+
+        a2l_file.sort_new_items();
+        a2l_file7.sort_new_items();
+        assert_eq!(a2l_file, a2l_file7);
+    }
 }

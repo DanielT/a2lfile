@@ -51,7 +51,7 @@ fn generate_enum_parser(typename: &str, enumitems: &[EnumItem]) -> TokenStream {
         }
         if let Some(max_ver) = enitem.version_upper {
             version_check.append_all(quote! {
-                parser.check_enumitem_version_upper(context, #entag, #max_ver)?;
+                parser.check_enumitem_version_upper(context, #entag, #max_ver);
             });
         }
 
@@ -109,13 +109,7 @@ fn generate_block_parser_generic(
             parser.expect_token(context, A2lTokenType::End)?;
             let ident = parser.get_identifier(context)?;
             if ident != context.element {
-                parser.error_or_log(ParserError::IncorrectEndTag {
-                    filename: parser.filenames[context.fileid].to_owned(),
-                    error_line: parser.last_token_position,
-                    tag: ident.to_owned(),
-                    block: context.element.to_owned(),
-                    block_line: context.line,
-                })?;
+                parser.error_or_log(ParserError::incorrect_end_tag(parser, &context, &ident))?;
             }
         }
     } else {
@@ -447,7 +441,7 @@ fn generate_taggeditem_match_arms(
         }
         if let Some(max_ver) = item.version_upper {
             version_check.append_all(quote! {
-                parser.check_block_version_upper(context, #tag_string, #max_ver)?;
+                parser.check_block_version_upper(context, #tag_string, #max_ver);
             });
         }
 

@@ -454,7 +454,7 @@ impl<'a> ParserState<'a> {
         context: &ParseContext,
         tag: &str,
         max_ver: A2lVersion,
-    ) -> Result<(), ParserError> {
+    ) {
         if self.file_ver > max_ver {
             self.log_warning(ParserError::BlockRefDeprecated {
                 filename: self.filenames[context.fileid].clone(),
@@ -465,7 +465,6 @@ impl<'a> ParserState<'a> {
                 file_ver: self.file_ver,
             });
         }
-        Ok(())
     }
 
     pub(crate) fn check_enumitem_version_lower(
@@ -492,7 +491,7 @@ impl<'a> ParserState<'a> {
         context: &ParseContext,
         tag: &str,
         max_ver: A2lVersion,
-    ) -> Result<(), ParserError> {
+    ) {
         if self.file_ver > max_ver {
             self.log_warning(ParserError::EnumRefDeprecated {
                 filename: self.filenames[context.fileid].clone(),
@@ -503,7 +502,6 @@ impl<'a> ParserState<'a> {
                 file_ver: self.file_ver,
             });
         }
-        Ok(())
     }
 
     // expect_token get a token which has to be of a particular type (hence: expect)
@@ -1077,6 +1075,7 @@ fn unescape_string(text: &str) -> String {
 impl A2lVersion {
     pub fn new(major: u16, minor: u16) -> Result<Self, ParserError> {
         match (major, minor) {
+            (1, 50) => Ok(A2lVersion::V1_5_0),
             (1, 51) => Ok(A2lVersion::V1_5_1),
             (1, 60) => Ok(A2lVersion::V1_6_0),
             (1, 61) => Ok(A2lVersion::V1_6_1),
@@ -1103,6 +1102,7 @@ impl Display for A2lVersion {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::load_from_string;
 
     #[test]
     fn parsing_numbers_test() {
@@ -1174,6 +1174,9 @@ mod tests {
         // \" -> "
         let result = unescape_string(r#"\""#);
         assert_eq!(result, r#"""#);
+        // \' -> '
+        let result = unescape_string(r#"\'"#);
+        assert_eq!(result, r#"'"#);
         // \\ -> \
         let result = unescape_string(r#"\\"#);
         assert_eq!(result, r#"\"#);
@@ -1184,8 +1187,8 @@ mod tests {
         let result = unescape_string(r#"\r"#);
         assert_eq!(result, "\r");
         // \t -> (tab)
-        let result = unescape_string(r#"\t"#);
-        assert_eq!(result, "\t");
+        let result = unescape_string(r#"\txx"#);
+        assert_eq!(result, "\txx");
     }
 
     #[test]
@@ -1217,5 +1220,184 @@ mod tests {
         // not an identifier
         let res = parser.get_identifier(&context);
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_check_version() {
+        let tokenresult =
+            super::super::tokenizer::tokenize("test_input".to_owned(), 0, "").unwrap();
+        let mut log_msgs = Vec::<A2lError>::new();
+        let mut parser = ParserState::new(&tokenresult, &mut log_msgs, true);
+        let context = ParseContext {
+            element: "TEST".to_string(),
+            fileid: 0,
+            line: 0,
+            inside_block: true,
+        };
+        parser.file_ver = A2lVersion::V1_6_0;
+
+        // block version v1_5_0 <= file version V1_6_0
+        let result = parser.check_block_version_lower(&context, "CHECK", A2lVersion::V1_5_0);
+        assert!(result.is_ok());
+
+        // !block version v1_7_0 <= file version V1_6_0
+        let result = parser.check_block_version_lower(&context, "CHECK", A2lVersion::V1_7_0);
+        assert!(result.is_err());
+
+        // !block version v1_5_0 >= file version V1_6_0
+        let num_warnings = parser.log_msgs.len();
+        parser.check_block_version_upper(&context, "CHECK", A2lVersion::V1_5_0);
+        assert_ne!(num_warnings, parser.log_msgs.len());
+
+        // block version v1_7_0 >= file version V1_6_0
+        let num_warnings = parser.log_msgs.len();
+        parser.check_block_version_upper(&context, "CHECK", A2lVersion::V1_7_0);
+        assert_eq!(num_warnings, parser.log_msgs.len());
+
+        // enum item version V1_5_0 <= file version V1_6_0
+        let result: Result<(), ParserError> =
+            parser.check_enumitem_version_lower(&context, "CHECK", A2lVersion::V1_5_0);
+        assert!(result.is_ok());
+
+        // !enum item version V1_7_0 <= file version V1_6_0
+        let result = parser.check_enumitem_version_lower(&context, "CHECK", A2lVersion::V1_7_0);
+        assert!(result.is_err());
+
+        // !enum item version V1_5_0 >= file version V1_6_0
+        let num_warnings = parser.log_msgs.len();
+        parser.check_enumitem_version_upper(&context, "CHECK", A2lVersion::V1_5_0);
+        assert_ne!(num_warnings, parser.log_msgs.len());
+
+        // enum item version V1_7_0 >= file version V1_6_0
+        let num_warnings = parser.log_msgs.len();
+        parser.check_enumitem_version_upper(&context, "CHECK", A2lVersion::V1_7_0);
+        assert_eq!(num_warnings, parser.log_msgs.len());
+    }
+
+    #[test]
+    fn a2lversion() {
+        let v150 = A2lVersion::new(1, 50).unwrap();
+        let v151 = A2lVersion::new(1, 51).unwrap();
+        let v160 = A2lVersion::new(1, 60).unwrap();
+        let v161 = A2lVersion::new(1, 61).unwrap();
+        let v170 = A2lVersion::new(1, 70).unwrap();
+        let v171 = A2lVersion::new(1, 71).unwrap();
+
+        assert!(v150 < v151);
+        assert!(v151 < v160);
+        assert!(v160 < v161);
+        assert!(v161 < v170);
+        assert!(v170 < v171);
+
+        let bad_version = A2lVersion::new(1, 80);
+        assert!(bad_version.is_err());
+
+        let cpy = v171.clone();
+        assert_eq!(cpy, v171);
+
+        assert_eq!(format!("{v150}"), "1.5.0");
+        assert_eq!(format!("{v151}"), "1.5.1");
+        assert_eq!(format!("{v160}"), "1.6.0");
+        assert_eq!(format!("{v161}"), "1.6.1");
+        assert_eq!(format!("{v170}"), "1.7.0");
+        assert_eq!(format!("{v171}"), "1.7.1");
+    }
+
+    #[test]
+    fn error_missing_version() {
+        static DATA: &str = r#"/begin PROJECT p "" /end PROJECT"#;
+        let mut log_msgs = vec![];
+        let a2l_file = load_from_string(DATA, None, &mut log_msgs, true);
+        assert!(a2l_file.is_err());
+        assert!(matches!(
+            a2l_file,
+            Err(A2lError::ParserError {
+                parser_error: ParserError::MissingVersionInfo
+            })
+        ));
+    }
+
+    #[test]
+    fn error_invalid_mult_not_present() {
+        static DATA: &str = r#"ASAP2_VERSION 1 71"#;
+        let mut log_msgs = vec![];
+        let a2l_file = load_from_string(DATA, None, &mut log_msgs, true);
+        assert!(matches!(
+            a2l_file,
+            Err(A2lError::ParserError {
+                parser_error: ParserError::InvalidMultiplicityNotPresent { .. }
+            })
+        ));
+    }
+
+    #[test]
+    fn error_invalid_mult_too_many() {
+        static DATA: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m "" /end MODULE /end PROJECT /begin PROJECT p2 "" /begin MODULE m "" /end MODULE /end PROJECT"#;
+        let mut log_msgs = vec![];
+        let a2l_file = load_from_string(DATA, None, &mut log_msgs, true);
+        assert!(matches!(
+            a2l_file,
+            Err(A2lError::ParserError {
+                parser_error: ParserError::InvalidMultiplicityTooMany { .. }
+            })
+        ));
+    }
+
+    #[test]
+    fn error_unknown_subblock() {
+        static DATA: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m "" ABCDEF /end MODULE /end PROJECT"#;
+        let mut log_msgs = vec![];
+        let a2l_file = load_from_string(DATA, None, &mut log_msgs, true);
+        assert!(matches!(
+            a2l_file,
+            Err(A2lError::ParserError {
+                parser_error: ParserError::UnknownSubBlock { .. }
+            })
+        ));
+    }
+
+    #[test]
+    fn error_incorrect_end_tag() {
+        static DATA: &str =
+            r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m "" /end MMMMM /end PROJECT"#;
+        let mut log_msgs = vec![];
+        let a2l_file = load_from_string(DATA, None, &mut log_msgs, true);
+        assert!(matches!(
+            a2l_file,
+            Err(A2lError::ParserError {
+                parser_error: ParserError::IncorrectEndTag { .. }
+            })
+        ));
+    }
+
+    #[test]
+    fn error_unexpected_eof() {
+        static DATA: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT"#;
+        let mut log_msgs = vec![];
+        let a2l_file = load_from_string(DATA, None, &mut log_msgs, true);
+        assert!(matches!(
+            a2l_file,
+            Err(A2lError::ParserError {
+                parser_error: ParserError::UnexpectedEOF { .. }
+            })
+        ));
+    }
+
+    #[test]
+    fn error_invalid_identifier() {
+        let data = format!(
+            r#"ASAP2_VERSION 1 71 /begin PROJECT {} "" /begin MODULE m "" /end MODULE /end PROJECT"#,
+            ['a'; 1025].iter().collect::<String>()
+        );
+        let mut log_msgs = vec![];
+        let a2l_file = load_from_string(&data, None, &mut log_msgs, true);
+        println!("a2l_file: {:#?}", a2l_file);
+        assert!(a2l_file.is_err());
+        assert!(matches!(
+            a2l_file,
+            Err(A2lError::ParserError {
+                parser_error: ParserError::InvalidIdentifier { .. }
+            })
+        ));
     }
 }

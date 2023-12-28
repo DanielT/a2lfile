@@ -166,7 +166,7 @@ impl Writer {
     }
 }
 
-fn apply_position_restrictions(group: &mut Vec<TaggedItemInfo>) {
+fn apply_position_restrictions(group: &mut [TaggedItemInfo]) {
     let positions: Vec<usize> = group
         .iter()
         .enumerate()

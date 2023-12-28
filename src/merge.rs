@@ -920,3 +920,255 @@ fn make_unique_name<T>(
 
     newname
 }
+
+#[cfg(test)]
+mod test {
+    use crate::*;
+
+    #[test]
+    fn test_merge_a2ml() {
+        static FILE_A: &str = r#"/begin PROJECT p "" /begin MODULE m "" /end MODULE /end PROJECT"#;
+        static FILE_B: &str = r#"/begin PROJECT p "" /begin MODULE m "" /begin A2ML block "IF_DATA" struct { int; }; /end A2ML /end MODULE /end PROJECT"#;
+        static FILE_C: &str = r#"/begin PROJECT p "" /begin MODULE m "" /begin A2ML block "IF_DATA" struct { float; }; /end A2ML /end MODULE /end PROJECT"#;
+
+        let mut log_msgs = vec![];
+        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, false).unwrap();
+        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+
+        // merging B into A: A2ML is copied
+        a2l_file_a.merge_modules(&mut a2l_file_b);
+        assert!(a2l_file_a.project.module[0].a2ml.is_some());
+
+        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, false).unwrap();
+        let orig_txt = a2l_file_b.project.module[0]
+            .a2ml
+            .as_ref()
+            .unwrap()
+            .a2ml_text
+            .clone();
+        assert_ne!(
+            a2l_file_c.project.module[0]
+                .a2ml
+                .as_ref()
+                .unwrap()
+                .a2ml_text,
+            orig_txt
+        );
+        a2l_file_b.merge_modules(&mut a2l_file_c);
+        // merging C into B: A2ML is unchanged
+        assert_eq!(
+            a2l_file_b.project.module[0]
+                .a2ml
+                .as_ref()
+                .unwrap()
+                .a2ml_text,
+            orig_txt
+        );
+    }
+
+    #[test]
+    fn test_merge_mod_par() {
+        static FILE_A: &str = r#"/begin PROJECT p "" /begin MODULE m "" /end MODULE /end PROJECT"#;
+        static FILE_B: &str = r#"/begin PROJECT p ""
+            /begin MODULE m ""
+                /begin MOD_PAR ""
+                    /begin MEMORY_LAYOUT PRG_DATA 0x1000 1 0 0 0 0 0 /end MEMORY_LAYOUT
+                    /begin MEMORY_LAYOUT PRG_DATA 0x1234 1 0 0 0 0 0 /end MEMORY_LAYOUT
+                    /begin MEMORY_SEGMENT equal_seg "" DATA FLASH INTERN 0 0x1000 -1 -1 -1 -1 -1  /end MEMORY_SEGMENT
+                    /begin MEMORY_SEGMENT seg_b "" DATA FLASH INTERN 0 0x1234 -1 -1 -1 -1 -1  /end MEMORY_SEGMENT
+                    SYSTEM_CONSTANT "System_Constant_1" "1"
+                    SYSTEM_CONSTANT "System_Constant_2" "2"
+                /end MOD_PAR
+            /end MODULE
+        /end PROJECT"#;
+        static FILE_C: &str = r#"/begin PROJECT p ""
+            /begin MODULE m ""
+                /begin MOD_PAR ""
+                    /begin MEMORY_LAYOUT PRG_DATA 0x1000 1 0 0 0 0 0 /end MEMORY_LAYOUT
+                    /begin MEMORY_LAYOUT PRG_DATA 0xFFFFFF 1 0 0 0 0 0 /end MEMORY_LAYOUT
+                    /begin MEMORY_SEGMENT equal_seg "" DATA FLASH INTERN 0 0x1000 -1 -1 -1 -1 -1  /end MEMORY_SEGMENT
+                    /begin MEMORY_SEGMENT seg_b "" DATA FLASH INTERN 0 0x1235 -1 -1 -1 -1 -1  /end MEMORY_SEGMENT
+                    /begin MEMORY_SEGMENT seg_c "" DATA FLASH INTERN 0 0x1234 -1 -1 -1 -1 -1  /end MEMORY_SEGMENT
+                    SYSTEM_CONSTANT "System_Constant_1" "1"
+                    SYSTEM_CONSTANT "System_Constant_3" "333"
+                /end MOD_PAR
+                /begin AXIS_PTS axispts_name "long_identifier" 0x1234 input_qty deposit_record 0 conversion 3 0.0 10.0
+                    REF_MEMORY_SEGMENT seg_b
+                /end AXIS_PTS
+                /begin CHARACTERISTIC characteristic_name "long_identifier" VALUE 0x1234 deposit_ident 0 conversion 0.0 10.0
+                    REF_MEMORY_SEGMENT seg_b
+                /end CHARACTERISTIC
+                /begin MEASUREMENT measurement_name "long_identifier" FLOAT32_IEEE conversion 1 1.0 0 100
+                    REF_MEMORY_SEGMENT seg_b
+                /end MEASUREMENT
+            /end MODULE
+        /end PROJECT"#;
+
+        let mut log_msgs = vec![];
+
+        // merging B into A -> A has no MOD_PAR, so it is taken from B
+        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, false).unwrap();
+        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        assert!(a2l_file_a.project.module[0].mod_par.is_none());
+        a2l_file_a.merge_modules(&mut a2l_file_b);
+        assert!(a2l_file_a.project.module[0].mod_par.is_some());
+
+        // merging C into B
+        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, false).unwrap();
+        assert!(a2l_file_b.project.module[0].mod_par.is_some());
+        assert!(a2l_file_c.project.module[0].mod_par.is_some());
+        a2l_file_b.merge_modules(&mut a2l_file_c);
+        let mod_par_b = a2l_file_b.project.module[0].mod_par.as_ref().unwrap();
+        assert_eq!(mod_par_b.memory_layout.len(), 3);
+        assert_eq!(mod_par_b.memory_segment.len(), 4);
+        assert_eq!(mod_par_b.system_constant.len(), 3);
+        // the references to MEMORY_SGMENT seg_b should be renamed
+        assert_ne!(
+            a2l_file_b.project.module[0].axis_pts[0]
+                .ref_memory_segment
+                .as_ref()
+                .unwrap()
+                .name,
+            "seg_b"
+        );
+        assert_ne!(
+            a2l_file_b.project.module[0].characteristic[0]
+                .ref_memory_segment
+                .as_ref()
+                .unwrap()
+                .name,
+            "seg_b"
+        );
+        assert_ne!(
+            a2l_file_b.project.module[0].measurement[0]
+                .ref_memory_segment
+                .as_ref()
+                .unwrap()
+                .name,
+            "seg_b"
+        );
+    }
+
+    #[test]
+    fn test_merge_compu_tab() {
+        let mut log_msgs = vec![];
+        static FILE_A: &str = r#"/begin PROJECT p "" /begin MODULE m "" /end MODULE /end PROJECT"#;
+        static FILE_B: &str = r#"/begin PROJECT p ""
+            /begin MODULE m ""
+                /begin COMPU_TAB ct1 "" TAB_NOINTP 1
+                    1 1
+                /end COMPU_TAB
+                /begin COMPU_VTAB cvt1 "" TAB_VERB 1
+                    1 "v"
+                /end COMPU_VTAB
+                /begin COMPU_VTAB_RANGE cvtr1 TAB_VERB 1
+                    1 2 "v"
+                /end COMPU_VTAB_RANGE
+                /begin COMPU_TAB ct2 "" TAB_NOINTP 1
+                    1 1
+                /end COMPU_TAB
+                /begin COMPU_VTAB cvt2 "" TAB_VERB 1
+                    1 "v"
+                /end COMPU_VTAB
+                /begin COMPU_VTAB_RANGE cvtr2 TAB_VERB 1
+                    1 2 "v"
+                /end COMPU_VTAB_RANGE
+            /end MODULE
+        /end PROJECT"#;
+        static FILE_C: &str = r#"/begin PROJECT p ""
+            /begin MODULE m ""
+                /begin COMPU_TAB ct1 "" TAB_NOINTP 1
+                    1 1
+                /end COMPU_TAB
+                /begin COMPU_VTAB cvt1 "" TAB_VERB 1
+                    1 "v"
+                /end COMPU_VTAB
+                /begin COMPU_VTAB_RANGE cvtr1 TAB_VERB 1
+                    1 2 "v"
+                /end COMPU_VTAB_RANGE
+                /begin COMPU_TAB ct2 "" TAB_NOINTP 1
+                    2 2
+                /end COMPU_TAB
+                /begin COMPU_VTAB cvt2 "" TAB_VERB 1
+                    2 "v"
+                /end COMPU_VTAB
+                /begin COMPU_VTAB_RANGE cvtr2 TAB_VERB 1
+                    2 3 "v"
+                /end COMPU_VTAB_RANGE
+                /begin COMPU_METHOD m1 "" TAB_NOINTP "%6.3" ""
+                    COMPU_TAB_REF ct2
+                /end COMPU_METHOD
+                /begin COMPU_METHOD m2 "" TAB_VERB "%6.3" ""
+                    COMPU_TAB_REF cvt2
+                /end COMPU_METHOD
+                /begin COMPU_METHOD m3 "" TAB_VERB "%6.3" ""
+                    COMPU_TAB_REF cvtr2
+                /end COMPU_METHOD
+            /end MODULE
+        /end PROJECT"#;
+
+        // merging B into A -> A has no COMPU_TABs, so they are all taken from B
+        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, false).unwrap();
+        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        assert!(a2l_file_a.project.module[0].compu_tab.is_empty());
+        assert!(a2l_file_a.project.module[0].compu_vtab.is_empty());
+        assert!(a2l_file_a.project.module[0].compu_vtab_range.is_empty());
+        a2l_file_a.merge_modules(&mut a2l_file_b);
+        assert_eq!(a2l_file_a.project.module[0].compu_tab.len(), 2);
+        assert_eq!(a2l_file_a.project.module[0].compu_vtab.len(), 2);
+        assert_eq!(a2l_file_a.project.module[0].compu_vtab_range.len(), 2);
+
+        // merging C into B
+        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, false).unwrap();
+
+        a2l_file_b.merge_modules(&mut a2l_file_c);
+        assert_eq!(a2l_file_b.project.module[0].compu_tab.len(), 3);
+        assert_eq!(a2l_file_b.project.module[0].compu_vtab.len(), 3);
+        assert_eq!(a2l_file_b.project.module[0].compu_vtab_range.len(), 3);
+    }
+
+    #[test]
+    fn test_merge_unit() {
+        let mut log_msgs = vec![];
+        static FILE_A: &str = r#"/begin PROJECT p "" /begin MODULE m "" /end MODULE /end PROJECT"#;
+        static FILE_B: &str = r#"/begin PROJECT p ""
+            /begin MODULE m ""
+                /begin UNIT unit_name "" "x" DERIVED
+                /end UNIT
+                /begin UNIT unit_name2 "" "x" DERIVED
+                /end UNIT
+            /end MODULE
+        /end PROJECT"#;
+        static FILE_C: &str = r#"/begin PROJECT p ""
+            /begin MODULE m ""
+                /begin UNIT unit_name "" "x" DERIVED
+                /end UNIT
+                /begin UNIT unit_name2 "" "xyz" DERIVED
+                /end UNIT
+                /begin COMPU_METHOD m1 "" TAB_NOINTP "%6.3" ""
+                    REF_UNIT unit_name2
+                /end COMPU_METHOD
+            /end MODULE
+        /end PROJECT"#;
+
+        // merging B into A -> A has no UNIT, so it is taken from B
+        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, false).unwrap();
+        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        assert!(a2l_file_a.project.module[0].unit.is_empty());
+        a2l_file_a.merge_modules(&mut a2l_file_b);
+        assert_eq!(a2l_file_a.project.module[0].unit.len(), 2);
+
+        // merging C into B
+        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, false).unwrap();
+        assert_eq!(a2l_file_b.project.module[0].unit.len(), 2);
+        println!("units: {:?}", a2l_file_b.project.module[0].unit);
+        a2l_file_b.merge_modules(&mut a2l_file_c);
+        assert_eq!(a2l_file_b.project.module[0].unit.len(), 3);
+        println!("units: {:?}", a2l_file_b.project.module[0].unit);
+        println!("cm: {:?}", a2l_file_b.project.module[0].compu_method);
+    }
+}

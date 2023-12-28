@@ -820,7 +820,9 @@ impl GenericIfData {
                 line,
                 items,
             } => Ok((incfile.clone(), *line, items)),
-            _ => Err("structural mismatch: get_block_items called on something that is not a Block"),
+            _ => {
+                Err("structural mismatch: get_block_items called on something that is not a Block")
+            }
         }
     }
 
@@ -829,9 +831,9 @@ impl GenericIfData {
     ) -> Result<(Option<String>, u32, &Vec<GenericIfData>), &'static str> {
         match self {
             GenericIfData::Struct(file, line, blockitems) => Ok((file.clone(), *line, blockitems)),
-            _ => {
-                Err("structural mismatch: get_struct_items called on something that is not a Struct")
-            }
+            _ => Err(
+                "structural mismatch: get_struct_items called on something that is not a Struct",
+            ),
         }
     }
 
@@ -845,9 +847,9 @@ impl GenericIfData {
             | GenericIfData::Int(_, (_, is_hex))
             | GenericIfData::Long(_, (_, is_hex))
             | GenericIfData::Int64(_, (_, is_hex)) => Ok(*is_hex),
-            _ => {
-                Err("structural mismatch: get_int_is_hex called on something that is not an integer")
-            }
+            _ => Err(
+                "structural mismatch: get_int_is_hex called on something that is not an integer",
+            ),
         }
     }
 
