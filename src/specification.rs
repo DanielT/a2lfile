@@ -484,7 +484,7 @@ a2l_specification! {
         string format
         string unit
         [-> COEFFS]
-        [-> COEFFS_LINEAR]
+        [-> COEFFS_LINEAR]        (1.60 ..)
         [-> COMPU_TAB_REF]
         [-> FORMULA]
         [-> REF_UNIT]

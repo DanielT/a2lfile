@@ -74,26 +74,31 @@ fn remove_invalid_compumethod_refs(module: &mut Module) {
 
 fn remove_unused_compumethods(module: &mut Module) {
     let mut used_compumethods = HashSet::<String>::new();
-    for axis_pts in &mut module.axis_pts {
+    for axis_pts in &module.axis_pts {
         used_compumethods.insert(axis_pts.conversion.clone());
     }
-    for characteristic in &mut module.characteristic {
-        for axis_descr in &mut characteristic.axis_descr {
+    for characteristic in &module.characteristic {
+        for axis_descr in &characteristic.axis_descr {
             used_compumethods.insert(axis_descr.conversion.clone());
         }
         used_compumethods.insert(characteristic.conversion.clone());
     }
-    for measurement in &mut module.measurement {
+    for measurement in &module.measurement {
         used_compumethods.insert(measurement.conversion.clone());
     }
-    for typedef_axis in &mut module.typedef_axis {
+    for typedef_axis in &module.typedef_axis {
         used_compumethods.insert(typedef_axis.conversion.clone());
     }
-    for typedef_characteristic in &mut module.typedef_characteristic {
+    for typedef_characteristic in &module.typedef_characteristic {
         used_compumethods.insert(typedef_characteristic.conversion.clone());
     }
-    for typedef_measurement in &mut module.typedef_measurement {
+    for typedef_measurement in &module.typedef_measurement {
         used_compumethods.insert(typedef_measurement.conversion.clone());
+    }
+    for compu_method in &module.compu_method {
+        if let Some(ssr) = compu_method.status_string_ref.as_ref() {
+            used_compumethods.insert(ssr.conversion_table.clone());
+        }
     }
 
     module
