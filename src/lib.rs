@@ -111,7 +111,7 @@ Load an a2l file
 `a2ml_spec` is optional and contains a String that is valid A2ML that can be used while parsing the file in addition to the A2ML that might be contained inside the A2ML block in the file.
 If a definition is provided here and there is also an A2ML block in the file, then the definition provided here will be tried first during parsing.
 
-`log_msgs` is a reference to a `Vec<String>` which will receive all warning messages generated during parsing
+`log_msgs` is a reference to a `Vec<A2LError>` which will receive all warnings generated during parsing
 
 `strict_parsing` toggles strict parsing: If strict parsing is enabled, most warnings become errors.
 
@@ -148,7 +148,7 @@ load a2l data stored in a string
 `a2ml_spec` is optional and contains a String that is valid A2ML that can be used while parsing the file in addition to the A2ML that might be contained inside the A2ML block in the file.
 If a definition is provided here and there is also an A2ML block in the file, then the definition provided here will be tried first during parsing.
 
-`log_msgs` is a reference to a `Vec<String>` which will receive all warning messages generated during parsing
+`log_msgs` is a reference to a `Vec<A2LError>` which will receive all warnings generated during parsing
 
 `strict_parsing` toggles strict parsing: If strict parsing is enabled, most warnings become errors.
 

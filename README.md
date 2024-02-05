@@ -40,7 +40,7 @@ use a2lfile::*;
 
 fn main() {
     let input_filename = &std::ffi::OsString::from("example.a2l");
-    let mut logmsgs = Vec::<String>::new();
+    let mut logmsgs = Vec::<A2LError>::new();
     let mut a2l_file = a2lfile::load(
         input_filename,
         None,
