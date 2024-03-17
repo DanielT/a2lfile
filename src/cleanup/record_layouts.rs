@@ -14,6 +14,9 @@ pub(crate) fn cleanup(module: &mut Module) {
     for typedef_characteristic in &module.typedef_characteristic {
         used_record_layouts.insert(typedef_characteristic.record_layout.clone());
     }
+    for typedef_axis in &module.typedef_axis {
+        used_record_layouts.insert(typedef_axis.record_layout.clone());
+    }
     // deprecated since 1.60: MOD_COMMON / S_REC_LAOUT can specify the standard RECORD_LAYOUT
     if let Some(mod_common) = &module.mod_common {
         if let Some(s_rec_layout) = &mod_common.s_rec_layout {
