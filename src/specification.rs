@@ -1247,7 +1247,7 @@ a2l_specification! {
     block STRUCTURE_COMPONENT {
         ident component_name
         ident component_type
-        ulong size
+        ulong address_offset
         [-> ADDRESS_TYPE]  (1.71 ..)
         [-> LAYOUT]
         [-> MATRIX_DIM]
