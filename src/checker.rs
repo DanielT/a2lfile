@@ -11,8 +11,16 @@ pub fn check(a2l_file: &A2lFile, log_msgs: &mut Vec<String>) {
             check_axis_pts(axis_pts, &name_map, log_msgs);
         }
 
+        for t_axis in &module.typedef_axis {
+            check_typedef_axis(t_axis, &name_map, log_msgs);
+        }
+
         for characteristic in &module.characteristic {
             check_characteristic(characteristic, &name_map, log_msgs);
+        }
+
+        for t_characteristic in &module.typedef_characteristic {
+            check_typedef_characteristic(t_characteristic, &name_map, log_msgs);
         }
 
         for compu_method in &module.compu_method {
@@ -32,8 +40,20 @@ pub fn check(a2l_file: &A2lFile, log_msgs: &mut Vec<String>) {
             check_measurement(measurement, &name_map, log_msgs);
         }
 
+        for t_measurement in &module.typedef_measurement {
+            check_typedef_measurement(t_measurement, &name_map, log_msgs);
+        }
+
         for transformer in &module.transformer {
             check_transformer(transformer, &name_map, log_msgs);
+        }
+
+        for instance in &module.instance {
+            check_instance(instance, &name_map, log_msgs);
+        }
+
+        for typedef_structure in &module.typedef_structure {
+            check_typedef_structure(typedef_structure, &name_map, log_msgs);
         }
     }
 }
@@ -75,6 +95,36 @@ fn check_axis_descr(
                 car_line, curve_axis_ref.curve_axis
             ));
         }
+    }
+}
+
+fn check_typedef_axis(t_axis: &TypedefAxis, name_map: &ModuleNameMap, log_msgs: &mut Vec<String>) {
+    let name = t_axis.get_name();
+    let line = t_axis.get_line();
+
+    if t_axis.input_quantity != "NO_INPUT_QUANTITY"
+        && name_map.object.get(&t_axis.input_quantity).is_none()
+    {
+        log_msgs.push(format!(
+            "In TYPEDEF_AXIS {} on line {}: Referenced input MEASUREMENT {} does not exist.",
+            name, line, t_axis.input_quantity
+        ));
+    }
+
+    if name_map.compu_method.get(&t_axis.record_layout).is_none() {
+        log_msgs.push(format!(
+            "In TYPEDEF_AXIS {} on line {}: Referenced RECORD_LAYOUT {} does not exist.",
+            name, line, t_axis.record_layout
+        ));
+    }
+
+    if t_axis.conversion != "NO_COMPU_METHOD"
+        && name_map.compu_method.get(&t_axis.conversion).is_none()
+    {
+        log_msgs.push(format!(
+            "In TYPEDEF_AXIS {} on line {}: Referenced COMPU_METHOD {} does not exist.",
+            name, line, t_axis.conversion
+        ));
     }
 }
 
@@ -178,6 +228,42 @@ fn check_characteristic(
 
     check_function_list(&characteristic.function_list, name_map, log_msgs);
     check_ref_memory_segment(&characteristic.ref_memory_segment, name_map, log_msgs);
+}
+
+fn check_typedef_characteristic(
+    t_characteristic: &TypedefCharacteristic,
+    name_map: &ModuleNameMap,
+    log_msgs: &mut Vec<String>,
+) {
+    let name = &t_characteristic.name;
+    let line = t_characteristic.get_line();
+
+    if t_characteristic.conversion != "NO_COMPU_METHOD"
+        && name_map
+            .compu_method
+            .get(&t_characteristic.conversion)
+            .is_none()
+    {
+        log_msgs.push(format!(
+            "In TYPEDEF_CHARACTERISTIC {} on line {}: Referenced COMPU_METHOD {} does not exist.",
+            name, line, t_characteristic.conversion
+        ));
+    }
+
+    if name_map
+        .record_layout
+        .get(&t_characteristic.record_layout)
+        .is_none()
+    {
+        log_msgs.push(format!(
+            "In TYPEDEF_CHARACTERISTIC {} on line {}: Referenced RECORD_LAYOUT {} does not exist.",
+            name, line, t_characteristic.record_layout
+        ));
+    }
+
+    for axis_descr in &t_characteristic.axis_descr {
+        check_axis_descr(name, axis_descr, name_map, log_msgs);
+    }
 }
 
 fn check_compu_method(
@@ -360,6 +446,27 @@ fn check_measurement(
     check_ref_memory_segment(&measurement.ref_memory_segment, name_map, log_msgs);
 }
 
+fn check_typedef_measurement(
+    t_measurement: &TypedefMeasurement,
+    name_map: &ModuleNameMap,
+    log_msgs: &mut Vec<String>,
+) {
+    let name = &t_measurement.name;
+    let line = t_measurement.get_line();
+
+    if t_measurement.conversion != "NO_COMPU_METHOD"
+        && name_map
+            .compu_method
+            .get(&t_measurement.conversion)
+            .is_none()
+    {
+        log_msgs.push(format!(
+            "In TYPEDEF_MEASUREMENT {} on line {}: Referenced COMPU_METHOD {} does not exist.",
+            name, line, t_measurement.conversion
+        ));
+    }
+}
+
 fn check_transformer(
     transformer: &Transformer,
     name_map: &ModuleNameMap,
@@ -491,6 +598,36 @@ fn check_group_structure(grouplist: &[Group], log_msgs: &mut Vec<String>) {
             } else if !gi.is_root && gi.parents.is_empty() {
                 log_msgs.push(format!("GROUP {} does not have the ROOT attribute, and is not referenced as a sub-group by any other group", group.name));
             }
+        }
+    }
+}
+
+fn check_instance(instance: &Instance, name_map: &ModuleNameMap, log_msgs: &mut Vec<String>) {
+    let name = &instance.name;
+    let line = instance.get_line();
+
+    if name_map.typedef.get(&instance.type_ref).is_none() {
+        log_msgs.push(format!(
+            "In INSTANCE {} on line {}: Referenced TYPEDEF_<x> {} does not exist.",
+            name, line, instance.type_ref
+        ));
+    }
+}
+
+fn check_typedef_structure(
+    typedef_structure: &TypedefStructure,
+    name_map: &ModuleNameMap,
+    log_msgs: &mut Vec<String>,
+) {
+    let name = &typedef_structure.name;
+    let line = typedef_structure.get_line();
+
+    for sc in &typedef_structure.structure_component {
+        if name_map.typedef.get(&sc.component_type).is_none() {
+            log_msgs.push(format!(
+                "In STRUCTURE_COMPONENT {} of INSTANCE {} on line {}: Referenced TYPEDEF_<x> {} does not exist.",
+                sc.component_name, name, line, sc.component_type
+            ));
         }
     }
 }
