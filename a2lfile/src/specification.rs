@@ -32720,3 +32720,456 @@ impl PositionRestricted for VariantCoding {}
 impl PositionRestricted for Version {}
 impl PositionRestricted for Virtual {}
 impl PositionRestricted for VirtualCharacteristic {}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn trait_test_helper<L, T: std::fmt::Debug + A2lObject<L> + PositionRestricted>(item: &mut T) {
+        item.get_layout_mut().uid = 1;
+        assert_eq!(item.get_layout().uid, 1);
+
+        item.reset_location();
+        assert_eq!(item.get_layout().uid, 0);
+
+        assert_eq!(item.get_line(), 0);
+
+        item.merge_includes();
+
+        let _res = item.pos_restrict();
+
+        let dbg_disp = format!("{item:#?}");
+        assert!(!dbg_disp.is_empty());
+    }
+
+    #[test]
+    fn traits_test() {
+        let mut item = A2lFile::new(Project::new("".to_string(), "".to_string()));
+        trait_test_helper(&mut item);
+        let mut item = A2ml::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = A2mlVersion::new(0, 0);
+        trait_test_helper(&mut item);
+        let mut item = AddrEpk::new(0);
+        trait_test_helper(&mut item);
+        let mut item = AddressType::new(AddrType::Direct);
+        trait_test_helper(&mut item);
+        let mut item = AlignmentByte::new(0);
+        trait_test_helper(&mut item);
+        let mut item = AlignmentFloat16Ieee::new(0);
+        trait_test_helper(&mut item);
+        let mut item = AlignmentFloat32Ieee::new(0);
+        trait_test_helper(&mut item);
+        let mut item = AlignmentFloat64Ieee::new(0);
+        trait_test_helper(&mut item);
+        let mut item = AlignmentInt64::new(0);
+        trait_test_helper(&mut item);
+        let mut item = AlignmentLong::new(0);
+        trait_test_helper(&mut item);
+        let mut item = AlignmentWord::new(0);
+        trait_test_helper(&mut item);
+        let mut item = Annotation::new();
+        trait_test_helper(&mut item);
+        let mut item = AnnotationLabel::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = AnnotationOrigin::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = AnnotationText::new();
+        trait_test_helper(&mut item);
+        let mut item = ArComponent::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = ArPrototypeOf::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = ArraySize::new(0);
+        trait_test_helper(&mut item);
+        let mut item = Asap2Version::new(0, 0);
+        trait_test_helper(&mut item);
+        let mut item = AxisDescr::new(
+            AxisDescrAttribute::StdAxis,
+            "".to_string(),
+            "".to_string(),
+            0,
+            0.0,
+            0.0,
+        );
+        trait_test_helper(&mut item);
+        let mut item = AxisPts::new(
+            "".to_string(),
+            "".to_string(),
+            0,
+            "".to_string(),
+            "".to_string(),
+            0.0,
+            "".to_string(),
+            0,
+            0.0,
+            0.0,
+        );
+        trait_test_helper(&mut item);
+        let mut item = AxisPtsDim::new(0, DataType::Ubyte, IndexOrder::IndexIncr, AddrType::Direct);
+        trait_test_helper(&mut item);
+        let mut item = AxisPtsRef::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = AxisRescaleDim::new(
+            0,
+            DataType::Float16Ieee,
+            0,
+            IndexOrder::IndexIncr,
+            AddrType::Direct,
+        );
+        trait_test_helper(&mut item);
+        let mut item = BitMask::new(0);
+        trait_test_helper(&mut item);
+        let mut item = BitOperation::new();
+        trait_test_helper(&mut item);
+        let mut item = Blob::new("".to_string(), "".to_string(), 0, 0);
+        trait_test_helper(&mut item);
+        let mut item = ByteOrder::new(ByteOrderEnum::MsbFirst);
+        trait_test_helper(&mut item);
+        let mut item = CalibrationAccess::new(CalibrationAccessEnum::Calibration);
+        trait_test_helper(&mut item);
+        let mut item = CalibrationHandle::new();
+        trait_test_helper(&mut item);
+        let mut item = CalibrationHandleText::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = CalibrationMethod::new("".to_string(), 0);
+        trait_test_helper(&mut item);
+        let mut item = Characteristic::new(
+            "".to_string(),
+            "".to_string(),
+            CharacteristicType::Value,
+            0,
+            "".to_string(),
+            0.0,
+            "".to_string(),
+            0.0,
+            0.0,
+        );
+        trait_test_helper(&mut item);
+        let mut item = Coeffs::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        trait_test_helper(&mut item);
+        let mut item = CoeffsLinear::new(0.0, 0.0);
+        trait_test_helper(&mut item);
+        let mut item = ComparisonQuantity::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = CompuMethod::new(
+            "".to_string(),
+            "".to_string(),
+            ConversionType::Identical,
+            "".to_string(),
+            "".to_string(),
+        );
+        trait_test_helper(&mut item);
+        let mut item = CompuTab::new("".to_string(), "".to_string(), ConversionType::Identical, 0);
+        trait_test_helper(&mut item);
+        let mut item = CompuTabRef::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = CompuVtab::new("".to_string(), "".to_string(), ConversionType::Identical, 0);
+        trait_test_helper(&mut item);
+        let mut item = CompuVtabRange::new("".to_string(), "".to_string(), 0);
+        trait_test_helper(&mut item);
+        let mut item = ConsistentExchange::new();
+        trait_test_helper(&mut item);
+        let mut item = Conversion::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = CpuType::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = CurveAxisRef::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = Customer::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = CustomerNo::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = DataSize::new(0);
+        trait_test_helper(&mut item);
+        let mut item = DefCharacteristic::new();
+        trait_test_helper(&mut item);
+        let mut item = DefaultValue::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = DefaultValueNumeric::new(0.0);
+        trait_test_helper(&mut item);
+        let mut item = DependentCharacteristic::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = Deposit::new(DepositMode::Absolute);
+        trait_test_helper(&mut item);
+        let mut item = Discrete::new();
+        trait_test_helper(&mut item);
+        let mut item = DisplayIdentifier::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = Ecu::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = EcuAddress::new(0);
+        trait_test_helper(&mut item);
+        let mut item = EcuAddressExtension::new(0);
+        trait_test_helper(&mut item);
+        let mut item = EcuCalibrationOffset::new(0);
+        trait_test_helper(&mut item);
+        let mut item = Encoding::new(CharacterEncoding::Utf8);
+        trait_test_helper(&mut item);
+        let mut item = Epk::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = ErrorMask::new(0);
+        trait_test_helper(&mut item);
+        let mut item = ExtendedLimits::new(0.0, 0.0);
+        trait_test_helper(&mut item);
+        let mut item = FixAxisPar::new(0, 0, 0);
+        trait_test_helper(&mut item);
+        let mut item = FixAxisParDist::new(0, 0, 0);
+        trait_test_helper(&mut item);
+        let mut item = FixAxisParList::new();
+        trait_test_helper(&mut item);
+        let mut item = FixNoAxisPtsDim::new(0);
+        trait_test_helper(&mut item);
+        let mut item = FncValues::new(0, DataType::AUint64, IndexMode::RowDir, AddrType::Direct);
+        trait_test_helper(&mut item);
+        let mut item = Format::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = Formula::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = FormulaInv::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = Frame::new("".to_string(), "".to_string(), 0, 0);
+        trait_test_helper(&mut item);
+        let mut item = FrameMeasurement::new();
+        trait_test_helper(&mut item);
+        let mut item = Function::new("".to_string(), "".to_string());
+        trait_test_helper(&mut item);
+        let mut item = FunctionList::new();
+        trait_test_helper(&mut item);
+        let mut item = FunctionVersion::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = Group::new("".to_string(), "".to_string());
+        trait_test_helper(&mut item);
+        let mut item = GuardRails::new();
+        trait_test_helper(&mut item);
+        let mut item = Header::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = Identification::new(0, DataType::Sbyte);
+        trait_test_helper(&mut item);
+        let mut item = IfData::new();
+        trait_test_helper(&mut item);
+        let mut item = InMeasurement::new();
+        trait_test_helper(&mut item);
+        let mut item = InputQuantity::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = Instance::new("".to_string(), "".to_string(), "".to_string(), 0);
+        trait_test_helper(&mut item);
+        let mut item = Layout::new(IndexMode::RowDir);
+        trait_test_helper(&mut item);
+        let mut item = LeftShift::new(0);
+        trait_test_helper(&mut item);
+        let mut item = Limits::new(0.0, 0.0);
+        trait_test_helper(&mut item);
+        let mut item = LocMeasurement::new();
+        trait_test_helper(&mut item);
+        let mut item = MapList::new();
+        trait_test_helper(&mut item);
+        let mut item = MatrixDim::new();
+        trait_test_helper(&mut item);
+        let mut item = MaxGrad::new(0.0);
+        trait_test_helper(&mut item);
+        let mut item = MaxRefresh::new(0, 0);
+        trait_test_helper(&mut item);
+        let mut item = Measurement::new(
+            "".to_string(),
+            "".to_string(),
+            DataType::Sword,
+            "".to_string(),
+            0,
+            0.0,
+            0.0,
+            0.0,
+        );
+        trait_test_helper(&mut item);
+        let mut item = MemoryLayout::new(ProgType::PrgReserved, 0, 0, [0, 0, 0, 0, 0]);
+        trait_test_helper(&mut item);
+        let mut item = MemorySegment::new(
+            "".to_string(),
+            "".to_string(),
+            PrgType::Code,
+            MemoryType::Flash,
+            MemoryAttribute::Extern,
+            0,
+            0,
+            [0, 0, 0, 0, 0],
+        );
+        trait_test_helper(&mut item);
+        let mut item = ModCommon::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = ModPar::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = ModelLink::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = Module::new("".to_string(), "".to_string());
+        trait_test_helper(&mut item);
+        let mut item = Monotony::new(MonotonyType::MonIncrease);
+        trait_test_helper(&mut item);
+        let mut item = NoAxisPtsDim::new(0, DataType::Ubyte);
+        trait_test_helper(&mut item);
+        let mut item = NoOfInterfaces::new(0);
+        trait_test_helper(&mut item);
+        let mut item = NoRescaleDim::new(0, DataType::Float32Ieee);
+        trait_test_helper(&mut item);
+        let mut item = Number::new(0);
+        trait_test_helper(&mut item);
+        let mut item = OffsetDim::new(0, DataType::Ulong);
+        trait_test_helper(&mut item);
+        let mut item = OutMeasurement::new();
+        trait_test_helper(&mut item);
+        let mut item = Overwrite::new("".to_string(), 0);
+        trait_test_helper(&mut item);
+        let mut item = PhoneNo::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = PhysUnit::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = Project::new("".to_string(), "".to_string());
+        trait_test_helper(&mut item);
+        let mut item = ProjectNo::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = ReadOnly::new();
+        trait_test_helper(&mut item);
+        let mut item = ReadWrite::new();
+        trait_test_helper(&mut item);
+        let mut item = RecordLayout::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = RefCharacteristic::new();
+        trait_test_helper(&mut item);
+        let mut item = RefGroup::new();
+        trait_test_helper(&mut item);
+        let mut item = RefMeasurement::new();
+        trait_test_helper(&mut item);
+        let mut item = RefMemorySegment::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = RefUnit::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = Reserved::new(0, DataTypeSize::Long);
+        trait_test_helper(&mut item);
+        let mut item = RightShift::new(0);
+        trait_test_helper(&mut item);
+        let mut item = RipAddrDim::new(0, DataType::Ubyte);
+        trait_test_helper(&mut item);
+        let mut item = Root::new();
+        trait_test_helper(&mut item);
+        let mut item = SRecLayout::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = ShiftOpDim::new(0, DataType::Slong);
+        trait_test_helper(&mut item);
+        let mut item = SiExponents::new(0, 0, 0, 0, 0, 0, 0);
+        trait_test_helper(&mut item);
+        let mut item = SignExtend::new();
+        trait_test_helper(&mut item);
+        let mut item = SrcAddrDim::new(0, DataType::Sbyte);
+        trait_test_helper(&mut item);
+        let mut item = StaticAddressOffsets::new();
+        trait_test_helper(&mut item);
+        let mut item = StaticRecordLayout::new();
+        trait_test_helper(&mut item);
+        let mut item = StatusStringRef::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = StepSize::new(0.0);
+        trait_test_helper(&mut item);
+        let mut item = StructureComponent::new("".to_string(), "".to_string(), 0);
+        trait_test_helper(&mut item);
+        let mut item = SubFunction::new();
+        trait_test_helper(&mut item);
+        let mut item = SubGroup::new();
+        trait_test_helper(&mut item);
+        let mut item = Supplier::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = SymbolLink::new("".to_string(), 0);
+        trait_test_helper(&mut item);
+        let mut item = SymbolTypeLink::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = SystemConstant::new("".to_string(), "".to_string());
+        trait_test_helper(&mut item);
+        let mut item = Transformer::new(
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            0,
+            TransformerTrigger::OnChange,
+            "".to_string(),
+        );
+        trait_test_helper(&mut item);
+        let mut item = TransformerInObjects::new();
+        trait_test_helper(&mut item);
+        let mut item = TransformerOutObjects::new();
+        trait_test_helper(&mut item);
+        let mut item = TypedefAxis::new(
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            0.0,
+            "".to_string(),
+            0,
+            0.0,
+            0.0,
+        );
+        trait_test_helper(&mut item);
+        let mut item = TypedefBlob::new("".to_string(), "".to_string(), 0);
+        trait_test_helper(&mut item);
+        let mut item = TypedefCharacteristic::new(
+            "".to_string(),
+            "".to_string(),
+            CharacteristicType::Value,
+            "".to_string(),
+            0.0,
+            "".to_string(),
+            0.0,
+            0.0,
+        );
+        trait_test_helper(&mut item);
+        let mut item = TypedefMeasurement::new(
+            "".to_string(),
+            "".to_string(),
+            DataType::Ubyte,
+            "".to_string(),
+            0,
+            0.0,
+            0.0,
+            0.0,
+        );
+        trait_test_helper(&mut item);
+        let mut item = TypedefStructure::new("".to_string(), "".to_string(), 0);
+        trait_test_helper(&mut item);
+        let mut item = Unit::new(
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            UnitType::Derived,
+        );
+        trait_test_helper(&mut item);
+        let mut item = UnitConversion::new(0.0, 0.0);
+        trait_test_helper(&mut item);
+        let mut item = User::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = UserRights::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = VarAddress::new();
+        trait_test_helper(&mut item);
+        let mut item = VarCharacteristic::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = VarCriterion::new("".to_string(), "".to_string());
+        trait_test_helper(&mut item);
+        let mut item = VarForbiddenComb::new();
+        trait_test_helper(&mut item);
+        let mut item = VarMeasurement::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = VarNaming::new(VarNamingTag::Numeric);
+        trait_test_helper(&mut item);
+        let mut item = VarSelectionCharacteristic::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = VarSeparator::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = VariantCoding::new();
+        trait_test_helper(&mut item);
+        let mut item = Version::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = Virtual::new();
+        trait_test_helper(&mut item);
+        let mut item = VirtualCharacteristic::new("".to_string());
+        trait_test_helper(&mut item);
+    }
+}
