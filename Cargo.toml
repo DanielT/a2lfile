@@ -1,22 +1,10 @@
-[package]
-name = "a2lfile"
-version = "1.5.0"
-authors = ["Daniel Thaler <daniel@dthaler.de>"]
-edition = "2021"
-description = "read, modify and write a2l files"
-readme = "README.md"
-license = "MIT OR Apache-2.0"
-keywords = ["a2l", "file", "file-format", "ASAM-MCD-2MC"]
-categories = ["parser-implementations"]
-repository = "https://github.com/DanielT/a2lfile"
-
 [workspace]
-members = ["a2lmacros"]
+members = [
+    "a2lfile",
+    "a2lmacros",
+]
+resolver = "2"
 
-[dependencies.a2lmacros]
-path = "a2lmacros"
-version = "1.3.0"
-
-[dependencies]
-thiserror = "1.0.50"
-
+[patch.crates-io]
+a2lfile = { path = "./a2lfile" }
+a2lmacros = { path = "./a2lmacros" }
