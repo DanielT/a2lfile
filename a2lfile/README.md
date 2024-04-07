@@ -30,7 +30,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-a2lfile = "1.4"
+a2lfile = "2.0"
 ```
 
 A simple program based on the `a2lfile` library might look like this:
