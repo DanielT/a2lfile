@@ -360,7 +360,9 @@ ASAP2_VERSION 1 61
 
         let mut function = Function::new("name".to_string(), "long_identifier".to_string());
         function.annotation = vec![Annotation::new()];
-        function.ar_component = Some(ArComponent::new("name".to_string()));
+        let mut ar_component = ArComponent::new("name".to_string());
+        ar_component.ar_prototype_of = Some(ArPrototypeOf::new("function".to_string()));
+        function.ar_component = Some(ar_component);
         function.def_characteristic = Some(def_characteristic);
         function.function_version = Some(FunctionVersion::new("version".to_string()));
         function.if_data = vec![if_data_a.clone()];
@@ -981,7 +983,9 @@ ASAP2_VERSION 1 61
                     FRAME_MEASUREMENT measurement_name
                 /end FRAME
                 /begin FUNCTION function_name "long_identifier"
-                    AR_COMPONENT "ar_component"
+                    /begin AR_COMPONENT "ar_component"
+                        AR_PROTOTYPE_OF function
+                    /end AR_COMPONENT
                     FUNCTION_VERSION "version-1.1.1"
                     /begin DEF_CHARACTERISTIC characteristic_name
                     /end DEF_CHARACTERISTIC
@@ -1345,7 +1349,9 @@ ASAP2_VERSION 1 61
         module.frame.push(frame);
         let mut function =
             Function::new("function_name".to_string(), "long_identifier".to_string());
-        function.ar_component = Some(ArComponent::new("ar_component".to_string()));
+        let mut ar_component = ArComponent::new("ar_component".to_string());
+        ar_component.ar_prototype_of = Some(ArPrototypeOf::new("function".to_string()));
+        function.ar_component = Some(ar_component);
         function.function_version = Some(FunctionVersion::new("version-1.1.1".to_string()));
         let mut def_characteristic = DefCharacteristic::new();
         def_characteristic

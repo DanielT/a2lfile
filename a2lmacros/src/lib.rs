@@ -225,7 +225,7 @@ mod test {
         }
 
         /// describes the Autosar component type of a function
-        keyword AR_COMPONENT {
+        block AR_COMPONENT {
             string component_type
             [-> AR_PROTOTYPE_OF]
         }

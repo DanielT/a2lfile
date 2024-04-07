@@ -1355,12 +1355,6 @@ impl std::fmt::Debug for Annotation {
     }
 }
 
-impl Default for Annotation {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Annotation {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -1655,6 +1649,7 @@ impl AnnotationLabel {
         writer.finish()
     }
 }
+
 /// Identify who or which system has created an annotation
 #[derive(Clone)]
 pub struct AnnotationOrigin {
@@ -1748,6 +1743,7 @@ impl AnnotationOrigin {
         writer.finish()
     }
 }
+
 /// Text of an annotation
 ///
 /// One ANNOTATION_TEXT may represent a multi-line description text.
@@ -1762,12 +1758,6 @@ impl std::fmt::Debug for AnnotationText {
         f.debug_struct("AnnotationText")
             .field("annotation_text_list", &self.annotation_text_list)
             .finish()
-    }
-}
-
-impl Default for AnnotationText {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -1877,6 +1867,7 @@ impl AnnotationText {
         writer.finish()
     }
 }
+
 /// describes the Autosar component type of a function
 #[derive(Clone)]
 pub struct ArComponent {
@@ -1904,9 +1895,9 @@ impl ArComponent {
                 incfile: None,
                 line: 0,
                 uid: 0,
-                start_offset: 1u32,
+                start_offset: 2u32,
                 end_offset: 1,
-                item_location: (0u32, ()),
+                item_location: (1u32, ()),
             },
         }
     }
@@ -2005,7 +1996,12 @@ impl ArComponent {
             next_tag = parser.get_next_tag(context)?;
         }
         let __dummy = ();
-        let __end_offset: u32 = 0;
+        let __end_offset = parser.get_current_line_offset();
+        parser.expect_token(context, A2lTokenType::End)?;
+        let ident = parser.get_identifier(context)?;
+        if ident != context.element {
+            parser.error_or_log(ParserError::incorrect_end_tag(parser, &context, &ident))?;
+        }
         Ok(Self {
             __block_info: BlockInfo {
                 incfile: __location_incfile,
@@ -4496,12 +4492,6 @@ impl std::fmt::Debug for BitOperation {
     }
 }
 
-impl Default for BitOperation {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl BitOperation {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -5488,12 +5478,6 @@ impl std::fmt::Debug for CalibrationHandle {
             .field("handle_list", &self.handle_list)
             .field("calibration_handle_text", &self.calibration_handle_text)
             .finish()
-    }
-}
-
-impl Default for CalibrationHandle {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -8912,12 +8896,6 @@ impl std::fmt::Debug for ConsistentExchange {
     }
 }
 
-impl Default for ConsistentExchange {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl ConsistentExchange {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -9742,12 +9720,6 @@ impl std::fmt::Debug for DefCharacteristic {
     }
 }
 
-impl Default for DefCharacteristic {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl DefCharacteristic {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -10305,12 +10277,6 @@ pub struct Discrete {
 impl std::fmt::Debug for Discrete {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Discrete").finish()
-    }
-}
-
-impl Default for Discrete {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -11634,12 +11600,6 @@ impl std::fmt::Debug for FixAxisParList {
     }
 }
 
-impl Default for FixAxisParList {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl FixAxisParList {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -12610,12 +12570,6 @@ impl std::fmt::Debug for FrameMeasurement {
     }
 }
 
-impl Default for FrameMeasurement {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl FrameMeasurement {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -12914,7 +12868,7 @@ impl Function {
                     let newitem = ArComponent::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, ar_component.is_some())?;
                     ar_component = Some(newitem);
-                    expect_block = false;
+                    expect_block = true;
                 }
                 "DEF_CHARACTERISTIC" => {
                     let newitem = DefCharacteristic::parse(parser, &newcontext, line_offset)?;
@@ -13055,7 +13009,7 @@ impl Function {
             tgroup.push(writer::TaggedItemInfo {
                 tag: "AR_COMPONENT",
                 item_text: ar_component_out,
-                is_block: false,
+                is_block: true,
                 incfile: &ar_component.__block_info.incfile,
                 uid: ar_component.__block_info.uid,
                 line: ar_component.__block_info.line,
@@ -13192,12 +13146,6 @@ impl std::fmt::Debug for FunctionList {
         f.debug_struct("FunctionList")
             .field("name_list", &self.name_list)
             .finish()
-    }
-}
-
-impl Default for FunctionList {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -13780,12 +13728,6 @@ impl std::fmt::Debug for GuardRails {
     }
 }
 
-impl Default for GuardRails {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl GuardRails {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -14179,12 +14121,6 @@ impl std::fmt::Debug for InMeasurement {
         f.debug_struct("InMeasurement")
             .field("identifier_list", &self.identifier_list)
             .finish()
-    }
-}
-
-impl Default for InMeasurement {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -15376,12 +15312,6 @@ impl std::fmt::Debug for LocMeasurement {
     }
 }
 
-impl Default for LocMeasurement {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl LocMeasurement {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -15503,12 +15433,6 @@ impl std::fmt::Debug for MapList {
     }
 }
 
-impl Default for MapList {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl MapList {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -15627,12 +15551,6 @@ impl std::fmt::Debug for MatrixDim {
         f.debug_struct("MatrixDim")
             .field("dim_list", &self.dim_list)
             .finish()
-    }
-}
-
-impl Default for MatrixDim {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -20506,12 +20424,6 @@ impl std::fmt::Debug for OutMeasurement {
     }
 }
 
-impl Default for OutMeasurement {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl OutMeasurement {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -21600,12 +21512,6 @@ impl std::fmt::Debug for ReadOnly {
     }
 }
 
-impl Default for ReadOnly {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl ReadOnly {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -21685,12 +21591,6 @@ pub struct ReadWrite {
 impl std::fmt::Debug for ReadWrite {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ReadWrite").finish()
-    }
-}
-
-impl Default for ReadWrite {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -23853,12 +23753,6 @@ impl std::fmt::Debug for RefCharacteristic {
     }
 }
 
-impl Default for RefCharacteristic {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl RefCharacteristic {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -23980,12 +23874,6 @@ impl std::fmt::Debug for RefGroup {
     }
 }
 
-impl Default for RefGroup {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl RefGroup {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -24104,12 +23992,6 @@ impl std::fmt::Debug for RefMeasurement {
         f.debug_struct("RefMeasurement")
             .field("identifier_list", &self.identifier_list)
             .finish()
-    }
-}
-
-impl Default for RefMeasurement {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -24737,12 +24619,6 @@ impl std::fmt::Debug for Root {
     }
 }
 
-impl Default for Root {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Root {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -25282,12 +25158,6 @@ impl std::fmt::Debug for SignExtend {
     }
 }
 
-impl Default for SignExtend {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl SignExtend {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -25479,12 +25349,6 @@ impl std::fmt::Debug for StaticAddressOffsets {
     }
 }
 
-impl Default for StaticAddressOffsets {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl StaticAddressOffsets {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -25564,12 +25428,6 @@ pub struct StaticRecordLayout {
 impl std::fmt::Debug for StaticRecordLayout {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("StaticRecordLayout").finish()
-    }
-}
-
-impl Default for StaticRecordLayout {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -26137,12 +25995,6 @@ impl std::fmt::Debug for SubFunction {
     }
 }
 
-impl Default for SubFunction {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl SubFunction {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -26261,12 +26113,6 @@ impl std::fmt::Debug for SubGroup {
         f.debug_struct("SubGroup")
             .field("identifier_list", &self.identifier_list)
             .finish()
-    }
-}
-
-impl Default for SubGroup {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -27178,12 +27024,6 @@ impl std::fmt::Debug for TransformerInObjects {
     }
 }
 
-impl Default for TransformerInObjects {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl TransformerInObjects {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -27302,12 +27142,6 @@ impl std::fmt::Debug for TransformerOutObjects {
         f.debug_struct("TransformerOutObjects")
             .field("identifier_list", &self.identifier_list)
             .finish()
-    }
-}
-
-impl Default for TransformerOutObjects {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -30489,12 +30323,6 @@ impl std::fmt::Debug for VarAddress {
     }
 }
 
-impl Default for VarAddress {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl VarAddress {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -31100,12 +30928,6 @@ impl std::fmt::Debug for VarForbiddenComb {
     }
 }
 
-impl Default for VarForbiddenComb {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl VarForbiddenComb {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -31647,12 +31469,6 @@ impl std::fmt::Debug for VariantCoding {
     }
 }
 
-impl Default for VariantCoding {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl VariantCoding {
     #[allow(clippy::too_many_arguments)]
     pub fn new() -> Self {
@@ -32015,12 +31831,6 @@ impl std::fmt::Debug for Virtual {
         f.debug_struct("Virtual")
             .field("measuring_channel_list", &self.measuring_channel_list)
             .finish()
-    }
-}
-
-impl Default for Virtual {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
