@@ -1,7 +1,51 @@
+use std::ffi::OsString;
 use crate::A2lError;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
+
+// is_numchar()
+// in addition to decimal format, numbers can also be written as hex, or as floats with exponents
+// this expands the set of allowable characters beyond is_ascii_hexdigit()
+pub fn is_numchar_u8(c: u8) -> bool {
+    c.is_ascii_hexdigit() || c == b'x' || c == b'X' || c == b'.' || c == b'+' || c == b'-'
+}
+
+
+// is_identchar()
+// is this char allowed in an identifier
+pub fn is_identchar(c: char) -> bool {
+    c.is_ascii_alphanumeric() || c == '.' || c == '_'
+}
+
+// u8 version of the above function
+pub fn is_identchar_u8(c: u8) -> bool {
+    c.is_ascii_alphanumeric() || c == b'.' || c == b'[' || c == b']' || c == b'_'
+}
+
+// is_pathchar()
+// is this char allowed in a file path, extension of is_identchar()
+pub fn is_pathchar(c: char) -> bool {
+    is_identchar(c) || c == '\\' || c == '/'
+}
+
+// u8 version of the above function
+pub fn is_pathchar_u8(c: u8) -> bool {
+    is_identchar_u8(c) || c == b'\\' || c == b'/'
+}
+
+pub fn make_include_filename(incname: &str, base_filename: &str) -> OsString {
+    let base = std::path::Path::new(base_filename);
+    if let Some(basedir) = base.parent() {
+        let joined = basedir.join(incname);
+        if joined.exists() {
+            return OsString::from(joined);
+        }
+    }
+
+    OsString::from(incname)
+}
+
 
 pub fn load(path: &Path) -> Result<String, A2lError> {
     let mut file = match File::open(path) {

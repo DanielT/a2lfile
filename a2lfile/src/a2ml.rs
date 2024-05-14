@@ -1,5 +1,7 @@
+use super::loader;
 use super::writer::{TaggedItemInfo, Writer};
 use std::collections::HashMap;
+use std::path::Path;
 
 // tokenizer types
 #[derive(Debug, PartialEq)]
@@ -118,13 +120,14 @@ pub enum GenericIfData {
 
 // tokenize()
 // Tokenize the text of the a2ml section
-fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
+fn tokenize_a2ml(filename: Option<String>, input: &str, complete_string: &mut String) -> Result<Vec<TokenType>, String> {
     let mut amltokens = Vec::<TokenType>::new();
     let mut remaining = input;
 
     while !remaining.is_empty() {
         let mut chars = remaining.char_indices();
         let (mut idx, mut c) = chars.next().unwrap();
+        let mut append_to_complete = true;
 
         if c.is_ascii_whitespace() {
             /* skip whitespace */
@@ -133,8 +136,6 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
                 idx = pair.0;
                 c = pair.1;
             }
-            remaining = &remaining[idx..];
-            continue;
         } else if remaining.starts_with("/*") {
             /* get a block comment */
             chars.next(); /* skip over the '*' char of the opening sequence */
@@ -162,7 +163,8 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
                     return Err(format!("unclosed block quote starting with \"{errtxt}\""));
                 }
             }
-            remaining = &remaining[idx + 1..];
+            // chomp the last /
+            idx += 1;
         } else if remaining.starts_with("//") {
             /* get a line comment */
             loop {
@@ -177,7 +179,75 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
                     break;
                 }
             }
-            remaining = &remaining[idx + 1..];
+            // add the initial extra / in //
+            idx += 1;
+        } else if remaining.starts_with("/include") {
+            // skip the first elements (include = 0..6)
+            chars.nth(6);
+            let mut state = 0;
+            let mut fname_idx_start = 0;
+            let fname_idx_end;
+
+            // skip the whitespaces
+            loop {
+                let pair = chars.next().unwrap_or((idx + 1, '\0'));
+                idx = pair.0;
+                c = pair.1;
+                if state == 0 && c.is_ascii_whitespace() {
+                    // just skip whitespaces
+                } else if state == 0 && loader::is_pathchar(c) {
+                    // start a non quoted filename
+                    state = 1;
+                    fname_idx_start = idx;
+                } else if state == 1 && loader::is_pathchar(c) {
+                    // in non quoted filename
+                } else if state == 1 && (c.is_ascii_whitespace() || c == '\0') {
+                    // end of non quoted filename
+                    fname_idx_end = idx;
+                    break;
+                } else if state == 0 && c == '"' {
+                    // start a quoted filename
+                    state = 2;
+                } else if state == 2 && loader::is_pathchar(c) {
+                    // first byte of a quoted filename
+                    state = 3;
+                    fname_idx_start = idx;
+                } else if state == 3 && loader::is_pathchar(c) {
+                    // in a quoted filename
+                } else if state == 3 && c == '"' {
+                    // end of non quoted filename
+                    fname_idx_end = idx;
+                    // chomp the '"'
+                    idx = idx + 1;
+                    break;
+                }
+                else {
+                    let displaylen = if remaining.len() > 16 {
+                        16
+                    } else {
+                        remaining.len()
+                    };
+                    // slicing localremaining in arbitrary ways is not safe, the end might be in the middle of a utf-8 sequence, so from_utf8_lossy is needed
+                    let errtxt = String::from_utf8_lossy(&remaining.as_bytes()[..displaylen]);
+                    return Err(format!("failed parsing a2ml include filename in {errtxt}"));
+                }
+            }
+            // if the current filename was not provided (unit tests..), do not try to parse the include file
+            if let Some(ref parentfile) = filename {
+                let incfilename = loader::make_include_filename(&remaining[fname_idx_start..fname_idx_end], &parentfile);
+
+                // check if incname is an accessible file
+                let incpathref = Path::new(&incfilename);
+                let loadresult = loader::load(incpathref);
+                if let Ok(incfiledata) = loadresult {
+                    let mut tokresult = tokenize_a2ml(Some(incpathref.display().to_string()), &incfiledata, complete_string)?;
+                    // append the tokens from the included file(s)
+                    amltokens.append(&mut tokresult);
+                } else {
+                    return Err(format!("failed reading {}", incpathref.display()));
+                }
+            }
+            append_to_complete = false;
         } else if c == '"' {
             /* tag - it is enclosed in double quotes, but contains neither spaces nor escape characters */
             loop {
@@ -191,7 +261,7 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
             if c == '"' {
                 let tag = &remaining[1..idx];
                 amltokens.push(TokenType::Tag(tag.to_string()));
-                remaining = &remaining[idx + 1..];
+                idx += 1;
             } else {
                 let displaylen = if remaining.len() > 16 {
                     16
@@ -204,34 +274,34 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
             }
         } else if c == ';' {
             amltokens.push(TokenType::Semicolon);
-            remaining = &remaining[1..];
+            idx = 1;
         } else if c == ',' {
             amltokens.push(TokenType::Comma);
-            remaining = &remaining[1..];
+            idx = 1;
         } else if c == '{' {
             amltokens.push(TokenType::OpenCurlyBracket);
-            remaining = &remaining[1..];
+            idx = 1;
         } else if c == '}' {
             amltokens.push(TokenType::ClosedCurlyBracket);
-            remaining = &remaining[1..];
+            idx = 1;
         } else if c == '[' {
             amltokens.push(TokenType::OpenSquareBracket);
-            remaining = &remaining[1..];
+            idx = 1;
         } else if c == ']' {
             amltokens.push(TokenType::ClosedSquareBracket);
-            remaining = &remaining[1..];
+            idx = 1;
         } else if c == '(' {
             amltokens.push(TokenType::OpenRoundBracket);
-            remaining = &remaining[1..];
+            idx = 1;
         } else if c == ')' {
             amltokens.push(TokenType::ClosedRoundBracket);
-            remaining = &remaining[1..];
+            idx = 1;
         } else if c == '*' {
             amltokens.push(TokenType::Repeat);
-            remaining = &remaining[1..];
+            idx = 1;
         } else if c == '=' {
             amltokens.push(TokenType::Equals);
-            remaining = &remaining[1..];
+            idx = 1;
         } else if c.is_ascii_digit() {
             loop {
                 let pair = chars.next().unwrap_or((idx + 1, '\0'));
@@ -257,7 +327,6 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
                     return Err(format!("Invalid sequence in AML: {num_text}"));
                 }
             }
-            remaining = &remaining[idx..];
         } else if c.is_ascii_alphabetic() || c == '_' {
             loop {
                 let pair = chars.next().unwrap_or((idx + 1, '\0'));
@@ -318,7 +387,6 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
                     amltokens.push(TokenType::Identifier(kw_or_ident.to_string()));
                 }
             }
-            remaining = &remaining[idx..];
         } else {
             let displaylen = if remaining.len() > 16 {
                 16
@@ -329,6 +397,10 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
             let errtxt = String::from_utf8_lossy(&remaining.as_bytes()[..displaylen]);
             return Err(format!("Unable to tokenize: {errtxt}..."));
         }
+        if append_to_complete {
+            complete_string.push_str(&remaining[..idx])
+        }
+        remaining = &remaining[idx..];
     }
 
     Ok(amltokens)
@@ -337,8 +409,9 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
 // parse an a2ml fragment in an a2l file
 // The target data structure is the parsing definition used by the a2l parser, so that the
 // a2ml can control the parsing of IF_DATA blocks
-pub(crate) fn parse_a2ml(input: &str) -> Result<A2mlTypeSpec, String> {
-    let tok_result = tokenize_a2ml(input)?;
+pub(crate) fn parse_a2ml(filename: Option<String>, input: &str) -> Result<(A2mlTypeSpec, String), String> {
+    let mut complete_string = "".to_string();
+    let tok_result = tokenize_a2ml(filename, input, &mut complete_string)?;
     let mut tok_iter = tok_result.iter().peekable();
 
     let mut ifdata_block: Option<A2mlTypeSpec> = None;
@@ -411,7 +484,7 @@ pub(crate) fn parse_a2ml(input: &str) -> Result<A2mlTypeSpec, String> {
 
     // The integration point between the custom blocks in Aml and the A2l file is the IF_DATA block.
     if let Some(ifdata_block) = ifdata_block {
-        Ok(ifdata_block)
+        Ok((ifdata_block, complete_string))
     } else {
         Err("The A2ML declaration was fully parsed. However it does not contain an IF_DATA block, so it is not usable.".to_string())
     }
@@ -1286,39 +1359,57 @@ mod test {
 
     #[test]
     fn tokenize() {
-        let tokenvec = tokenize_a2ml("       ").unwrap();
+        let mut complete_string = String::new();
+        let tokenvec = tokenize_a2ml(None, "       ", &mut complete_string).unwrap();
         assert!(tokenvec.is_empty());
 
-        let tokenvec = tokenize_a2ml("/* // */").unwrap();
+        let tokenvec = tokenize_a2ml(None, "/* // */", &mut complete_string).unwrap();
         assert!(tokenvec.is_empty());
-        let tokenvec = tokenize_a2ml("/*/*/").unwrap();
+        let tokenvec = tokenize_a2ml(None, "/*/*/", &mut complete_string).unwrap();
         assert!(tokenvec.is_empty());
-        let tokenvec = tokenize_a2ml("/***/").unwrap();
+        let tokenvec = tokenize_a2ml(None, "/***/", &mut complete_string).unwrap();
         assert!(tokenvec.is_empty());
-        let tokenvec_err = tokenize_a2ml("/* ");
+        let tokenvec_err = tokenize_a2ml(None, "/* ", &mut complete_string);
         assert!(tokenvec_err.is_err());
-        let tokenvec = tokenize_a2ml("//*/").unwrap();
+        let tokenvec = tokenize_a2ml(None, "//*/", &mut complete_string).unwrap();
         assert!(tokenvec.is_empty());
 
-        let tokenvec = tokenize_a2ml(r#""TAG""#).unwrap();
+        let tokenvec = tokenize_a2ml(None, r#""TAG""#, &mut complete_string).unwrap();
         assert_eq!(tokenvec.len(), 1);
         let _tag = TokenType::Tag("TAG".to_string());
         assert!(matches!(&tokenvec[0], _tag));
 
-        let tokenvec = tokenize_a2ml(";").unwrap();
+        let tokenvec = tokenize_a2ml(None, ";", &mut complete_string).unwrap();
+        assert_eq!(tokenvec.len(), 1);
         assert!(matches!(tokenvec[0], TokenType::Semicolon));
 
-        let tokenvec = tokenize_a2ml("0").unwrap();
+        let tokenvec = tokenize_a2ml(None, "0", &mut complete_string).unwrap();
+        assert_eq!(tokenvec.len(), 1);
         assert!(matches!(tokenvec[0], TokenType::Constant(0)));
 
-        let tokenvec = tokenize_a2ml("0x03").unwrap();
+        let tokenvec = tokenize_a2ml(None, "0x03", &mut complete_string).unwrap();
+        assert_eq!(tokenvec.len(), 1);
         assert!(matches!(tokenvec[0], TokenType::Constant(3)));
 
-        let tokenvec = tokenize_a2ml("123456").unwrap();
+        let tokenvec = tokenize_a2ml(None, "123456", &mut complete_string).unwrap();
+        assert_eq!(tokenvec.len(), 1);
         assert!(matches!(tokenvec[0], TokenType::Constant(123456)));
 
-        let err_result = tokenize_a2ml(r#" "unclosed "#);
+        let tokenvec = tokenize_a2ml(None, r#"/include "testfile""#, &mut complete_string).unwrap();
+        assert_eq!(tokenvec.len(), 0);
+
+        let tokenvec = tokenize_a2ml(None, r#"/include"testfile""#, &mut complete_string).unwrap();
+        assert_eq!(tokenvec.len(), 0);
+
+        let tokenvec = tokenize_a2ml(None, r#"/include testfile"#, &mut complete_string).unwrap();
+        assert_eq!(tokenvec.len(), 0);
+
+        let err_result = tokenize_a2ml(None, r#"/include "testfile_unclosed_quote"#, &mut complete_string);
         assert!(err_result.is_err());
+
+        let err_result = tokenize_a2ml(None, r#" "unclosed "#, &mut complete_string);
+        assert!(err_result.is_err());
+
     }
 
     #[test]
@@ -1436,9 +1527,9 @@ mod test {
             A2mlTypeSpec::TaggedStruct(taggedstruct_hashmap),
         ]);
 
-        let parse_result = parse_a2ml(TEST_INPUT);
+        let parse_result = parse_a2ml(None, TEST_INPUT);
         assert!(parse_result.is_ok());
-        let a2ml_spec = parse_result.unwrap();
+        let (a2ml_spec, _complete_string) = parse_result.unwrap();
         println!("{:?}", a2ml_spec);
         assert_eq!(a2ml_spec, expected_parse_result);
     }

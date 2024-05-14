@@ -82,6 +82,7 @@ ASAP2_VERSION 1 61
 
         a2l_file.a2ml_version = Some(A2mlVersion::new(1, 31));
 
+        let merged_a2ml_text = String::from("");
         let a2ml = A2ml::new(
             r##"  block "IF_DATA" taggedunion if_data {
             block "BLOCK_A" struct {
@@ -93,6 +94,7 @@ ASAP2_VERSION 1 61
         };
         "##
             .to_string(),
+            merged_a2ml_text
         );
 
         let mut if_data_a = IfData::new();
@@ -1207,12 +1209,14 @@ ASAP2_VERSION 1 61
         let module = &mut a2l_file5.project.module[0];
         module.name = "mod".to_string();
         module.long_identifier = "long_identifier".to_string();
+        let merged_a2ml_text = String::from("");
         module.a2ml = Some(A2ml::new(
             r#"
                     block "IF_DATA" struct {
                         int;
                     };"#
             .to_string(),
+            merged_a2ml_text
         ));
         let mut axis_pts = AxisPts::new(
             "axispts_name".to_string(),

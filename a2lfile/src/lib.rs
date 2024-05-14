@@ -206,8 +206,8 @@ fn load_impl(
     // if a built-in A2ml specification was passed as a string, then it is parsed here
     if let Some(spec) = a2ml_spec {
         parser.builtin_a2mlspec = Some(
-            a2ml::parse_a2ml(&spec)
-                .map_err(|parse_err| A2lError::InvalidBuiltinA2mlSpec { parse_err })?,
+            a2ml::parse_a2ml(Some(path.to_string_lossy().to_string()), &spec)
+                .map_err(|parse_err| A2lError::InvalidBuiltinA2mlSpec { parse_err })?.0,
         );
     }
 

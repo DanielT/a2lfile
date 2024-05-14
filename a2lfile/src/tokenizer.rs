@@ -1,4 +1,4 @@
-use std::{ffi::OsString, path::Path};
+use std::path::Path;
 use thiserror::Error;
 
 use super::loader;
@@ -117,7 +117,7 @@ pub(crate) fn tokenize(
                 }
                 // incname is the include filename from the filetext without the surrounding quotes
                 let incname = &filetext[filename_start..filename_end];
-                let incfilename = make_include_filename(incname, &filenames[0]);
+                let incfilename = loader::make_include_filename(incname, &filenames[0]);
 
                 // check if incname is an accessible file
                 let incpathref = Path::new(&incfilename);
@@ -272,11 +272,11 @@ fn tokenize_core(
         } else if !tokens.is_empty()
             && tokens.last().unwrap().ttype == A2lTokenType::Include
             && !(filebytes[bytepos]).is_ascii_digit()
-            && is_identchar(filebytes[bytepos])
+            && loader::is_identchar_u8(filebytes[bytepos])
         {
             // a file path
             separator_check(separated, &filename, line)?;
-            while bytepos < datalen && is_pathchar(filebytes[bytepos]) {
+            while bytepos < datalen && loader::is_pathchar_u8(filebytes[bytepos]) {
                 bytepos += 1;
             }
             tokens.push(A2lToken {
@@ -287,10 +287,10 @@ fn tokenize_core(
                 line,
             });
             separated = false;
-        } else if !(filebytes[bytepos]).is_ascii_digit() && is_identchar(filebytes[bytepos]) {
+        } else if !(filebytes[bytepos]).is_ascii_digit() && loader::is_identchar_u8(filebytes[bytepos]) {
             // an identifier
             separator_check(separated, &filename, line)?;
-            while bytepos < datalen && is_identchar(filebytes[bytepos]) {
+            while bytepos < datalen && loader::is_identchar_u8(filebytes[bytepos]) {
                 bytepos += 1;
             }
             tokens.push(A2lToken {
@@ -308,14 +308,14 @@ fn tokenize_core(
             }
             bytepos = new_bytepos;
             line = new_line;
-        } else if filebytes[bytepos] == b'-' || is_numchar(filebytes[bytepos]) {
+        } else if filebytes[bytepos] == b'-' || loader::is_numchar_u8(filebytes[bytepos]) {
             // a number, in any format (integer, floating point or hexadecimal)
             separator_check(separated, &filename, line)?;
             bytepos += 1;
-            while bytepos < datalen && is_numchar(filebytes[bytepos]) {
+            while bytepos < datalen && loader::is_numchar_u8(filebytes[bytepos]) {
                 bytepos += 1;
             }
-            if bytepos == datalen || !is_identchar(filebytes[bytepos]) {
+            if bytepos == datalen || !loader::is_identchar_u8(filebytes[bytepos]) {
                 let number = &filebytes[startpos..bytepos];
                 if number == b"-" {
                     return Err(TokenizerError::InvalidNumericalConstant {
@@ -337,10 +337,10 @@ fn tokenize_core(
                     fileid,
                     line,
                 });
-            } else if bytepos < datalen && is_identchar(filebytes[bytepos]) {
+            } else if bytepos < datalen && loader::is_identchar_u8(filebytes[bytepos]) {
                 // this is actually an identifier that starts with a number, which is not standard compliant
                 // it is still worth recognizing, in oder to give better error messages and also the error can be bypassed if strict is false
-                while bytepos < datalen && is_identchar(filebytes[bytepos]) {
+                while bytepos < datalen && loader::is_identchar_u8(filebytes[bytepos]) {
                     bytepos += 1;
                 }
                 tokens.push(A2lToken {
@@ -544,37 +544,6 @@ fn separator_check(separated: bool, filename: &str, line: u32) -> Result<(), Tok
 // count the number of newlines in a comment or string. This is needed to keep the line count accurate
 fn count_newlines(text: &[u8]) -> u32 {
     text.iter().map(|c| u32::from(*c == b'\n')).sum()
-}
-
-// is_pathchar()
-// is this char allowed in a file path, extension of is_identchar()
-fn is_pathchar(c: u8) -> bool {
-    is_identchar(c) || c == b'\\' || c == b'/'
-}
-
-// is_identchar()
-// is this char allowed in an identifier
-fn is_identchar(c: u8) -> bool {
-    c.is_ascii_alphanumeric() || c == b'.' || c == b'[' || c == b']' || c == b'_'
-}
-
-// is_numchar()
-// in addition to decimal format, numbers can also be written as hex, or as floats with exponents
-// this expands the set of allowable characters beyond is_ascii_hexdigit()
-fn is_numchar(c: u8) -> bool {
-    c.is_ascii_hexdigit() || c == b'x' || c == b'X' || c == b'.' || c == b'+' || c == b'-'
-}
-
-fn make_include_filename(incname: &str, base_filename: &str) -> OsString {
-    let base = std::path::Path::new(base_filename);
-    if let Some(basedir) = base.parent() {
-        let joined = basedir.join(incname);
-        if joined.exists() {
-            return OsString::from(joined);
-        }
-    }
-
-    OsString::from(incname)
 }
 
 /*************************************************************************************************/

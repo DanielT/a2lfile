@@ -1364,7 +1364,7 @@ fn generate_interface(spec: &A2mlSpec) -> TokenStream {
             pub(crate) fn update_a2ml(file: &mut a2lfile::A2lFile) {
                 for module in &mut file.project.module {
                     if module.a2ml.is_none() {
-                        module.a2ml = Some(a2lfile::A2ml::new("".to_string()));
+                        module.a2ml = Some(a2lfile::A2ml::new("".to_string(), "".to_string()));
                     }
                     module.a2ml.as_mut().unwrap().a2ml_text = #constname.to_string();
                 }
