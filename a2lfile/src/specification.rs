@@ -32074,6 +32074,7 @@ impl VirtualCharacteristic {
 #[derive(Clone)]
 pub struct A2ml {
     pub a2ml_text: String,
+    merged_a2ml_text: String,
     pub(crate) __block_info: BlockInfo<(u32, ())>,
 }
 
@@ -32088,8 +32089,10 @@ impl std::fmt::Debug for A2ml {
 impl A2ml {
     #[must_use]
     pub fn new(a2ml_text: String) -> Self {
+        let merged_a2ml_text = a2ml_text.clone();
         Self {
             a2ml_text,
+            merged_a2ml_text,
             __block_info: BlockInfo {
                 incfile: None,
                 line: 0,
@@ -32111,13 +32114,21 @@ impl A2ml {
         let __a2ml_text_location = parser.get_current_line_offset();
         let token = parser.expect_token(context, A2lTokenType::String)?;
         let a2ml_text = parser.get_token_text(token).to_string();
-        match a2ml::parse_a2ml(&a2ml_text) {
-            Ok(a2mlspec) => parser.file_a2mlspec = Some(a2mlspec),
-            Err(errmsg) => parser.error_or_log(ParserError::A2mlError {
-                filename: parser.filenames[context.fileid].clone(),
-                error_line: parser.last_token_position,
-                errmsg,
-            })?,
+        let filename = &parser.filenames[context.fileid];
+        let merged_a2ml_text;
+        match a2ml::parse_a2ml(filename.to_string(), &a2ml_text) {
+            Ok((a2mlspec, computed_merged_a2ml_text)) => {
+                parser.file_a2mlspec = Some(a2mlspec);
+                merged_a2ml_text = computed_merged_a2ml_text;
+            },
+            Err(errmsg) => { 
+                parser.error_or_log(ParserError::A2mlError {
+                    filename: filename.to_string(),
+                    error_line: parser.last_token_position,
+                    errmsg,
+                })?;
+                merged_a2ml_text = String::from("");
+            }
         }
         parser.expect_token(context, A2lTokenType::End)?;
         let ident = parser.get_identifier(context)?;
@@ -32132,6 +32143,7 @@ impl A2ml {
         }
         Ok(A2ml {
             a2ml_text,
+            merged_a2ml_text,
             __block_info: BlockInfo {
                 incfile: fileid,
                 line,
@@ -32167,6 +32179,7 @@ impl A2lObject<(u32, ())> for A2ml {
     }
     fn merge_includes(&mut self) {
         self.__block_info.incfile = None;
+        self.a2ml_text = self.merged_a2ml_text.clone();
     }
     fn get_line(&self) -> u32 {
         self.__block_info.line

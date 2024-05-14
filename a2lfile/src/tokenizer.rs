@@ -1,4 +1,4 @@
-use std::{ffi::OsString, path::Path};
+use std::path::Path;
 use thiserror::Error;
 
 use super::loader;
@@ -117,7 +117,7 @@ pub(crate) fn tokenize(
                 }
                 // incname is the include filename from the filetext without the surrounding quotes
                 let incname = &filetext[filename_start..filename_end];
-                let incfilename = make_include_filename(incname, &filenames[0]);
+                let incfilename = loader::make_include_filename(incname, &filenames[0]);
 
                 // check if incname is an accessible file
                 let incpathref = Path::new(&incfilename);
@@ -548,13 +548,13 @@ fn count_newlines(text: &[u8]) -> u32 {
 
 // is_pathchar()
 // is this char allowed in a file path, extension of is_identchar()
-fn is_pathchar(c: u8) -> bool {
+pub(crate) fn is_pathchar(c: u8) -> bool {
     is_identchar(c) || c == b'\\' || c == b'/'
 }
 
 // is_identchar()
 // is this char allowed in an identifier
-fn is_identchar(c: u8) -> bool {
+pub(crate) fn is_identchar(c: u8) -> bool {
     c.is_ascii_alphanumeric() || c == b'.' || c == b'[' || c == b']' || c == b'_'
 }
 
@@ -563,18 +563,6 @@ fn is_identchar(c: u8) -> bool {
 // this expands the set of allowable characters beyond is_ascii_hexdigit()
 fn is_numchar(c: u8) -> bool {
     c.is_ascii_hexdigit() || c == b'x' || c == b'X' || c == b'.' || c == b'+' || c == b'-'
-}
-
-fn make_include_filename(incname: &str, base_filename: &str) -> OsString {
-    let base = std::path::Path::new(base_filename);
-    if let Some(basedir) = base.parent() {
-        let joined = basedir.join(incname);
-        if joined.exists() {
-            return OsString::from(joined);
-        }
-    }
-
-    OsString::from(incname)
 }
 
 /*************************************************************************************************/
