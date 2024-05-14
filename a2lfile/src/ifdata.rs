@@ -753,7 +753,7 @@ mod ifdata_test {
             &mut log_msgs,
             false,
         );
-        parser.builtin_a2mlspec = Some(a2lfile::a2ml::parse_a2ml(A2MLTEST_TEXT).unwrap());
+        parser.builtin_a2mlspec = Some(a2lfile::a2ml::parse_a2ml(String::new(), A2MLTEST_TEXT).unwrap().0);
         super::parse_ifdata(
             &mut parser,
             &a2lfile::ParseContext {

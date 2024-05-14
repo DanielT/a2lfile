@@ -1,7 +1,20 @@
+use std::ffi::OsString;
 use crate::A2lError;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
+
+pub(crate) fn make_include_filename(incname: &str, base_filename: &str) -> OsString {
+    let base = std::path::Path::new(base_filename);
+    if let Some(basedir) = base.parent() {
+        let joined = basedir.join(incname);
+        if joined.exists() {
+            return OsString::from(joined);
+        }
+    }
+
+    OsString::from(incname)
+}
 
 pub fn load(path: &Path) -> Result<String, A2lError> {
     let mut file = match File::open(path) {
