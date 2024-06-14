@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 // tokenizer types
 #[derive(Debug, PartialEq)]
-enum TokenType<'a> {
+enum TokenType {
     Semicolon,
     Comma,
     OpenCurlyBracket,
@@ -30,8 +30,8 @@ enum TokenType<'a> {
     Taggedstruct,
     Taggedunion,
     Constant(i32),
-    Identifier(&'a str),
-    Tag(&'a str),
+    Identifier(String),
+    Tag(String),
 }
 
 // parser representation types
@@ -71,7 +71,7 @@ struct TypeSet {
     taggedunions: HashMap<String, A2mlTypeSpec>,
 }
 
-type A2mlTokenIter<'a> = std::iter::Peekable<std::slice::Iter<'a, TokenType<'a>>>;
+type A2mlTokenIter<'a> = std::iter::Peekable<std::slice::Iter<'a, TokenType>>;
 
 // parser output types (generic IF_DATA)
 
@@ -190,7 +190,7 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
             }
             if c == '"' {
                 let tag = &remaining[1..idx];
-                amltokens.push(TokenType::Tag(tag));
+                amltokens.push(TokenType::Tag(tag.to_string()));
                 remaining = &remaining[idx + 1..];
             } else {
                 let displaylen = if remaining.len() > 16 {
@@ -315,7 +315,7 @@ fn tokenize_a2ml(input: &str) -> Result<Vec<TokenType>, String> {
                     amltokens.push(TokenType::Taggedunion);
                 }
                 _ => {
-                    amltokens.push(TokenType::Identifier(kw_or_ident));
+                    amltokens.push(TokenType::Identifier(kw_or_ident.to_string()));
                 }
             }
             remaining = &remaining[idx..];
@@ -755,7 +755,7 @@ fn parse_aml_member(tok_iter: &mut A2mlTokenIter, types: &TypeSet) -> Result<A2m
 fn parse_optional_name(tok_iter: &mut A2mlTokenIter) -> Option<String> {
     if let Some(TokenType::Identifier(ident)) = tok_iter.peek() {
         tok_iter.next(); // consume the token. no need to do anything with it since we already have the content
-        Some(String::from(*ident))
+        Some(ident.to_string())
     } else {
         None
     }
@@ -803,7 +803,7 @@ fn require_constant(tok_iter: &mut A2mlTokenIter) -> Result<i32, String> {
 
 // nexttoken
 // get the next token from the iterator and centralize the handling of potential None-values
-fn nexttoken<'a>(tok_iter: &mut A2mlTokenIter<'a>) -> Result<&'a TokenType<'a>, String> {
+fn nexttoken<'a>(tok_iter: &mut A2mlTokenIter<'a>) -> Result<&'a TokenType, String> {
     match tok_iter.next() {
         Some(tok) => Ok(tok),
         None => Err(String::from("A2ML Error: unexpected end of input")),
@@ -1302,7 +1302,8 @@ mod test {
 
         let tokenvec = tokenize_a2ml(r#""TAG""#).unwrap();
         assert_eq!(tokenvec.len(), 1);
-        assert!(matches!(tokenvec[0], TokenType::Tag("TAG")));
+        let _tag = TokenType::Tag("TAG".to_string());
+        assert!(matches!(&tokenvec[0], _tag));
 
         let tokenvec = tokenize_a2ml(";").unwrap();
         assert!(matches!(tokenvec[0], TokenType::Semicolon));
