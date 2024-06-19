@@ -457,7 +457,7 @@ fn parse_unknown_taggedstruct(
             is_block,
         };
 
-        if tsitems.get(tag).is_none() {
+        if !tsitems.contains_key(tag) {
             tsitems.insert(tag.to_string(), vec![]);
         }
         tsitems.get_mut(tag).unwrap().push(taggeditem);

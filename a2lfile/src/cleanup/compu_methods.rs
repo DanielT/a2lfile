@@ -24,49 +24,37 @@ fn remove_invalid_compumethod_refs(module: &mut Module) {
         .collect();
     existing_compumethods.insert("NO_COMPU_METHOD".to_string());
     for axis_pts in &mut module.axis_pts {
-        if existing_compumethods.get(&axis_pts.conversion).is_none() {
+        if !existing_compumethods.contains(&axis_pts.conversion) {
             axis_pts.conversion = "NO_COMPU_METHOD".to_string();
         }
     }
     for characteristic in &mut module.characteristic {
         for axis_descr in &mut characteristic.axis_descr {
-            if existing_compumethods.get(&axis_descr.conversion).is_none() {
+            if !existing_compumethods.contains(&axis_descr.conversion) {
                 axis_descr.conversion = "NO_COMPU_METHOD".to_string();
             }
         }
-        if existing_compumethods
-            .get(&characteristic.conversion)
-            .is_none()
-        {
+        if !existing_compumethods.contains(&characteristic.conversion) {
             characteristic.conversion = "NO_COMPU_METHOD".to_string();
         }
     }
     for measurement in &mut module.measurement {
-        if existing_compumethods.get(&measurement.conversion).is_none() {
+        if !existing_compumethods.contains(&measurement.conversion) {
             measurement.conversion = "NO_COMPU_METHOD".to_string();
         }
     }
     for typedef_axis in &mut module.typedef_axis {
-        if existing_compumethods
-            .get(&typedef_axis.conversion)
-            .is_none()
-        {
+        if !existing_compumethods.contains(&typedef_axis.conversion) {
             typedef_axis.conversion = "NO_COMPU_METHOD".to_string();
         }
     }
     for typedef_characteristic in &mut module.typedef_characteristic {
-        if existing_compumethods
-            .get(&typedef_characteristic.conversion)
-            .is_none()
-        {
+        if !existing_compumethods.contains(&typedef_characteristic.conversion) {
             typedef_characteristic.conversion = "NO_COMPU_METHOD".to_string();
         }
     }
     for typedef_measurement in &mut module.typedef_measurement {
-        if existing_compumethods
-            .get(&typedef_measurement.conversion)
-            .is_none()
-        {
+        if !existing_compumethods.contains(&typedef_measurement.conversion) {
             typedef_measurement.conversion = "NO_COMPU_METHOD".to_string();
         }
     }
@@ -160,16 +148,13 @@ fn remove_invalid_sub_element_refs(module: &mut Module) {
     for compu_method in &mut module.compu_method {
         // if a reference to a non-existent COMPU_TAB exists, delete it
         if let Some(compu_tab_ref) = &mut compu_method.compu_tab_ref {
-            if existing_compu_tabs
-                .get(&compu_tab_ref.conversion_table)
-                .is_none()
-            {
+            if !existing_compu_tabs.contains(&compu_tab_ref.conversion_table) {
                 compu_method.compu_tab_ref = None;
             }
         }
         // if a reference to a non-existent UNIT exists, delete it
         if let Some(ref_unit) = &mut compu_method.ref_unit {
-            if existing_units.get(&ref_unit.unit).is_none() {
+            if !existing_units.contains(&ref_unit.unit) {
                 compu_method.ref_unit = None;
             }
         }

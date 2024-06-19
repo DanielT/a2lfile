@@ -1266,7 +1266,7 @@ fn fixup_make_varnames_unique(structitems: &mut Vec<DataItem>) {
         if let Some(varname) = &item.varname {
             let mut tmp_varname = varname.clone();
             let mut idx = 1;
-            while names.get(&tmp_varname).is_some() {
+            while names.contains(&tmp_varname) {
                 idx += 1;
                 tmp_varname = format!("{varname}_{idx}");
             }

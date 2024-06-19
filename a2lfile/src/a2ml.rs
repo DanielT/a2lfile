@@ -218,7 +218,7 @@ fn tokenize_a2ml(filename: String, input: &str, complete_string: &mut String) ->
                     // end of non quoted filename
                     fname_idx_end = idx;
                     // chomp the '"'
-                    idx = idx + 1;
+                    idx += 1;
                     break;
                 }
                 else {

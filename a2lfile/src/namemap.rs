@@ -336,7 +336,7 @@ pub(crate) fn build_namemap_variant<'a>(
     log_msgs: &mut Vec<String>,
 ) -> HashMap<String, &'a VarCriterion> {
     let mut namelist_variant = HashMap::<String, &'a VarCriterion>::new();
-    for variant_coding in &module.variant_coding {
+    if let Some(variant_coding) = &module.variant_coding {
         for var_criterion in &variant_coding.var_criterion {
             check_and_insert!(
                 namelist_variant,

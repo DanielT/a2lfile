@@ -209,7 +209,7 @@ pub enum ParserError {
         errmsg: String,
     },
 
-    /// AdditionalTokensError parsing finished without consuming all data in the file
+    /// `AdditionalTokensError` parsing finished without consuming all data in the file
     #[error("{filename}:{error_line}: unexpected additional data \"{text}...\" after parsed a2l file content")]
     AdditionalTokensError {
         filename: String,
@@ -217,7 +217,7 @@ pub enum ParserError {
         text: String,
     },
 
-    /// MissingVerionInfo: no version information in the file
+    /// `MissingVerionInfo`: no version information in the file
     #[error("File is not recognized as an a2l file. Mandatory version information is missing.")]
     MissingVersionInfo,
 

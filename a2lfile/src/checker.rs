@@ -66,14 +66,14 @@ fn check_axis_descr(
 ) {
     let line = axis_descr.get_line();
     if axis_descr.input_quantity != "NO_INPUT_QUANTITY"
-        && name_map.object.get(&axis_descr.input_quantity).is_none()
+        && !name_map.object.contains_key(&axis_descr.input_quantity)
     {
         log_msgs.push(format!("In AXIS_DESCR of CHARACTERISTIC {} on line {}: Referenced input MEASUREMENT {} does not exist.",
         parent_name, line, axis_descr.input_quantity));
     }
 
     if axis_descr.conversion != "NO_COMPU_METHOD"
-        && name_map.compu_method.get(&axis_descr.conversion).is_none()
+        && !name_map.compu_method.contains_key(&axis_descr.conversion)
     {
         log_msgs.push(format!("In AXIS_DESCR of CHARACTERISTIC {} on line {}: Referenced COMPU_METHOD {} does not exist.",
         parent_name, line, axis_descr.conversion));
@@ -81,7 +81,7 @@ fn check_axis_descr(
 
     if let Some(axis_pts_ref) = &axis_descr.axis_pts_ref {
         let apr_line = axis_pts_ref.get_line();
-        if name_map.object.get(&axis_pts_ref.axis_points).is_none() {
+        if !name_map.object.contains_key(&axis_pts_ref.axis_points) {
             log_msgs.push(format!("In AXIS_PTS_REF of CHARACTERISTIC {} on line {}: Referenced AXIS_PTS {} does not exist",
             parent_name, apr_line, axis_pts_ref.axis_points));
         }
@@ -89,7 +89,7 @@ fn check_axis_descr(
 
     if let Some(curve_axis_ref) = &axis_descr.curve_axis_ref {
         let car_line = curve_axis_ref.get_line();
-        if name_map.object.get(&curve_axis_ref.curve_axis).is_none() {
+        if !name_map.object.contains_key(&curve_axis_ref.curve_axis) {
             log_msgs.push(format!(
                 "In CURVE_AXIS_REF on line {}: Referenced CHARACTERISTIC {} does not exist",
                 car_line, curve_axis_ref.curve_axis
@@ -103,7 +103,7 @@ fn check_typedef_axis(t_axis: &TypedefAxis, name_map: &ModuleNameMap, log_msgs: 
     let line = t_axis.get_line();
 
     if t_axis.input_quantity != "NO_INPUT_QUANTITY"
-        && name_map.object.get(&t_axis.input_quantity).is_none()
+        && !name_map.object.contains_key(&t_axis.input_quantity)
     {
         log_msgs.push(format!(
             "In TYPEDEF_AXIS {} on line {}: Referenced input MEASUREMENT {} does not exist.",
@@ -111,7 +111,7 @@ fn check_typedef_axis(t_axis: &TypedefAxis, name_map: &ModuleNameMap, log_msgs: 
         ));
     }
 
-    if name_map.compu_method.get(&t_axis.record_layout).is_none() {
+    if !name_map.compu_method.contains_key(&t_axis.record_layout) {
         log_msgs.push(format!(
             "In TYPEDEF_AXIS {} on line {}: Referenced RECORD_LAYOUT {} does not exist.",
             name, line, t_axis.record_layout
@@ -119,7 +119,7 @@ fn check_typedef_axis(t_axis: &TypedefAxis, name_map: &ModuleNameMap, log_msgs: 
     }
 
     if t_axis.conversion != "NO_COMPU_METHOD"
-        && name_map.compu_method.get(&t_axis.conversion).is_none()
+        && !name_map.compu_method.contains_key(&t_axis.conversion)
     {
         log_msgs.push(format!(
             "In TYPEDEF_AXIS {} on line {}: Referenced COMPU_METHOD {} does not exist.",
@@ -133,7 +133,7 @@ fn check_axis_pts(axis_pts: &AxisPts, name_map: &ModuleNameMap, log_msgs: &mut V
     let line = axis_pts.get_line();
 
     if axis_pts.conversion != "NO_COMPU_METHOD"
-        && name_map.compu_method.get(&axis_pts.conversion).is_none()
+        && !name_map.compu_method.contains_key(&axis_pts.conversion)
     {
         log_msgs.push(format!(
             "In AXIS_PTS {} on line {}: Referenced COMPU_METHOD {} does not exist.",
@@ -154,10 +154,9 @@ fn check_characteristic(
     let line = characteristic.get_line();
 
     if characteristic.conversion != "NO_COMPU_METHOD"
-        && name_map
+        && !name_map
             .compu_method
-            .get(&characteristic.conversion)
-            .is_none()
+            .contains_key(&characteristic.conversion)
     {
         log_msgs.push(format!(
             "In CHARACTERISTIC {} on line {}: Referenced COMPU_METHOD {} does not exist.",
@@ -165,11 +164,7 @@ fn check_characteristic(
         ));
     }
 
-    if name_map
-        .record_layout
-        .get(&characteristic.deposit)
-        .is_none()
-    {
+    if !name_map.record_layout.contains_key(&characteristic.deposit) {
         log_msgs.push(format!(
             "In CHARACTERISTIC {} on line {}: Referenced RECORD_LAYOUT {} does not exist.",
             name, line, characteristic.deposit
@@ -182,7 +177,7 @@ fn check_characteristic(
 
     if let Some(comparison_quantity) = &characteristic.comparison_quantity {
         let cqline = comparison_quantity.get_line();
-        if name_map.object.get(&comparison_quantity.name).is_none() {
+        if !name_map.object.contains_key(&comparison_quantity.name) {
             log_msgs.push(format!(
                 "In COMPARISON_QUANTITY on line {}: Referenced MEASUREMENT {} does not exist",
                 cqline, comparison_quantity.name
@@ -239,10 +234,9 @@ fn check_typedef_characteristic(
     let line = t_characteristic.get_line();
 
     if t_characteristic.conversion != "NO_COMPU_METHOD"
-        && name_map
+        && !name_map
             .compu_method
-            .get(&t_characteristic.conversion)
-            .is_none()
+            .contains_key(&t_characteristic.conversion)
     {
         log_msgs.push(format!(
             "In TYPEDEF_CHARACTERISTIC {} on line {}: Referenced COMPU_METHOD {} does not exist.",
@@ -250,10 +244,9 @@ fn check_typedef_characteristic(
         ));
     }
 
-    if name_map
+    if !name_map
         .record_layout
-        .get(&t_characteristic.record_layout)
-        .is_none()
+        .contains_key(&t_characteristic.record_layout)
     {
         log_msgs.push(format!(
             "In TYPEDEF_CHARACTERISTIC {} on line {}: Referenced RECORD_LAYOUT {} does not exist.",
@@ -274,10 +267,9 @@ fn check_compu_method(
     let line = compu_method.get_line();
 
     if let Some(compu_tab_ref) = &compu_method.compu_tab_ref {
-        if name_map
+        if !name_map
             .compu_tab
-            .get(&compu_tab_ref.conversion_table)
-            .is_none()
+            .contains_key(&compu_tab_ref.conversion_table)
         {
             log_msgs.push(format!(
                 "In COMPU_METHOD on line {}: The COMPU_TAB_REF references nonexistent COMPU_TAB {}",
@@ -287,7 +279,7 @@ fn check_compu_method(
     }
 
     if let Some(ref_unit) = &compu_method.ref_unit {
-        if name_map.compu_tab.get(&ref_unit.unit).is_none() {
+        if !name_map.compu_tab.contains_key(&ref_unit.unit) {
             log_msgs.push(format!(
                 "In COMPU_METHOD on line {}: The REF_UNIT references nonexistent UNIT {}",
                 line, ref_unit.unit
@@ -435,7 +427,7 @@ fn check_measurement(
     let line = measurement.get_line();
 
     if measurement.conversion != "NO_COMPU_METHOD"
-        && name_map.compu_method.get(&measurement.conversion).is_none()
+        && !name_map.compu_method.contains_key(&measurement.conversion)
     {
         log_msgs.push(format!(
             "In MEASUREMENT {} on line {}: Referenced COMPU_METHOD {} does not exist.",
@@ -455,10 +447,9 @@ fn check_typedef_measurement(
     let line = t_measurement.get_line();
 
     if t_measurement.conversion != "NO_COMPU_METHOD"
-        && name_map
+        && !name_map
             .compu_method
-            .get(&t_measurement.conversion)
-            .is_none()
+            .contains_key(&t_measurement.conversion)
     {
         log_msgs.push(format!(
             "In TYPEDEF_MEASUREMENT {} on line {}: Referenced COMPU_METHOD {} does not exist.",
@@ -476,13 +467,12 @@ fn check_transformer(
     let line = transformer.get_line();
 
     if transformer.inverse_transformer != "NO_INVERSE_TRANSFORMER"
-        && name_map
+        && !name_map
             .transformer
-            .get(&transformer.inverse_transformer)
-            .is_none()
+            .contains_key(&transformer.inverse_transformer)
     {
         log_msgs.push(format!(
-            "In TRANSFORMTER {} on line {}: Referenced inverse TRANSFORMER {} does not exist.",
+            "In TRANSFORMER {} on line {}: Referenced inverse TRANSFORMER {} does not exist.",
             name, line, transformer.inverse_transformer
         ));
     }
@@ -520,10 +510,9 @@ fn check_ref_memory_segment(
     if let Some(ref_memory_segment) = opt_ref_memory_segment {
         let line = ref_memory_segment.get_line();
 
-        if name_map
+        if !name_map
             .memory_segment
-            .get(&ref_memory_segment.name)
-            .is_none()
+            .contains_key(&ref_memory_segment.name)
         {
             log_msgs.push(format!(
                 "In REF_MEMORY_SEGMENT on line {}: reference to unknown memory segment {}",
@@ -606,7 +595,7 @@ fn check_instance(instance: &Instance, name_map: &ModuleNameMap, log_msgs: &mut 
     let name = &instance.name;
     let line = instance.get_line();
 
-    if name_map.typedef.get(&instance.type_ref).is_none() {
+    if !name_map.typedef.contains_key(&instance.type_ref) {
         log_msgs.push(format!(
             "In INSTANCE {} on line {}: Referenced TYPEDEF_<x> {} does not exist.",
             name, line, instance.type_ref
@@ -623,7 +612,7 @@ fn check_typedef_structure(
     let line = typedef_structure.get_line();
 
     for sc in &typedef_structure.structure_component {
-        if name_map.typedef.get(&sc.component_type).is_none() {
+        if !name_map.typedef.contains_key(&sc.component_type) {
             log_msgs.push(format!(
                 "In STRUCTURE_COMPONENT {} of INSTANCE {} on line {}: Referenced TYPEDEF_<x> {} does not exist.",
                 sc.component_name, name, line, sc.component_type

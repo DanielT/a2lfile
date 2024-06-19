@@ -34,37 +34,37 @@ pub use specification::*;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum A2lError {
-    /// FileOpenError: An IoError that occurred while loading a file
+    /// `FileOpenError`: An `IoError` that occurred while loading a file
     #[error("Failed to load {filename}: {ioerror}")]
     FileOpenError {
         filename: PathBuf,
         ioerror: std::io::Error,
     },
 
-    /// FileReadError: An IoError that occurred while reading from a file
+    /// `FileReadError`: An `IoError` that occurred while reading from a file
     #[error("Could not read from {filename}: {ioerror}")]
     FileReadError {
         filename: PathBuf,
         ioerror: std::io::Error,
     },
 
-    /// EmptyFileError: No A2lTokens found in the file
+    /// `EmptyFileError`: No `A2lTokens` found in the file
     #[error("File \"{filename}\" contains no a2l data")]
     EmptyFileError { filename: PathBuf },
 
-    /// InvalidBuiltinA2mlSpec: Parse error while processing a built-in a2ml specification
+    /// `InvalidBuiltinA2mlSpec`: Parse error while processing a built-in a2ml specification
     #[error("Failed to load built-in a2ml specification: {parse_err}")]
     InvalidBuiltinA2mlSpec { parse_err: String },
 
-    /// TokenizerError: Failed to tokenize the input
+    /// `TokenizerError`: Failed to tokenize the input
     #[error("Tokenizer error: {tokenizer_error}")]
     TokenizerError { tokenizer_error: TokenizerError },
 
-    /// ParserError: Invalid data, the file could not be parsed
+    /// `ParserError`: Invalid data, the file could not be parsed
     #[error("Parser error: {parser_error}")]
     ParserError { parser_error: ParserError },
 
-    /// FileWriteError: An IoError that occurred while writing from a file
+    /// `FileWriteError`: An `IoError` that occurred while writing from a file
     #[error("Could not write to {filename}: {ioerror}")]
     FileWriteError {
         filename: PathBuf,

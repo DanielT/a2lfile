@@ -74,7 +74,7 @@ fn delete_empty_groups(module: &mut Module) {
         }
 
         // detect which groups are empty
-        if used_groups.get(&grp.name).is_none() && is_group_empty(grp) {
+        if !used_groups.contains(&grp.name) && is_group_empty(grp) {
             delete_queue.push(idx);
         }
     }
@@ -94,7 +94,7 @@ fn delete_empty_groups(module: &mut Module) {
             }
             // if the group referencing the current group became empty after the
             // removal of the reference, then it is also queued for deletion
-            if used_groups.get(&module.group[*refidx].name).is_none()
+            if !used_groups.contains(&module.group[*refidx].name)
                 && is_group_empty(&module.group[*refidx])
             {
                 delete_queue.push(*refidx);

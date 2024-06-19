@@ -32,7 +32,7 @@ pub(crate) fn cleanup(module: &mut Module) {
             }
         }
 
-        if used_functions.get(&func.name).is_none() && is_function_empty(func) {
+        if !used_functions.contains(&func.name) && is_function_empty(func) {
             delete_queue.push(idx);
         }
     }
@@ -53,7 +53,7 @@ pub(crate) fn cleanup(module: &mut Module) {
             }
             // if the function referencing the current function became empty after the
             // removal of the reference, then it is also queued for deletion
-            if used_functions.get(&module.function[*refidx].name).is_none()
+            if !used_functions.contains(&module.function[*refidx].name)
                 && is_function_empty(&module.function[*refidx])
             {
                 delete_queue.push(*refidx);

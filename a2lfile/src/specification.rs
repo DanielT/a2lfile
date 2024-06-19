@@ -4,6 +4,7 @@
 // Unfortunately the proc macro breaks rust-analyzer, which makes using the a2lfile crate quite inconvenient
 
 #![allow(clippy::type_complexity)]
+#![allow(clippy::new_without_default)]
 
 use crate::a2ml;
 use crate::ifdata;
@@ -283,7 +284,7 @@ impl A2lFile {
 /// Contains AML code for description of interface specific description data.
 ///
 /// Specification: 3.5.2
-/// A2ML_VERSION is currently ignored
+/// `A2ML_VERSION` is currently ignored
 #[derive(Clone)]
 pub struct A2mlVersion {
     pub version_no: u16,
@@ -1746,7 +1747,7 @@ impl AnnotationOrigin {
 
 /// Text of an annotation
 ///
-/// One ANNOTATION_TEXT may represent a multi-line description text.
+/// One `ANNOTATION_TEXT` may represent a multi-line description text.
 #[derive(Clone)]
 pub struct AnnotationText {
     pub annotation_text_list: Vec<String>,
@@ -2000,7 +2001,7 @@ impl ArComponent {
         parser.expect_token(context, A2lTokenType::End)?;
         let ident = parser.get_identifier(context)?;
         if ident != context.element {
-            parser.error_or_log(ParserError::incorrect_end_tag(parser, &context, &ident))?;
+            parser.error_or_log(ParserError::incorrect_end_tag(parser, context, &ident))?;
         }
         Ok(Self {
             __block_info: BlockInfo {
@@ -2139,9 +2140,9 @@ impl ArPrototypeOf {
         writer.finish()
     }
 }
-/// marks a measurement object as an array of <Number> measurement values
+/// marks a measurement object as an array of `<Number>` measurement values
 ///
-/// ARRAY_SIZE is obsolete: MATRIX_DIM should be used instead.
+/// `ARRAY_SIZE` is obsolete: `MATRIX_DIM` should be used instead.
 #[derive(Clone)]
 pub struct ArraySize {
     pub number: u16,
@@ -2242,7 +2243,7 @@ impl ArraySize {
 /// Version of the ASAM MCD-2MC standard used by this file
 ///
 /// This keyword is mandatory. Example:
-///     ASAP2_VERSION 1 61
+///     `ASAP2_VERSION` 1 61
 #[derive(Clone)]
 pub struct Asap2Version {
     pub version_no: u16,
@@ -4118,7 +4119,7 @@ impl AxisPtsDim {
         writer.finish()
     }
 }
-/// Reference to an AXIS_PTS record
+/// Reference to an `AXIS_PTS` record
 #[derive(Clone)]
 pub struct AxisPtsRef {
     pub axis_points: String,
@@ -4377,7 +4378,7 @@ impl AxisRescaleDim {
         writer.finish()
     }
 }
-/// The BIT_MASK keyword can be used to mask out single bits of the value to be processed.
+/// The `BIT_MASK` keyword can be used to mask out single bits of the value to be processed.
 #[derive(Clone)]
 pub struct BitMask {
     pub mask: u32,
@@ -5326,7 +5327,7 @@ impl std::fmt::Display for ByteOrderEnum {
         f.write_fmt(format_args!("{0}", tag))
     }
 }
-/// Specifies the access of a CHARACTERISTIC or AXIS_PTS for calibration
+/// Specifies the access of a CHARACTERISTIC or `AXIS_PTS` for calibration
 #[derive(Clone)]
 pub struct CalibrationAccess {
     pub calibration_access: CalibrationAccessEnum,
@@ -5422,7 +5423,7 @@ impl CalibrationAccess {
         writer.finish()
     }
 }
-/// Type of access that is possible for a CHARACTERISTIC or AXIS_PTS object
+/// Type of access that is possible for a CHARACTERISTIC or `AXIS_PTS` object
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CalibrationAccessEnum {
     Calibration,
@@ -5777,7 +5778,7 @@ impl CalibrationHandleText {
 }
 /// Indicates the different methods of access that are implemented in the ECU
 ///
-/// Valid method strings are: \"InCircuit\", \"SERAM\", \"DSERAP\", \"BSERAP\"
+/// Valid method strings are: \"`InCircuit`\", \"SERAM\", \"DSERAP\", \"BSERAP\"
 #[derive(Clone)]
 pub struct CalibrationMethod {
     pub method: String,
@@ -7411,7 +7412,7 @@ impl CoeffsLinear {
         writer.finish()
     }
 }
-///Auto generated for repeating sequence combination in block VAR_FORBIDDEN_COMB
+///Auto generated for repeating sequence combination in block `VAR_FORBIDDEN_COMB`
 #[derive(Clone)]
 pub struct CombinationStruct {
     pub criterion_name: String,
@@ -9213,7 +9214,7 @@ impl CpuType {
         writer.finish()
     }
 }
-/// Used to specify the adjustable CURVE CHARACTERISTIC that is used to normalize or scale the axis in an AXIS_DESCR
+/// Used to specify the adjustable CURVE CHARACTERISTIC that is used to normalize or scale the axis in an `AXIS_DESCR`
 #[derive(Clone)]
 pub struct CurveAxisRef {
     pub curve_axis: String,
@@ -9826,7 +9827,7 @@ impl DefCharacteristic {
         writer.finish()
     }
 }
-/// Sets the default text value of COMPU_TAB, COMPU_VTAB or COMPU_VTAB_RANGE
+/// Sets the default text value of `COMPU_TAB`, `COMPU_VTAB` or `COMPU_VTAB_RANGE`
 #[derive(Clone)]
 pub struct DefaultValue {
     pub display_string: String,
@@ -9919,7 +9920,7 @@ impl DefaultValue {
         writer.finish()
     }
 }
-/// Sets the default numerical value of COMPU_TAB, COMPU_VTAB or COMPU_VTAB_RANGE
+/// Sets the default numerical value of `COMPU_TAB`, `COMPU_VTAB` or `COMPU_VTAB_RANGE`
 #[derive(Clone)]
 pub struct DefaultValueNumeric {
     pub display_value: f64,
@@ -11327,7 +11328,7 @@ impl ExtendedLimits {
         writer.finish()
     }
 }
-/// Parameters for the calculation of fixed axis points: X_i = Offset + (i - 1)*2^shift
+/// Parameters for the calculation of fixed axis points: `X_i` = Offset + (i - 1)*2^shift
 #[derive(Clone)]
 pub struct FixAxisPar {
     pub offset: i16,
@@ -11454,7 +11455,7 @@ impl FixAxisPar {
         writer.finish()
     }
 }
-/// Parameters for the calculation of fixed axis points: X_i = Offset + (i - 1)*distance
+/// Parameters for the calculation of fixed axis points: `X_i` = Offset + (i - 1)*distance
 #[derive(Clone)]
 pub struct FixAxisParDist {
     pub offset: i16,
@@ -11706,7 +11707,7 @@ impl FixAxisParList {
         writer.finish()
     }
 }
-/// Specifies the number of axis points available to CURVE, MAP, CUBOID, CUBE_4 or CUBE_5
+/// Specifies the number of axis points available to CURVE, MAP, CUBOID, `CUBE_4` or `CUBE_5`
 #[derive(Clone)]
 pub struct FixNoAxisPtsDim {
     pub number_of_axis_points: u16,
@@ -11950,7 +11951,7 @@ impl FncValues {
         writer.finish()
     }
 }
-/// Allows a display format string to be specified for a MEASUREMENT, CHARACTERISTIC or AXIS_PTS object
+/// Allows a display format string to be specified for a MEASUREMENT, CHARACTERISTIC or `AXIS_PTS` object
 #[derive(Clone)]
 pub struct Format {
     pub format_string: String,
@@ -13716,7 +13717,7 @@ impl Group {
         writer.finish()
     }
 }
-/// Used to indicate that an adjustable CURVE, MAP or AXIS_PTS uses guard rails
+/// Used to indicate that an adjustable CURVE, MAP or `AXIS_PTS` uses guard rails
 #[derive(Clone)]
 pub struct GuardRails {
     pub(crate) __block_info: BlockInfo<()>,
@@ -14313,7 +14314,7 @@ impl std::fmt::Display for IndexOrder {
         f.write_fmt(format_args!("{0}", tag))
     }
 }
-///INPUT_QUANTITY is used inside OVERWRITE to override the input_quantity of an INSTANCE
+///`INPUT_QUANTITY` is used inside OVERWRITE to override the `input_quantity` of an INSTANCE
 #[derive(Clone)]
 pub struct InputQuantity {
     pub name: String,
@@ -14412,7 +14413,7 @@ impl InputQuantity {
         writer.finish()
     }
 }
-/// Creates an instance of a type defined using TYPEDEF_STRUCTURE, TYPEDEF_MEASUREMENT or TYPEDEF_CHARACTERISTIC
+/// Creates an instance of a type defined using `TYPEDEF_STRUCTURE`, `TYPEDEF_MEASUREMENT` or `TYPEDEF_CHARACTERISTIC`
 #[derive(Clone)]
 pub struct Instance {
     pub name: String,
@@ -15098,7 +15099,7 @@ impl Layout {
         writer.finish()
     }
 }
-/// Used within BIT_OPERATION to left-shift the bits of a value
+/// Used within `BIT_OPERATION` to left-shift the bits of a value
 #[derive(Clone)]
 pub struct LeftShift {
     pub bitcount: u32,
@@ -20202,7 +20203,7 @@ impl NoRescaleDim {
         writer.finish()
     }
 }
-/// specifies the number of values in an array. Obsolete, replaced by MATRIX_DIM
+/// specifies the number of values in an array. Obsolete, replaced by `MATRIX_DIM`
 #[derive(Clone)]
 pub struct Number {
     pub number: u16,
@@ -23859,7 +23860,7 @@ impl RefCharacteristic {
         writer.finish()
     }
 }
-/// defines a list of groups for use by USER_RIGHTS
+/// defines a list of groups for use by `USER_RIGHTS`
 #[derive(Clone)]
 pub struct RefGroup {
     pub identifier_list: Vec<String>,
@@ -24101,7 +24102,7 @@ impl RefMeasurement {
         writer.finish()
     }
 }
-/// reference to a MEMORY_SEGMENT
+/// reference to a `MEMORY_SEGMENT`
 #[derive(Clone)]
 pub struct RefMemorySegment {
     pub name: String,
@@ -24400,7 +24401,7 @@ impl Reserved {
         writer.finish()
     }
 }
-/// Used within BIT_OPERATION to right-shift the bits of a value
+/// Used within `BIT_OPERATION` to right-shift the bits of a value
 #[derive(Clone)]
 pub struct RightShift {
     pub bitcount: u32,
@@ -25146,7 +25147,7 @@ impl SiExponents {
         writer.finish()
     }
 }
-/// used in BIT_OPERATION to specify that sign extension should be performed
+/// used in `BIT_OPERATION` to specify that sign extension should be performed
 #[derive(Clone)]
 pub struct SignExtend {
     pub(crate) __block_info: BlockInfo<()>,
@@ -25594,7 +25595,7 @@ impl StatusStringRef {
         writer.finish()
     }
 }
-/// step size when adjusting the value of a CHARACTERISTIC, AXIS_PTS or AXIS_DESCR
+/// step size when adjusting the value of a CHARACTERISTIC, `AXIS_PTS` or `AXIS_DESCR`
 #[derive(Clone)]
 pub struct StepSize {
     pub step_size: f64,
@@ -25687,7 +25688,7 @@ impl StepSize {
         writer.finish()
     }
 }
-/// defines a single component of a TYPEDEF_STRUCTURE
+/// defines a single component of a `TYPEDEF_STRUCTURE`
 #[derive(Clone)]
 pub struct StructureComponent {
     pub component_name: String,
@@ -26615,7 +26616,7 @@ impl SystemConstant {
         writer.finish()
     }
 }
-///Auto generated for repeating sequence tab_entry in block COMPU_TAB
+///Auto generated for repeating sequence `tab_entry` in block `COMPU_TAB`
 #[derive(Clone)]
 pub struct TabEntryStruct {
     pub in_val: f64,
@@ -30095,7 +30096,7 @@ impl UserRights {
         writer.finish()
     }
 }
-///Auto generated for repeating sequence value_pairs in block COMPU_VTAB
+///Auto generated for repeating sequence `value_pairs` in block `COMPU_VTAB`
 #[derive(Clone)]
 pub struct ValuePairsStruct {
     pub in_val: f64,
@@ -30194,7 +30195,7 @@ impl ValuePairsStruct {
         writer.add_quoted_string(&self.out_val, self.__block_info.item_location.1);
     }
 }
-///Auto generated for repeating sequence value_triples in block COMPU_VTAB_RANGE
+///Auto generated for repeating sequence `value_triples` in block `COMPU_VTAB_RANGE`
 #[derive(Clone)]
 pub struct ValueTriplesStruct {
     pub in_val_min: f64,
@@ -32195,9 +32196,9 @@ impl PartialEq for A2ml {
 /// Instead the content description is provided at runtime through the A2ML block.
 #[derive(Clone)]
 pub struct IfData {
-    /// contains the content of the IF_DATA in generic form
+    /// contains the content of the `IF_DATA` in generic form
     pub ifdata_items: Option<a2ml::GenericIfData>,
-    /// ifdata_valid indicates if the data matched an A2ML specification during parsing or not
+    /// `ifdata_valid` indicates if the data matched an A2ML specification during parsing or not
     pub ifdata_valid: bool,
     pub(crate) __block_info: BlockInfo<()>,
 }

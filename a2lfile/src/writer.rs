@@ -51,7 +51,7 @@ impl Writer {
         self.outstring.push('"');
 
         // escaping lots of strings is an expensive operation, so check if anything needs to be done first
-        if value.contains(|c| c == '\'' || c == '"' || c == '\\' || c == '\n' || c == '\t') {
+        if value.contains(['\'', '"', '\\', '\n', '\t']) {
             let input_chars: Vec<char> = value.chars().collect();
 
             for c in input_chars {
@@ -106,7 +106,7 @@ impl Writer {
 
         for item in group {
             if let Some(incname) = item.incfile {
-                if included_files.get(incname).is_none() {
+                if !included_files.contains(incname) {
                     self.add_whitespace(item.start_offset);
                     self.outstring.push_str("/include \"");
                     self.outstring.push_str(incname);
