@@ -206,8 +206,9 @@ fn load_impl(
     // if a built-in A2ml specification was passed as a string, then it is parsed here
     if let Some(spec) = a2ml_spec {
         parser.builtin_a2mlspec = Some(
-            a2ml::parse_a2ml(path.to_string_lossy().to_string(), &spec)
-                .map_err(|parse_err| A2lError::InvalidBuiltinA2mlSpec { parse_err })?.0,
+            a2ml::parse_a2ml(path.to_string_lossy().as_ref(), &spec)
+                .map_err(|parse_err| A2lError::InvalidBuiltinA2mlSpec { parse_err })?
+                .0,
         );
     }
 
@@ -371,6 +372,7 @@ impl Module {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::tempdir;
 
     #[test]
     fn load_empty_file() {
@@ -475,6 +477,10 @@ mod tests {
 
     #[test]
     fn write_with_banner() {
+        // set the current working directory to a temp dir
+        let dir = tempdir().unwrap();
+        std::env::set_current_dir(&dir.path()).unwrap();
+
         let mut a2l = new();
         a2l.asap2_version
             .as_mut()

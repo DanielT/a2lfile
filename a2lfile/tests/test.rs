@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod test {
-    use std::{collections::HashMap, vec};
-
     use a2lfile::*;
+    use std::{collections::HashMap, vec};
+    use tempfile::tempdir;
 
     a2ml_specification! {
         <A2mlTest>
@@ -78,6 +78,10 @@ ASAP2_VERSION 1 61
 
     #[test]
     fn full_test() {
+        // work in a tempdir
+        let dir = tempdir().unwrap();
+        std::env::set_current_dir(&dir.path()).unwrap();
+
         let mut a2l_file = a2lfile::new();
 
         a2l_file.a2ml_version = Some(A2mlVersion::new(1, 31));

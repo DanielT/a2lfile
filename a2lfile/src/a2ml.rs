@@ -1,5 +1,6 @@
-use super::{tokenizer, loader};
 use super::writer::{TaggedItemInfo, Writer};
+use super::{loader, tokenizer};
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -120,298 +121,276 @@ pub enum GenericIfData {
 
 // tokenize()
 // Tokenize the text of the a2ml section
-fn tokenize_a2ml(filename: String, input: &str, complete_string: &mut String) -> Result<Vec<TokenType>, String> {
+fn tokenize_a2ml(filename: &str, input: &str) -> Result<(Vec<TokenType>, String), String> {
     let mut amltokens = Vec::<TokenType>::new();
-    let mut remaining = input;
+    let input_bytes = input.as_bytes();
+    let datalen = input_bytes.len();
+    let mut bytepos = 0;
+    let mut complete_string = String::with_capacity(datalen);
+    let mut copypos = 0;
 
-    while !remaining.is_empty() {
-        let mut chars = remaining.char_indices();
-        let (mut idx, mut c) = chars.next().unwrap();
-        let mut append_to_complete = true;
+    while bytepos < datalen {
+        let startpos = bytepos;
+        let c = input_bytes[bytepos];
 
-        if c.is_ascii_whitespace() {
+        if input_bytes[bytepos].is_ascii_whitespace() {
             /* skip whitespace */
-            while c.is_ascii_whitespace() {
-                let pair = chars.next().unwrap_or((idx + 1, '\0'));
-                idx = pair.0;
-                c = pair.1;
+            while bytepos < datalen && input_bytes[bytepos].is_ascii_whitespace() {
+                bytepos += 1;
             }
-        } else if remaining.starts_with("/*") {
-            /* get a block comment */
-            chars.next(); /* skip over the '*' char of the opening sequence */
-            let mut done = false;
-            let mut star = false;
-            while !done {
-                if let Some(pair) = chars.next() {
-                    idx = pair.0;
-                    c = pair.1;
-                    if c == '*' {
-                        star = true;
-                    } else if c == '/' && star {
-                        done = true;
-                    } else {
-                        star = false;
-                    }
-                } else {
-                    let displaylen = if remaining.len() > 16 {
-                        16
-                    } else {
-                        remaining.len()
-                    };
-                    // slicing remaining in arbitrary ways is not safe, the end might be in the middle of a utf-8 sequence, so from_utf8_lossy is needed
-                    let errtxt = String::from_utf8_lossy(&remaining.as_bytes()[..displaylen]);
-                    return Err(format!("unclosed block quote starting with \"{errtxt}\""));
-                }
+        } else if input_bytes[bytepos..].starts_with(b"/*") {
+            /* skip a block comment */
+            bytepos += 2; // just past the initial "/*"
+            while bytepos < datalen && !input_bytes[bytepos..].starts_with(b"*/") {
+                bytepos += 1;
             }
-            // chomp the last /
-            idx += 1;
-        } else if remaining.starts_with("//") {
-            /* get a line comment */
-            loop {
-                if let Some(pair) = chars.next() {
-                    idx = pair.0;
-                    c = pair.1;
-                    if c == '\n' {
-                        break;
-                    }
-                } else {
-                    idx = remaining.len() - 1; // results in an empty remaining
-                    break;
-                }
-            }
-            // add the initial extra / in //
-            idx += 1;
-        } else if remaining.starts_with("/include") {
-            // skip the first elements (include = 0..6)
-            chars.nth(6);
-            let mut state = 0;
-            let mut fname_idx_start = 0;
-            let fname_idx_end;
 
-            // skip the whitespaces
-            loop {
-                let pair = chars.next().unwrap_or((idx + 1, '\0'));
-                idx = pair.0;
-                c = pair.1;
-                if state == 0 && c.is_ascii_whitespace() {
-                    // just skip whitespaces
-                } else if state == 0 && tokenizer::is_pathchar(c as u8) {
-                    // start a non quoted filename
-                    state = 1;
-                    fname_idx_start = idx;
-                } else if state == 1 && tokenizer::is_pathchar(c as u8) {
-                    // in non quoted filename
-                } else if state == 1 && (c.is_ascii_whitespace() || c == '\0') {
-                    // end of non quoted filename
-                    fname_idx_end = idx;
-                    break;
-                } else if state == 0 && c == '"' {
-                    // start a quoted filename
-                    state = 2;
-                } else if state == 2 && tokenizer::is_pathchar(c as u8) {
-                    // first byte of a quoted filename
-                    state = 3;
-                    fname_idx_start = idx;
-                } else if state == 3 && tokenizer::is_pathchar(c as u8) {
-                    // in a quoted filename
-                } else if state == 3 && c == '"' {
-                    // end of non quoted filename
-                    fname_idx_end = idx;
-                    // chomp the '"'
-                    idx += 1;
-                    break;
-                }
-                else {
-                    let displaylen = if remaining.len() > 16 {
-                        16
-                    } else {
-                        remaining.len()
-                    };
-                    // slicing localremaining in arbitrary ways is not safe, the end might be in the middle of a utf-8 sequence, so from_utf8_lossy is needed
-                    let errtxt = String::from_utf8_lossy(&remaining.as_bytes()[..displaylen]);
-                    return Err(format!("failed parsing a2ml include filename in {errtxt}"));
-                }
+            if bytepos >= datalen {
+                let errtxt = make_errtxt(startpos, input_bytes);
+                return Err(format!("unclosed block quote starting with \"{errtxt}\""));
             }
-            // if the current filename was not provided (unit tests..), do not try to parse the include file
-            if !filename.is_empty() {
-                let incfilename = loader::make_include_filename(&remaining[fname_idx_start..fname_idx_end], &filename);
 
-                // check if incname is an accessible file
-                let incpathref = Path::new(&incfilename);
-                let loadresult = loader::load(incpathref);
-                if let Ok(incfiledata) = loadresult {
-                    let mut tokresult = tokenize_a2ml(incpathref.display().to_string(), &incfiledata, complete_string)?;
-                    // append the tokens from the included file(s)
-                    amltokens.append(&mut tokresult);
-                } else {
-                    return Err(format!("failed reading {}", incpathref.display()));
-                }
+            // chomp the closing "*/"
+            bytepos += 2;
+        } else if input_bytes[bytepos..].starts_with(b"//") {
+            /* skip a line comment */
+            while bytepos < datalen && input_bytes[bytepos] != b'\n' {
+                bytepos += 1;
             }
-            append_to_complete = false;
-        } else if c == '"' {
-            /* tag - it is enclosed in double quotes, but contains neither spaces nor escape characters */
-            loop {
-                let pair = chars.next().unwrap_or((idx + 1, '\0'));
-                idx = pair.0;
-                c = pair.1;
-                if c == '"' || c == '\0' {
-                    break;
-                }
+            if bytepos < datalen {
+                // skip the final '\n'
+                bytepos += 1;
             }
-            if c == '"' {
-                let tag = &remaining[1..idx];
-                amltokens.push(TokenType::Tag(tag.to_string()));
-                idx += 1;
-            } else {
-                let displaylen = if remaining.len() > 16 {
-                    16
-                } else {
-                    remaining.len()
-                };
-                // slicing remaining in arbitrary ways is not safe, the end might be in the middle of a utf-8 sequence, so from_utf8_lossy is needed
-                let errtxt = String::from_utf8_lossy(&remaining.as_bytes()[..displaylen]);
-                return Err(format!("unclosed tag string starting with {errtxt}"));
-            }
-        } else if c == ';' {
+        } else if input_bytes[bytepos..].starts_with(b"/include") {
+            // copy any uncopied text before the include token
+            complete_string.push_str(&input[copypos..startpos]);
+            let (mut tokresult, incfile_text) = tokenize_include(filename, input, &mut bytepos)?;
+            complete_string.push_str(&incfile_text);
+            copypos = bytepos;
+
+            // append the tokens from the included file(s)
+            amltokens.append(&mut tokresult);
+        } else if c == b'"' {
+            let token = tokenize_tag(input, &mut bytepos)?;
+            amltokens.push(token);
+        } else if c == b';' {
             amltokens.push(TokenType::Semicolon);
-            idx = 1;
-        } else if c == ',' {
+            bytepos += 1;
+        } else if c == b',' {
             amltokens.push(TokenType::Comma);
-            idx = 1;
-        } else if c == '{' {
+            bytepos += 1;
+        } else if c == b'{' {
             amltokens.push(TokenType::OpenCurlyBracket);
-            idx = 1;
-        } else if c == '}' {
+            bytepos += 1;
+        } else if c == b'}' {
             amltokens.push(TokenType::ClosedCurlyBracket);
-            idx = 1;
-        } else if c == '[' {
+            bytepos += 1;
+        } else if c == b'[' {
             amltokens.push(TokenType::OpenSquareBracket);
-            idx = 1;
-        } else if c == ']' {
+            bytepos += 1;
+        } else if c == b']' {
             amltokens.push(TokenType::ClosedSquareBracket);
-            idx = 1;
-        } else if c == '(' {
+            bytepos += 1;
+        } else if c == b'(' {
             amltokens.push(TokenType::OpenRoundBracket);
-            idx = 1;
-        } else if c == ')' {
+            bytepos += 1;
+        } else if c == b')' {
             amltokens.push(TokenType::ClosedRoundBracket);
-            idx = 1;
-        } else if c == '*' {
+            bytepos += 1;
+        } else if c == b'*' {
             amltokens.push(TokenType::Repeat);
-            idx = 1;
-        } else if c == '=' {
+            bytepos += 1;
+        } else if c == b'=' {
             amltokens.push(TokenType::Equals);
-            idx = 1;
+            bytepos += 1;
         } else if c.is_ascii_digit() {
-            loop {
-                let pair = chars.next().unwrap_or((idx + 1, '\0'));
-                idx = pair.0;
-                c = pair.1;
-                if !c.is_ascii_alphanumeric() && c != '_' {
-                    break;
-                }
-            }
-            let num_text = &remaining[0..idx];
-            if let Some(hexval) = num_text.strip_prefix("0x") {
-                // hex constant
-                if let Ok(number) = i32::from_str_radix(hexval, 16) {
-                    amltokens.push(TokenType::Constant(number));
-                } else {
-                    return Err(format!("Invalid sequence in AML: {num_text}"));
-                }
-            } else {
-                // not hex format -> must be decimal
-                if let Ok(number) = num_text.parse::<i32>() {
-                    amltokens.push(TokenType::Constant(number));
-                } else {
-                    return Err(format!("Invalid sequence in AML: {num_text}"));
-                }
-            }
-        } else if c.is_ascii_alphabetic() || c == '_' {
-            loop {
-                let pair = chars.next().unwrap_or((idx + 1, '\0'));
-                idx = pair.0;
-                c = pair.1;
-                if !c.is_ascii_alphanumeric() && c != '_' {
-                    break;
-                }
-            }
-            let kw_or_ident = &remaining[..idx];
-            match kw_or_ident {
-                "char" => {
-                    amltokens.push(TokenType::Char);
-                }
-                "int" => {
-                    amltokens.push(TokenType::Int);
-                }
-                "long" => {
-                    amltokens.push(TokenType::Long);
-                }
-                "int64" => {
-                    amltokens.push(TokenType::Int64);
-                }
-                "uint" => {
-                    amltokens.push(TokenType::Uint);
-                }
-                "uchar" => {
-                    amltokens.push(TokenType::Uchar);
-                }
-                "ulong" => {
-                    amltokens.push(TokenType::Ulong);
-                }
-                "uint64" => {
-                    amltokens.push(TokenType::Uint64);
-                }
-                "double" => {
-                    amltokens.push(TokenType::Double);
-                }
-                "float" => {
-                    amltokens.push(TokenType::Float);
-                }
-                "block" => {
-                    amltokens.push(TokenType::Block);
-                }
-                "enum" => {
-                    amltokens.push(TokenType::Enum);
-                }
-                "struct" => {
-                    amltokens.push(TokenType::Struct);
-                }
-                "taggedstruct" => {
-                    amltokens.push(TokenType::Taggedstruct);
-                }
-                "taggedunion" => {
-                    amltokens.push(TokenType::Taggedunion);
-                }
-                _ => {
-                    amltokens.push(TokenType::Identifier(kw_or_ident.to_string()));
-                }
-            }
+            // tokenize a number, either decimal or hexadecimal
+            let token = tokenize_number(input, &mut bytepos)?;
+            amltokens.push(token);
+        } else if c.is_ascii_alphabetic() || c == b'_' {
+            // tokenize a keyword (int, long, etc.) or an identifier, both of which are non-quoted text
+            let token = tokenize_keyword_ident(input, &mut bytepos);
+            amltokens.push(token);
         } else {
-            let displaylen = if remaining.len() > 16 {
-                16
-            } else {
-                remaining.len()
-            };
-            // slicing remaining in arbitrary ways is not safe, the end might be in the middle of a utf-8 sequence, so from_utf8_lossy is needed
-            let errtxt = String::from_utf8_lossy(&remaining.as_bytes()[..displaylen]);
+            let errtxt = make_errtxt(startpos, input_bytes);
             return Err(format!("Unable to tokenize: {errtxt}..."));
         }
-        if append_to_complete {
-            complete_string.push_str(&remaining[..idx])
+    }
+    complete_string.push_str(&input[copypos..datalen]);
+
+    Ok((amltokens, complete_string))
+}
+
+fn tokenize_tag(input: &str, bytepos: &mut usize) -> Result<TokenType, String> {
+    let input_bytes = input.as_bytes();
+    let datalen = input_bytes.len();
+    let startpos = *bytepos;
+
+    *bytepos += 1;
+    let mut c = input_bytes[*bytepos];
+    while *bytepos < datalen {
+        c = input_bytes[*bytepos];
+        if c == b'"' {
+            break;
         }
-        remaining = &remaining[idx..];
+        *bytepos += 1;
+    }
+    /* tag - it is enclosed in double quotes, but contains neither spaces nor escape characters */
+    if c == b'"' {
+        let tag = &input[(startpos + 1)..*bytepos];
+        *bytepos += 1;
+        Ok(TokenType::Tag(tag.to_string()))
+    } else {
+        let errtxt = make_errtxt(startpos, input_bytes);
+        Err(format!("unclosed tag string starting with {errtxt}"))
+    }
+}
+
+fn tokenize_include(
+    filename: &str,
+    input: &str,
+    bytepos: &mut usize,
+) -> Result<(Vec<TokenType>, String), String> {
+    let input_bytes = input.as_bytes();
+    let datalen = input_bytes.len();
+    let startpos = *bytepos;
+
+    *bytepos += 8;
+    let mut state = 0;
+    let mut fname_idx_start = 0;
+    let fname_idx_end;
+    loop {
+        let c = if *bytepos < datalen {
+            input_bytes[*bytepos]
+        } else {
+            b'\0'
+        };
+
+        if state == 0 && c.is_ascii_whitespace() {
+            // just skip whitespaces
+        } else if state == 0 && tokenizer::is_pathchar(c) {
+            // start a non quoted filename
+            state = 1;
+            fname_idx_start = *bytepos;
+        } else if state == 1 && tokenizer::is_pathchar(c) {
+            // in non quoted filename
+        } else if state == 1 && (c.is_ascii_whitespace() || c == b'\0') {
+            // end of non quoted filename
+            fname_idx_end = *bytepos;
+            break;
+        } else if state == 0 && c == b'"' {
+            // start a quoted filename
+            state = 2;
+        } else if state == 2 && tokenizer::is_pathchar(c) {
+            // first byte of a quoted filename
+            state = 3;
+            fname_idx_start = *bytepos;
+        } else if state == 3 && tokenizer::is_pathchar(c) {
+            // in a quoted filename
+        } else if state == 3 && c == b'"' {
+            // end of non quoted filename
+            fname_idx_end = *bytepos;
+            // chomp the '"'
+            *bytepos += 1;
+            break;
+        } else {
+            let errtxt = make_errtxt(startpos, input_bytes);
+            return Err(format!("failed parsing a2ml include filename in {errtxt}"));
+        }
+        *bytepos += 1;
     }
 
-    Ok(amltokens)
+    let incname = &input[fname_idx_start..fname_idx_end];
+    let incfilename = loader::make_include_filename(incname, filename);
+
+    // check if incname is an accessible file
+    let incpathref = Path::new(&incfilename);
+    let loadresult = loader::load(incpathref);
+    if let Ok(incfiledata) = loadresult {
+        tokenize_a2ml(incpathref.to_string_lossy().as_ref(), &incfiledata)
+    } else {
+        Err(format!("failed reading {}", incpathref.display()))
+    }
+}
+
+fn tokenize_number(input: &str, bytepos: &mut usize) -> Result<TokenType, String> {
+    let input_bytes = input.as_bytes();
+    let datalen = input_bytes.len();
+    let startpos = *bytepos;
+
+    while *bytepos < datalen {
+        let c = input_bytes[*bytepos];
+        if !c.is_ascii_alphanumeric() && c != b'_' {
+            break;
+        }
+        *bytepos += 1;
+    }
+    let num_text = &input[startpos..*bytepos];
+    if let Some(hexval) = num_text.strip_prefix("0x") {
+        // hex constant
+        if let Ok(number) = i32::from_str_radix(hexval, 16) {
+            Ok(TokenType::Constant(number))
+        } else {
+            Err(format!("Invalid sequence in AML: {num_text}"))
+        }
+    } else {
+        // not hex format -> must be decimal
+        if let Ok(number) = num_text.parse::<i32>() {
+            Ok(TokenType::Constant(number))
+        } else {
+            Err(format!("Invalid sequence in AML: {num_text}"))
+        }
+    }
+}
+
+fn tokenize_keyword_ident(input: &str, bytepos: &mut usize) -> TokenType {
+    let input_bytes = input.as_bytes();
+    let datalen = input_bytes.len();
+    let startpos = *bytepos;
+    while *bytepos < datalen {
+        let c = input_bytes[*bytepos];
+        if !c.is_ascii_alphanumeric() && c != b'_' {
+            break;
+        }
+        *bytepos += 1;
+    }
+    let kw_or_ident = &input[startpos..*bytepos];
+    match kw_or_ident {
+        "char" => TokenType::Char,
+        "int" => TokenType::Int,
+        "long" => TokenType::Long,
+        "int64" => TokenType::Int64,
+        "uint" => TokenType::Uint,
+        "uchar" => TokenType::Uchar,
+        "ulong" => TokenType::Ulong,
+        "uint64" => TokenType::Uint64,
+        "double" => TokenType::Double,
+        "float" => TokenType::Float,
+        "block" => TokenType::Block,
+        "enum" => TokenType::Enum,
+        "struct" => TokenType::Struct,
+        "taggedstruct" => TokenType::Taggedstruct,
+        "taggedunion" => TokenType::Taggedunion,
+        _ => TokenType::Identifier(kw_or_ident.to_string()),
+    }
+}
+
+fn make_errtxt(pos: usize, input_bytes: &[u8]) -> Cow<str> {
+    let datalen = input_bytes.len();
+    let endpos = if pos + 16 < datalen {
+        pos + 16
+    } else {
+        datalen
+    };
+    // slicing remaining in arbitrary ways is not safe, the end might be in the middle of a utf-8 sequence, so from_utf8_lossy is needed
+    String::from_utf8_lossy(&input_bytes[pos..endpos])
 }
 
 // parse an a2ml fragment in an a2l file
 // The target data structure is the parsing definition used by the a2l parser, so that the
 // a2ml can control the parsing of IF_DATA blocks
-pub(crate) fn parse_a2ml(filename: String, input: &str) -> Result<(A2mlTypeSpec, String), String> {
-    let mut complete_string = String::with_capacity(input.len());
-    let tok_result = tokenize_a2ml(filename, input, &mut complete_string)?;
+pub(crate) fn parse_a2ml(filename: &str, input: &str) -> Result<(A2mlTypeSpec, String), String> {
+    let (tok_result, complete_string) = tokenize_a2ml(filename, input)?;
     let mut tok_iter = tok_result.iter().peekable();
 
     let mut ifdata_block: Option<A2mlTypeSpec> = None;
@@ -1356,60 +1335,66 @@ impl PartialEq for GenericIfDataTaggedItem {
 #[cfg(test)]
 mod test {
     use super::*;
+    use tempfile::tempdir;
 
     #[test]
     fn tokenize() {
-        let mut complete_string = String::new();
-        let tokenvec = tokenize_a2ml(String::new(), "       ", &mut complete_string).unwrap();
+        let (tokenvec, _) = tokenize_a2ml("test", "       ").unwrap();
         assert!(tokenvec.is_empty());
 
-        let tokenvec = tokenize_a2ml(String::new(), "/* // */", &mut complete_string).unwrap();
+        let (tokenvec, _) = tokenize_a2ml("test", "/* // */").unwrap();
         assert!(tokenvec.is_empty());
-        let tokenvec = tokenize_a2ml(String::new(), "/*/*/", &mut complete_string).unwrap();
+        let (tokenvec, _) = tokenize_a2ml("test", "/*/*/").unwrap();
         assert!(tokenvec.is_empty());
-        let tokenvec = tokenize_a2ml(String::new(), "/***/", &mut complete_string).unwrap();
+        let (tokenvec, _) = tokenize_a2ml("test", "/***/").unwrap();
         assert!(tokenvec.is_empty());
-        let tokenvec_err = tokenize_a2ml(String::new(), "/* ", &mut complete_string);
+        let tokenvec_err = tokenize_a2ml("test", "/* ");
         assert!(tokenvec_err.is_err());
-        let tokenvec = tokenize_a2ml(String::new(), "//*/", &mut complete_string).unwrap();
+        let (tokenvec, _) = tokenize_a2ml("test", "//*/").unwrap();
         assert!(tokenvec.is_empty());
 
-        let tokenvec = tokenize_a2ml(String::new(), r#""TAG""#, &mut complete_string).unwrap();
+        let (tokenvec, _) = tokenize_a2ml("test", r#""TAG""#).unwrap();
         assert_eq!(tokenvec.len(), 1);
         let _tag = TokenType::Tag("TAG".to_string());
         assert!(matches!(&tokenvec[0], _tag));
 
-        let tokenvec = tokenize_a2ml(String::new(), ";", &mut complete_string).unwrap();
+        let (tokenvec, _) = tokenize_a2ml("test", ";").unwrap();
         assert_eq!(tokenvec.len(), 1);
         assert!(matches!(tokenvec[0], TokenType::Semicolon));
 
-        let tokenvec = tokenize_a2ml(String::new(), "0", &mut complete_string).unwrap();
+        let (tokenvec, _) = tokenize_a2ml("test", "0").unwrap();
         assert_eq!(tokenvec.len(), 1);
         assert!(matches!(tokenvec[0], TokenType::Constant(0)));
 
-        let tokenvec = tokenize_a2ml(String::new(), "0x03", &mut complete_string).unwrap();
+        let (tokenvec, _) = tokenize_a2ml("test", "0x03").unwrap();
         assert_eq!(tokenvec.len(), 1);
         assert!(matches!(tokenvec[0], TokenType::Constant(3)));
 
-        let tokenvec = tokenize_a2ml(String::new(), "123456", &mut complete_string).unwrap();
+        let (tokenvec, _) = tokenize_a2ml("test", "123456").unwrap();
         assert_eq!(tokenvec.len(), 1);
         assert!(matches!(tokenvec[0], TokenType::Constant(123456)));
 
-        let tokenvec = tokenize_a2ml(String::new(), r#"/include "testfile""#, &mut complete_string).unwrap();
+        // set the current working directory to a temp dir
+        let dir = tempdir().unwrap();
+        std::env::set_current_dir(&dir.path()).unwrap();
+
+        // create the empty "testfile" so that it can be included
+        std::fs::File::create_new("testfile").unwrap();
+
+        let (tokenvec, _) = tokenize_a2ml("test", r#"/include "testfile""#).unwrap();
         assert_eq!(tokenvec.len(), 0);
 
-        let tokenvec = tokenize_a2ml(String::new(), r#"/include"testfile""#, &mut complete_string).unwrap();
+        let (tokenvec, _) = tokenize_a2ml("test", r#"/include"testfile""#).unwrap();
         assert_eq!(tokenvec.len(), 0);
 
-        let tokenvec = tokenize_a2ml(String::new(), r#"/include testfile"#, &mut complete_string).unwrap();
+        let (tokenvec, _) = tokenize_a2ml("test", r#"/include testfile"#).unwrap();
         assert_eq!(tokenvec.len(), 0);
 
-        let err_result = tokenize_a2ml(String::new(), r#"/include "testfile_unclosed_quote"#, &mut complete_string);
+        let err_result = tokenize_a2ml("test", r#"/include "testfile_unclosed_quote"#);
         assert!(err_result.is_err());
 
-        let err_result = tokenize_a2ml(String::new(), r#" "unclosed "#, &mut complete_string);
+        let err_result = tokenize_a2ml("test", r#" "unclosed "#);
         assert!(err_result.is_err());
-
     }
 
     #[test]
@@ -1527,7 +1512,7 @@ mod test {
             A2mlTypeSpec::TaggedStruct(taggedstruct_hashmap),
         ]);
 
-        let parse_result = parse_a2ml(String::new(), TEST_INPUT);
+        let parse_result = parse_a2ml("test", TEST_INPUT);
         assert!(parse_result.is_ok());
         let (a2ml_spec, _complete_string) = parse_result.unwrap();
         println!("{:?}", a2ml_spec);
