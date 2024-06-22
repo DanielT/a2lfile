@@ -1,6 +1,6 @@
 [package]
 name = "a2lfile"
-version = "2.0.0"
+version = "2.1.0"
 authors = ["Daniel Thaler <daniel@dthaler.de>"]
 edition = "2021"
 description = "read, modify and write a2l files"
@@ -11,7 +11,7 @@ categories = ["parser-implementations"]
 repository = "https://github.com/DanielT/a2lfile"
 
 [dependencies.a2lmacros]
-version = "2.0.0"
+version = "2.1.0"
 
 [dependencies]
 thiserror = "1.0.50"

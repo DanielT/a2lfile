@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 2.1.0
+
+- add handling of /include inside A2ML blocks (Louis Caron)
+- fix multi-level /include inside A2L (bug report by Louis Caron)
+
 ## Version 2.0.0
 
 - Specification: AR_COMPONENT is a block enclosed in /begin and /end, not a keyword
