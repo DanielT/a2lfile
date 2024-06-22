@@ -1,10 +1,10 @@
 use crate::A2lError;
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-pub(crate) fn make_include_filename(incname: &str, base_filename: &str) -> OsString {
+pub(crate) fn make_include_filename(incname: &str, base_filename: &OsStr) -> OsString {
     let base = std::path::Path::new(base_filename);
     if let Some(basedir) = base.parent() {
         let joined = basedir.join(incname);
@@ -146,6 +146,8 @@ fn decode_raw_bytes(filedata: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
+    use tempfile::tempdir;
 
     #[test]
     fn load_nonexistent_file() {
@@ -203,5 +205,45 @@ mod tests {
     fn decode_decode_raw_bytes_ascii() {
         let data: Vec<u8> = vec![0xa9]; // "©"
         assert_eq!(decode_raw_bytes(&data), String::from("\u{00a9}"));
+    }
+
+    #[test]
+    fn included_files() {
+        let dir = tempdir().unwrap();
+
+        // base file at <tempdir>/base
+        let base_filename = dir.path().join("base");
+        let mut basefile = std::fs::File::create_new(&base_filename).unwrap();
+        basefile.write(br#"/include "abc/include1""#).unwrap();
+
+        // include file 1 at <tempdir>/abc/include1
+        let subdir = dir.path().join("abc");
+        let inc1name = subdir.join("include1");
+        std::fs::create_dir(&subdir).unwrap();
+        let mut incfile1 = std::fs::File::create_new(&inc1name).unwrap();
+        incfile1.write(br#"/include "def/include2""#).unwrap();
+
+        // include file 2 at <tempdir>/abc/def/include2
+        let subdir2 = subdir.join("def");
+        std::fs::create_dir(&subdir2).unwrap();
+        let _incfile2 = std::fs::File::create_new(subdir2.join("include2")).unwrap();
+
+        // verify include 1
+        let out = make_include_filename(r#"abc/include1"#, base_filename.as_os_str())
+            .into_string()
+            .unwrap();
+        // canonicalize both out and expected - this fixes issues with "/" and "\" so that the test passes on windows and linux
+        let out_path = Path::new(&out).canonicalize().unwrap();
+        let expected = dir.path().join("abc/include1").canonicalize().unwrap();
+        assert_eq!(out_path.to_string_lossy(), expected.to_string_lossy());
+
+        // verify include 2
+        let out = make_include_filename(r#"def/include2"#, inc1name.as_os_str())
+            .into_string()
+            .unwrap();
+        // canonicalize both out and expected - this fixes issues with "/" and "\" so that the test passes on windows and linux
+        let out_path = Path::new(&out).canonicalize().unwrap();
+        let expected = subdir.join("def/include2").canonicalize().unwrap();
+        assert_eq!(out_path.to_string_lossy(), expected.to_string_lossy());
     }
 }

@@ -18,6 +18,8 @@ mod writer;
 pub use namemap::{ModuleNameMap, NameMapCompuTab, NameMapObject, NameMapTypedef};
 pub use parser::ParserError;
 use std::convert::AsRef;
+use std::ffi::OsString;
+use std::fmt::Display;
 use std::path::Path;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -191,7 +193,7 @@ fn load_impl(
     a2ml_spec: Option<String>,
 ) -> Result<A2lFile, A2lError> {
     // tokenize the input data
-    let tokenresult = tokenizer::tokenize(path.to_string_lossy().to_string(), 0, filedata)
+    let tokenresult = tokenizer::tokenize(&Filename::from(path), 0, filedata)
         .map_err(|tokenizer_error| A2lError::TokenizerError { tokenizer_error })?;
 
     if tokenresult.tokens.is_empty() {
@@ -206,7 +208,7 @@ fn load_impl(
     // if a built-in A2ml specification was passed as a string, then it is parsed here
     if let Some(spec) = a2ml_spec {
         parser.builtin_a2mlspec = Some(
-            a2ml::parse_a2ml(path.to_string_lossy().as_ref(), &spec)
+            a2ml::parse_a2ml(&Filename::from(path), &spec)
                 .map_err(|parse_err| A2lError::InvalidBuiltinA2mlSpec { parse_err })?
                 .0,
         );
@@ -231,7 +233,7 @@ fn load_impl(
 pub fn load_fragment(a2ldata: &str) -> Result<Module, A2lError> {
     let fixed_a2ldata = format!(r#"fragment "" {a2ldata} /end MODULE"#);
     // tokenize the input data
-    let tokenresult = tokenizer::tokenize("(fragment)".to_string(), 0, &fixed_a2ldata)
+    let tokenresult = tokenizer::tokenize(&Filename::from("(fragment)"), 0, &fixed_a2ldata)
         .map_err(|tokenizer_error| A2lError::TokenizerError { tokenizer_error })?;
     let firstline = tokenresult.tokens.first().map_or(1, |tok| tok.line);
     let context = ParseContext {
@@ -366,6 +368,56 @@ impl Module {
     /// Any elements in other that are not present in this module will be moved over. The other module will typically be empty at the end of the merge.
     pub fn merge(&mut self, other: &mut Module) {
         merge::merge_modules(self, other);
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Filename {
+    // the full filename, which has been extended with a base path relative to the working directory
+    full: OsString,
+    // the "display" name, i.e. the name that appears in an /include directive or an error message
+    display: String,
+}
+
+impl Filename {
+    pub(crate) fn new(full: OsString, display: &str) -> Self {
+        Self {
+            full,
+            display: display.to_string(),
+        }
+    }
+}
+
+impl From<&str> for Filename {
+    fn from(value: &str) -> Self {
+        Self {
+            full: OsString::from(value),
+            display: String::from(value),
+        }
+    }
+}
+
+impl From<&Path> for Filename {
+    fn from(value: &Path) -> Self {
+        Self {
+            display: value.to_string_lossy().to_string(),
+            full: OsString::from(value),
+        }
+    }
+}
+
+impl From<OsString> for Filename {
+    fn from(value: OsString) -> Self {
+        Self {
+            display: value.to_string_lossy().to_string(),
+            full: value,
+        }
+    }
+}
+
+impl Display for Filename {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.display)
     }
 }
 

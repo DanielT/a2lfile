@@ -1,7 +1,7 @@
+use crate::loader;
+use crate::Filename;
 use std::path::Path;
 use thiserror::Error;
-
-use super::loader;
 
 #[derive(Debug, Error)]
 #[non_exhaustive]
@@ -63,22 +63,22 @@ pub struct A2lToken {
 pub(crate) struct TokenResult {
     pub(crate) tokens: Vec<A2lToken>,
     pub(crate) filedata: Vec<String>,
-    pub(crate) filenames: Vec<String>,
+    pub(crate) filenames: Vec<Filename>,
 }
 
 // tokenize()
 // Runs the actual tokenizer, then ensures that any /include directives are resolved
 pub(crate) fn tokenize(
-    filename: String,
+    filename: &Filename,
     fileid: usize,
     filetext: &str,
 ) -> Result<TokenResult, TokenizerError> {
-    let mut filenames: Vec<String> = vec![filename.clone()];
+    let mut filenames: Vec<Filename> = vec![filename.clone()];
     let mut filedatas: Vec<String> = vec![filetext.to_owned()];
     let filebytes = filetext.as_bytes();
     let mut next_fileid = fileid + 1;
 
-    let input_tokens = tokenize_core(filename.clone(), fileid, filetext)?;
+    let input_tokens = tokenize_core(filename.display.clone(), fileid, filetext)?;
     let mut include_directives: Vec<usize> = input_tokens
         .iter()
         .enumerate()
@@ -117,13 +117,17 @@ pub(crate) fn tokenize(
                 }
                 // incname is the include filename from the filetext without the surrounding quotes
                 let incname = &filetext[filename_start..filename_end];
-                let incfilename = loader::make_include_filename(incname, &filenames[0]);
+                let incfilename = loader::make_include_filename(incname, &filename.full);
 
                 // check if incname is an accessible file
                 let incpathref = Path::new(&incfilename);
                 let loadresult = loader::load(incpathref);
                 if let Ok(incfiledata) = loadresult {
-                    let mut tokresult = tokenize(incname.to_owned(), next_fileid, &incfiledata)?;
+                    let mut tokresult = tokenize(
+                        &Filename::new(incfilename, incname),
+                        next_fileid,
+                        &incfiledata,
+                    )?;
 
                     next_fileid += tokresult.filenames.len();
 
@@ -135,7 +139,7 @@ pub(crate) fn tokenize(
                     filedatas.append(&mut tokresult.filedata);
                 } else {
                     return Err(TokenizerError::IncludeFileError {
-                        filename,
+                        filename: filename.to_string(),
                         line: token_subseq[0].line,
                         incname: incname.to_owned(),
                     });
@@ -145,7 +149,10 @@ pub(crate) fn tokenize(
                 tokens.extend_from_slice(&token_subseq[1..]);
             } else {
                 let line = input_tokens[include_directives[idx - 1]].line;
-                return Err(TokenizerError::IncompleteIncludeError { filename, line });
+                return Err(TokenizerError::IncompleteIncludeError {
+                    filename: filename.to_string(),
+                    line,
+                });
             }
         }
         tokens
@@ -570,41 +577,43 @@ fn is_numchar(c: u8) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
+    use tempfile::tempdir;
 
     #[test]
     fn tokenize_a2l_comment() {
         let data = String::from("/**/");
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 0);
         //assert_eq!(tok[0].ttype, A2lTokenType::BlockComment);
 
         let data = String::from("/*/*/");
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 0);
         //assert_eq!(tok[0].ttype, A2lTokenType::BlockComment);
 
         let data = String::from("/***********/");
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 0);
         //assert_eq!(tok[0].ttype, A2lTokenType::BlockComment);
 
         let data = String::from("/***********/ abcdef");
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
         //assert_eq!(tok[0].ttype, A2lTokenType::BlockComment);
 
         let data = String::from("//");
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 0);
         //assert_eq!(tok[0].ttype, A2lTokenType::LineComment);
 
         let data = String::from("// abcdef");
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 0);
         //assert_eq!(tok[0].ttype, A2lTokenType::LineComment);
 
         let data = String::from("// abcdef\nabcde");
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
         //assert_eq!(tok[0].ttype, A2lTokenType::LineComment);
         //assert_eq!(tok[1].data.line, 2);
@@ -613,17 +622,17 @@ mod tests {
     #[test]
     fn tokenize_a2l_command() {
         let data = String::from("/begin");
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Begin);
 
         let data = String::from("/end");
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::End);
 
         let data = String::from("/include");
-        let tokresult = tokenize_core("test".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize_core(String::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.len(), 1);
         assert_eq!(tokresult[0].ttype, A2lTokenType::Include);
     }
@@ -632,43 +641,43 @@ mod tests {
     fn tokenize_a2l_string() {
         /* empty string */
         let data = String::from(r#" "" "#);
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
 
         /* string containing a single double quote escaped as two double quotes */
         let data = String::from(r#" """" "#);
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
 
         /* string containing two instances of a single double quote escaped as two double quotes */
         let data = String::from(r#"" ""x"" ""#);
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
 
         /* string containing a single double quote escaped with a backslash */
         let data = String::from(r#" "\"" "#);
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
 
         /* string containing two instances of a single double quote escaped with a backslash */
         let data = String::from(r#"" \"x\" ""#);
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
 
         /* a string containing text */
         let data = String::from("\"sdf sdf sdf\"");
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
 
         /* a string containing unicode characters */
         let data = String::from("\"\u{1234}\u{2345}\"");
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
     }
@@ -676,7 +685,7 @@ mod tests {
     #[test]
     fn tokenize_a2l_item() {
         let data = String::from("foo_bar");
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Identifier);
     }
@@ -684,12 +693,12 @@ mod tests {
     #[test]
     fn tokenize_a2l_number() {
         let data = String::from("0xabc1234");
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Number);
 
         let data = String::from("0ident");
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Identifier);
     }
@@ -697,22 +706,22 @@ mod tests {
     #[test]
     fn tokenize_a2l_skip_whitespace() {
         let data = String::from("");
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 0);
 
         let data = String::from(" ");
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 0);
 
         let data = String::from("\n\n ");
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 0);
     }
 
     #[test]
     fn tokenize_string_with_backslash() {
         let data = String::from(r#" ident "\\" 0 "#);
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 3);
     }
 
@@ -734,7 +743,7 @@ ASAP2_VERSION 1 60
 /end PROJECT
 "##,
         );
-        let tokresult = tokenize("testcase".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         println!("token count: {}", tokresult.tokens.len());
         assert_eq!(tokresult.tokens.len(), 20);
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Identifier);
@@ -752,7 +761,7 @@ ASAP2_VERSION 1 60
             "##,
         );
 
-        let tokresult = tokenize_core("test".to_string(), 0, &data).expect("Error");
+        let tokresult = tokenize_core(String::from("test"), 0, &data).expect("Error");
         assert_eq!(tokresult.len(), 8);
         println!("{:?}", tokresult);
         assert_eq!(tokresult[0].ttype, A2lTokenType::Include);
@@ -763,5 +772,32 @@ ASAP2_VERSION 1 60
         assert_eq!(tokresult[5].ttype, A2lTokenType::String);
         assert_eq!(tokresult[6].ttype, A2lTokenType::Include);
         assert_eq!(tokresult[7].ttype, A2lTokenType::String);
+    }
+
+    #[test]
+    fn included_files() {
+        let dir = tempdir().unwrap();
+
+        // base file at <tempdir>/base
+        let base_filename = dir.path().join("base");
+        let mut basefile = std::fs::File::create_new(&base_filename).unwrap();
+        basefile.write(br#"/include "abc/include1""#).unwrap();
+
+        // include file 1 at <tempdir>/abc/include1
+        let subdir = dir.path().join("abc");
+        let inc1name = subdir.join("include1");
+        std::fs::create_dir(&subdir).unwrap();
+        let mut incfile1 = std::fs::File::create_new(&inc1name).unwrap();
+        incfile1.write(br#"/include "def/include2""#).unwrap();
+
+        // include file 2 at <tempdir>/abc/def/include2
+        let subdir2 = subdir.join("def");
+        std::fs::create_dir(&subdir2).unwrap();
+        let _incfile2 = std::fs::File::create_new(subdir2.join("include2")).unwrap();
+
+        // run the a2l tokenizer. It should not return an error from the includes
+        let filetext = loader::load(&base_filename).unwrap();
+        let tokresult = tokenize(&Filename::from(base_filename.as_path()), 0, &filetext).unwrap();
+        assert_eq!(tokresult.filenames.len(), 3);
     }
 }

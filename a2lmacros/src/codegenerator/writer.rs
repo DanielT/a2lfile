@@ -2,7 +2,7 @@ use proc_macro2::{Literal, TokenStream};
 use quote::format_ident;
 use quote::quote;
 
-use super::{make_varname, ucname_to_typename, BaseType, DataItem, EnumItem};
+use crate::codegenerator::{make_varname, ucname_to_typename, BaseType, DataItem, EnumItem};
 
 // generate()
 // Generate a pub fn stringify() function for all data types in the specification

@@ -1,17 +1,15 @@
-use std::str::FromStr;
-
+use crate::util::{make_varname, ucname_to_typename};
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
 use quote::ToTokens;
+use std::str::FromStr;
 
 pub(crate) mod data_structure;
 pub(crate) mod ifdata_parser;
 pub(crate) mod ifdata_writer;
 pub(crate) mod parser;
 pub(crate) mod writer;
-
-use super::util::{make_varname, ucname_to_typename};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub(crate) enum A2lVersion {

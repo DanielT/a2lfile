@@ -186,7 +186,7 @@ impl A2lFile {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -194,7 +194,7 @@ impl A2lFile {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -208,7 +208,7 @@ impl A2lFile {
             value
         } else {
             return Err(ParserError::InvalidMultiplicityNotPresent {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 tag: "PROJECT".to_string(),
                 block: context.element.clone(),
@@ -523,7 +523,7 @@ impl AddrType {
             }
             "DIRECT" => Ok(Self::Direct),
             _ => Err(ParserError::InvalidEnumValue {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 enumtxt: enumname,
                 block: context.element.to_owned(),
@@ -1467,7 +1467,7 @@ impl Annotation {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -1475,7 +1475,7 @@ impl Annotation {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -1978,7 +1978,7 @@ impl ArComponent {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -1986,7 +1986,7 @@ impl ArComponent {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -2724,7 +2724,7 @@ impl AxisDescr {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -2732,7 +2732,7 @@ impl AxisDescr {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -3043,7 +3043,7 @@ impl AxisDescrAttribute {
             "RES_AXIS" => Ok(Self::ResAxis),
             "STD_AXIS" => Ok(Self::StdAxis),
             _ => Err(ParserError::InvalidEnumValue {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 enumtxt: enumname,
                 block: context.element.to_owned(),
@@ -3604,7 +3604,7 @@ impl AxisPts {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -3612,7 +3612,7 @@ impl AxisPts {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -4603,7 +4603,7 @@ impl BitOperation {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -4611,7 +4611,7 @@ impl BitOperation {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -4960,7 +4960,7 @@ impl Blob {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -4968,7 +4968,7 @@ impl Blob {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -5304,7 +5304,7 @@ impl ByteOrderEnum {
                 Ok(Self::MsbLastMswFirst)
             }
             _ => Err(ParserError::InvalidEnumValue {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 enumtxt: enumname,
                 block: context.element.to_owned(),
@@ -5444,7 +5444,7 @@ impl CalibrationAccessEnum {
             "NOT_IN_MCD_SYSTEM" => Ok(Self::NotInMcdSystem),
             "OFFLINE_CALIBRATION" => Ok(Self::OfflineCalibration),
             _ => Err(ParserError::InvalidEnumValue {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 enumtxt: enumname,
                 block: context.element.to_owned(),
@@ -5602,7 +5602,7 @@ impl CalibrationHandle {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -5610,7 +5610,7 @@ impl CalibrationHandle {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -5896,7 +5896,7 @@ impl CalibrationMethod {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -5904,7 +5904,7 @@ impl CalibrationMethod {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -5983,7 +5983,7 @@ impl CharacterEncoding {
             "UTF16" => Ok(Self::Utf16),
             "UTF32" => Ok(Self::Utf32),
             _ => Err(ParserError::InvalidEnumValue {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 enumtxt: enumname,
                 block: context.element.to_owned(),
@@ -6617,7 +6617,7 @@ impl Characteristic {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -6625,7 +6625,7 @@ impl Characteristic {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -7137,7 +7137,7 @@ impl CharacteristicType {
             "VAL_BLK" => Ok(Self::ValBlk),
             "VALUE" => Ok(Self::Value),
             _ => Err(ParserError::InvalidEnumValue {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 enumtxt: enumname,
                 block: context.element.to_owned(),
@@ -7851,7 +7851,7 @@ impl CompuMethod {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -7859,7 +7859,7 @@ impl CompuMethod {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -8199,7 +8199,7 @@ impl CompuTab {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -8207,7 +8207,7 @@ impl CompuTab {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -8563,7 +8563,7 @@ impl CompuVtab {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -8571,7 +8571,7 @@ impl CompuVtab {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -8806,7 +8806,7 @@ impl CompuVtabRange {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -8814,7 +8814,7 @@ impl CompuVtabRange {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -9099,7 +9099,7 @@ impl ConversionType {
             "TAB_NOINTP" => Ok(Self::TabNointp),
             "TAB_VERB" => Ok(Self::TabVerb),
             _ => Err(ParserError::InvalidEnumValue {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 enumtxt: enumname,
                 block: context.element.to_owned(),
@@ -9637,7 +9637,7 @@ impl DataType {
             "FLOAT32_IEEE" => Ok(Self::Float32Ieee),
             "FLOAT64_IEEE" => Ok(Self::Float64Ieee),
             _ => Err(ParserError::InvalidEnumValue {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 enumtxt: enumname,
                 block: context.element.to_owned(),
@@ -9686,7 +9686,7 @@ impl DataTypeSize {
             "WORD" => Ok(Self::Word),
             "LONG" => Ok(Self::Long),
             _ => Err(ParserError::InvalidEnumValue {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 enumtxt: enumname,
                 block: context.element.to_owned(),
@@ -10250,7 +10250,7 @@ impl DepositMode {
             "ABSOLUTE" => Ok(Self::Absolute),
             "DIFFERENCE" => Ok(Self::Difference),
             _ => Err(ParserError::InvalidEnumValue {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 enumtxt: enumname,
                 block: context.element.to_owned(),
@@ -12152,7 +12152,7 @@ impl Formula {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -12160,7 +12160,7 @@ impl Formula {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -12460,7 +12460,7 @@ impl Frame {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -12468,7 +12468,7 @@ impl Frame {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -12936,7 +12936,7 @@ impl Function {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -12944,7 +12944,7 @@ impl Function {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -13563,7 +13563,7 @@ impl Group {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -13571,7 +13571,7 @@ impl Group {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -13922,7 +13922,7 @@ impl Header {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -13930,7 +13930,7 @@ impl Header {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -14254,7 +14254,7 @@ impl IndexMode {
             "COLUMN_DIR" => Ok(Self::ColumnDir),
             "ROW_DIR" => Ok(Self::RowDir),
             _ => Err(ParserError::InvalidEnumValue {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 enumtxt: enumname,
                 block: context.element.to_owned(),
@@ -14295,7 +14295,7 @@ impl IndexOrder {
             "INDEX_INCR" => Ok(Self::IndexIncr),
             "INDEX_DECR" => Ok(Self::IndexDecr),
             _ => Err(ParserError::InvalidEnumValue {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 enumtxt: enumname,
                 block: context.element.to_owned(),
@@ -14746,7 +14746,7 @@ impl Instance {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -14754,7 +14754,7 @@ impl Instance {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -16400,7 +16400,7 @@ impl Measurement {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -16408,7 +16408,7 @@ impl Measurement {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -16839,7 +16839,7 @@ impl MemoryAttribute {
             "INTERN" => Ok(Self::Intern),
             "EXTERN" => Ok(Self::Extern),
             _ => Err(ParserError::InvalidEnumValue {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 enumtxt: enumname,
                 block: context.element.to_owned(),
@@ -17043,7 +17043,7 @@ impl MemoryLayout {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -17051,7 +17051,7 @@ impl MemoryLayout {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -17409,7 +17409,7 @@ impl MemorySegment {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -17417,7 +17417,7 @@ impl MemorySegment {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -17547,7 +17547,7 @@ impl MemoryType {
                 Ok(Self::NotInEcu)
             }
             _ => Err(ParserError::InvalidEnumValue {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 enumtxt: enumname,
                 block: context.element.to_owned(),
@@ -17855,7 +17855,7 @@ impl ModCommon {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -17863,7 +17863,7 @@ impl ModCommon {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -18403,7 +18403,7 @@ impl ModPar {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -18411,7 +18411,7 @@ impl ModPar {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -19292,7 +19292,7 @@ impl Module {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -19300,7 +19300,7 @@ impl Module {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -19863,7 +19863,7 @@ impl MonotonyType {
                 Ok(Self::NotMon)
             }
             _ => Err(ParserError::InvalidEnumValue {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 enumtxt: enumname,
                 block: context.element.to_owned(),
@@ -20747,7 +20747,7 @@ impl Overwrite {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -20755,7 +20755,7 @@ impl Overwrite {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -21120,7 +21120,7 @@ impl PrgType {
             "SERAM" => Ok(Self::Seram),
             "VARIABLES" => Ok(Self::Variables),
             _ => Err(ParserError::InvalidEnumValue {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 enumtxt: enumname,
                 block: context.element.to_owned(),
@@ -21164,7 +21164,7 @@ impl ProgType {
             "PRG_DATA" => Ok(Self::PrgData),
             "PRG_RESERVED" => Ok(Self::PrgReserved),
             _ => Err(ParserError::InvalidEnumValue {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 enumtxt: enumname,
                 block: context.element.to_owned(),
@@ -21320,7 +21320,7 @@ impl Project {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -21328,7 +21328,7 @@ impl Project {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -21340,7 +21340,7 @@ impl Project {
         }
         if module.is_empty() {
             parser.error_or_log(ParserError::InvalidMultiplicityNotPresent {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 tag: "MODULE".to_string(),
                 block: context.element.clone(),
@@ -22746,7 +22746,7 @@ impl RecordLayout {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -22754,7 +22754,7 @@ impl RecordLayout {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -25862,7 +25862,7 @@ impl StructureComponent {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -25870,7 +25870,7 @@ impl StructureComponent {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -26909,7 +26909,7 @@ impl Transformer {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -26917,7 +26917,7 @@ impl Transformer {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -27269,7 +27269,7 @@ impl TransformerTrigger {
             "ON_USER_REQUEST" => Ok(Self::OnUserRequest),
             "ON_CHANGE" => Ok(Self::OnChange),
             _ => Err(ParserError::InvalidEnumValue {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 enumtxt: enumname,
                 block: context.element.to_owned(),
@@ -27582,7 +27582,7 @@ impl TypedefAxis {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -27590,7 +27590,7 @@ impl TypedefAxis {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -27901,7 +27901,7 @@ impl TypedefBlob {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -27909,7 +27909,7 @@ impl TypedefBlob {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -28302,7 +28302,7 @@ impl TypedefCharacteristic {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -28310,7 +28310,7 @@ impl TypedefCharacteristic {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -28860,7 +28860,7 @@ impl TypedefMeasurement {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -28868,7 +28868,7 @@ impl TypedefMeasurement {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -29269,7 +29269,7 @@ impl TypedefStructure {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -29277,7 +29277,7 @@ impl TypedefStructure {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -29560,7 +29560,7 @@ impl Unit {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -29568,7 +29568,7 @@ impl Unit {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -29784,7 +29784,7 @@ impl UnitType {
             "DERIVED" => Ok(Self::Derived),
             "EXTENDED_SI" => Ok(Self::ExtendedSi),
             _ => Err(ParserError::InvalidEnumValue {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 enumtxt: enumname,
                 block: context.element.to_owned(),
@@ -30018,7 +30018,7 @@ impl UserRights {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -30026,7 +30026,7 @@ impl UserRights {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -30583,7 +30583,7 @@ impl VarCharacteristic {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -30591,7 +30591,7 @@ impl VarCharacteristic {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -30823,7 +30823,7 @@ impl VarCriterion {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -30831,7 +30831,7 @@ impl VarCriterion {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -31237,7 +31237,7 @@ impl VarNamingTag {
         match &*enumname {
             "NUMERIC" => Ok(Self::Numeric),
             _ => Err(ParserError::InvalidEnumValue {
-                filename: parser.filenames[context.fileid].to_owned(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 enumtxt: enumname,
                 block: context.element.to_owned(),
@@ -31607,7 +31607,7 @@ impl VariantCoding {
             if expect_block != is_block {
                 if expect_block {
                     parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -31615,7 +31615,7 @@ impl VariantCoding {
                     })?;
                 } else {
                     parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: tag.to_string(),
                         block: context.element.clone(),
@@ -32135,7 +32135,7 @@ impl A2ml {
         let ident = parser.get_identifier(context)?;
         if ident != "A2ML" {
             parser.error_or_log(ParserError::IncorrectEndTag {
-                filename: parser.filenames[context.fileid].clone(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 tag: ident.clone(),
                 block: context.element.clone(),
@@ -32241,7 +32241,7 @@ impl IfData {
         let ident = parser.get_identifier(context)?;
         if ident != "IF_DATA" {
             parser.error_or_log(ParserError::IncorrectEndTag {
-                filename: parser.filenames[context.fileid].clone(),
+                filename: parser.filenames[context.fileid].to_string(),
                 error_line: parser.last_token_position,
                 tag: ident.clone(),
                 block: context.element.clone(),

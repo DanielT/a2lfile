@@ -1,5 +1,8 @@
-use super::writer::{TaggedItemInfo, Writer};
-use super::{loader, tokenizer};
+use crate::{
+    loader, tokenizer,
+    writer::{TaggedItemInfo, Writer},
+    Filename,
+};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::Path;
@@ -121,7 +124,7 @@ pub enum GenericIfData {
 
 // tokenize()
 // Tokenize the text of the a2ml section
-fn tokenize_a2ml(filename: &str, input: &str) -> Result<(Vec<TokenType>, String), String> {
+fn tokenize_a2ml(filename: &Filename, input: &str) -> Result<(Vec<TokenType>, String), String> {
     let mut amltokens = Vec::<TokenType>::new();
     let input_bytes = input.as_bytes();
     let datalen = input_bytes.len();
@@ -247,7 +250,7 @@ fn tokenize_tag(input: &str, bytepos: &mut usize) -> Result<TokenType, String> {
 }
 
 fn tokenize_include(
-    filename: &str,
+    filename: &Filename,
     input: &str,
     bytepos: &mut usize,
 ) -> Result<(Vec<TokenType>, String), String> {
@@ -301,13 +304,13 @@ fn tokenize_include(
     }
 
     let incname = &input[fname_idx_start..fname_idx_end];
-    let incfilename = loader::make_include_filename(incname, filename);
+    let incfilename = loader::make_include_filename(incname, &filename.full);
 
     // check if incname is an accessible file
     let incpathref = Path::new(&incfilename);
     let loadresult = loader::load(incpathref);
     if let Ok(incfiledata) = loadresult {
-        tokenize_a2ml(incpathref.to_string_lossy().as_ref(), &incfiledata)
+        tokenize_a2ml(&Filename::from(incpathref), &incfiledata)
     } else {
         Err(format!("failed reading {}", incpathref.display()))
     }
@@ -389,7 +392,10 @@ fn make_errtxt(pos: usize, input_bytes: &[u8]) -> Cow<str> {
 // parse an a2ml fragment in an a2l file
 // The target data structure is the parsing definition used by the a2l parser, so that the
 // a2ml can control the parsing of IF_DATA blocks
-pub(crate) fn parse_a2ml(filename: &str, input: &str) -> Result<(A2mlTypeSpec, String), String> {
+pub(crate) fn parse_a2ml(
+    filename: &Filename,
+    input: &str,
+) -> Result<(A2mlTypeSpec, String), String> {
     let (tok_result, complete_string) = tokenize_a2ml(filename, input)?;
     let mut tok_iter = tok_result.iter().peekable();
 
@@ -1335,42 +1341,43 @@ impl PartialEq for GenericIfDataTaggedItem {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::io::Write;
     use tempfile::tempdir;
 
     #[test]
     fn tokenize() {
-        let (tokenvec, _) = tokenize_a2ml("test", "       ").unwrap();
+        let (tokenvec, _) = tokenize_a2ml(&Filename::from("test"), "       ").unwrap();
         assert!(tokenvec.is_empty());
 
-        let (tokenvec, _) = tokenize_a2ml("test", "/* // */").unwrap();
+        let (tokenvec, _) = tokenize_a2ml(&Filename::from("test"), "/* // */").unwrap();
         assert!(tokenvec.is_empty());
-        let (tokenvec, _) = tokenize_a2ml("test", "/*/*/").unwrap();
+        let (tokenvec, _) = tokenize_a2ml(&Filename::from("test"), "/*/*/").unwrap();
         assert!(tokenvec.is_empty());
-        let (tokenvec, _) = tokenize_a2ml("test", "/***/").unwrap();
+        let (tokenvec, _) = tokenize_a2ml(&Filename::from("test"), "/***/").unwrap();
         assert!(tokenvec.is_empty());
-        let tokenvec_err = tokenize_a2ml("test", "/* ");
+        let tokenvec_err = tokenize_a2ml(&Filename::from("test"), "/* ");
         assert!(tokenvec_err.is_err());
-        let (tokenvec, _) = tokenize_a2ml("test", "//*/").unwrap();
+        let (tokenvec, _) = tokenize_a2ml(&Filename::from("test"), "//*/").unwrap();
         assert!(tokenvec.is_empty());
 
-        let (tokenvec, _) = tokenize_a2ml("test", r#""TAG""#).unwrap();
+        let (tokenvec, _) = tokenize_a2ml(&Filename::from("test"), r#""TAG""#).unwrap();
         assert_eq!(tokenvec.len(), 1);
         let _tag = TokenType::Tag("TAG".to_string());
         assert!(matches!(&tokenvec[0], _tag));
 
-        let (tokenvec, _) = tokenize_a2ml("test", ";").unwrap();
+        let (tokenvec, _) = tokenize_a2ml(&Filename::from("test"), ";").unwrap();
         assert_eq!(tokenvec.len(), 1);
         assert!(matches!(tokenvec[0], TokenType::Semicolon));
 
-        let (tokenvec, _) = tokenize_a2ml("test", "0").unwrap();
+        let (tokenvec, _) = tokenize_a2ml(&Filename::from("test"), "0").unwrap();
         assert_eq!(tokenvec.len(), 1);
         assert!(matches!(tokenvec[0], TokenType::Constant(0)));
 
-        let (tokenvec, _) = tokenize_a2ml("test", "0x03").unwrap();
+        let (tokenvec, _) = tokenize_a2ml(&Filename::from("test"), "0x03").unwrap();
         assert_eq!(tokenvec.len(), 1);
         assert!(matches!(tokenvec[0], TokenType::Constant(3)));
 
-        let (tokenvec, _) = tokenize_a2ml("test", "123456").unwrap();
+        let (tokenvec, _) = tokenize_a2ml(&Filename::from("test"), "123456").unwrap();
         assert_eq!(tokenvec.len(), 1);
         assert!(matches!(tokenvec[0], TokenType::Constant(123456)));
 
@@ -1381,19 +1388,24 @@ mod test {
         // create the empty "testfile" so that it can be included
         std::fs::File::create_new("testfile").unwrap();
 
-        let (tokenvec, _) = tokenize_a2ml("test", r#"/include "testfile""#).unwrap();
+        let (tokenvec, _) =
+            tokenize_a2ml(&Filename::from("test"), r#"/include "testfile""#).unwrap();
         assert_eq!(tokenvec.len(), 0);
 
-        let (tokenvec, _) = tokenize_a2ml("test", r#"/include"testfile""#).unwrap();
+        let (tokenvec, _) =
+            tokenize_a2ml(&Filename::from("test"), r#"/include"testfile""#).unwrap();
         assert_eq!(tokenvec.len(), 0);
 
-        let (tokenvec, _) = tokenize_a2ml("test", r#"/include testfile"#).unwrap();
+        let (tokenvec, _) = tokenize_a2ml(&Filename::from("test"), r#"/include testfile"#).unwrap();
         assert_eq!(tokenvec.len(), 0);
 
-        let err_result = tokenize_a2ml("test", r#"/include "testfile_unclosed_quote"#);
+        let err_result = tokenize_a2ml(
+            &Filename::from("test"),
+            r#"/include "testfile_unclosed_quote"#,
+        );
         assert!(err_result.is_err());
 
-        let err_result = tokenize_a2ml("test", r#" "unclosed "#);
+        let err_result = tokenize_a2ml(&Filename::from("test"), r#" "unclosed "#);
         assert!(err_result.is_err());
     }
 
@@ -1512,10 +1524,39 @@ mod test {
             A2mlTypeSpec::TaggedStruct(taggedstruct_hashmap),
         ]);
 
-        let parse_result = parse_a2ml("test", TEST_INPUT);
+        let parse_result = parse_a2ml(&Filename::from("test"), TEST_INPUT);
         assert!(parse_result.is_ok());
         let (a2ml_spec, _complete_string) = parse_result.unwrap();
         println!("{:?}", a2ml_spec);
         assert_eq!(a2ml_spec, expected_parse_result);
+    }
+
+    #[test]
+    fn included_files() {
+        let dir = tempdir().unwrap();
+
+        // base file at <tempdir>/base
+        let base_filename = dir.path().join("base");
+        let mut basefile = std::fs::File::create_new(&base_filename).unwrap();
+        basefile.write(br#"/include "abc/include1""#).unwrap();
+
+        // include file 1 at <tempdir>/abc/include1
+        let subdir = dir.path().join("abc");
+        let inc1name = subdir.join("include1");
+        std::fs::create_dir(&subdir).unwrap();
+        let mut incfile1 = std::fs::File::create_new(&inc1name).unwrap();
+        incfile1.write(br#"/include "def/include2""#).unwrap();
+
+        // include file 2 at <tempdir>/abc/def/include2
+        let subdir2 = subdir.join("def");
+        std::fs::create_dir(&subdir2).unwrap();
+        let _incfile2 = std::fs::File::create_new(subdir2.join("include2")).unwrap();
+
+        // run the a2ml tokenizer. It should not return an error from the includes
+        let filetext = loader::load(&base_filename).unwrap();
+        let (tokens, fulltext) =
+            tokenize_a2ml(&Filename::from(base_filename.as_path()), &filetext).unwrap();
+        assert_eq!(tokens.len(), 0);
+        assert!(fulltext.trim().is_empty());
     }
 }

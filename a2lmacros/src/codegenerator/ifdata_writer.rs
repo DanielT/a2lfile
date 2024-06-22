@@ -3,7 +3,7 @@ use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
 
-use super::{BaseType, DataItem, EnumItem, TaggedItem};
+use crate::codegenerator::{BaseType, DataItem, EnumItem, TaggedItem};
 use crate::util::{make_varname, ucname_to_typename};
 
 pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {

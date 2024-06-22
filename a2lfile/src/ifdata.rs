@@ -250,7 +250,7 @@ fn parse_ifdata_taggeditem(
                 let endtag = parser.get_token_text(endident);
                 if endtag != tag {
                     return Err(ParserError::IncorrectEndTag {
-                        filename: parser.filenames[context.fileid].clone(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         tag: endtag.to_owned(),
                         block: newcontext.element.clone(),
@@ -437,7 +437,7 @@ fn parse_unknown_taggedstruct(
             let endtag = parser.get_token_text(endident);
             if endtag != tag {
                 return Err(ParserError::IncorrectEndTag {
-                    filename: parser.filenames[newcontext.fileid].clone(),
+                    filename: parser.filenames[newcontext.fileid].to_string(),
                     error_line: parser.last_token_position,
                     tag: endtag.to_owned(),
                     block: newcontext.element.clone(),
@@ -470,7 +470,7 @@ fn parse_unknown_taggedstruct(
     }) = parser.peek_token()
     {
         return Err(ParserError::InvalidBegin {
-            filename: parser.filenames[context.fileid].clone(),
+            filename: parser.filenames[context.fileid].to_string(),
             error_line: parser.last_token_position,
             block: context.element.clone(),
         });
@@ -539,7 +539,8 @@ fn remove_unknown_ifdata_from_list(ifdata_list: &mut Vec<IfData>) {
 
 #[cfg(test)]
 mod ifdata_test {
-    use crate::{self as a2lfile, IfData};
+    use super::*;
+    use crate::{self as a2lfile, Filename, IfData};
 
     crate::a2ml_specification! {
         <A2mlTest>
@@ -739,21 +740,24 @@ mod ifdata_test {
         assert!(decoded_ifdata.none.is_some());
     }
 
-    fn parse_helper(
-        ifdata: &str,
-    ) -> Result<(Option<super::GenericIfData>, bool), super::ParserError> {
-        let token_result = a2lfile::tokenizer::tokenize("".to_string(), 0, ifdata).unwrap();
+    fn parse_helper(ifdata: &str) -> Result<(Option<GenericIfData>, bool), ParserError> {
+        let token_result =
+            a2lfile::tokenizer::tokenize(&Filename::from("test"), 0, ifdata).unwrap();
         let mut log_msgs = Vec::new();
         let ifdatas = [ifdata.to_string()];
-        let filenames = ["".to_string()];
-        let mut parser = super::ParserState::new_internal(
+        let filenames = [Filename::from("test")];
+        let mut parser = ParserState::new_internal(
             &token_result.tokens,
             &ifdatas,
             &filenames,
             &mut log_msgs,
             false,
         );
-        parser.builtin_a2mlspec = Some(a2lfile::a2ml::parse_a2ml("test", A2MLTEST_TEXT).unwrap().0);
+        parser.builtin_a2mlspec = Some(
+            a2lfile::a2ml::parse_a2ml(&Filename::from("test"), A2MLTEST_TEXT)
+                .unwrap()
+                .0,
+        );
         super::parse_ifdata(
             &mut parser,
             &a2lfile::ParseContext {
@@ -765,9 +769,7 @@ mod ifdata_test {
         )
     }
 
-    fn check_and_decode(
-        result: Result<(Option<super::GenericIfData>, bool), super::ParserError>,
-    ) -> A2mlTest {
+    fn check_and_decode(result: Result<(Option<GenericIfData>, bool), ParserError>) -> A2mlTest {
         let (data, valid) = result.unwrap();
         assert!(data.is_some());
         assert_eq!(valid, true);

@@ -4,7 +4,7 @@ use quote::format_ident;
 use quote::quote;
 use quote::TokenStreamExt;
 
-use super::{generate_bare_typename, BaseType, DataItem, EnumItem, TaggedItem};
+use crate::codegenerator::{generate_bare_typename, BaseType, DataItem, EnumItem, TaggedItem};
 use crate::util::{make_varname, ucname_to_typename};
 
 // generate

@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
 
-use super::{BaseType, DataItem, EnumItem};
+use crate::codegenerator::{BaseType, DataItem, EnumItem};
 use crate::util::{make_varname, ucname_to_typename};
 
 //-----------------------------------------------------------------------------

@@ -3,7 +3,7 @@ use thiserror::Error;
 
 use crate::a2ml::A2mlTypeSpec;
 use crate::tokenizer::{A2lToken, A2lTokenType, TokenResult};
-use crate::A2lError;
+use crate::{A2lError, Filename};
 
 const MAX_IDENT: usize = 1024;
 
@@ -25,7 +25,7 @@ pub enum A2lVersion {
 pub struct ParserState<'a> {
     token_cursor: TokenIter<'a>,
     filedata: &'a [String],
-    pub(crate) filenames: &'a [String],
+    pub(crate) filenames: &'a [Filename],
     pub(crate) last_token_position: u32,
     sequential_id: u32,
     pub(crate) log_msgs: &'a mut Vec<A2lError>,
@@ -270,7 +270,7 @@ impl<'a> ParserState<'a> {
     pub(crate) fn new_internal<'b>(
         tokens: &'b [A2lToken],
         filedata: &'b [String],
-        filenames: &'b [String],
+        filenames: &'b [Filename],
         log_msgs: &'b mut Vec<A2lError>,
         strict: bool,
     ) -> ParserState<'b> {
@@ -308,7 +308,7 @@ impl<'a> ParserState<'a> {
         // make sure this is the end of the input, i.e. no additional data after the parsed data
         if let Some(token) = self.peek_token() {
             self.error_or_log(ParserError::AdditionalTokensError {
-                filename: self.filenames[token.fileid].clone(),
+                filename: self.filenames[token.fileid].to_string(),
                 error_line: self.last_token_position,
                 text: self.get_token_text(token).to_owned(),
             })?;
@@ -422,7 +422,7 @@ impl<'a> ParserState<'a> {
         if fileid == 0 || fileid >= self.filenames.len() {
             None
         } else {
-            Some(self.filenames[fileid].clone())
+            Some(self.filenames[fileid].to_string())
         }
     }
 
@@ -438,7 +438,7 @@ impl<'a> ParserState<'a> {
     ) -> Result<(), ParserError> {
         if self.file_ver < min_ver {
             self.error_or_log(ParserError::BlockRefTooNew {
-                filename: self.filenames[context.fileid].clone(),
+                filename: self.filenames[context.fileid].to_string(),
                 error_line: self.last_token_position,
                 block: context.element.clone(),
                 tag: tag.to_string(),
@@ -457,7 +457,7 @@ impl<'a> ParserState<'a> {
     ) {
         if self.file_ver > max_ver {
             self.log_warning(ParserError::BlockRefDeprecated {
-                filename: self.filenames[context.fileid].clone(),
+                filename: self.filenames[context.fileid].to_string(),
                 error_line: self.last_token_position,
                 block: context.element.clone(),
                 tag: tag.to_string(),
@@ -475,7 +475,7 @@ impl<'a> ParserState<'a> {
     ) -> Result<(), ParserError> {
         if self.file_ver < min_ver {
             self.error_or_log(ParserError::EnumRefTooNew {
-                filename: self.filenames[context.fileid].clone(),
+                filename: self.filenames[context.fileid].to_string(),
                 error_line: self.last_token_position,
                 block: context.element.clone(),
                 tag: tag.to_string(),
@@ -494,7 +494,7 @@ impl<'a> ParserState<'a> {
     ) {
         if self.file_ver > max_ver {
             self.log_warning(ParserError::EnumRefDeprecated {
-                filename: self.filenames[context.fileid].clone(),
+                filename: self.filenames[context.fileid].to_string(),
                 error_line: self.last_token_position,
                 block: context.element.clone(),
                 tag: tag.to_string(),
@@ -565,7 +565,7 @@ impl<'a> ParserState<'a> {
         let text = self.get_string(context)?;
         if text.len() > maxlen {
             self.error_or_log(ParserError::StringTooLong {
-                filename: self.filenames[context.fileid].clone(),
+                filename: self.filenames[context.fileid].to_string(),
                 error_line: self.last_token_position,
                 block: context.element.clone(),
                 text: text.clone(),
@@ -583,7 +583,7 @@ impl<'a> ParserState<'a> {
         let text = self.get_token_text(token);
         if text.as_bytes()[0].is_ascii_digit() || text.len() > MAX_IDENT {
             self.error_or_log(ParserError::InvalidIdentifier {
-                filename: self.filenames[context.fileid].clone(),
+                filename: self.filenames[context.fileid].to_string(),
                 error_line: self.last_token_position,
                 block: context.element.clone(),
                 ident: text.to_owned(),
@@ -940,7 +940,7 @@ impl ParserError {
         expected_ttype: A2lTokenType,
     ) -> Self {
         Self::UnexpectedTokenType {
-            filename: parser.filenames[context.fileid].clone(),
+            filename: parser.filenames[context.fileid].to_string(),
             error_line: parser.last_token_position,
             block_line: context.line,
             element: context.element.clone(),
@@ -956,7 +956,7 @@ impl ParserError {
         numstr: &str,
     ) -> Self {
         Self::MalformedNumber {
-            filename: parser.filenames[context.fileid].clone(),
+            filename: parser.filenames[context.fileid].to_string(),
             error_line: parser.last_token_position,
             numstr: numstr.to_owned(),
         }
@@ -968,7 +968,7 @@ impl ParserError {
         enumitem: &str,
     ) -> Self {
         Self::InvalidEnumValue {
-            filename: parser.filenames[context.fileid].clone(),
+            filename: parser.filenames[context.fileid].to_string(),
             error_line: parser.last_token_position,
             enumtxt: enumitem.to_owned(),
             block: context.element.clone(),
@@ -982,7 +982,7 @@ impl ParserError {
         tag: &str,
     ) -> Self {
         Self::InvalidMultiplicityTooMany {
-            filename: parser.filenames[context.fileid].clone(),
+            filename: parser.filenames[context.fileid].to_string(),
             error_line: parser.last_token_position,
             tag: tag.to_string(),
             block: context.element.clone(),
@@ -996,7 +996,7 @@ impl ParserError {
         tag: &str,
     ) -> Self {
         Self::IncorrectEndTag {
-            filename: parser.filenames[context.fileid].clone(),
+            filename: parser.filenames[context.fileid].to_string(),
             error_line: parser.last_token_position,
             tag: tag.to_owned(),
             block: context.element.clone(),
@@ -1010,7 +1010,7 @@ impl ParserError {
         tag: &str,
     ) -> Self {
         Self::UnknownSubBlock {
-            filename: parser.filenames[context.fileid].clone(),
+            filename: parser.filenames[context.fileid].to_string(),
             error_line: parser.last_token_position,
             tag: tag.to_owned(),
             block: context.element.clone(),
@@ -1020,7 +1020,7 @@ impl ParserError {
 
     pub(crate) fn unexpected_eof(parser: &ParserState, context: &ParseContext) -> Self {
         Self::UnexpectedEOF {
-            filename: parser.filenames[context.fileid].clone(),
+            filename: parser.filenames[context.fileid].to_string(),
             error_line: parser.last_token_position,
             block: context.element.clone(),
             block_line: context.line,
@@ -1102,12 +1102,12 @@ impl Display for A2lVersion {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::load_from_string;
+    use crate::{load_from_string, tokenizer, Filename};
 
     #[test]
     fn parsing_numbers_test() {
         let input_text = r##"0 0x1 1.0e+2 1000 0 0.1 0x11 1.0e+2"##;
-        let tokenresult = super::super::tokenizer::tokenize("test_input".to_owned(), 0, input_text);
+        let tokenresult = tokenizer::tokenize(&Filename::from("test_input"), 0, input_text);
         assert!(tokenresult.is_ok());
 
         let tokenresult = tokenresult.unwrap();
@@ -1194,7 +1194,7 @@ mod tests {
     #[test]
     fn parsing_identifiers_test() {
         let input_text = r##"ident 0ident 123"##;
-        let tokenresult = super::super::tokenizer::tokenize("test_input".to_owned(), 0, input_text);
+        let tokenresult = tokenizer::tokenize(&Filename::from("test_input"), 0, input_text);
         assert!(tokenresult.is_ok());
 
         let tokenresult = tokenresult.unwrap();
@@ -1224,8 +1224,7 @@ mod tests {
 
     #[test]
     fn test_check_version() {
-        let tokenresult =
-            super::super::tokenizer::tokenize("test_input".to_owned(), 0, "").unwrap();
+        let tokenresult = tokenizer::tokenize(&Filename::from("test_input"), 0, "").unwrap();
         let mut log_msgs = Vec::<A2lError>::new();
         let mut parser = ParserState::new(&tokenresult, &mut log_msgs, true);
         let context = ParseContext {

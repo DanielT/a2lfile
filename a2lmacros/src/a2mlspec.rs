@@ -1,15 +1,14 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::codegenerator;
+use crate::codegenerator::{BaseType, DataItem, EnumItem, TaggedItem};
+use crate::util::*;
 use proc_macro2::Delimiter;
 use proc_macro2::Ident;
 use proc_macro2::TokenStream;
 use proc_macro2::TokenTree;
 use quote::format_ident;
 use quote::quote;
-
-use super::codegenerator::{BaseType, DataItem, EnumItem, TaggedItem};
-use super::util::*;
 
 #[derive(Debug)]
 struct A2mlSpec {
