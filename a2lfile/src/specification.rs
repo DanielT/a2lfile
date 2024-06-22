@@ -76,6 +76,7 @@ impl std::fmt::Debug for A2lFile {
 
 impl A2lFile {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(project: Project) -> Self {
         Self {
             asap2_version: None,
@@ -303,6 +304,7 @@ impl std::fmt::Debug for A2mlVersion {
 
 impl A2mlVersion {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(version_no: u16, upgrade_no: u16) -> Self {
         Self {
             version_no,
@@ -413,6 +415,7 @@ impl std::fmt::Debug for AddrEpk {
 
 impl AddrEpk {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(address: u32) -> Self {
         Self {
             address,
@@ -542,7 +545,7 @@ impl std::fmt::Display for AddrType {
             Self::Plonglong => "PLONGLONG",
             Self::Direct => "DIRECT",
         };
-        f.write_fmt(format_args!("{0}", tag))
+        f.write_str(tag)
     }
 }
 
@@ -563,6 +566,7 @@ impl std::fmt::Debug for AddressType {
 
 impl AddressType {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(address_type: AddrType) -> Self {
         Self {
             address_type,
@@ -660,6 +664,7 @@ impl std::fmt::Debug for AlignmentByte {
 
 impl AlignmentByte {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(alignment_border: u16) -> Self {
         Self {
             alignment_border,
@@ -759,6 +764,7 @@ impl std::fmt::Debug for AlignmentFloat16Ieee {
 
 impl AlignmentFloat16Ieee {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(alignment_border: u16) -> Self {
         Self {
             alignment_border,
@@ -858,6 +864,7 @@ impl std::fmt::Debug for AlignmentFloat32Ieee {
 
 impl AlignmentFloat32Ieee {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(alignment_border: u16) -> Self {
         Self {
             alignment_border,
@@ -957,6 +964,7 @@ impl std::fmt::Debug for AlignmentFloat64Ieee {
 
 impl AlignmentFloat64Ieee {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(alignment_border: u16) -> Self {
         Self {
             alignment_border,
@@ -1056,6 +1064,7 @@ impl std::fmt::Debug for AlignmentInt64 {
 
 impl AlignmentInt64 {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(alignment_border: u16) -> Self {
         Self {
             alignment_border,
@@ -1154,6 +1163,7 @@ impl std::fmt::Debug for AlignmentLong {
 
 impl AlignmentLong {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(alignment_border: u16) -> Self {
         Self {
             alignment_border,
@@ -1252,6 +1262,7 @@ impl std::fmt::Debug for AlignmentWord {
 
 impl AlignmentWord {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(alignment_border: u16) -> Self {
         Self {
             alignment_border,
@@ -1358,6 +1369,7 @@ impl std::fmt::Debug for Annotation {
 
 impl Annotation {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             annotation_label: None,
@@ -1574,6 +1586,7 @@ impl std::fmt::Debug for AnnotationLabel {
 
 impl AnnotationLabel {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(label: String) -> Self {
         Self {
             label,
@@ -1668,6 +1681,7 @@ impl std::fmt::Debug for AnnotationOrigin {
 
 impl AnnotationOrigin {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(origin: String) -> Self {
         Self {
             origin,
@@ -1764,6 +1778,7 @@ impl std::fmt::Debug for AnnotationText {
 
 impl AnnotationText {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             annotation_text_list: Vec::new(),
@@ -1888,6 +1903,7 @@ impl std::fmt::Debug for ArComponent {
 
 impl ArComponent {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(component_type: String) -> Self {
         Self {
             component_type,
@@ -2058,6 +2074,7 @@ impl std::fmt::Debug for ArPrototypeOf {
 
 impl ArPrototypeOf {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -2159,6 +2176,7 @@ impl std::fmt::Debug for ArraySize {
 
 impl ArraySize {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(number: u16) -> Self {
         Self {
             number,
@@ -2262,6 +2280,7 @@ impl std::fmt::Debug for Asap2Version {
 
 impl Asap2Version {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(version_no: u16, upgrade_no: u16) -> Self {
         Self {
             version_no,
@@ -2411,6 +2430,7 @@ impl std::fmt::Debug for AxisDescr {
 
 impl AxisDescr {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(
         attribute: AxisDescrAttribute,
         input_quantity: String,
@@ -3062,7 +3082,7 @@ impl std::fmt::Display for AxisDescrAttribute {
             Self::ResAxis => "RES_AXIS",
             Self::StdAxis => "STD_AXIS",
         };
-        f.write_fmt(format_args!("{0}", tag))
+        f.write_str(tag)
     }
 }
 /// Parameters for the handling of an axis points distribution
@@ -3149,6 +3169,7 @@ impl std::fmt::Debug for AxisPts {
 
 impl AxisPts {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(
         name: String,
         long_identifier: String,
@@ -3996,6 +4017,7 @@ impl std::fmt::Debug for AxisPtsDim {
 
 impl AxisPtsDim {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(
         position: u16,
         datatype: DataType,
@@ -4136,6 +4158,7 @@ impl std::fmt::Debug for AxisPtsRef {
 
 impl AxisPtsRef {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(axis_points: String) -> Self {
         Self {
             axis_points,
@@ -4240,6 +4263,7 @@ impl std::fmt::Debug for AxisRescaleDim {
 
 impl AxisRescaleDim {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(
         position: u16,
         datatype: DataType,
@@ -4393,6 +4417,7 @@ impl std::fmt::Debug for BitMask {
 
 impl BitMask {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(mask: u32) -> Self {
         Self {
             mask,
@@ -4495,6 +4520,7 @@ impl std::fmt::Debug for BitOperation {
 
 impl BitOperation {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             left_shift: None,
@@ -4736,6 +4762,7 @@ impl std::fmt::Debug for Blob {
 
 impl Blob {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String, long_identifier: String, start_address: u32, size: u32) -> Self {
         Self {
             name,
@@ -5180,6 +5207,7 @@ impl std::fmt::Debug for ByteOrder {
 
 impl ByteOrder {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(byte_order: ByteOrderEnum) -> Self {
         Self {
             byte_order,
@@ -5324,7 +5352,7 @@ impl std::fmt::Display for ByteOrderEnum {
             Self::MsbFirstMswLast => "MSB_FIRST_MSW_LAST",
             Self::MsbLastMswFirst => "MSB_LAST_MSW_FIRST",
         };
-        f.write_fmt(format_args!("{0}", tag))
+        f.write_str(tag)
     }
 }
 /// Specifies the access of a CHARACTERISTIC or `AXIS_PTS` for calibration
@@ -5344,6 +5372,7 @@ impl std::fmt::Debug for CalibrationAccess {
 
 impl CalibrationAccess {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(calibration_access: CalibrationAccessEnum) -> Self {
         Self {
             calibration_access,
@@ -5462,7 +5491,7 @@ impl std::fmt::Display for CalibrationAccessEnum {
             Self::NotInMcdSystem => "NOT_IN_MCD_SYSTEM",
             Self::OfflineCalibration => "OFFLINE_CALIBRATION",
         };
-        f.write_fmt(format_args!("{0}", tag))
+        f.write_str(tag)
     }
 }
 /// calibration method specific data
@@ -5484,6 +5513,7 @@ impl std::fmt::Debug for CalibrationHandle {
 
 impl CalibrationHandle {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             handle_list: Vec::new(),
@@ -5700,6 +5730,7 @@ impl std::fmt::Debug for CalibrationHandleText {
 
 impl CalibrationHandleText {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(text: String) -> Self {
         Self {
             text,
@@ -5799,6 +5830,7 @@ impl std::fmt::Debug for CalibrationMethod {
 
 impl CalibrationMethod {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(method: String, version: u32) -> Self {
         Self {
             method,
@@ -6000,7 +6032,7 @@ impl std::fmt::Display for CharacterEncoding {
             Self::Utf16 => "UTF16",
             Self::Utf32 => "UTF32",
         };
-        f.write_fmt(format_args!("{0}", tag))
+        f.write_str(tag)
     }
 }
 
@@ -6091,6 +6123,7 @@ impl std::fmt::Debug for Characteristic {
 
 impl Characteristic {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(
         name: String,
         long_identifier: String,
@@ -7159,7 +7192,7 @@ impl std::fmt::Display for CharacteristicType {
             Self::ValBlk => "VAL_BLK",
             Self::Value => "VALUE",
         };
-        f.write_fmt(format_args!("{0}", tag))
+        f.write_str(tag)
     }
 }
 /// Specifies the coefficients for the formula f(x) = (axx + bx + c) / (dxx + ex + f)
@@ -7189,6 +7222,7 @@ impl std::fmt::Debug for Coeffs {
 
 impl Coeffs {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(a: f64, b: f64, c: f64, d: f64, e: f64, f: f64) -> Self {
         Self {
             a,
@@ -7330,6 +7364,7 @@ impl std::fmt::Debug for CoeffsLinear {
 
 impl CoeffsLinear {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(a: f64, b: f64) -> Self {
         Self {
             a,
@@ -7431,6 +7466,7 @@ impl std::fmt::Debug for CombinationStruct {
 
 impl CombinationStruct {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(criterion_name: String, criterion_value: String) -> Self {
         Self {
             criterion_name,
@@ -7529,6 +7565,7 @@ impl std::fmt::Debug for ComparisonQuantity {
 
 impl ComparisonQuantity {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -7648,6 +7685,7 @@ impl std::fmt::Debug for CompuMethod {
 
 impl CompuMethod {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(
         name: String,
         long_identifier: String,
@@ -8034,6 +8072,7 @@ impl std::fmt::Debug for CompuTab {
 
 impl CompuTab {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(
         name: String,
         long_identifier: String,
@@ -8316,6 +8355,7 @@ impl std::fmt::Debug for CompuTabRef {
 
 impl CompuTabRef {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(conversion_table: String) -> Self {
         Self {
             conversion_table,
@@ -8419,6 +8459,7 @@ impl std::fmt::Debug for CompuVtab {
 
 impl CompuVtab {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(
         name: String,
         long_identifier: String,
@@ -8673,6 +8714,7 @@ impl std::fmt::Debug for CompuVtabRange {
 
 impl CompuVtabRange {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String, long_identifier: String, number_value_triples: u16) -> Self {
         Self {
             name,
@@ -8899,6 +8941,7 @@ impl std::fmt::Debug for ConsistentExchange {
 
 impl ConsistentExchange {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             __block_info: BlockInfo {
@@ -8984,6 +9027,7 @@ impl std::fmt::Debug for Conversion {
 
 impl Conversion {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -9120,7 +9164,7 @@ impl std::fmt::Display for ConversionType {
             Self::TabNointp => "TAB_NOINTP",
             Self::TabVerb => "TAB_VERB",
         };
-        f.write_fmt(format_args!("{0}", tag))
+        f.write_str(tag)
     }
 }
 /// Identifies the CPU used in the ECU
@@ -9138,6 +9182,7 @@ impl std::fmt::Debug for CpuType {
 
 impl CpuType {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(cpu: String) -> Self {
         Self {
             cpu,
@@ -9231,6 +9276,7 @@ impl std::fmt::Debug for CurveAxisRef {
 
 impl CurveAxisRef {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(curve_axis: String) -> Self {
         Self {
             curve_axis,
@@ -9324,6 +9370,7 @@ impl std::fmt::Debug for Customer {
 
 impl Customer {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(customer: String) -> Self {
         Self {
             customer,
@@ -9417,6 +9464,7 @@ impl std::fmt::Debug for CustomerNo {
 
 impl CustomerNo {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(number: String) -> Self {
         Self {
             number,
@@ -9510,6 +9558,7 @@ impl std::fmt::Debug for DataSize {
 
 impl DataSize {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(size: u16) -> Self {
         Self {
             size,
@@ -9662,7 +9711,7 @@ impl std::fmt::Display for DataType {
             Self::Float32Ieee => "FLOAT32_IEEE",
             Self::Float64Ieee => "FLOAT64_IEEE",
         };
-        f.write_fmt(format_args!("{0}", tag))
+        f.write_str(tag)
     }
 }
 /// Description of the word lengths in the ECU program.
@@ -9703,7 +9752,7 @@ impl std::fmt::Display for DataTypeSize {
             Self::Word => "WORD",
             Self::Long => "LONG",
         };
-        f.write_fmt(format_args!("{0}", tag))
+        f.write_str(tag)
     }
 }
 /// Defines which adjustable objects are used by a FUNCTION
@@ -9723,6 +9772,7 @@ impl std::fmt::Debug for DefCharacteristic {
 
 impl DefCharacteristic {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             identifier_list: Vec::new(),
@@ -9844,6 +9894,7 @@ impl std::fmt::Debug for DefaultValue {
 
 impl DefaultValue {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(display_string: String) -> Self {
         Self {
             display_string,
@@ -9937,6 +9988,7 @@ impl std::fmt::Debug for DefaultValueNumeric {
 
 impl DefaultValueNumeric {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(display_value: f64) -> Self {
         Self {
             display_value,
@@ -10032,6 +10084,7 @@ impl std::fmt::Debug for DependentCharacteristic {
 
 impl DependentCharacteristic {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(formula: String) -> Self {
         Self {
             formula,
@@ -10157,6 +10210,7 @@ impl std::fmt::Debug for Deposit {
 
 impl Deposit {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(mode: DepositMode) -> Self {
         Self {
             mode,
@@ -10266,7 +10320,7 @@ impl std::fmt::Display for DepositMode {
             Self::Absolute => "ABSOLUTE",
             Self::Difference => "DIFFERENCE",
         };
-        f.write_fmt(format_args!("{0}", tag))
+        f.write_str(tag)
     }
 }
 /// Indicates that a measurement or calibration object has discrete values which should not be interpolated
@@ -10283,6 +10337,7 @@ impl std::fmt::Debug for Discrete {
 
 impl Discrete {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             __block_info: BlockInfo {
@@ -10368,6 +10423,7 @@ impl std::fmt::Debug for DisplayIdentifier {
 
 impl DisplayIdentifier {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(display_name: String) -> Self {
         Self {
             display_name,
@@ -10463,6 +10519,7 @@ impl std::fmt::Debug for DistOpDim {
 
 impl DistOpDim {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(position: u16, datatype: DataType) -> Self {
         Self {
             position,
@@ -10570,6 +10627,7 @@ impl std::fmt::Debug for Ecu {
 
 impl Ecu {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(control_unit: String) -> Self {
         Self {
             control_unit,
@@ -10663,6 +10721,7 @@ impl std::fmt::Debug for EcuAddress {
 
 impl EcuAddress {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(address: u32) -> Self {
         Self {
             address,
@@ -10761,6 +10820,7 @@ impl std::fmt::Debug for EcuAddressExtension {
 
 impl EcuAddressExtension {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(extension: i16) -> Self {
         Self {
             extension,
@@ -10859,6 +10919,7 @@ impl std::fmt::Debug for EcuCalibrationOffset {
 
 impl EcuCalibrationOffset {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(offset: i32) -> Self {
         Self {
             offset,
@@ -10957,6 +11018,7 @@ impl std::fmt::Debug for Encoding {
 
 impl Encoding {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(encoding: CharacterEncoding) -> Self {
         Self {
             encoding,
@@ -11053,6 +11115,7 @@ impl std::fmt::Debug for Epk {
 
 impl Epk {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(identifier: String) -> Self {
         Self {
             identifier,
@@ -11146,6 +11209,7 @@ impl std::fmt::Debug for ErrorMask {
 
 impl ErrorMask {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(mask: u32) -> Self {
         Self {
             mask,
@@ -11246,6 +11310,7 @@ impl std::fmt::Debug for ExtendedLimits {
 
 impl ExtendedLimits {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(lower_limit: f64, upper_limit: f64) -> Self {
         Self {
             lower_limit,
@@ -11349,6 +11414,7 @@ impl std::fmt::Debug for FixAxisPar {
 
 impl FixAxisPar {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(offset: i16, shift: i16, number_apo: u16) -> Self {
         Self {
             offset,
@@ -11476,6 +11542,7 @@ impl std::fmt::Debug for FixAxisParDist {
 
 impl FixAxisParDist {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(offset: i16, distance: i16, number_apo: u16) -> Self {
         Self {
             offset,
@@ -11603,6 +11670,7 @@ impl std::fmt::Debug for FixAxisParList {
 
 impl FixAxisParList {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             axis_pts_value_list: Vec::new(),
@@ -11724,6 +11792,7 @@ impl std::fmt::Debug for FixNoAxisPtsDim {
 
 impl FixNoAxisPtsDim {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(number_of_axis_points: u16) -> Self {
         Self {
             number_of_axis_points,
@@ -11828,6 +11897,7 @@ impl std::fmt::Debug for FncValues {
 
 impl FncValues {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(
         position: u16,
         datatype: DataType,
@@ -11968,6 +12038,7 @@ impl std::fmt::Debug for Format {
 
 impl Format {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(format_string: String) -> Self {
         Self {
             format_string,
@@ -12063,6 +12134,7 @@ impl std::fmt::Debug for Formula {
 
 impl Formula {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(fx: String) -> Self {
         Self {
             fx,
@@ -12230,6 +12302,7 @@ impl std::fmt::Debug for FormulaInv {
 
 impl FormulaInv {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(gx: String) -> Self {
         Self {
             gx,
@@ -12333,6 +12406,7 @@ impl std::fmt::Debug for Frame {
 
 impl Frame {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String, long_identifier: String, scaling_unit: u16, rate: u32) -> Self {
         Self {
             name,
@@ -12573,6 +12647,7 @@ impl std::fmt::Debug for FrameMeasurement {
 
 impl FrameMeasurement {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             identifier_list: Vec::new(),
@@ -12711,6 +12786,7 @@ impl std::fmt::Debug for Function {
 
 impl Function {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String, long_identifier: String) -> Self {
         Self {
             name,
@@ -13152,6 +13228,7 @@ impl std::fmt::Debug for FunctionList {
 
 impl FunctionList {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             name_list: Vec::new(),
@@ -13273,6 +13350,7 @@ impl std::fmt::Debug for FunctionVersion {
 
 impl FunctionVersion {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(version_identifier: String) -> Self {
         Self {
             version_identifier,
@@ -13382,6 +13460,7 @@ impl std::fmt::Debug for Group {
 
 impl Group {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String, long_identifier: String) -> Self {
         Self {
             name,
@@ -13731,6 +13810,7 @@ impl std::fmt::Debug for GuardRails {
 
 impl GuardRails {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             __block_info: BlockInfo {
@@ -13820,6 +13900,7 @@ impl std::fmt::Debug for Header {
 
 impl Header {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(comment: String) -> Self {
         Self {
             comment,
@@ -14019,6 +14100,7 @@ impl std::fmt::Debug for Identification {
 
 impl Identification {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(position: u16, datatype: DataType) -> Self {
         Self {
             position,
@@ -14127,6 +14209,7 @@ impl std::fmt::Debug for InMeasurement {
 
 impl InMeasurement {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             identifier_list: Vec::new(),
@@ -14273,7 +14356,7 @@ impl std::fmt::Display for IndexMode {
             Self::ColumnDir => "COLUMN_DIR",
             Self::RowDir => "ROW_DIR",
         };
-        f.write_fmt(format_args!("{0}", tag))
+        f.write_str(tag)
     }
 }
 /// Description of the axis point sequence in the memory.
@@ -14311,7 +14394,7 @@ impl std::fmt::Display for IndexOrder {
             Self::IndexIncr => "INDEX_INCR",
             Self::IndexDecr => "INDEX_DECR",
         };
-        f.write_fmt(format_args!("{0}", tag))
+        f.write_str(tag)
     }
 }
 ///`INPUT_QUANTITY` is used inside OVERWRITE to override the `input_quantity` of an INSTANCE
@@ -14331,6 +14414,7 @@ impl std::fmt::Debug for InputQuantity {
 
 impl InputQuantity {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -14462,6 +14546,7 @@ impl std::fmt::Debug for Instance {
 
 impl Instance {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(
         name: String,
         long_identifier: String,
@@ -15020,6 +15105,7 @@ impl std::fmt::Debug for Layout {
 
 impl Layout {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(index_mode: IndexMode) -> Self {
         Self {
             index_mode,
@@ -15116,6 +15202,7 @@ impl std::fmt::Debug for LeftShift {
 
 impl LeftShift {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(bitcount: u32) -> Self {
         Self {
             bitcount,
@@ -15216,6 +15303,7 @@ impl std::fmt::Debug for Limits {
 
 impl Limits {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(lower_limit: f64, upper_limit: f64) -> Self {
         Self {
             lower_limit,
@@ -15315,6 +15403,7 @@ impl std::fmt::Debug for LocMeasurement {
 
 impl LocMeasurement {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             identifier_list: Vec::new(),
@@ -15436,6 +15525,7 @@ impl std::fmt::Debug for MapList {
 
 impl MapList {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             name_list: Vec::new(),
@@ -15557,6 +15647,7 @@ impl std::fmt::Debug for MatrixDim {
 
 impl MatrixDim {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             dim_list: Vec::new(),
@@ -15685,6 +15776,7 @@ impl std::fmt::Debug for MaxGrad {
 
 impl MaxGrad {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(max_gradient: f64) -> Self {
         Self {
             max_gradient,
@@ -15780,6 +15872,7 @@ impl std::fmt::Debug for MaxRefresh {
 
 impl MaxRefresh {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(scaling_unit: u16, rate: u32) -> Self {
         Self {
             scaling_unit,
@@ -15949,6 +16042,7 @@ impl std::fmt::Debug for Measurement {
 
 impl Measurement {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(
         name: String,
         long_identifier: String,
@@ -16855,7 +16949,7 @@ impl std::fmt::Display for MemoryAttribute {
             Self::Intern => "INTERN",
             Self::Extern => "EXTERN",
         };
-        f.write_fmt(format_args!("{0}", tag))
+        f.write_str(tag)
     }
 }
 /// describes the layout of the ECU memory
@@ -16883,6 +16977,7 @@ impl std::fmt::Debug for MemoryLayout {
 
 impl MemoryLayout {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(prog_type: ProgType, address: u32, size: u32, offset: [i32; 5usize]) -> Self {
         Self {
             prog_type,
@@ -17175,6 +17270,7 @@ impl std::fmt::Debug for MemorySegment {
 
 impl MemorySegment {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(
         name: String,
         long_identifier: String,
@@ -17568,7 +17664,7 @@ impl std::fmt::Display for MemoryType {
             Self::Register => "REGISTER",
             Self::NotInEcu => "NOT_IN_ECU",
         };
-        f.write_fmt(format_args!("{0}", tag))
+        f.write_str(tag)
     }
 }
 /// defines default values for the  entire module
@@ -17610,6 +17706,7 @@ impl std::fmt::Debug for ModCommon {
 
 impl ModCommon {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(comment: String) -> Self {
         Self {
             comment,
@@ -18117,6 +18214,7 @@ impl std::fmt::Debug for ModPar {
 
 impl ModPar {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(comment: String) -> Self {
         Self {
             comment,
@@ -18708,6 +18806,7 @@ impl std::fmt::Debug for ModelLink {
 
 impl ModelLink {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(model_link: String) -> Self {
         Self {
             model_link,
@@ -18857,6 +18956,7 @@ impl std::fmt::Debug for Module {
 
 impl Module {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String, long_identifier: String) -> Self {
         Self {
             name,
@@ -19748,6 +19848,7 @@ impl std::fmt::Debug for Monotony {
 
 impl Monotony {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(monotony: MonotonyType) -> Self {
         Self {
             monotony,
@@ -19884,7 +19985,7 @@ impl std::fmt::Display for MonotonyType {
             Self::StrictMon => "STRICT_MON",
             Self::NotMon => "NOT_MON",
         };
-        f.write_fmt(format_args!("{0}", tag))
+        f.write_str(tag)
     }
 }
 /// Description of the number of axis points in an adjustable object
@@ -19906,6 +20007,7 @@ impl std::fmt::Debug for NoAxisPtsDim {
 
 impl NoAxisPtsDim {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(position: u16, datatype: DataType) -> Self {
         Self {
             position,
@@ -20013,6 +20115,7 @@ impl std::fmt::Debug for NoOfInterfaces {
 
 impl NoOfInterfaces {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(num: u16) -> Self {
         Self {
             num,
@@ -20113,6 +20216,7 @@ impl std::fmt::Debug for NoRescaleDim {
 
 impl NoRescaleDim {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(position: u16, datatype: DataType) -> Self {
         Self {
             position,
@@ -20220,6 +20324,7 @@ impl std::fmt::Debug for Number {
 
 impl Number {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(number: u16) -> Self {
         Self {
             number,
@@ -20320,6 +20425,7 @@ impl std::fmt::Debug for OffsetDim {
 
 impl OffsetDim {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(position: u16, datatype: DataType) -> Self {
         Self {
             position,
@@ -20427,6 +20533,7 @@ impl std::fmt::Debug for OutMeasurement {
 
 impl OutMeasurement {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             identifier_list: Vec::new(),
@@ -20564,6 +20671,7 @@ impl std::fmt::Debug for Overwrite {
 
 impl Overwrite {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String, axis_number: u32) -> Self {
         Self {
             name,
@@ -20922,6 +21030,7 @@ impl std::fmt::Debug for PhoneNo {
 
 impl PhoneNo {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(telnum: String) -> Self {
         Self {
             telnum,
@@ -21015,6 +21124,7 @@ impl std::fmt::Debug for PhysUnit {
 
 impl PhysUnit {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(unit: String) -> Self {
         Self {
             unit,
@@ -21142,7 +21252,7 @@ impl std::fmt::Display for PrgType {
             Self::Seram => "SERAM",
             Self::Variables => "VARIABLES",
         };
-        f.write_fmt(format_args!("{0}", tag))
+        f.write_str(tag)
     }
 }
 /// describes the types of program segments
@@ -21181,7 +21291,7 @@ impl std::fmt::Display for ProgType {
             Self::PrgData => "PRG_DATA",
             Self::PrgReserved => "PRG_RESERVED",
         };
-        f.write_fmt(format_args!("{0}", tag))
+        f.write_str(tag)
     }
 }
 /// Project description with project header and all modules belonging to the project. Required.
@@ -21207,6 +21317,7 @@ impl std::fmt::Debug for Project {
 
 impl Project {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String, long_identifier: String) -> Self {
         Self {
             name,
@@ -21425,6 +21536,7 @@ impl std::fmt::Debug for ProjectNo {
 
 impl ProjectNo {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(project_number: String) -> Self {
         Self {
             project_number,
@@ -21515,6 +21627,7 @@ impl std::fmt::Debug for ReadOnly {
 
 impl ReadOnly {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             __block_info: BlockInfo {
@@ -21597,6 +21710,7 @@ impl std::fmt::Debug for ReadWrite {
 
 impl ReadWrite {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             __block_info: BlockInfo {
@@ -21808,6 +21922,7 @@ impl std::fmt::Debug for RecordLayout {
 
 impl RecordLayout {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -23756,6 +23871,7 @@ impl std::fmt::Debug for RefCharacteristic {
 
 impl RefCharacteristic {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             identifier_list: Vec::new(),
@@ -23877,6 +23993,7 @@ impl std::fmt::Debug for RefGroup {
 
 impl RefGroup {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             identifier_list: Vec::new(),
@@ -23998,6 +24115,7 @@ impl std::fmt::Debug for RefMeasurement {
 
 impl RefMeasurement {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             identifier_list: Vec::new(),
@@ -24119,6 +24237,7 @@ impl std::fmt::Debug for RefMemorySegment {
 
 impl RefMemorySegment {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -24216,6 +24335,7 @@ impl std::fmt::Debug for RefUnit {
 
 impl RefUnit {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(unit: String) -> Self {
         Self {
             unit,
@@ -24311,6 +24431,7 @@ impl std::fmt::Debug for Reserved {
 
 impl Reserved {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(position: u16, data_size: DataTypeSize) -> Self {
         Self {
             position,
@@ -24418,6 +24539,7 @@ impl std::fmt::Debug for RightShift {
 
 impl RightShift {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(bitcount: u32) -> Self {
         Self {
             bitcount,
@@ -24518,6 +24640,7 @@ impl std::fmt::Debug for RipAddrDim {
 
 impl RipAddrDim {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(position: u16, datatype: DataType) -> Self {
         Self {
             position,
@@ -24622,6 +24745,7 @@ impl std::fmt::Debug for Root {
 
 impl Root {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             __block_info: BlockInfo {
@@ -24707,6 +24831,7 @@ impl std::fmt::Debug for SRecLayout {
 
 impl SRecLayout {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -24808,6 +24933,7 @@ impl std::fmt::Debug for ShiftOpDim {
 
 impl ShiftOpDim {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(position: u16, datatype: DataType) -> Self {
         Self {
             position,
@@ -24935,6 +25061,7 @@ impl std::fmt::Debug for SiExponents {
 
 impl SiExponents {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(
         length: i16,
         mass: i16,
@@ -25161,6 +25288,7 @@ impl std::fmt::Debug for SignExtend {
 
 impl SignExtend {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             __block_info: BlockInfo {
@@ -25248,6 +25376,7 @@ impl std::fmt::Debug for SrcAddrDim {
 
 impl SrcAddrDim {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(position: u16, datatype: DataType) -> Self {
         Self {
             position,
@@ -25352,6 +25481,7 @@ impl std::fmt::Debug for StaticAddressOffsets {
 
 impl StaticAddressOffsets {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             __block_info: BlockInfo {
@@ -25434,6 +25564,7 @@ impl std::fmt::Debug for StaticRecordLayout {
 
 impl StaticRecordLayout {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             __block_info: BlockInfo {
@@ -25519,6 +25650,7 @@ impl std::fmt::Debug for StatusStringRef {
 
 impl StatusStringRef {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(conversion_table: String) -> Self {
         Self {
             conversion_table,
@@ -25612,6 +25744,7 @@ impl std::fmt::Debug for StepSize {
 
 impl StepSize {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(step_size: f64) -> Self {
         Self {
             step_size,
@@ -25717,6 +25850,7 @@ impl std::fmt::Debug for StructureComponent {
 
 impl StructureComponent {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(component_name: String, component_type: String, address_offset: u32) -> Self {
         Self {
             component_name,
@@ -25998,6 +26132,7 @@ impl std::fmt::Debug for SubFunction {
 
 impl SubFunction {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             identifier_list: Vec::new(),
@@ -26119,6 +26254,7 @@ impl std::fmt::Debug for SubGroup {
 
 impl SubGroup {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             identifier_list: Vec::new(),
@@ -26240,6 +26376,7 @@ impl std::fmt::Debug for Supplier {
 
 impl Supplier {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(manufacturer: String) -> Self {
         Self {
             manufacturer,
@@ -26335,6 +26472,7 @@ impl std::fmt::Debug for SymbolLink {
 
 impl SymbolLink {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(symbol_name: String, offset: i32) -> Self {
         Self {
             symbol_name,
@@ -26439,6 +26577,7 @@ impl std::fmt::Debug for SymbolTypeLink {
 
 impl SymbolTypeLink {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(symbol_type: String) -> Self {
         Self {
             symbol_type,
@@ -26534,6 +26673,7 @@ impl std::fmt::Debug for SystemConstant {
 
 impl SystemConstant {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String, value: String) -> Self {
         Self {
             name,
@@ -26635,6 +26775,7 @@ impl std::fmt::Debug for TabEntryStruct {
 
 impl TabEntryStruct {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(in_val: f64, out_val: f64) -> Self {
         Self {
             in_val,
@@ -26748,6 +26889,7 @@ impl std::fmt::Debug for Transformer {
 
 impl Transformer {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(
         name: String,
         version: String,
@@ -27027,6 +27169,7 @@ impl std::fmt::Debug for TransformerInObjects {
 
 impl TransformerInObjects {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             identifier_list: Vec::new(),
@@ -27148,6 +27291,7 @@ impl std::fmt::Debug for TransformerOutObjects {
 
 impl TransformerOutObjects {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             identifier_list: Vec::new(),
@@ -27285,7 +27429,7 @@ impl std::fmt::Display for TransformerTrigger {
             Self::OnUserRequest => "ON_USER_REQUEST",
             Self::OnChange => "ON_CHANGE",
         };
-        f.write_fmt(format_args!("{0}", tag))
+        f.write_str(tag)
     }
 }
 /// Type definition of an axis object
@@ -27335,6 +27479,7 @@ impl std::fmt::Debug for TypedefAxis {
 
 impl TypedefAxis {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(
         name: String,
         long_identifier: String,
@@ -27787,6 +27932,7 @@ impl std::fmt::Debug for TypedefBlob {
 
 impl TypedefBlob {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String, long_identifier: String, size: u32) -> Self {
         Self {
             name,
@@ -28024,6 +28170,7 @@ impl std::fmt::Debug for TypedefCharacteristic {
 
 impl TypedefCharacteristic {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(
         name: String,
         long_identifier: String,
@@ -28591,6 +28738,7 @@ impl std::fmt::Debug for TypedefMeasurement {
 
 impl TypedefMeasurement {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(
         name: String,
         long_identifier: String,
@@ -29116,6 +29264,7 @@ impl std::fmt::Debug for TypedefStructure {
 
 impl TypedefStructure {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String, long_identifier: String, total_size: u32) -> Self {
         Self {
             name,
@@ -29417,6 +29566,7 @@ impl std::fmt::Debug for Unit {
 
 impl Unit {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(
         name: String,
         long_identifier: String,
@@ -29685,6 +29835,7 @@ impl std::fmt::Debug for UnitConversion {
 
 impl UnitConversion {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(gradient: f64, offset: f64) -> Self {
         Self {
             gradient,
@@ -29800,7 +29951,7 @@ impl std::fmt::Display for UnitType {
             Self::Derived => "DERIVED",
             Self::ExtendedSi => "EXTENDED_SI",
         };
-        f.write_fmt(format_args!("{0}", tag))
+        f.write_str(tag)
     }
 }
 /// Name of the user
@@ -29820,6 +29971,7 @@ impl std::fmt::Debug for User {
 
 impl User {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(user_name: String) -> Self {
         Self {
             user_name,
@@ -29917,6 +30069,7 @@ impl std::fmt::Debug for UserRights {
 
 impl UserRights {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(user_level_id: String) -> Self {
         Self {
             user_level_id,
@@ -30115,6 +30268,7 @@ impl std::fmt::Debug for ValuePairsStruct {
 
 impl ValuePairsStruct {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(in_val: f64, out_val: String) -> Self {
         Self {
             in_val,
@@ -30216,6 +30370,7 @@ impl std::fmt::Debug for ValueTriplesStruct {
 
 impl ValueTriplesStruct {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(in_val_min: f64, in_val_max: f64, out_val: String) -> Self {
         Self {
             in_val_min,
@@ -30326,6 +30481,7 @@ impl std::fmt::Debug for VarAddress {
 
 impl VarAddress {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             address_list: Vec::new(),
@@ -30463,6 +30619,7 @@ impl std::fmt::Debug for VarCharacteristic {
 
 impl VarCharacteristic {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -30680,6 +30837,7 @@ impl std::fmt::Debug for VarCriterion {
 
 impl VarCriterion {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String, long_identifier: String) -> Self {
         Self {
             name,
@@ -30931,6 +31089,7 @@ impl std::fmt::Debug for VarForbiddenComb {
 
 impl VarForbiddenComb {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             combination: Vec::new(),
@@ -31049,6 +31208,7 @@ impl std::fmt::Debug for VarMeasurement {
 
 impl VarMeasurement {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -31146,6 +31306,7 @@ impl std::fmt::Debug for VarNaming {
 
 impl VarNaming {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(tag: VarNamingTag) -> Self {
         Self {
             tag,
@@ -31252,9 +31413,10 @@ impl std::fmt::Display for VarNamingTag {
         let tag = match &self {
             Self::Numeric => "NUMERIC",
         };
-        f.write_fmt(format_args!("{0}", tag))
+        f.write_str(tag)
     }
 }
+
 /// used to specify a special characteristic object which can change the currently active variant
 #[derive(Clone)]
 pub struct VarSelectionCharacteristic {
@@ -31272,6 +31434,7 @@ impl std::fmt::Debug for VarSelectionCharacteristic {
 
 impl VarSelectionCharacteristic {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -31371,6 +31534,7 @@ impl std::fmt::Debug for VarSeparator {
 
 impl VarSeparator {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(separator: String) -> Self {
         Self {
             separator,
@@ -31472,6 +31636,7 @@ impl std::fmt::Debug for VariantCoding {
 
 impl VariantCoding {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             var_characteristic: Vec::new(),
@@ -31744,6 +31909,7 @@ impl std::fmt::Debug for Version {
 
 impl Version {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(version_identifier: String) -> Self {
         Self {
             version_identifier,
@@ -31837,6 +32003,7 @@ impl std::fmt::Debug for Virtual {
 
 impl Virtual {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             measuring_channel_list: Vec::new(),
@@ -31960,6 +32127,7 @@ impl std::fmt::Debug for VirtualCharacteristic {
 
 impl VirtualCharacteristic {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(formula: String) -> Self {
         Self {
             formula,
@@ -32128,7 +32296,7 @@ impl A2ml {
                     error_line: parser.last_token_position,
                     errmsg,
                 })?;
-                merged_a2ml_text = String::from("");
+                merged_a2ml_text = String::new();
             }
         }
         parser.expect_token(context, A2lTokenType::End)?;
