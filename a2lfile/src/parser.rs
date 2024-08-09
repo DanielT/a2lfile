@@ -598,9 +598,16 @@ impl<'a> ParserState<'a> {
     pub(crate) fn get_float(&mut self, context: &ParseContext) -> Result<f32, ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
-        match text.parse::<f32>() {
-            Ok(num) => Ok(num),
-            Err(_) => Err(ParserError::malformed_number(self, context, text)),
+        if text.starts_with("0x") || text.starts_with("0X") {
+            match u64::from_str_radix(&text[2..], 16) {
+                Ok(num) => Ok(num as f32),
+                Err(_) => Err(ParserError::malformed_number(self, context, text)),
+            }
+        } else {
+            match text.parse::<f32>() {
+                Ok(num) => Ok(num),
+                Err(_) => Err(ParserError::malformed_number(self, context, text)),
+            }
         }
     }
 
@@ -610,9 +617,16 @@ impl<'a> ParserState<'a> {
     pub(crate) fn get_double(&mut self, context: &ParseContext) -> Result<f64, ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
-        match text.parse::<f64>() {
-            Ok(num) => Ok(num),
-            Err(_) => Err(ParserError::malformed_number(self, context, text)),
+        if text.starts_with("0x") || text.starts_with("0X") {
+            match u64::from_str_radix(&text[2..], 16) {
+                Ok(num) => Ok(num as f64),
+                Err(_) => Err(ParserError::malformed_number(self, context, text)),
+            }
+        } else {
+            match text.parse::<f64>() {
+                Ok(num) => Ok(num),
+                Err(_) => Err(ParserError::malformed_number(self, context, text)),
+            }
         }
     }
 
@@ -1154,7 +1168,9 @@ mod tests {
 
         // float: 0x11
         let res = parser.get_float(&context);
-        assert!(res.is_err());
+        assert!(res.is_ok());
+        let val = res.unwrap();
+        assert_eq!(val, 17f32);
 
         // float: 1.0e+2
         let res = parser.get_float(&context);
