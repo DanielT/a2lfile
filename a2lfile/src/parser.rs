@@ -1120,7 +1120,7 @@ mod tests {
 
     #[test]
     fn parsing_numbers_test() {
-        let input_text = r##"0 0x1 1.0e+2 1000 0 0.1 0x11 1.0e+2"##;
+        let input_text = r##"0 0x1 1.0e+2 1000 0 0.1 0x11 1.0e+2 0X1f 0X2F 2F F"##;
         let tokenresult = tokenizer::tokenize(&Filename::from("test_input"), 0, input_text);
         assert!(tokenresult.is_ok());
 
@@ -1177,6 +1177,27 @@ mod tests {
         assert!(res.is_ok());
         let val = res.unwrap();
         assert_eq!(val, 100f32);
+
+        // float: 0X1f
+        let res = parser.get_float(&context);
+        assert!(res.is_ok());
+        let val = res.unwrap();
+        assert_eq!(val, 31f32);
+
+        // float: 0X2F
+        let res = parser.get_float(&context);
+        assert!(res.is_ok());
+        let val = res.unwrap();
+        assert_eq!(val, 47f32);
+
+        // float: 2F
+        let res = parser.get_float(&context);
+        assert!(res.is_err());
+
+        // float: F
+        let res = parser.get_float(&context);
+        assert!(res.is_err());
+
     }
 
     #[test]
