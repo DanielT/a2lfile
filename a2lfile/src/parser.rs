@@ -598,6 +598,9 @@ impl<'a> ParserState<'a> {
     pub(crate) fn get_float(&mut self, context: &ParseContext) -> Result<f32, ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
+        // some vendor tools are defining the characteristic UpperLimit and LowerLimit
+        // (float values from specifications) using 0xNNN for characteristics that
+        // are actually integers.
         if text.starts_with("0x") || text.starts_with("0X") {
             match u64::from_str_radix(&text[2..], 16) {
                 Ok(num) => Ok(num as f32),
@@ -617,6 +620,9 @@ impl<'a> ParserState<'a> {
     pub(crate) fn get_double(&mut self, context: &ParseContext) -> Result<f64, ParserError> {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
+        // some vendor tools are defining the characteristic UpperLimit and LowerLimit
+        // (float values from specifications) using 0xNNN for characteristics that
+        // are actually integers.
         if text.starts_with("0x") || text.starts_with("0X") {
             match u64::from_str_radix(&text[2..], 16) {
                 Ok(num) => Ok(num as f64),
