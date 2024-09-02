@@ -47,15 +47,33 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
 fn generate_enum_data_structure(typename: &str, enumitems: &[EnumItem]) -> TokenStream {
     let typeident = format_ident!("{}", typename);
 
-    let enumidents: Vec<proc_macro2::Ident> = enumitems
-        .iter()
-        .map(|enumitem| format_ident!("{}", ucname_to_typename(&enumitem.name)))
-        .collect();
+    // check if all enum items have a value assigned
+    let use_values = enumitems.iter().all(|item| item.value.is_some());
+    let enum_defs: Vec<TokenStream> = if !use_values {
+        // if no values are assigned, the enum items are just listed without values
+        enumitems
+            .iter()
+            .map(|enumitem| {
+                let ident = format_ident!("{}", ucname_to_typename(&enumitem.name));
+                quote! {#ident}
+            })
+            .collect()
+    } else {
+        // if values are assigned, the enum items are listed with values
+        enumitems
+            .iter()
+            .map(|enumitem| {
+                let ident = format_ident!("{}", ucname_to_typename(&enumitem.name));
+                let value = *enumitem.value.as_ref().unwrap() as isize;
+                quote! {#ident = #value}
+            })
+            .collect()
+    };
 
     quote! {
         #[derive(Debug, PartialEq, Eq, Copy, Clone)]
         pub enum #typeident {
-            #(#enumidents),*
+            #(#enum_defs),*
         }
     }
 }
