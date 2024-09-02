@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 2.2.0
+
+- allow the parser to read hex encoded integers where a float is expected (Louis Caron)
+- generate Rust enums with values for A2ML enums with values in the a2ml_specification macro
+- fix some cases where users of items that were renamed during a merge were not updated to use the new name
+
 ## Version 2.1.0
 
 - add handling of /include inside A2ML blocks (Louis Caron)
