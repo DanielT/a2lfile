@@ -290,6 +290,11 @@ fn rename_compu_tabs(merge_module: &mut Module, rename_table: &HashMap<String, S
                 compu_tab_ref.conversion_table = newname.to_owned();
             }
         }
+        if let Some(status_string_ref) = &mut compu_method.status_string_ref {
+            if let Some(newname) = rename_table.get(&status_string_ref.conversion_table) {
+                status_string_ref.conversion_table = newname.to_owned();
+            }
+        }
     }
 }
 
@@ -344,6 +349,29 @@ fn rename_compu_methods(merge_module: &mut Module, rename_table: &HashMap<String
             measurement.conversion = newname.to_owned();
         }
     }
+
+    for typedef_axis in &mut merge_module.typedef_axis {
+        if let Some(newname) = rename_table.get(&typedef_axis.conversion) {
+            typedef_axis.conversion = newname.to_owned();
+        }
+    }
+
+    for typedef_characteristic in &mut merge_module.typedef_characteristic {
+        if let Some(newname) = rename_table.get(&typedef_characteristic.conversion) {
+            typedef_characteristic.conversion = newname.to_owned();
+        }
+        for axis_descr in &mut typedef_characteristic.axis_descr {
+            if let Some(newname) = rename_table.get(&axis_descr.conversion) {
+                axis_descr.conversion = newname.to_owned();
+            }
+        }
+    }
+
+    for typedef_measurement in &mut merge_module.typedef_measurement {
+        if let Some(newname) = rename_table.get(&typedef_measurement.conversion) {
+            typedef_measurement.conversion = newname.to_owned();
+        }
+    }
 }
 
 // ------------------------ RECORD_LAYOUT ------------------------
@@ -387,6 +415,18 @@ fn rename_record_layouts(merge_module: &mut Module, rename_table: &HashMap<Strin
         }
     }
 
+    for typedef_axis in &mut merge_module.typedef_axis {
+        if let Some(newname) = rename_table.get(&typedef_axis.record_layout) {
+            typedef_axis.record_layout = newname.to_owned();
+        }
+    }
+
+    for typedef_characteristic in &mut merge_module.typedef_characteristic {
+        if let Some(newname) = rename_table.get(&typedef_characteristic.record_layout) {
+            typedef_characteristic.record_layout = newname.to_owned();
+        }
+    }
+
     if let Some(mod_common) = &mut merge_module.mod_common {
         if let Some(s_rec_layout) = &mut mod_common.s_rec_layout {
             if let Some(newname) = rename_table.get(&s_rec_layout.name) {
@@ -407,7 +447,7 @@ fn merge_mod_common(orig_module: &mut Module, merge_module: &mut Module) {
     }
 }
 
-// ------------------------ AXIS_PTS, CHARACTERISTIC, MEASUREMENT, INSTANCE, BLOB and FUNCTION ------------------------
+// ------------------------ AXIS_PTS, CHARACTERISTIC, MEASUREMENT, INSTANCE, BLOB ------------------------
 
 fn merge_objects(orig_module: &mut Module, merge_module: &mut Module) {
     let mut log_msgs = Vec::<String>::new();
@@ -515,6 +555,28 @@ fn rename_objects(merge_module: &mut Module, rename_table: &HashMap<String, Stri
                 &mut dependent_characteristic.characteristic_list,
                 rename_table,
             );
+        }
+    }
+    // MODULE.TYPEDEF_CHARACTERISTIC
+    for typedef_characteristic in &mut merge_module.typedef_characteristic {
+        // MODULE.TYPEDEF_CHARACTERISTIC.AXIS_DESCR
+        for axis_descr in &mut typedef_characteristic.axis_descr {
+            // MODULE.TYPEDEF_CHARACTERISTIC.AXIS_DESCR.input_quantity
+            if let Some(newname) = rename_table.get(&axis_descr.input_quantity) {
+                axis_descr.input_quantity = newname.to_owned();
+            }
+            // MODULE.TYPEDEF_CHARACTERISTIC.AXIS_DESCR.AXIS_PTS_REF
+            if let Some(axis_pts_ref) = &mut axis_descr.axis_pts_ref {
+                if let Some(newname) = rename_table.get(&axis_pts_ref.axis_points) {
+                    axis_pts_ref.axis_points = newname.to_owned();
+                }
+            }
+            // MODULE.TYPEDEF_CHARACTERISTIC.AXIS_DESCR.CURVE_AXIS_REF
+            if let Some(curve_axis_ref) = &mut axis_descr.curve_axis_ref {
+                if let Some(newname) = rename_table.get(&curve_axis_ref.curve_axis) {
+                    curve_axis_ref.curve_axis = newname.to_owned();
+                }
+            }
         }
     }
     // MODULE.INSTANCE
