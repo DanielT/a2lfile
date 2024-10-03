@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 2.3.1
+
+- fix the newly added input quantity check in AXIS_PTS: NO_INPUT_QUANTITY must be handled explicitly
+
 ## Version 2.3.0
 
 - change the behavior of merge for GROUPS and FUNCTION
