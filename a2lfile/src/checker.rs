@@ -141,7 +141,9 @@ fn check_axis_pts(axis_pts: &AxisPts, name_map: &ModuleNameMap, log_msgs: &mut V
         ));
     }
 
-    if !name_map.object.contains_key(&axis_pts.input_quantity) {
+    if axis_pts.input_quantity != "NO_INPUT_QUANTITY"
+        && !name_map.object.contains_key(&axis_pts.input_quantity)
+    {
         log_msgs.push(format!(
             "In AXIS_PTS {} on line {}: Referenced input MEASUREMENT {} does not exist.",
             name, line, axis_pts.input_quantity
