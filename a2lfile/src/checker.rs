@@ -111,7 +111,7 @@ fn check_typedef_axis(t_axis: &TypedefAxis, name_map: &ModuleNameMap, log_msgs: 
         ));
     }
 
-    if !name_map.compu_method.contains_key(&t_axis.record_layout) {
+    if !name_map.record_layout.contains_key(&t_axis.record_layout) {
         log_msgs.push(format!(
             "In TYPEDEF_AXIS {} on line {}: Referenced RECORD_LAYOUT {} does not exist.",
             name, line, t_axis.record_layout
@@ -138,6 +138,23 @@ fn check_axis_pts(axis_pts: &AxisPts, name_map: &ModuleNameMap, log_msgs: &mut V
         log_msgs.push(format!(
             "In AXIS_PTS {} on line {}: Referenced COMPU_METHOD {} does not exist.",
             name, line, axis_pts.conversion
+        ));
+    }
+
+    if !name_map.object.contains_key(&axis_pts.input_quantity) {
+        log_msgs.push(format!(
+            "In AXIS_PTS {} on line {}: Referenced input MEASUREMENT {} does not exist.",
+            name, line, axis_pts.input_quantity
+        ));
+    }
+
+    if !name_map
+        .record_layout
+        .contains_key(&axis_pts.deposit_record)
+    {
+        log_msgs.push(format!(
+            "In AXIS_PTS {} on line {}: Referenced RECORD_LAYOUT {} does not exist.",
+            name, line, axis_pts.deposit_record
         ));
     }
 
@@ -279,10 +296,22 @@ fn check_compu_method(
     }
 
     if let Some(ref_unit) = &compu_method.ref_unit {
-        if !name_map.compu_tab.contains_key(&ref_unit.unit) {
+        if !name_map.unit.contains_key(&ref_unit.unit) {
             log_msgs.push(format!(
                 "In COMPU_METHOD on line {}: The REF_UNIT references nonexistent UNIT {}",
                 line, ref_unit.unit
+            ));
+        }
+    }
+
+    if let Some(status_string_ref) = &compu_method.status_string_ref {
+        if !name_map
+            .compu_tab
+            .contains_key(&status_string_ref.conversion_table)
+        {
+            log_msgs.push(format!(
+                "In COMPU_METHOD on line {}: The STATUS_STRING_REF references nonexistent COMPU_TAB {}",
+                line, status_string_ref.conversion_table
             ));
         }
     }
@@ -405,6 +434,18 @@ fn check_group(group: &Group, name_map: &ModuleNameMap, log_msgs: &mut Vec<Strin
         );
     }
 
+    if let Some(function_list) = &group.function_list {
+        let line = function_list.get_line();
+        check_reference_list(
+            "FUNCTION_LIST",
+            "FUNCTION",
+            line,
+            &function_list.name_list,
+            &name_map.function,
+            log_msgs,
+        );
+    }
+
     if let Some(sub_group) = &group.sub_group {
         let line = sub_group.get_line();
         check_reference_list(
@@ -436,6 +477,7 @@ fn check_measurement(
     }
 
     check_ref_memory_segment(&measurement.ref_memory_segment, name_map, log_msgs);
+    check_function_list(&measurement.function_list, name_map, log_msgs);
 }
 
 fn check_typedef_measurement(
@@ -573,20 +615,21 @@ fn check_group_structure(grouplist: &[Group], log_msgs: &mut Vec<String>) {
     }
 
     for group in grouplist {
-        if let Some(gi) = groupinfo.get(&group.name) {
-            if gi.is_root && gi.parents.len() > 1 {
-                log_msgs.push(format!("GROUP {} has the ROOT attribute, but is also referenced as a sub-group by GROUPs {}", group.name, gi.parents.join(", ")));
-            } else if gi.is_root && gi.parents.len() == 1 {
-                log_msgs.push(format!("GROUP {} has the ROOT attribute, but is also referenced as a sub-group by GROUP {}", group.name, gi.parents[0]));
-            } else if !gi.is_root && gi.parents.len() > 1 {
-                log_msgs.push(format!(
-                    "GROUP {} is referenced as a sub-group by multiple groups: {}",
-                    group.name,
-                    gi.parents.join(", ")
-                ));
-            } else if !gi.is_root && gi.parents.is_empty() {
-                log_msgs.push(format!("GROUP {} does not have the ROOT attribute, and is not referenced as a sub-group by any other group", group.name));
-            }
+        let gi = groupinfo
+            .get(&group.name)
+            .expect("all groups should be in the groupinfo map");
+        if gi.is_root && gi.parents.len() > 1 {
+            log_msgs.push(format!("GROUP {} has the ROOT attribute, but is also referenced as a sub-group by GROUPs {}", group.name, gi.parents.join(", ")));
+        } else if gi.is_root && gi.parents.len() == 1 {
+            log_msgs.push(format!("GROUP {} has the ROOT attribute, but is also referenced as a sub-group by GROUP {}", group.name, gi.parents[0]));
+        } else if !gi.is_root && gi.parents.len() > 1 {
+            log_msgs.push(format!(
+                "GROUP {} is referenced as a sub-group by multiple groups: {}",
+                group.name,
+                gi.parents.join(", ")
+            ));
+        } else if !gi.is_root && gi.parents.is_empty() {
+            log_msgs.push(format!("GROUP {} does not have the ROOT attribute, and is not referenced as a sub-group by any other group", group.name));
         }
     }
 }
@@ -614,9 +657,448 @@ fn check_typedef_structure(
     for sc in &typedef_structure.structure_component {
         if !name_map.typedef.contains_key(&sc.component_type) {
             log_msgs.push(format!(
-                "In STRUCTURE_COMPONENT {} of INSTANCE {} on line {}: Referenced TYPEDEF_<x> {} does not exist.",
+                "In STRUCTURE_COMPONENT {} of TYPEDEF_STRUCTURE {} on line {}: Referenced TYPEDEF_<x> {} does not exist.",
                 sc.component_name, name, line, sc.component_type
             ));
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::*;
+
+    #[test]
+    fn check_axis_descr() {
+        static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin CHARACTERISTIC c "" VALUE 0x1234 rl 0 NO_COMPU_METHOD 0.0 1.0
+                /begin AXIS_DESCR STD_AXIS input_quantity conversion 1 0 100
+                    AXIS_PTS_REF axis_points
+                    CURVE_AXIS_REF curve_axis
+                /end AXIS_DESCR
+            /end CHARACTERISTIC
+            /begin RECORD_LAYOUT rl /end RECORD_LAYOUT
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+
+        // invalid input quantity, conversion, axis points ref, and curve axis ref
+        assert_eq!(log_msgs.len(), 4);
+
+        // valid input, no errors to report
+        static A2L_TEXT2: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin CHARACTERISTIC c "" VALUE 0x1234 rl 0 NO_COMPU_METHOD 0.0 1.0
+                /begin AXIS_DESCR STD_AXIS meas cm 1 0 100
+                /end AXIS_DESCR
+            /end CHARACTERISTIC
+            /begin RECORD_LAYOUT rl /end RECORD_LAYOUT
+            /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit" /end COMPU_METHOD
+            /begin MEASUREMENT meas "" FLOAT32_IEEE cm  1 1.0 0 100
+            /end MEASUREMENT
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+
+        // invalid input quantity
+        assert_eq!(log_msgs.len(), 0);
+    }
+
+    #[test]
+    fn check_typedef_axis() {
+        static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin TYPEDEF_AXIS typedef_axis_name "" input_quantity record_layout 0 conversion 1 0 100
+            /end TYPEDEF_AXIS
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+
+        // invalid input quantity, record layout and conversion
+        assert_eq!(log_msgs.len(), 3);
+
+        // valid input, no errors to report
+        static A2L_TEXT2: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin TYPEDEF_AXIS typedef_axis_name "" meas rl 0 cm 1 0 100
+            /end TYPEDEF_AXIS
+            /begin MEASUREMENT meas "" FLOAT32_IEEE cm 1 1.0 0 100
+            /end MEASUREMENT
+            /begin RECORD_LAYOUT rl /end RECORD_LAYOUT
+            /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit" /end COMPU_METHOD
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+
+        assert_eq!(log_msgs.len(), 0);
+    }
+
+    #[test]
+    fn check_axis_pts() {
+        static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin AXIS_PTS axis_pts_name "" 0x1234 input_qty record_layout 0 conversion 3 0.0 10.0
+            /end AXIS_PTS
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+
+        // invalid input quantity, record layout (aka deposit_record), and conversion
+        assert_eq!(log_msgs.len(), 3);
+
+        // valid input, no errors to report
+        static A2L_TEXT2: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin AXIS_PTS axis_pts_name "" 0x1234 meas rl 0 cm 3 0.0 10.0
+            /end AXIS_PTS
+            /begin MEASUREMENT meas "" FLOAT32_IEEE cm 1 1.0 0 100
+            /end MEASUREMENT
+            /begin RECORD_LAYOUT rl /end RECORD_LAYOUT
+            /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit" /end COMPU_METHOD
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+        assert_eq!(log_msgs.len(), 0);
+    }
+
+    #[test]
+    fn check_characteristic() {
+        static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin CHARACTERISTIC c "" VALUE 0x1234 rl 0 conversion 0.0 1.0
+                COMPARISON_QUANTITY comp_qty
+                REF_MEMORY_SEGMENT mem_seg
+                /begin DEPENDENT_CHARACTERISTIC "formula"
+                    name
+                /end DEPENDENT_CHARACTERISTIC
+                /begin FUNCTION_LIST
+                    name
+                /end FUNCTION_LIST
+                /begin MAP_LIST
+                    name
+                /end MAP_LIST
+                /begin VIRTUAL_CHARACTERISTIC "virt_char"
+                    name
+                /end VIRTUAL_CHARACTERISTIC
+            /end CHARACTERISTIC
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+
+        // invalid conversion, record layout, comparison quantity, memory segment,
+        // dependent characteristic, function, map list, and virtual characteristic
+        assert_eq!(log_msgs.len(), 8);
+
+        // valid input, no errors to report
+        static A2L_TEXT2: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin CHARACTERISTIC c "" VALUE 0x1234 rl 0 cm 0.0 1.0
+            /end CHARACTERISTIC
+            /begin RECORD_LAYOUT rl /end RECORD_LAYOUT
+            /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit" /end COMPU_METHOD
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+        assert_eq!(log_msgs.len(), 0);
+    }
+
+    #[test]
+    fn check_typedef_characteristic() {
+        static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin TYPEDEF_CHARACTERISTIC name "" VALUE record_layout 0 conversion 0 100
+                /begin AXIS_DESCR STD_AXIS input_quantity conversion 1 0 100
+                /end AXIS_DESCR
+            /end TYPEDEF_CHARACTERISTIC
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+
+        // invalid record layout and conversion, additionally the axis descr check reports invalid input quantity and conversion
+        assert_eq!(log_msgs.len(), 4);
+
+        // valid input, no errors to report
+        static A2L_TEXT2: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin TYPEDEF_CHARACTERISTIC name "" VALUE rl 0 cm 0 100
+            /end TYPEDEF_CHARACTERISTIC
+            /begin RECORD_LAYOUT rl /end RECORD_LAYOUT
+            /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit" /end COMPU_METHOD
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+        assert_eq!(log_msgs.len(), 0);
+    }
+
+    #[test]
+    fn check_compu_method() {
+        static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit"
+                COMPU_TAB_REF compu_tab_ref
+                REF_UNIT ref_unit
+                STATUS_STRING_REF status_string_ref
+            /end COMPU_METHOD
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+
+        // invalid compu tab ref, ref unit, and status string ref
+        assert_eq!(log_msgs.len(), 3);
+
+        // valid input, no errors to report
+        static A2L_TEXT2: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit"
+            /end COMPU_METHOD
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+        assert_eq!(log_msgs.len(), 0);
+    }
+
+    #[test]
+    fn check_function() {
+        static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin FUNCTION f ""
+                /begin IN_MEASUREMENT
+                    name
+                /end IN_MEASUREMENT
+                /begin LOC_MEASUREMENT
+                    name
+                /end LOC_MEASUREMENT
+                /begin OUT_MEASUREMENT
+                    name
+                /end OUT_MEASUREMENT
+                /begin DEF_CHARACTERISTIC
+                    name
+                /end DEF_CHARACTERISTIC
+                /begin REF_CHARACTERISTIC
+                    name
+                /end REF_CHARACTERISTIC
+                /begin SUB_FUNCTION
+                    name
+                /end SUB_FUNCTION
+            /end FUNCTION
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+
+        // invalid in measurement, loc measurement, out measurement, def characteristic,
+        // ref characteristic, and sub function
+        assert_eq!(log_msgs.len(), 6);
+
+        // valid input, no errors to report
+        static A2L_TEXT2: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin FUNCTION f ""
+            /end FUNCTION
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+        assert_eq!(log_msgs.len(), 0);
+    }
+
+    #[test]
+    fn check_group() {
+        static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin GROUP g ""
+                /begin REF_CHARACTERISTIC
+                    name
+                /end REF_CHARACTERISTIC
+                /begin REF_MEASUREMENT
+                    name
+                /end REF_MEASUREMENT
+                /begin FUNCTION_LIST
+                    name
+                /end FUNCTION_LIST
+                /begin SUB_GROUP
+                    name
+                /end SUB_GROUP
+            /end GROUP
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+
+        // invalid ref characteristic, ref measurement, function list, and sub group
+        // additionally the group consistency check reports that the group is not a root group, and refereces a non-existent sub-group
+        assert_eq!(log_msgs.len(), 6);
+    }
+
+    #[test]
+    fn check_group_structure() {
+        // grp1 is a root group, but is also referenced as a sub-group by grp2
+        static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin GROUP grp1 "" ROOT
+            /end GROUP
+            /begin GROUP grp2 "" ROOT
+                /begin SUB_GROUP
+                    grp1
+                /end SUB_GROUP
+            /end GROUP
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+        assert_eq!(log_msgs.len(), 1);
+
+        // grp1 is a root group, but is also referenced as a sub-group by grp2 and grp3
+        static A2L_TEXT2: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin GROUP grp1 "" ROOT
+            /end GROUP
+            /begin GROUP grp2 "" ROOT
+                /begin SUB_GROUP
+                    grp1
+                /end SUB_GROUP
+            /end GROUP
+            /begin GROUP grp3 "" ROOT
+                /begin SUB_GROUP
+                    grp1
+                /end SUB_GROUP
+            /end GROUP
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+        assert_eq!(log_msgs.len(), 1);
+
+        // grp1 (not a root group) is referenced as a sub-group by grp2 and grp3
+        static A2L_TEXT3: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin GROUP grp1 ""
+            /end GROUP
+            /begin GROUP grp2 "" ROOT
+                /begin SUB_GROUP
+                    grp1
+                /end SUB_GROUP
+            /end GROUP
+            /begin GROUP grp3 "" ROOT
+                /begin SUB_GROUP
+                    grp1
+                /end SUB_GROUP
+            /end GROUP
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT3, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+        assert_eq!(log_msgs.len(), 1);
+    }
+
+    #[test]
+    fn check_measurement() {
+        static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin MEASUREMENT m "" FLOAT32_IEEE conversion 1 1.0 0 100
+                REF_MEMORY_SEGMENT mem_seg
+                /begin FUNCTION_LIST
+                    name
+                /end FUNCTION_LIST
+            /end MEASUREMENT
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+
+        // invalid conversion, memory segment, and function list
+        assert_eq!(log_msgs.len(), 3);
+    }
+
+    #[test]
+    fn check_typedef_measurement() {
+        static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin TYPEDEF_MEASUREMENT tm "" UBYTE conversion 1 1 0 100
+            /end TYPEDEF_MEASUREMENT
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+
+        // invalid conversion
+        assert_eq!(log_msgs.len(), 1);
+    }
+
+    #[test]
+    fn check_transformer() {
+        static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin TRANSFORMER transformer_name "version string" "dll32" "dll64" 1 ON_CHANGE inverse_transformer
+                /begin TRANSFORMER_IN_OBJECTS
+                    name
+                /end TRANSFORMER_IN_OBJECTS
+                /begin TRANSFORMER_OUT_OBJECTS
+                    name
+                /end TRANSFORMER_OUT_OBJECTS
+            /end TRANSFORMER
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+
+        // invalid inverse transformer, transformer in objects, and transformer out objects
+        assert_eq!(log_msgs.len(), 3);
+
+        // valid input, no errors to report
+        static A2L_TEXT2: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin TRANSFORMER transformer_name "version string" "dll32" "dll64" 1 ON_CHANGE NO_INVERSE_TRANSFORMER
+            /end TRANSFORMER
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+        assert_eq!(log_msgs.len(), 0);
+    }
+
+    #[test]
+    fn check_instance() {
+        static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin INSTANCE i "" type_ref 0x1234
+            /end INSTANCE
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+
+        // invalid type ref
+        assert_eq!(log_msgs.len(), 1);
+    }
+
+    #[test]
+    fn check_typedef_structure() {
+        static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin TYPEDEF_STRUCTURE ts "" 1
+                /begin STRUCTURE_COMPONENT component_name component_type 1
+                /end STRUCTURE_COMPONENT
+            /end TYPEDEF_STRUCTURE
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+
+        // invalid component type
+        assert_eq!(log_msgs.len(), 1);
     }
 }

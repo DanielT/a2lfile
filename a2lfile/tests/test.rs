@@ -932,7 +932,7 @@ ASAP2_VERSION 1 61
                         int;
                     };
                 /end A2ML
-                /begin AXIS_PTS axispts_name "long_identifier" 0x1234 input_qty deposit_record 0 conversion 3 0.0 10.0
+                /begin AXIS_PTS axispts_name "long_identifier" 0x1234 measurement_name record_layout_name 0 compu_method_name 3 0.0 10.0
                     /begin ANNOTATION
                         ANNOTATION_LABEL "label" ANNOTATION_ORIGIN "origin"
                         /begin ANNOTATION_TEXT
@@ -942,17 +942,17 @@ ASAP2_VERSION 1 61
                 /end AXIS_PTS
                 /begin BLOB blob_name "long_identifier" 0x1234 100
                 /end BLOB
-                /begin CHARACTERISTIC characteristic_name "long_identifier" VALUE 0x1234 deposit_ident 0 conversion 0.0 10.0
-                    /begin AXIS_DESCR STD_AXIS input_quantity conversion 1 0 100
-                        AXIS_PTS_REF axis_points BYTE_ORDER MSB_LAST CURVE_AXIS_REF curve_axis DEPOSIT ABSOLUTE
+                /begin CHARACTERISTIC characteristic_name "long_identifier" VALUE 0x1234 record_layout_name 0 compu_method_name 0.0 10.0
+                    /begin AXIS_DESCR STD_AXIS measurement_name compu_method_name 1 0 100
+                        AXIS_PTS_REF axispts_name BYTE_ORDER MSB_LAST CURVE_AXIS_REF characteristic_name DEPOSIT ABSOLUTE
                         EXTENDED_LIMITS -100 200 FIX_AXIS_PAR 0 0 0 FIX_AXIS_PAR_DIST 0 0 0
                         FORMAT "%1.1" MAX_GRAD 1 READ_ONLY STEP_SIZE 1
                         /begin FIX_AXIS_PAR_LIST 0
                         /end FIX_AXIS_PAR_LIST
                     /end AXIS_DESCR
-                    COMPARISON_QUANTITY name
+                    COMPARISON_QUANTITY measurement_name
                     /begin DEPENDENT_CHARACTERISTIC "formula"
-                        name
+                        characteristic_name
                     /end DEPENDENT_CHARACTERISTIC
                     /begin MAP_LIST
                     /end MAP_LIST
@@ -961,12 +961,12 @@ ASAP2_VERSION 1 61
                 /begin COMPU_METHOD compu_method_name "" IDENTICAL "%4.2" "unit"
                     COEFFS 1 2 3 4 5 6
                     COEFFS_LINEAR 1 2
-                    COMPU_TAB_REF compu_tab
+                    COMPU_TAB_REF compu_tab_name
                     /begin FORMULA formula
                         FORMULA_INV "inverse"
                     /end FORMULA
-                    REF_UNIT unit
-                    STATUS_STRING_REF status_string
+                    REF_UNIT unit_name
+                    STATUS_STRING_REF compu_vtab_name
                 /end COMPU_METHOD
                 /begin COMPU_TAB compu_tab_name "long_identifier" IDENTICAL 2
                     1 22
@@ -993,15 +993,15 @@ ASAP2_VERSION 1 61
                     FUNCTION_VERSION "version-1.1.1"
                     /begin DEF_CHARACTERISTIC characteristic_name
                     /end DEF_CHARACTERISTIC
-                    /begin IN_MEASUREMENT in_measurement_name
+                    /begin IN_MEASUREMENT measurement_name
                     /end IN_MEASUREMENT
-                    /begin LOC_MEASUREMENT loc_measurement_name
+                    /begin LOC_MEASUREMENT measurement_name
                     /end LOC_MEASUREMENT
-                    /begin OUT_MEASUREMENT out_measurement_name
+                    /begin OUT_MEASUREMENT measurement_name
                     /end OUT_MEASUREMENT
-                    /begin REF_CHARACTERISTIC ref_characteristic_name
+                    /begin REF_CHARACTERISTIC characteristic_name
                     /end REF_CHARACTERISTIC
-                    /begin SUB_FUNCTION sub_function
+                    /begin SUB_FUNCTION function_name
                     /end SUB_FUNCTION
                 /end FUNCTION
                 /begin GROUP group_name "long_identifier"
@@ -1018,7 +1018,7 @@ ASAP2_VERSION 1 61
                 /begin IF_DATA
                     1
                 /end IF_DATA
-                /begin INSTANCE instance_name "long_identifier" type_ref 0x1234
+                /begin INSTANCE instance_name "long_identifier" typedef_structure_name 0x1234
                     ADDRESS_TYPE PLONGLONG
                     CALIBRATION_ACCESS CALIBRATION
                     DISPLAY_IDENTIFIER display_identifier
@@ -1028,7 +1028,7 @@ ASAP2_VERSION 1 61
                     MAX_REFRESH 1 1
                     MODEL_LINK "model link"
                     /begin OVERWRITE overwrite_name 0
-                        CONVERSION conversion_name
+                        CONVERSION compu_method_name
                         EXTENDED_LIMITS -100 1000
                         FORMAT "%1.3"
                         INPUT_QUANTITY input_quantity
@@ -1039,7 +1039,7 @@ ASAP2_VERSION 1 61
                     READ_ONLY
                     SYMBOL_LINK "symbol name" 0x1234
                 /end INSTANCE
-                /begin MEASUREMENT measurement_name "long_identifier" FLOAT32_IEEE conversion 1 1.0 0 100
+                /begin MEASUREMENT measurement_name "long_identifier" FLOAT32_IEEE compu_method_name 1 1.0 0 100
                     ARRAY_SIZE 1
                     BIT_MASK 0xF0
                     /begin BIT_OPERATION
@@ -1120,13 +1120,13 @@ ASAP2_VERSION 1 61
                     STATIC_RECORD_LAYOUT
                     STATIC_ADDRESS_OFFSETS
                 /end RECORD_LAYOUT
-                /begin TRANSFORMER transformer_name "version string" "dll32" "dll64" 1 ON_CHANGE inverse_transformer
+                /begin TRANSFORMER transformer_name "version string" "dll32" "dll64" 1 ON_CHANGE NO_INVERSE_TRANSFORMER
                     /begin TRANSFORMER_IN_OBJECTS
                     /end TRANSFORMER_IN_OBJECTS
                     /begin TRANSFORMER_OUT_OBJECTS
                     /end TRANSFORMER_OUT_OBJECTS
                 /end TRANSFORMER
-                /begin TYPEDEF_AXIS typedef_axis_name "long_identifier" input_quantity record_layout 0 conversion 1 0 100
+                /begin TYPEDEF_AXIS typedef_axis_name "long_identifier" measurement_name record_layout_name 0 compu_method_name 1 0 100
                     BYTE_ORDER MSB_LAST
                     MONOTONY MON_DECREASE
                     STEP_SIZE 3
@@ -1134,17 +1134,17 @@ ASAP2_VERSION 1 61
                 /begin TYPEDEF_BLOB typedef_blob_name "long_identifier" 1
                     ADDRESS_TYPE DIRECT
                 /end TYPEDEF_BLOB
-                /begin TYPEDEF_CHARACTERISTIC typedef_characteristic_name "long_identifier" VALUE record_layout 0 conversion 0 100
+                /begin TYPEDEF_CHARACTERISTIC typedef_characteristic_name "long_identifier" VALUE record_layout_name 0 compu_method_name 0 100
                     BIT_MASK 0x22
                     DISCRETE
                     ENCODING UTF8
                 /end TYPEDEF_CHARACTERISTIC
-                /begin TYPEDEF_MEASUREMENT typedef_measurement_name "long_identifier" UBYTE conversion 1 1 0 100
+                /begin TYPEDEF_MEASUREMENT typedef_measurement_name "long_identifier" UBYTE compu_method_name 1 1 0 100
                     ADDRESS_TYPE DIRECT
                 /end TYPEDEF_MEASUREMENT
                 /begin TYPEDEF_STRUCTURE typedef_structure_name "long_identifier" 1
                     CONSISTENT_EXCHANGE
-                    /begin STRUCTURE_COMPONENT component_name component_type 1
+                    /begin STRUCTURE_COMPONENT component_name typedef_characteristic_name 1
                         ADDRESS_TYPE DIRECT
                         LAYOUT COLUMN_DIR
                         MATRIX_DIM 1
@@ -1222,10 +1222,10 @@ ASAP2_VERSION 1 61
             "axispts_name".to_string(),
             "long_identifier".to_string(),
             0x1234,
-            "input_qty".to_string(),
-            "deposit_record".to_string(),
+            "measurement_name".to_string(),
+            "record_layout_name".to_string(),
             0.0,
-            "conversion".to_string(),
+            "compu_method_name".to_string(),
             3,
             0.0,
             10.0,
@@ -1250,23 +1250,23 @@ ASAP2_VERSION 1 61
             "long_identifier".to_string(),
             CharacteristicType::Value,
             0x1234,
-            "deposit_ident".to_string(),
+            "record_layout_name".to_string(),
             0.0,
-            "conversion".to_string(),
+            "compu_method_name".to_string(),
             0.0,
             10.0,
         );
         let mut axis_descr = AxisDescr::new(
             AxisDescrAttribute::StdAxis,
-            "input_quantity".to_string(),
-            "conversion".to_string(),
+            "measurement_name".to_string(),
+            "compu_method_name".to_string(),
             1,
             0.0,
             100.0,
         );
-        axis_descr.axis_pts_ref = Some(AxisPtsRef::new("axis_points".to_string()));
+        axis_descr.axis_pts_ref = Some(AxisPtsRef::new("axispts_name".to_string()));
         axis_descr.byte_order = Some(ByteOrder::new(ByteOrderEnum::MsbLast));
-        axis_descr.curve_axis_ref = Some(CurveAxisRef::new("curve_axis".to_string()));
+        axis_descr.curve_axis_ref = Some(CurveAxisRef::new("characteristic_name".to_string()));
         axis_descr.deposit = Some(Deposit::new(DepositMode::Absolute));
         axis_descr.extended_limits = Some(ExtendedLimits::new(-100.0, 200.0));
         axis_descr.fix_axis_par = Some(FixAxisPar::new(0, 0, 0));
@@ -1279,11 +1279,11 @@ ASAP2_VERSION 1 61
         axis_descr.read_only = Some(ReadOnly::new());
         axis_descr.step_size = Some(StepSize::new(1.0));
         characteristic.axis_descr.push(axis_descr);
-        characteristic.comparison_quantity = Some(ComparisonQuantity::new("name".to_string()));
+        characteristic.comparison_quantity = Some(ComparisonQuantity::new("measurement_name".to_string()));
         let mut dependent_characteristic = DependentCharacteristic::new("formula".to_string());
         dependent_characteristic
             .characteristic_list
-            .push("name".to_string());
+            .push("characteristic_name".to_string());
         characteristic.dependent_characteristic = Some(dependent_characteristic);
         characteristic.map_list = Some(MapList::new());
         characteristic.number = Some(Number::new(1));
@@ -1297,12 +1297,12 @@ ASAP2_VERSION 1 61
         );
         compu_method.coeffs = Some(Coeffs::new(1.0, 2.0, 3.0, 4.0, 5.0, 6.0));
         compu_method.coeffs_linear = Some(CoeffsLinear::new(1.0, 2.0));
-        compu_method.compu_tab_ref = Some(CompuTabRef::new("compu_tab".to_string()));
+        compu_method.compu_tab_ref = Some(CompuTabRef::new("compu_tab_name".to_string()));
         let mut formula = Formula::new("formula".to_string());
         formula.formula_inv = Some(FormulaInv::new("inverse".to_string()));
         compu_method.formula = Some(formula);
-        compu_method.ref_unit = Some(RefUnit::new("unit".to_string()));
-        compu_method.status_string_ref = Some(StatusStringRef::new("status_string".to_string()));
+        compu_method.ref_unit = Some(RefUnit::new("unit_name".to_string()));
+        compu_method.status_string_ref = Some(StatusStringRef::new("compu_vtab_name".to_string()));
         module.compu_method.push(compu_method);
         let mut compu_tab = CompuTab::new(
             "compu_tab_name".to_string(),
@@ -1365,27 +1365,27 @@ ASAP2_VERSION 1 61
         let mut in_measurement = InMeasurement::new();
         in_measurement
             .identifier_list
-            .push("in_measurement_name".to_string());
+            .push("measurement_name".to_string());
         function.in_measurement = Some(in_measurement);
         let mut loc_measurement = LocMeasurement::new();
         loc_measurement
             .identifier_list
-            .push("loc_measurement_name".to_string());
+            .push("measurement_name".to_string());
         function.loc_measurement = Some(loc_measurement);
         let mut out_measurement = OutMeasurement::new();
         out_measurement
             .identifier_list
-            .push("out_measurement_name".to_string());
+            .push("measurement_name".to_string());
         function.out_measurement = Some(out_measurement);
         let mut ref_characteristic = RefCharacteristic::new();
         ref_characteristic
             .identifier_list
-            .push("ref_characteristic_name".to_string());
+            .push("characteristic_name".to_string());
         function.ref_characteristic = Some(ref_characteristic);
         let mut sub_function = SubFunction::new();
         sub_function
             .identifier_list
-            .push("sub_function".to_string());
+            .push("function_name".to_string());
         function.sub_function = Some(sub_function);
         module.function.push(function);
         let mut group = Group::new("group_name".to_string(), "long_identifier".to_string());
@@ -1406,7 +1406,7 @@ ASAP2_VERSION 1 61
         let mut instance = Instance::new(
             "instance_name".to_string(),
             "long_identifier".to_string(),
-            "type_ref".to_string(),
+            "typedef_structure_name".to_string(),
             0x1234,
         );
         instance.address_type = Some(AddressType::new(AddrType::Plonglong));
@@ -1422,7 +1422,7 @@ ASAP2_VERSION 1 61
         instance.max_refresh = Some(MaxRefresh::new(1, 1));
         instance.model_link = Some(ModelLink::new("model link".to_string()));
         let mut overwrite = Overwrite::new("overwrite_name".to_string(), 0);
-        overwrite.conversion = Some(Conversion::new("conversion_name".to_string()));
+        overwrite.conversion = Some(Conversion::new("compu_method_name".to_string()));
         overwrite.extended_limits = Some(ExtendedLimits::new(-100.0, 1000.0));
         overwrite.format = Some(Format::new("%1.3".to_string()));
         overwrite.input_quantity = Some(InputQuantity::new("input_quantity".to_string()));
@@ -1437,7 +1437,7 @@ ASAP2_VERSION 1 61
             "measurement_name".to_string(),
             "long_identifier".to_string(),
             DataType::Float32Ieee,
-            "conversion".to_string(),
+            "compu_method_name".to_string(),
             1,
             1.0,
             0.0,
@@ -1564,7 +1564,7 @@ ASAP2_VERSION 1 61
             "dll64".to_string(),
             1,
             TransformerTrigger::OnChange,
-            "inverse_transformer".to_string(),
+            "NO_INVERSE_TRANSFORMER".to_string(),
         );
         transformer.transformer_in_objects = Some(TransformerInObjects::new());
         transformer.transformer_out_objects = Some(TransformerOutObjects::new());
@@ -1572,10 +1572,10 @@ ASAP2_VERSION 1 61
         let mut typedef_axis = TypedefAxis::new(
             "typedef_axis_name".to_string(),
             "long_identifier".to_string(),
-            "input_quantity".to_string(),
-            "record_layout".to_string(),
+            "measurement_name".to_string(),
+            "record_layout_name".to_string(),
             0.0,
-            "conversion".to_string(),
+            "compu_method_name".to_string(),
             1,
             0.0,
             100.0,
@@ -1595,9 +1595,9 @@ ASAP2_VERSION 1 61
             "typedef_characteristic_name".to_string(),
             "long_identifier".to_string(),
             CharacteristicType::Value,
-            "record_layout".to_string(),
+            "record_layout_name".to_string(),
             0.0,
-            "conversion".to_string(),
+            "compu_method_name".to_string(),
             0.0,
             100.0,
         );
@@ -1609,7 +1609,7 @@ ASAP2_VERSION 1 61
             "typedef_measurement_name".to_string(),
             "long_identifier".to_string(),
             DataType::Ubyte,
-            "conversion".to_string(),
+            "compu_method_name".to_string(),
             1,
             1.0,
             0.0,
@@ -1625,7 +1625,7 @@ ASAP2_VERSION 1 61
         typedef_structure.consistent_exchange = Some(ConsistentExchange::new());
         let mut structure_component = StructureComponent::new(
             "component_name".to_string(),
-            "component_type".to_string(),
+            "typedef_characteristic_name".to_string(),
             1,
         );
         structure_component.address_type = Some(AddressType::new(AddrType::Direct));
@@ -1672,6 +1672,16 @@ ASAP2_VERSION 1 61
         variant_coding.var_separator = Some(VarSeparator::new(".".to_string()));
         module.variant_coding = Some(variant_coding);
         assert_eq!(a2l_file, a2l_file5);
+
+        // check the data in a2l_file and a2l_file5
+        let mut check_msgs = Vec::new();
+        a2l_file.check(&mut check_msgs);
+        for msg in &check_msgs {
+            println!("{}", msg);
+        }
+        assert_eq!(check_msgs.len(), 0);
+        a2l_file5.check(&mut check_msgs);
+        assert_eq!(check_msgs.len(), 0);
 
         // verify store + load round trip of newly created data
         let serialized3 = a2l_file5.write_to_string();
