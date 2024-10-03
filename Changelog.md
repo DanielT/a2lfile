@@ -1,5 +1,15 @@
 # Changelog
 
+## Version 2.3.0
+
+- change the behavior of merge for GROUPS and FUNCTION
+  Previously, if two GROUPS in a merge had the same name, then the incoming group was renamed with the suffix ".MERGE".
+  Now the content for GROUPs/FUNCTIONs with the same name is combined.
+- a2l checker improvements
+  - fix incorrect checks for TYPEDEF_AXIS and COMPU_METHOD
+  - add extra checks for GROUP, MEASUREMENT, COMPU_METHOD, AXIS_PTS
+  - add tests for all the checks
+
 ## Version 2.2.0
 
 - allow the parser to read hex encoded integers where a float is expected (Louis Caron)
