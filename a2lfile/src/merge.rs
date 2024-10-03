@@ -31,9 +31,12 @@ pub(crate) fn merge_modules(orig_module: &mut Module, merge_module: &mut Module)
     // merge TYPEDEF_* - no dependencies
     merge_typedef(orig_module, merge_module);
 
-    // merge AXIS_PTS, CHARACTERISTIC, MEASUREMENT, INSTANCE, BLOB and FUNCTION
+    // merge AXIS_PTS, CHARACTERISTIC, MEASUREMENT, INSTANCE, BLOB
     // depends on each other, as well as COMPU_METHOD, TYPEDEF_* and MOD_COMMON.MEMORY_SEGMENT
     merge_objects(orig_module, merge_module);
+
+    // merge FUNCTION - depends on AXIS_PTS, CHARACTERISTIC, MEASUREMENT, INSTANCE, BLOB
+    merge_function(orig_module, merge_module);
 
     // merge GROUP - depends on FUNCTION, CHARACTERISTIC and MEASUREMENT
     merge_group(orig_module, merge_module);
@@ -454,13 +457,8 @@ fn merge_objects(orig_module: &mut Module, merge_module: &mut Module) {
     let orig_map = build_namemap_object(orig_module, &mut log_msgs);
     let merge_map = build_namemap_object(merge_module, &mut log_msgs);
     let (object_merge_action, object_rename_table) = calculate_item_actions(&orig_map, &merge_map);
-    let orig_map = build_namemap_function(orig_module, &mut log_msgs);
-    let merge_map = build_namemap_function(merge_module, &mut log_msgs);
-    let (function_merge_action, function_rename_table) =
-        calculate_item_actions(&orig_map, &merge_map);
 
     rename_objects(merge_module, &object_rename_table);
-    rename_functions(merge_module, &function_rename_table);
 
     while let Some(mut axis_pts) = merge_module.axis_pts.pop() {
         if let Some(true) = object_merge_action.get(&axis_pts.name) {
@@ -490,13 +488,6 @@ fn merge_objects(orig_module: &mut Module, merge_module: &mut Module) {
         if let Some(true) = object_merge_action.get(&measurement.name) {
             measurement.reset_location();
             orig_module.measurement.push(measurement);
-        }
-    }
-
-    while let Some(mut function) = merge_module.function.pop() {
-        if let Some(true) = function_merge_action.get(&function.name) {
-            function.reset_location();
-            orig_module.function.push(function);
         }
     }
 }
@@ -670,34 +661,99 @@ fn rename_objects(merge_module: &mut Module, rename_table: &HashMap<String, Stri
     }
 }
 
-fn rename_functions(merge_module: &mut Module, rename_table: &HashMap<String, String>) {
-    for function in &mut merge_module.function {
-        if let Some(newname) = rename_table.get(&function.name) {
-            function.name = newname.to_owned();
-        }
-        if let Some(sub_function) = &mut function.sub_function {
-            rename_item_list(&mut sub_function.identifier_list, rename_table);
-        }
-    }
+// ------------------------ FUNCTION ------------------------
+fn merge_function(orig_module: &mut Module, merge_module: &mut Module) {
+    // special handling for FUNCTIONs: merge these based only on the name, not the content
+    let mut orig_map: HashMap<_, _> = orig_module
+        .function
+        .iter()
+        .enumerate()
+        .map(|(i, f)| (f.name.clone(), i))
+        .collect();
 
-    for axis_pts in &mut merge_module.axis_pts {
-        if let Some(function_list) = &mut axis_pts.function_list {
-            rename_item_list(&mut function_list.name_list, rename_table);
-        }
-    }
-    for characteristic in &mut merge_module.characteristic {
-        if let Some(function_list) = &mut characteristic.function_list {
-            rename_item_list(&mut function_list.name_list, rename_table);
-        }
-    }
-    for group in &mut merge_module.group {
-        if let Some(function_list) = &mut group.function_list {
-            rename_item_list(&mut function_list.name_list, rename_table);
-        }
-    }
-    for measurement in &mut merge_module.measurement {
-        if let Some(function_list) = &mut measurement.function_list {
-            rename_item_list(&mut function_list.name_list, rename_table);
+    while let Some(mut function) = merge_module.function.pop() {
+        if let Some(idx) = orig_map.get(&function.name) {
+            // a function with this name already exists in the original module
+            let orig_function = &mut orig_module.function[*idx];
+            if *orig_function == function {
+                // the function in the original module is identical to the one in the merge module
+                // so we can just skip this one
+                continue;
+            } else {
+                // merge the sub functions
+                match (&mut orig_function.sub_function, function.sub_function) {
+                    (Some(orig_sub_function), Some(merge_sub_function)) => {
+                        // merge the sub_functions
+                        for item in merge_sub_function.identifier_list {
+                            if !orig_sub_function.identifier_list.contains(&item) {
+                                orig_sub_function.identifier_list.push(item);
+                            }
+                        }
+                    }
+                    (None, Some(merge_sub_function)) => {
+                        // the original function has no sub_function, but the merge function has one
+                        orig_function.sub_function = Some(merge_sub_function);
+                    }
+                    _ => {}
+                }
+
+                // merge the IN_MEASUREMENT
+                match (&mut orig_function.in_measurement, function.in_measurement) {
+                    (Some(orig_in_measurement), Some(merge_in_measurement)) => {
+                        // merge the sub_functions
+                        for item in merge_in_measurement.identifier_list {
+                            if !orig_in_measurement.identifier_list.contains(&item) {
+                                orig_in_measurement.identifier_list.push(item);
+                            }
+                        }
+                    }
+                    (None, Some(merge_in_measurement)) => {
+                        // the original function has no in_measurement, but the merge function has one
+                        orig_function.in_measurement = Some(merge_in_measurement);
+                    }
+                    _ => {}
+                }
+
+                // merge the LOC_MEASUREMENT
+                match (&mut orig_function.loc_measurement, function.loc_measurement) {
+                    (Some(orig_loc_measurement), Some(merge_loc_measurement)) => {
+                        // merge the sub_functions
+                        for item in merge_loc_measurement.identifier_list {
+                            if !orig_loc_measurement.identifier_list.contains(&item) {
+                                orig_loc_measurement.identifier_list.push(item);
+                            }
+                        }
+                    }
+                    (None, Some(merge_loc_measurement)) => {
+                        // the original function has no loc_measurement, but the merge function has one
+                        orig_function.loc_measurement = Some(merge_loc_measurement);
+                    }
+                    _ => {}
+                }
+
+                // merge the OUT_MEASUREMENT
+                match (&mut orig_function.out_measurement, function.out_measurement) {
+                    (Some(orig_out_measurement), Some(merge_out_measurement)) => {
+                        // merge the sub_functions
+                        for item in merge_out_measurement.identifier_list {
+                            if !orig_out_measurement.identifier_list.contains(&item) {
+                                orig_out_measurement.identifier_list.push(item);
+                            }
+                        }
+                    }
+                    (None, Some(merge_out_measurement)) => {
+                        // the original function has no out_measurement, but the merge function has one
+                        orig_function.out_measurement = Some(merge_out_measurement);
+                    }
+                    _ => {}
+                }
+            }
+        } else {
+            // no function with this name exists in the original module
+            let idx = orig_module.function.len();
+            orig_map.insert(function.name.clone(), idx);
+            function.reset_location();
+            orig_module.function.push(function);
         }
     }
 }
@@ -705,38 +761,99 @@ fn rename_functions(merge_module: &mut Module, rename_table: &HashMap<String, St
 // ------------------------ GROUP ------------------------
 
 fn merge_group(orig_module: &mut Module, merge_module: &mut Module) {
-    let mut log_msgs = Vec::<String>::new();
-    let orig_map = build_namemap_group(orig_module, &mut log_msgs);
-    let merge_map = build_namemap_group(merge_module, &mut log_msgs);
-    let (merge_action, rename_table) = calculate_item_actions(&orig_map, &merge_map);
-
-    rename_groups(merge_module, &rename_table);
+    // special handling for GROUPs: merge these based only on the name, not the content
+    let mut orig_map: HashMap<_, _> = orig_module
+        .group
+        .iter()
+        .enumerate()
+        .map(|(i, g)| (g.name.clone(), i))
+        .collect();
 
     while let Some(mut group) = merge_module.group.pop() {
-        if let Some(true) = merge_action.get(&group.name) {
+        if let Some(idx) = orig_map.get(&group.name) {
+            // a group with this name already exists in the original module
+            let orig_group = &mut orig_module.group[*idx];
+            if *orig_group == group {
+                // the group in the original module is identical to the one in the merge module
+                // so we can just skip this one
+                continue;
+            } else {
+                // merge the sub groups
+                match (&mut orig_group.sub_group, group.sub_group) {
+                    (Some(orig_sub_group), Some(merge_sub_group)) => {
+                        // merge the sub_groups
+                        for item in merge_sub_group.identifier_list {
+                            if !orig_sub_group.identifier_list.contains(&item) {
+                                orig_sub_group.identifier_list.push(item);
+                            }
+                        }
+                    }
+                    (None, Some(merge_sub_group)) => {
+                        // the original group has no sub_group, but the merge group has one
+                        orig_group.sub_group = Some(merge_sub_group);
+                    }
+                    _ => {}
+                }
+
+                // merge the function lists
+                match (&mut orig_group.function_list, group.function_list) {
+                    (Some(orig_function_list), Some(merge_function_list)) => {
+                        // merge the sub_functions
+                        for item in merge_function_list.name_list {
+                            if !orig_function_list.name_list.contains(&item) {
+                                orig_function_list.name_list.push(item);
+                            }
+                        }
+                    }
+                    (None, Some(merge_function_list)) => {
+                        // the original group has no function_list, but the merge group has one
+                        orig_group.function_list = Some(merge_function_list);
+                    }
+                    _ => {}
+                }
+
+                // merge the ref_characteristics
+                match (&mut orig_group.ref_characteristic, group.ref_characteristic) {
+                    (Some(orig_ref_characteristic), Some(merge_ref_characteristic)) => {
+                        // merge the sub_functions
+                        for item in merge_ref_characteristic.identifier_list {
+                            if !orig_ref_characteristic.identifier_list.contains(&item) {
+                                orig_ref_characteristic.identifier_list.push(item);
+                            }
+                        }
+                    }
+                    (None, Some(merge_ref_characteristic)) => {
+                        // the original group has no ref_characteristic, but the merge group has one
+                        orig_group.ref_characteristic = Some(merge_ref_characteristic);
+                    }
+                    _ => {}
+                }
+
+                // merge the ref_measurements
+                match (&mut orig_group.ref_measurement, group.ref_measurement) {
+                    (Some(orig_ref_measurement), Some(merge_ref_measurement)) => {
+                        // merge the sub_functions
+                        for item in merge_ref_measurement.identifier_list {
+                            if !orig_ref_measurement.identifier_list.contains(&item) {
+                                orig_ref_measurement.identifier_list.push(item);
+                            }
+                        }
+                    }
+                    (None, Some(merge_ref_measurement)) => {
+                        // the original group has no ref_measurement, but the merge group has one
+                        orig_group.ref_measurement = Some(merge_ref_measurement);
+                    }
+                    _ => {}
+                }
+
+                // not merged: the ROOT attribute. We keep the original one. ANNOTATIONs are also not merged
+            }
+        } else {
+            // no group with this name exists in the original module
+            let idx = orig_module.group.len();
+            orig_map.insert(group.name.clone(), idx);
             group.reset_location();
             orig_module.group.push(group);
-        }
-    }
-}
-
-fn rename_groups(merge_module: &mut Module, rename_table: &HashMap<String, String>) {
-    if rename_table.is_empty() {
-        return;
-    }
-
-    for group in &mut merge_module.group {
-        if let Some(newname) = rename_table.get(&group.name) {
-            group.name = newname.to_owned();
-        }
-        if let Some(sub_group) = &mut group.sub_group {
-            rename_item_list(&mut sub_group.identifier_list, rename_table);
-        }
-    }
-
-    for user_rights in &mut merge_module.user_rights {
-        for ref_group in &mut user_rights.ref_group {
-            rename_item_list(&mut ref_group.identifier_list, rename_table);
         }
     }
 }
@@ -939,9 +1056,9 @@ where
     let mut rename_table = HashMap::<String, String>::new();
     let mut merge_action = HashMap::<String, bool>::new();
 
-    for (name, merge_compu_tab) in merge_map {
-        if let Some(orig_compu_tab) = orig_map.get(name) {
-            if *orig_compu_tab == *merge_compu_tab {
+    for (name, merge_object) in merge_map {
+        if let Some(orig_object) = orig_map.get(name) {
+            if *orig_object == *merge_object {
                 // identical items exists on both sides, no need to merge
                 merge_action.insert(name.to_owned(), false);
             } else {
@@ -1232,5 +1349,108 @@ mod test {
         assert_eq!(a2l_file_b.project.module[0].unit.len(), 3);
         println!("units: {:?}", a2l_file_b.project.module[0].unit);
         println!("cm: {:?}", a2l_file_b.project.module[0].compu_method);
+    }
+
+    #[test]
+    fn merge_group() {
+        let mut log_msgs = vec![];
+        static FILE_A: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin MEASUREMENT m1 "" FLOAT32_IEEE NO_COMPU_METHOD 1 1.0 0 100
+            /end MEASUREMENT
+            /begin GROUP g1 ""
+                /begin REF_MEASUREMENT m1 /end REF_MEASUREMENT
+            /end GROUP
+            /begin FUNCTION f ""
+                /begin IN_MEASUREMENT m1 /end IN_MEASUREMENT
+                /begin LOC_MEASUREMENT m1 /end LOC_MEASUREMENT
+                /begin OUT_MEASUREMENT m1 /end OUT_MEASUREMENT
+            /end FUNCTION
+        /end MODULE /end PROJECT"#;
+        static FILE_B: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin MEASUREMENT m1 "different content" FLOAT32_IEEE NO_COMPU_METHOD 1 2.0 0 200
+            /end MEASUREMENT
+            /begin GROUP g1 ""
+                /begin REF_MEASUREMENT m1 /end REF_MEASUREMENT
+            /end GROUP
+            /begin FUNCTION f ""
+                /begin IN_MEASUREMENT m1 /end IN_MEASUREMENT
+                /begin LOC_MEASUREMENT m1 /end LOC_MEASUREMENT
+                /begin OUT_MEASUREMENT m1 /end OUT_MEASUREMENT
+            /end FUNCTION
+        /end MODULE /end PROJECT"#;
+
+        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, true).unwrap();
+        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, true).unwrap();
+
+        a2l_file_a.merge_modules(&mut a2l_file_b);
+
+        // the MEASUREMENT m1 in B is renamed to m1.MERGE, because it is not identical to the one in A
+        assert_eq!(a2l_file_a.project.module[0].measurement.len(), 2);
+
+        // the group g1 is initially identical in both files, but the MEASUREMENT reference is renamed
+        // to m1.MERGE. The group is merged, because GROUPS are merged based on the name only
+        let group = &a2l_file_a.project.module[0].group[0];
+        assert_eq!(group.name, "g1");
+        assert_eq!(group.ref_measurement.as_ref().unwrap().identifier_list[0], "m1");
+        assert_eq!(group.ref_measurement.as_ref().unwrap().identifier_list[1], "m1.MERGE");
+        assert_eq!(group.ref_measurement.as_ref().unwrap().identifier_list.len(), 2);
+
+        println!("{}", a2l_file_a.write_to_string());
+    }
+
+    #[test]
+    fn merge_function() {
+        let mut log_msgs = vec![];
+        static FILE_A: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin MEASUREMENT m1 "" FLOAT32_IEEE NO_COMPU_METHOD 1 1.0 0 100
+            /end MEASUREMENT
+            /begin CHARACTERISTIC c "" VALUE 0x1234 deposit_ident 0 NO_COMPU_METHOD 0.0 10.0
+            /end CHARACTERISTIC
+            /begin FUNCTION f ""
+                /begin IN_MEASUREMENT m1 /end IN_MEASUREMENT
+                /begin LOC_MEASUREMENT m1 /end LOC_MEASUREMENT
+                /begin OUT_MEASUREMENT m1 /end OUT_MEASUREMENT
+                /begin REF_CHARACTERISTIC c /end REF_CHARACTERISTIC
+            /end FUNCTION
+        /end MODULE /end PROJECT"#;
+        static FILE_B: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin MEASUREMENT m1 "" FLOAT32_IEEE NO_COMPU_METHOD 1 2.0 0 200
+            /end MEASUREMENT
+            /begin CHARACTERISTIC c "" VALUE 0x1234 deposit_ident 0 NO_COMPU_METHOD 0.0 10.0
+            /end CHARACTERISTIC
+            /begin FUNCTION f ""
+                /begin IN_MEASUREMENT m1 /end IN_MEASUREMENT
+                /begin LOC_MEASUREMENT m1 /end LOC_MEASUREMENT
+                /begin OUT_MEASUREMENT m1 /end OUT_MEASUREMENT
+                /begin REF_CHARACTERISTIC c /end REF_CHARACTERISTIC
+            /end FUNCTION
+        /end MODULE /end PROJECT"#;
+
+        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, true).unwrap();
+        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, true).unwrap();
+
+        a2l_file_a.merge_modules(&mut a2l_file_b);
+
+        // the MEASUREMENT m1 in B is renamed to m1.MERGE, because it is not identical to the one in A
+        assert_eq!(a2l_file_a.project.module[0].measurement.len(), 2);
+
+        // the CHARACTERISTIC c is identical in both files, so it is not renamed
+        assert_eq!(a2l_file_a.project.module[0].characteristic.len(), 1);
+
+        // the function f is initially identical in both files, but the MEASUREMENT references are renamed
+        // to m1.MERGE. The function is merged, because FUNCTIONS are merged based on the name only
+        let function = &a2l_file_a.project.module[0].function[0];
+        assert_eq!(function.name, "f");
+        assert_eq!(function.in_measurement.as_ref().unwrap().identifier_list[0], "m1");
+        assert_eq!(function.in_measurement.as_ref().unwrap().identifier_list[1], "m1.MERGE");
+        assert_eq!(function.in_measurement.as_ref().unwrap().identifier_list.len(), 2);
+        assert_eq!(function.loc_measurement.as_ref().unwrap().identifier_list[0], "m1");
+        assert_eq!(function.loc_measurement.as_ref().unwrap().identifier_list[1], "m1.MERGE");
+        assert_eq!(function.loc_measurement.as_ref().unwrap().identifier_list.len(), 2);
+        assert_eq!(function.out_measurement.as_ref().unwrap().identifier_list[0], "m1");
+        assert_eq!(function.out_measurement.as_ref().unwrap().identifier_list[1], "m1.MERGE");
+        assert_eq!(function.out_measurement.as_ref().unwrap().identifier_list.len(), 2);
+        assert_eq!(function.ref_characteristic.as_ref().unwrap().identifier_list[0], "c");
+        assert_eq!(function.ref_characteristic.as_ref().unwrap().identifier_list.len(), 1);
     }
 }

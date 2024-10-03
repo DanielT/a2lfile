@@ -1203,7 +1203,6 @@ mod tests {
         // float: F
         let res = parser.get_float(&context);
         assert!(res.is_err());
-
     }
 
     #[test]
