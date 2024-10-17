@@ -51,14 +51,30 @@ impl Writer {
         self.outstring.push('"');
 
         // escaping lots of strings is an expensive operation, so check if anything needs to be done first
-        if value.contains(['\'', '"', '\\', '\n', '\t']) {
+        if value.contains(['\'', '"', '\\', '\r', '\n', '\t']) {
             let input_chars: Vec<char> = value.chars().collect();
 
             for c in input_chars {
-                if c == '\'' || c == '"' || c == '\\' || c == '\n' || c == '\t' {
-                    self.outstring.push('\\');
+                match c {
+                    '\'' | '"' | '\\' => {
+                        self.outstring.push('\\');
+                        self.outstring.push(c);
+                    }
+                    '\r' => {
+                        // non-standard in a2l files
+                        self.outstring.push('\\');
+                        self.outstring.push('r');
+                    }
+                    '\n' => {
+                        self.outstring.push('\\');
+                        self.outstring.push('n');
+                    }
+                    '\t' => {
+                        self.outstring.push('\\');
+                        self.outstring.push('t');
+                    }
+                    _ => self.outstring.push(c),
                 }
-                self.outstring.push(c);
             }
         } else {
             self.outstring.push_str(value);
@@ -185,5 +201,106 @@ fn apply_position_restrictions(group: &mut [TaggedItemInfo]) {
         for idx in 0..len {
             group[positions[idx]] = items[idx].clone();
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn write_str() {
+        let mut writer = Writer::new(2);
+        writer.add_str("test", 0);
+        // test is not a block, so no indentation, but one space is added for separation
+        assert_eq!(writer.finish(), " test");
+    }
+
+    #[test]
+    fn write_str_raw() {
+        let mut writer = Writer::new(2);
+        writer.add_str_raw(" has leading whitespace", 0);
+        assert_eq!(writer.finish(), " has leading whitespace");
+
+        let mut writer = Writer::new(2);
+        writer.add_str_raw("no leading whitspace", 0);
+        assert_eq!(writer.finish(), " no leading whitspace");
+    }
+
+    #[test]
+    fn write_quoted_string() {
+        let mut writer = Writer::new(2);
+        writer.add_quoted_string("test:\rabc\ndef\tghi\'jkl\"nmo\\pqr", 0);
+        // test is not a block, so no indentation, but one space is added for separation
+        assert_eq!(writer.finish(), r#" "test:\rabc\ndef\tghi\'jkl\"nmo\\pqr""#);
+    }
+
+    #[test]
+    fn write_integer() {
+        let mut writer = Writer::new(2);
+        writer.add_integer(123, false, 0);
+        assert_eq!(writer.finish(), " 123");
+
+        let mut writer = Writer::new(2);
+        writer.add_integer(123, true, 0);
+        assert_eq!(writer.finish(), " 0x7B");
+    }
+
+    #[test]
+    fn write_float() {
+        // test with default precision
+        let mut writer = Writer::new(2);
+        writer.add_float(123.456, 0);
+        assert_eq!(writer.finish(), " 123.456");
+
+        // very small value -> scientific notation
+        let mut writer = Writer::new(2);
+        writer.add_float(0.0000123456, 0);
+        assert_eq!(writer.finish(), " 1.23456e-5");
+
+        // very large value -> scientific notation
+        let mut writer = Writer::new(2);
+        writer.add_float(123456000000.0, 0);
+        assert_eq!(writer.finish(), " 1.23456e11");
+
+        // zero value
+        let mut writer = Writer::new(2);
+        writer.add_float(0.0, 0);
+        assert_eq!(writer.finish(), " 0");
+    }
+
+    #[test]
+    fn write_group() {
+        let mut writer = Writer::new(0);
+        let group = vec![
+            TaggedItemInfo {
+                tag: "MEASUREMENT",
+                incfile: &None,
+                uid: 0,
+                line: 1,
+                start_offset: 1,
+                end_offset: 1,
+                is_block: true,
+                item_text: "".to_string(),
+                position_restriction: None,
+            },
+            TaggedItemInfo {
+                tag: "CHARACTERISTIC",
+                incfile: &None,
+                uid: 0,
+                line: 0,
+                start_offset: 0,
+                end_offset: 1,
+                is_block: true,
+                item_text: "".to_string(),
+                position_restriction: None,
+            },
+        ];
+        // the group gets sorted; by line number the CHARACTERISTIC comes first
+        writer.add_group(group);
+        assert_eq!(
+            writer.finish(),
+            " /begin CHARACTERISTIC\n/end CHARACTERISTIC\n/begin MEASUREMENT\n/end MEASUREMENT"
+        );
     }
 }
