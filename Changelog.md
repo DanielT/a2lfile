@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 2.3.2
+
+- fix incorrect handling of escape codes \r, \n, \t while writing files
+
 ## Version 2.3.1
 
 - fix the newly added input quantity check in AXIS_PTS: NO_INPUT_QUANTITY must be handled explicitly
