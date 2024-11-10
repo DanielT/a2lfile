@@ -177,12 +177,12 @@ fn check_axis_pts(axis_pts: &AxisPts, name_map: &ModuleNameMap, log_msgs: &mut V
     if let Some(rl) = name_map.record_layout.get(&axis_pts.deposit_record) {
         if let Some(axis_pts_x) = &rl.axis_pts_x {
             let opt_compu_method = name_map.compu_method.get(&axis_pts.conversion);
-            let (lower_limit, upper_limit) =
-                calc_compu_method_limits(opt_compu_method, axis_pts_x.datatype);
-            if lower_limit > axis_pts.lower_limit || upper_limit < axis_pts.upper_limit {
+            let calculated_limits = calc_compu_method_limits(opt_compu_method, axis_pts_x.datatype);
+            let existing_limits = (axis_pts.lower_limit, axis_pts.upper_limit);
+            if !check_limits_valid(existing_limits, calculated_limits) {
                 log_msgs.push(format!(
-                    "In AXIS_PTS {} on line {}: Limits [{}, {}] are outside of [{lower_limit}, {upper_limit}] calculated based on the data type and conversion",
-                    name, line, axis_pts.lower_limit, axis_pts.upper_limit,
+                    "In AXIS_PTS {name} on line {line}: Limits [{}, {}] are outside of [{}, {}] calculated based on the data type and conversion",
+                    axis_pts.lower_limit, axis_pts.upper_limit, calculated_limits.0, calculated_limits.1
                 ));
             }
         } else {
@@ -322,15 +322,15 @@ fn check_characteristic_common(
             // check the limits of the characteristic based on the compu method
             // Not all characteristics have a compu method, since it can be NO_COMPU_METHOD
             let opt_compu_method = name_map.compu_method.get(characteristic.conversion());
-            let (lower_limit, upper_limit) =
-                calc_compu_method_limits(opt_compu_method, fnc_values.datatype);
-            if lower_limit > characteristic.lower_limit()
-                || upper_limit < characteristic.upper_limit()
-            {
+            let calculated_limits = calc_compu_method_limits(opt_compu_method, fnc_values.datatype);
+            let existing_limits = (characteristic.lower_limit(), characteristic.upper_limit());
+            if !check_limits_valid(existing_limits, calculated_limits) {
                 log_msgs.push(format!(
-                    "In {kind} {name} on line {line}: Limits [{}, {}] are outside of [{lower_limit}, {upper_limit}] calculated based on the data type and conversion",
+                    "In {kind} {name} on line {line}: Limits [{}, {}] are outside of [{}, {}] calculated based on the data type and conversion",
                     characteristic.lower_limit(),
                     characteristic.upper_limit(),
+                    calculated_limits.0,
+                    calculated_limits.1,
                 ));
             }
         } else {
@@ -355,15 +355,17 @@ fn check_characteristic_common(
                 if let Some(axis_pts_dim) = axis_refs[idx] {
                     // the compu method is optional, it could be set to NO_COMPU_METHOD
                     let opt_compu_method = name_map.compu_method.get(&axis_descr.conversion);
-                    let (lower_limit, upper_limit) =
+                    let calculated_limits =
                         calc_compu_method_limits(opt_compu_method, axis_pts_dim.datatype);
-                    if lower_limit > axis_descr.lower_limit || upper_limit < axis_descr.upper_limit
-                    {
+                    let existing_limits = (axis_descr.lower_limit, axis_descr.upper_limit);
+                    if !check_limits_valid(existing_limits, calculated_limits) {
                         let ad_line = axis_descr.get_line();
                         log_msgs.push(format!(
-                            "In AXIS_DESCR on line {ad_line}: Limits [{}, {}] are outside of [{lower_limit}, {upper_limit}] calculated based on the data type and conversion",
+                            "In AXIS_DESCR on line {ad_line}: Limits [{}, {}] are outside of [{}, {}] calculated based on the data type and conversion",
                             axis_descr.lower_limit,
                             axis_descr.upper_limit,
+                            calculated_limits.0,
+                            calculated_limits.1,
                         ));
                     }
                 } else {
@@ -577,18 +579,19 @@ fn check_measurement(
         && !name_map.compu_method.contains_key(&measurement.conversion)
     {
         log_msgs.push(format!(
-            "In MEASUREMENT {} on line {}: Referenced COMPU_METHOD {} does not exist.",
-            name, line, measurement.conversion
+            "In MEASUREMENT {name} on line {line}: Referenced COMPU_METHOD {} does not exist.",
+            measurement.conversion
         ));
     }
 
     let opt_compu_method = name_map.compu_method.get(&measurement.conversion);
-    let (lower_limit, upper_limit) =
-        calc_compu_method_limits(opt_compu_method, measurement.datatype);
-    if lower_limit > measurement.lower_limit || upper_limit < measurement.upper_limit {
+    let calculated_limits = calc_compu_method_limits(opt_compu_method, measurement.datatype);
+    let existing_limits = (measurement.lower_limit, measurement.upper_limit);
+    if !check_limits_valid(existing_limits, calculated_limits) {
         log_msgs.push(format!(
-            "In MEASUREMENT {} on line {}: Limits [{}, {}] are outside of [{lower_limit}, {upper_limit}] calculated based on the data type and conversion",
-            name, line, measurement.lower_limit, measurement.upper_limit,
+            "In MEASUREMENT {name} on line {line}: Limits [{}, {}] are outside of [{}, {}] calculated based on the data type and conversion",
+            measurement.lower_limit, measurement.upper_limit,
+            calculated_limits.0, calculated_limits.1,
         ));
     }
 
@@ -830,7 +833,7 @@ fn calc_compu_method_limits(
                         //   x = (fy - c) / b
                         // this is rewritten to, to fix the edge case where f is f64::MAX, y > 1, but y/b < 1
                         //   x = (f * (y/b)) - c/b
-                        let func = |y: f64| (c.f * (y/c.b) - (c.c / c.b));
+                        let func = |y: f64| (c.f * (y / c.b) - (c.c / c.b));
                         lower_limit = func(lower_limit);
                         upper_limit = func(upper_limit);
                         if lower_limit > upper_limit {
@@ -855,6 +858,21 @@ fn calc_compu_method_limits(
     }
 
     (lower_limit, upper_limit)
+}
+
+// Compare the existing limits with the calculated limits
+// Returns true if the existing limits are inside the calculated limits
+//
+// This should be simple, but is made more difficult by precision issues ...
+fn check_limits_valid(existing: (f64, f64), calculated: (f64, f64)) -> bool {
+    // calculated lower limit should be less than or equal to the existing lower limit
+    // calculated upper limit should be greater than or equal to the existing upper limit
+
+    // In order to allow for floating point precision issues and imprecise data entry in the A2L file,
+    // we allow for a tolerance of 0.0001% of the calculated value.
+    let epsilon_lower = (calculated.0 * 1E-6).abs();
+    let epsilon_upper = (calculated.1 * 1E-6).abs();
+    (calculated.0 - existing.0) <= epsilon_lower && (existing.1 - calculated.1) <= epsilon_upper
 }
 
 fn get_datatype_limits(a2l_datatype: DataType) -> (f64, f64) {
@@ -1621,8 +1639,10 @@ mod test {
         a2lfile.project.module[0].characteristic[0].upper_limit = u16::MAX as f64 * 0.5;
         a2lfile.project.module[0].characteristic[0].axis_descr[0].upper_limit = f32::MAX as f64;
         a2lfile.project.module[0].characteristic[0].axis_descr[0].lower_limit = f32::MIN as f64;
-        a2lfile.project.module[0].axis_pts[0].upper_limit = ((i16::MAX as f64 * 2.222) - 4000.0) / 500.0;
-        a2lfile.project.module[0].axis_pts[0].lower_limit = ((i16::MIN as f64 * 2.222) - 4000.0) / 500.0;
+        a2lfile.project.module[0].axis_pts[0].upper_limit =
+            ((i16::MAX as f64 * 2.222) - 4000.0) / 500.0;
+        a2lfile.project.module[0].axis_pts[0].lower_limit =
+            ((i16::MIN as f64 * 2.222) - 4000.0) / 500.0;
         a2lfile.project.module[0].measurement[0].lower_limit = u32::MIN as f64;
         let mut log_msgs = Vec::new();
         super::check(&a2lfile, &mut log_msgs);
