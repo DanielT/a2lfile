@@ -2,6 +2,12 @@ use crate::namemap::ModuleNameMap;
 use crate::specification::*;
 use std::collections::HashMap;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum CharacteristicWrapper<'a> {
+    Characteristic(&'a Characteristic),
+    TypedefCharacteristic(&'a TypedefCharacteristic),
+}
+
 // check the cross references between various elements
 pub fn check(a2l_file: &A2lFile, log_msgs: &mut Vec<String>) {
     for module in &a2l_file.project.module {
@@ -68,21 +74,39 @@ fn check_axis_descr(
     if axis_descr.input_quantity != "NO_INPUT_QUANTITY"
         && !name_map.object.contains_key(&axis_descr.input_quantity)
     {
-        log_msgs.push(format!("In AXIS_DESCR of CHARACTERISTIC {} on line {}: Referenced input MEASUREMENT {} does not exist.",
-        parent_name, line, axis_descr.input_quantity));
+        log_msgs.push(format!("In AXIS_DESCR of CHARACTERISTIC {parent_name} on line {line}: Referenced input MEASUREMENT {} does not exist.",
+        axis_descr.input_quantity));
     }
 
     if axis_descr.conversion != "NO_COMPU_METHOD"
         && !name_map.compu_method.contains_key(&axis_descr.conversion)
     {
-        log_msgs.push(format!("In AXIS_DESCR of CHARACTERISTIC {} on line {}: Referenced COMPU_METHOD {} does not exist.",
-        parent_name, line, axis_descr.conversion));
+        log_msgs.push(format!("In AXIS_DESCR of CHARACTERISTIC {parent_name} on line {line}: Referenced COMPU_METHOD {} does not exist.",
+        axis_descr.conversion));
+    }
+
+    // type is (COM_AXIS, RES_AXIS) XOR AXIS_PTS_REF is present
+    match (axis_descr.attribute, axis_descr.axis_pts_ref.is_some()) {
+        (AxisDescrAttribute::ComAxis, false) | (AxisDescrAttribute::ResAxis, false) => {
+            log_msgs.push(format!(
+                "In AXIS_DESCR of CHARACTERISTIC {parent_name} on line {line}: {} requires an AXIS_PTS_REF.",
+                axis_descr.attribute
+            ));
+        }
+        (AxisDescrAttribute::StdAxis, true) | (AxisDescrAttribute::FixAxis, true) => {
+            log_msgs.push(format!(
+                "In AXIS_DESCR of CHARACTERISTIC {parent_name} on line {line}: {} does not use AXIS_PTS_REF.",
+                axis_descr.attribute
+            ));
+        }
+        // other combinations are valid
+        _ => {}
     }
 
     if let Some(axis_pts_ref) = &axis_descr.axis_pts_ref {
         let apr_line = axis_pts_ref.get_line();
         if !name_map.object.contains_key(&axis_pts_ref.axis_points) {
-            log_msgs.push(format!("In AXIS_PTS_REF of CHARACTERISTIC {} on line {}: Referenced AXIS_PTS {} does not exist",
+            log_msgs.push(format!("In AXIS_DESCR of CHARACTERISTIC {} on line {}: Referenced AXIS_PTS {} does not exist",
             parent_name, apr_line, axis_pts_ref.axis_points));
         }
     }
@@ -91,8 +115,8 @@ fn check_axis_descr(
         let car_line = curve_axis_ref.get_line();
         if !name_map.object.contains_key(&curve_axis_ref.curve_axis) {
             log_msgs.push(format!(
-                "In CURVE_AXIS_REF on line {}: Referenced CHARACTERISTIC {} does not exist",
-                car_line, curve_axis_ref.curve_axis
+                "In CURVE_AXIS_REF on line {car_line}: Referenced CHARACTERISTIC {} does not exist",
+                curve_axis_ref.curve_axis
             ));
         }
     }
@@ -106,15 +130,15 @@ fn check_typedef_axis(t_axis: &TypedefAxis, name_map: &ModuleNameMap, log_msgs: 
         && !name_map.object.contains_key(&t_axis.input_quantity)
     {
         log_msgs.push(format!(
-            "In TYPEDEF_AXIS {} on line {}: Referenced input MEASUREMENT {} does not exist.",
-            name, line, t_axis.input_quantity
+            "In TYPEDEF_AXIS {name} on line {line}: Referenced input MEASUREMENT {} does not exist.",
+            t_axis.input_quantity
         ));
     }
 
     if !name_map.record_layout.contains_key(&t_axis.record_layout) {
         log_msgs.push(format!(
-            "In TYPEDEF_AXIS {} on line {}: Referenced RECORD_LAYOUT {} does not exist.",
-            name, line, t_axis.record_layout
+            "In TYPEDEF_AXIS {name} on line {line}: Referenced RECORD_LAYOUT {} does not exist.",
+            t_axis.record_layout
         ));
     }
 
@@ -122,8 +146,8 @@ fn check_typedef_axis(t_axis: &TypedefAxis, name_map: &ModuleNameMap, log_msgs: 
         && !name_map.compu_method.contains_key(&t_axis.conversion)
     {
         log_msgs.push(format!(
-            "In TYPEDEF_AXIS {} on line {}: Referenced COMPU_METHOD {} does not exist.",
-            name, line, t_axis.conversion
+            "In TYPEDEF_AXIS {name} on line {line}: Referenced COMPU_METHOD {} does not exist.",
+            t_axis.conversion
         ));
     }
 }
@@ -150,10 +174,24 @@ fn check_axis_pts(axis_pts: &AxisPts, name_map: &ModuleNameMap, log_msgs: &mut V
         ));
     }
 
-    if !name_map
-        .record_layout
-        .contains_key(&axis_pts.deposit_record)
-    {
+    if let Some(rl) = name_map.record_layout.get(&axis_pts.deposit_record) {
+        if let Some(axis_pts_x) = &rl.axis_pts_x {
+            let opt_compu_method = name_map.compu_method.get(&axis_pts.conversion);
+            let (lower_limit, upper_limit) =
+                calc_compu_method_limits(opt_compu_method, axis_pts_x.datatype);
+            if lower_limit > axis_pts.lower_limit || upper_limit < axis_pts.upper_limit {
+                log_msgs.push(format!(
+                    "In AXIS_PTS {} on line {}: Limits [{}, {}] are outside of [{lower_limit}, {upper_limit}] calculated based on the data type and conversion",
+                    name, line, axis_pts.lower_limit, axis_pts.upper_limit,
+                ));
+            }
+        } else {
+            log_msgs.push(format!(
+                "In AXIS_PTS {} on line {}: Referenced RECORD_LAYOUT {} does not have AXIS_PTS_X.",
+                name, line, axis_pts.deposit_record
+            ));
+        }
+    } else {
         log_msgs.push(format!(
             "In AXIS_PTS {} on line {}: Referenced RECORD_LAYOUT {} does not exist.",
             name, line, axis_pts.deposit_record
@@ -169,37 +207,18 @@ fn check_characteristic(
     name_map: &ModuleNameMap,
     log_msgs: &mut Vec<String>,
 ) {
-    let name = &characteristic.name;
-    let line = characteristic.get_line();
-
-    if characteristic.conversion != "NO_COMPU_METHOD"
-        && !name_map
-            .compu_method
-            .contains_key(&characteristic.conversion)
-    {
-        log_msgs.push(format!(
-            "In CHARACTERISTIC {} on line {}: Referenced COMPU_METHOD {} does not exist.",
-            name, line, characteristic.conversion
-        ));
-    }
-
-    if !name_map.record_layout.contains_key(&characteristic.deposit) {
-        log_msgs.push(format!(
-            "In CHARACTERISTIC {} on line {}: Referenced RECORD_LAYOUT {} does not exist.",
-            name, line, characteristic.deposit
-        ));
-    }
-
-    for axis_descr in &characteristic.axis_descr {
-        check_axis_descr(name, axis_descr, name_map, log_msgs);
-    }
+    check_characteristic_common(
+        CharacteristicWrapper::Characteristic(characteristic),
+        name_map,
+        log_msgs,
+    );
 
     if let Some(comparison_quantity) = &characteristic.comparison_quantity {
         let cqline = comparison_quantity.get_line();
         if !name_map.object.contains_key(&comparison_quantity.name) {
             log_msgs.push(format!(
-                "In COMPARISON_QUANTITY on line {}: Referenced MEASUREMENT {} does not exist",
-                cqline, comparison_quantity.name
+                "In COMPARISON_QUANTITY on line {cqline}: Referenced MEASUREMENT {} does not exist",
+                comparison_quantity.name
             ));
         }
     }
@@ -249,32 +268,117 @@ fn check_typedef_characteristic(
     name_map: &ModuleNameMap,
     log_msgs: &mut Vec<String>,
 ) {
-    let name = &t_characteristic.name;
-    let line = t_characteristic.get_line();
+    check_characteristic_common(
+        CharacteristicWrapper::TypedefCharacteristic(t_characteristic),
+        name_map,
+        log_msgs,
+    );
+}
 
-    if t_characteristic.conversion != "NO_COMPU_METHOD"
+// check the items that are shared between CHARACTERISTIC and TYPEDEF_CHARACTERISTIC
+fn check_characteristic_common(
+    characteristic: CharacteristicWrapper,
+    name_map: &ModuleNameMap,
+    log_msgs: &mut Vec<String>,
+) {
+    let kind = characteristic.kind();
+    let name = characteristic.name();
+    let line = characteristic.line();
+
+    if characteristic.conversion() != "NO_COMPU_METHOD"
         && !name_map
             .compu_method
-            .contains_key(&t_characteristic.conversion)
+            .contains_key(characteristic.conversion())
     {
         log_msgs.push(format!(
-            "In TYPEDEF_CHARACTERISTIC {} on line {}: Referenced COMPU_METHOD {} does not exist.",
-            name, line, t_characteristic.conversion
+            "In TYPEDEF_CHARACTERISTIC {name} on line {line}: Referenced COMPU_METHOD {} does not exist.",
+            characteristic.conversion()
         ));
     }
 
-    if !name_map
-        .record_layout
-        .contains_key(&t_characteristic.record_layout)
-    {
-        log_msgs.push(format!(
-            "In TYPEDEF_CHARACTERISTIC {} on line {}: Referenced RECORD_LAYOUT {} does not exist.",
-            name, line, t_characteristic.record_layout
-        ));
-    }
-
-    for axis_descr in &t_characteristic.axis_descr {
+    for axis_descr in characteristic.axis_descr() {
         check_axis_descr(name, axis_descr, name_map, log_msgs);
+    }
+
+    let expected_axis_count = match characteristic.characteristic_type() {
+        CharacteristicType::Value | CharacteristicType::ValBlk | CharacteristicType::Ascii => 0,
+        CharacteristicType::Curve => 1,
+        CharacteristicType::Map => 2,
+        CharacteristicType::Cuboid => 3,
+        CharacteristicType::Cube4 => 4,
+        CharacteristicType::Cube5 => 5,
+    };
+    if characteristic.axis_descr().len() != expected_axis_count {
+        log_msgs.push(format!(
+            "In {kind} {name} on line {line}: Expected {expected_axis_count} AXIS_DESCR for type {}, found {}",
+            characteristic.characteristic_type(),
+            characteristic.axis_descr().len()
+        ));
+    }
+
+    let rl_name = characteristic.record_layout();
+    if let Some(record_layout) = name_map.record_layout.get(rl_name) {
+        if let Some(fnc_values) = &record_layout.fnc_values {
+            // check the limits of the characteristic based on the compu method
+            // Not all characteristics have a compu method, since it can be NO_COMPU_METHOD
+            let opt_compu_method = name_map.compu_method.get(characteristic.conversion());
+            let (lower_limit, upper_limit) =
+                calc_compu_method_limits(opt_compu_method, fnc_values.datatype);
+            if lower_limit > characteristic.lower_limit()
+                || upper_limit < characteristic.upper_limit()
+            {
+                log_msgs.push(format!(
+                    "In {kind} {name} on line {line}: Limits [{}, {}] are outside of [{lower_limit}, {upper_limit}] calculated based on the data type and conversion",
+                    characteristic.lower_limit(),
+                    characteristic.upper_limit(),
+                ));
+            }
+        } else {
+            log_msgs.push(format!(
+                "In {kind} {name} on line {line}: Referenced RECORD_LAYOUT {} does not have FNC_VALUES.",
+                rl_name
+            ));
+        }
+
+        // make an array of references to the axis_pts fields in the record layout, some or all of which may be None
+        let axis_refs = [
+            &record_layout.axis_pts_x,
+            &record_layout.axis_pts_y,
+            &record_layout.axis_pts_z,
+            &record_layout.axis_pts_4,
+            &record_layout.axis_pts_5,
+        ];
+        let axis_pts_names = ["X", "Y", "Z", "4", "5"];
+        for (idx, axis_descr) in characteristic.axis_descr().iter().enumerate() {
+            if axis_descr.attribute == AxisDescrAttribute::StdAxis {
+                // an STD_AXIS must be described by the record layout - should this also apply to CURVE_AXIS?
+                if let Some(axis_pts_dim) = axis_refs[idx] {
+                    // the compu method is optional, it could be set to NO_COMPU_METHOD
+                    let opt_compu_method = name_map.compu_method.get(&axis_descr.conversion);
+                    let (lower_limit, upper_limit) =
+                        calc_compu_method_limits(opt_compu_method, axis_pts_dim.datatype);
+                    if lower_limit > axis_descr.lower_limit || upper_limit < axis_descr.upper_limit
+                    {
+                        let ad_line = axis_descr.get_line();
+                        log_msgs.push(format!(
+                            "In AXIS_DESCR on line {ad_line}: Limits [{}, {}] are outside of [{lower_limit}, {upper_limit}] calculated based on the data type and conversion",
+                            axis_descr.lower_limit,
+                            axis_descr.upper_limit,
+                        ));
+                    }
+                } else {
+                    log_msgs.push(format!(
+                        "In {kind} {name} on line {line}: Referenced RECORD_LAYOUT {} does not have AXIS_PTS_{}.",
+                        rl_name, axis_pts_names[idx],
+                    ));
+                }
+            }
+        }
+    } else {
+        log_msgs.push(format!(
+            "In {kind} {name} on line {line}: Referenced RECORD_LAYOUT {} does not exist.",
+            rl_name
+        ));
     }
 }
 
@@ -478,6 +582,16 @@ fn check_measurement(
         ));
     }
 
+    let opt_compu_method = name_map.compu_method.get(&measurement.conversion);
+    let (lower_limit, upper_limit) =
+        calc_compu_method_limits(opt_compu_method, measurement.datatype);
+    if lower_limit > measurement.lower_limit || upper_limit < measurement.upper_limit {
+        log_msgs.push(format!(
+            "In MEASUREMENT {} on line {}: Limits [{}, {}] are outside of [{lower_limit}, {upper_limit}] calculated based on the data type and conversion",
+            name, line, measurement.lower_limit, measurement.upper_limit,
+        ));
+    }
+
     check_ref_memory_segment(&measurement.ref_memory_segment, name_map, log_msgs);
     check_function_list(&measurement.function_list, name_map, log_msgs);
 }
@@ -498,6 +612,16 @@ fn check_typedef_measurement(
         log_msgs.push(format!(
             "In TYPEDEF_MEASUREMENT {} on line {}: Referenced COMPU_METHOD {} does not exist.",
             name, line, t_measurement.conversion
+        ));
+    }
+
+    let opt_compu_method = name_map.compu_method.get(&t_measurement.conversion);
+    let (lower_limit, upper_limit) =
+        calc_compu_method_limits(opt_compu_method, t_measurement.datatype);
+    if lower_limit > t_measurement.lower_limit || upper_limit < t_measurement.upper_limit {
+        log_msgs.push(format!(
+            "In TYPEDEF_MEASUREMENT {} on line {}: Limits [{}, {}] are outside of [{lower_limit}, {upper_limit}] calculated based on the data type and conversion",
+            name, line, t_measurement.lower_limit, t_measurement.upper_limit,
         ));
     }
 }
@@ -666,6 +790,154 @@ fn check_typedef_structure(
     }
 }
 
+// calculate the limits of a characteristic based on the compu method
+fn calc_compu_method_limits(
+    opt_compu_method: Option<&&CompuMethod>,
+    datatype: DataType,
+) -> (f64, f64) {
+    let (mut lower_limit, mut upper_limit) = get_datatype_limits(datatype);
+
+    if let Some(cm) = opt_compu_method {
+        match cm.conversion_type {
+            ConversionType::Form => {
+                // In order to handle this textual formula, we would need to parse it and evaluate it.
+                // For now, we just allow any value.
+                lower_limit = f64::MIN;
+                upper_limit = f64::MAX;
+            }
+            ConversionType::Linear => {
+                // for a linear compu method, the limits are physical values
+                // f(x)=ax + b; PHYS = f(INT)
+                if let Some(c) = &cm.coeffs_linear {
+                    if c.a >= 0.0 {
+                        lower_limit = c.a * lower_limit + c.b;
+                        upper_limit = c.a * upper_limit + c.b;
+                    } else {
+                        // factor a is negative, so the lower and upper limits are swapped
+                        upper_limit = c.a * lower_limit + c.b;
+                        lower_limit = c.a * upper_limit + c.b;
+                    }
+                }
+            }
+            ConversionType::RatFunc => {
+                // f(x)=(ax^2 + bx + c)/(dx^2 + ex + f); INT = f(PHYS)
+                if let Some(c) = &cm.coeffs {
+                    // we're only handling the simple linear case here
+                    if c.a == 0.0 && c.d == 0.0 && c.e == 0.0 && c.f != 0.0 {
+                        // now the rational function is reduced to
+                        //   y = (bx + c) / f
+                        // which can be inverted to
+                        //   x = (fy - c) / b
+                        // this is rewritten to, to fix the edge case where f is f64::MAX, y > 1, but y/b < 1
+                        //   x = (f * (y/b)) - c/b
+                        let func = |y: f64| (c.f * (y/c.b) - (c.c / c.b));
+                        lower_limit = func(lower_limit);
+                        upper_limit = func(upper_limit);
+                        if lower_limit > upper_limit {
+                            std::mem::swap(&mut lower_limit, &mut upper_limit);
+                        }
+                    } else {
+                        // complex formula:
+                        // deriving the limits from the coefficients is not implemented here, so allow any value
+                        lower_limit = f64::MIN;
+                        upper_limit = f64::MAX;
+                    }
+                }
+            }
+            ConversionType::Identical
+            | ConversionType::TabIntp
+            | ConversionType::TabNointp
+            | ConversionType::TabVerb => {
+                // identical and all table-based compu methods have direct int-to-phys mapping:
+                // The compu method does not modify the limits given by the datatype.
+            }
+        }
+    }
+
+    (lower_limit, upper_limit)
+}
+
+fn get_datatype_limits(a2l_datatype: DataType) -> (f64, f64) {
+    match a2l_datatype {
+        DataType::Ubyte => (0.0, 255.0),
+        DataType::Sbyte => (-128.0, 127.0),
+        DataType::Uword => (0.0, 65535.0),
+        DataType::Sword => (-32768.0, 32767.0),
+        DataType::Ulong => (0.0, 4294967295.0),
+        DataType::Slong => (-2147483648.0, 2147483647.0),
+        DataType::AUint64 => (0.0, 18446744073709551615.0),
+        DataType::AInt64 => (-9223372036854775808.0, 9223372036854775807.0),
+        DataType::Float16Ieee => (-6.5504e+4_f64, 6.5504e+4_f64),
+        DataType::Float32Ieee => (f32::MIN as f64, f32::MAX as f64),
+        DataType::Float64Ieee => (f64::MIN, f64::MAX),
+    }
+}
+
+impl CharacteristicWrapper<'_> {
+    fn name(&self) -> &str {
+        match self {
+            CharacteristicWrapper::Characteristic(c) => &c.name,
+            CharacteristicWrapper::TypedefCharacteristic(tc) => &tc.name,
+        }
+    }
+
+    fn line(&self) -> u32 {
+        match self {
+            CharacteristicWrapper::Characteristic(c) => c.get_line(),
+            CharacteristicWrapper::TypedefCharacteristic(tc) => tc.get_line(),
+        }
+    }
+
+    fn axis_descr(&self) -> &[AxisDescr] {
+        match self {
+            CharacteristicWrapper::Characteristic(c) => &c.axis_descr,
+            CharacteristicWrapper::TypedefCharacteristic(tc) => &tc.axis_descr,
+        }
+    }
+
+    fn conversion(&self) -> &str {
+        match self {
+            CharacteristicWrapper::Characteristic(c) => &c.conversion,
+            CharacteristicWrapper::TypedefCharacteristic(tc) => &tc.conversion,
+        }
+    }
+
+    fn record_layout(&self) -> &str {
+        match self {
+            CharacteristicWrapper::Characteristic(c) => &c.deposit,
+            CharacteristicWrapper::TypedefCharacteristic(tc) => &tc.record_layout,
+        }
+    }
+
+    fn characteristic_type(&self) -> CharacteristicType {
+        match self {
+            CharacteristicWrapper::Characteristic(c) => c.characteristic_type,
+            CharacteristicWrapper::TypedefCharacteristic(tc) => tc.characteristic_type,
+        }
+    }
+
+    fn lower_limit(&self) -> f64 {
+        match self {
+            CharacteristicWrapper::Characteristic(c) => c.lower_limit,
+            CharacteristicWrapper::TypedefCharacteristic(tc) => tc.lower_limit,
+        }
+    }
+
+    fn upper_limit(&self) -> f64 {
+        match self {
+            CharacteristicWrapper::Characteristic(c) => c.upper_limit,
+            CharacteristicWrapper::TypedefCharacteristic(tc) => tc.upper_limit,
+        }
+    }
+
+    fn kind(&self) -> &str {
+        match self {
+            CharacteristicWrapper::Characteristic(_) => "CHARACTERISTIC",
+            CharacteristicWrapper::TypedefCharacteristic(_) => "TYPEDEF_CHARACTERISTIC",
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::*;
@@ -673,13 +945,15 @@ mod test {
     #[test]
     fn check_axis_descr() {
         static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
-            /begin CHARACTERISTIC c "" VALUE 0x1234 rl 0 NO_COMPU_METHOD 0.0 1.0
-                /begin AXIS_DESCR STD_AXIS input_quantity conversion 1 0 100
+            /begin CHARACTERISTIC c "" CURVE 0x1234 rl 0 NO_COMPU_METHOD 0.0 1.0
+                /begin AXIS_DESCR COM_AXIS input_quantity conversion 1 0 100
                     AXIS_PTS_REF axis_points
                     CURVE_AXIS_REF curve_axis
                 /end AXIS_DESCR
             /end CHARACTERISTIC
-            /begin RECORD_LAYOUT rl /end RECORD_LAYOUT
+            /begin RECORD_LAYOUT rl
+                FNC_VALUES 0 FLOAT32_IEEE ROW_DIR DIRECT
+            /end RECORD_LAYOUT
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
@@ -689,19 +963,64 @@ mod test {
         // invalid input quantity, conversion, axis points ref, and curve axis ref
         assert_eq!(log_msgs.len(), 4);
 
-        // valid input, no errors to report
+        // error: COM_AXIS should have an AXIS_PTS_REF
         static A2L_TEXT2: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
-            /begin CHARACTERISTIC c "" VALUE 0x1234 rl 0 NO_COMPU_METHOD 0.0 1.0
-                /begin AXIS_DESCR STD_AXIS meas cm 1 0 100
+            /begin CHARACTERISTIC c "" CURVE 0x1234 rl 0 NO_COMPU_METHOD 0.0 1.0
+                /begin AXIS_DESCR COM_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD 1 0 100
                 /end AXIS_DESCR
             /end CHARACTERISTIC
-            /begin RECORD_LAYOUT rl /end RECORD_LAYOUT
+            /begin RECORD_LAYOUT rl
+                FNC_VALUES 0 FLOAT32_IEEE ROW_DIR DIRECT
+            /end RECORD_LAYOUT
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+        assert_eq!(log_msgs.len(), 1);
+
+        // error: STD_AXIS should not have an AXIS_PTS_REF
+        static A2L_TEXT3: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin CHARACTERISTIC c "" CURVE 0x1234 rl 0 NO_COMPU_METHOD 0.0 1.0
+                /begin AXIS_DESCR STD_AXIS meas cm 1 0 100
+                    AXIS_PTS_REF axis_points
+                /end AXIS_DESCR
+            /end CHARACTERISTIC
+            /begin AXIS_PTS axis_points "" 0x1234 NO_INPUT_QUANTITY rl 0 NO_COMPU_METHOD 3 0.0 10.0
+            /end AXIS_PTS
+            /begin RECORD_LAYOUT rl
+                FNC_VALUES 0 FLOAT32_IEEE ROW_DIR DIRECT
+                AXIS_PTS_X 0 FLOAT32_IEEE INDEX_INCR DIRECT
+            /end RECORD_LAYOUT
             /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit" /end COMPU_METHOD
             /begin MEASUREMENT meas "" FLOAT32_IEEE cm  1 1.0 0 100
             /end MEASUREMENT
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let a2lfile = load_from_string(A2L_TEXT3, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+        for msg in &log_msgs {
+            println!("{}", msg);
+        }
+        assert_eq!(log_msgs.len(), 1);
+
+        // valid input, no errors to report
+        static A2L_TEXT4: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin CHARACTERISTIC c "" CURVE 0x1234 rl 0 NO_COMPU_METHOD 0.0 1.0
+                /begin AXIS_DESCR STD_AXIS meas cm 1 0 100
+                /end AXIS_DESCR
+            /end CHARACTERISTIC
+            /begin RECORD_LAYOUT rl
+                FNC_VALUES 0 FLOAT32_IEEE ROW_DIR DIRECT
+                AXIS_PTS_X 1 FLOAT32_IEEE INDEX_INCR DIRECT
+            /end RECORD_LAYOUT
+            /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit" /end COMPU_METHOD
+            /begin MEASUREMENT meas "" FLOAT32_IEEE cm  1 1.0 0 100
+            /end MEASUREMENT
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT4, None, &mut load_errors, true).unwrap();
         let mut log_msgs = Vec::new();
         super::check(&a2lfile, &mut log_msgs);
 
@@ -754,17 +1073,32 @@ mod test {
         // invalid input quantity, record layout (aka deposit_record), and conversion
         assert_eq!(log_msgs.len(), 3);
 
-        // valid input, no errors to report
+        // AXIS_PTS_X is missing from the record layout
         static A2L_TEXT2: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin AXIS_PTS axis_pts_name "" 0x1234 NO_INPUT_QUANTITY rl 0 NO_COMPU_METHOD 3 0.0 10.0
+            /end AXIS_PTS
+            /begin RECORD_LAYOUT rl
+            /end RECORD_LAYOUT
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+        assert_eq!(log_msgs.len(), 1);
+
+        // valid input, no errors to report
+        static A2L_TEXT3: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
             /begin AXIS_PTS axis_pts_name "" 0x1234 meas rl 0 cm 3 0.0 10.0
             /end AXIS_PTS
             /begin MEASUREMENT meas "" FLOAT32_IEEE cm 1 1.0 0 100
             /end MEASUREMENT
-            /begin RECORD_LAYOUT rl /end RECORD_LAYOUT
+            /begin RECORD_LAYOUT rl
+                AXIS_PTS_X 0 FLOAT32_IEEE INDEX_INCR DIRECT
+            /end RECORD_LAYOUT
             /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit" /end COMPU_METHOD
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let a2lfile = load_from_string(A2L_TEXT3, None, &mut load_errors, true).unwrap();
         let mut log_msgs = Vec::new();
         super::check(&a2lfile, &mut log_msgs);
         assert_eq!(log_msgs.len(), 0);
@@ -772,6 +1106,8 @@ mod test {
 
     #[test]
     fn check_characteristic() {
+        // invalid conversion, record layout, comparison quantity, memory segment,
+        // dependent characteristic, function, map list, and virtual characteristic
         static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
             /begin CHARACTERISTIC c "" VALUE 0x1234 rl 0 conversion 0.0 1.0
                 COMPARISON_QUANTITY comp_qty
@@ -794,20 +1130,52 @@ mod test {
         let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
         let mut log_msgs = Vec::new();
         super::check(&a2lfile, &mut log_msgs);
-
-        // invalid conversion, record layout, comparison quantity, memory segment,
-        // dependent characteristic, function, map list, and virtual characteristic
         assert_eq!(log_msgs.len(), 8);
 
-        // valid input, no errors to report
+        // record layout exists, but lacks FNC_VALUES
         static A2L_TEXT2: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
-            /begin CHARACTERISTIC c "" VALUE 0x1234 rl 0 cm 0.0 1.0
+            /begin CHARACTERISTIC c "" VALUE 0x1234 rl 0 NO_COMPU_METHOD 0.0 1.0
             /end CHARACTERISTIC
-            /begin RECORD_LAYOUT rl /end RECORD_LAYOUT
-            /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit" /end COMPU_METHOD
+            /begin RECORD_LAYOUT rl
+            /end RECORD_LAYOUT
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+        assert_eq!(log_msgs.len(), 1);
+
+        // invalid axis descr
+        static A2L_TEXT3: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin CHARACTERISTIC c "" VALUE 0x1234 rl 0 NO_COMPU_METHOD 0.0 1.0
+                /begin AXIS_DESCR STD_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD 1 0 100
+                /end AXIS_DESCR
+            /end CHARACTERISTIC
+            /begin CHARACTERISTIC c2 "" MAP 0x1234 rl 0 NO_COMPU_METHOD 0.0 1.0
+            /end CHARACTERISTIC
+            /begin RECORD_LAYOUT rl
+                FNC_VALUES 0 FLOAT32_IEEE ROW_DIR DIRECT
+                AXIS_PTS_X 1 FLOAT32_IEEE INDEX_INCR DIRECT
+            /end RECORD_LAYOUT
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT3, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+        // invalid axis descr for c, no axis descr for c2
+        assert_eq!(log_msgs.len(), 2);
+
+        // valid input, no errors to report
+        static A2L_TEXT4: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin CHARACTERISTIC c "" VALUE 0x1234 rl 0 cm 0.0 1.0
+            /end CHARACTERISTIC
+            /begin RECORD_LAYOUT rl
+                FNC_VALUES 0 FLOAT32_IEEE ROW_DIR DIRECT
+            /end RECORD_LAYOUT
+            /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit" /end COMPU_METHOD
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT4, None, &mut load_errors, true).unwrap();
         let mut log_msgs = Vec::new();
         super::check(&a2lfile, &mut log_msgs);
         assert_eq!(log_msgs.len(), 0);
@@ -815,8 +1183,9 @@ mod test {
 
     #[test]
     fn check_typedef_characteristic() {
+        // invalid record layout and conversion, additionally the axis descr check reports invalid input quantity and conversion
         static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
-            /begin TYPEDEF_CHARACTERISTIC name "" VALUE record_layout 0 conversion 0 100
+            /begin TYPEDEF_CHARACTERISTIC name "" CURVE record_layout 0 conversion 0 100
                 /begin AXIS_DESCR STD_AXIS input_quantity conversion 1 0 100
                 /end AXIS_DESCR
             /end TYPEDEF_CHARACTERISTIC
@@ -825,19 +1194,35 @@ mod test {
         let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
         let mut log_msgs = Vec::new();
         super::check(&a2lfile, &mut log_msgs);
-
-        // invalid record layout and conversion, additionally the axis descr check reports invalid input quantity and conversion
         assert_eq!(log_msgs.len(), 4);
 
-        // valid input, no errors to report
+        // missing axis descr
         static A2L_TEXT2: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
-            /begin TYPEDEF_CHARACTERISTIC name "" VALUE rl 0 cm 0 100
+            /begin TYPEDEF_CHARACTERISTIC name "" CUBOID rl 0 NO_COMPU_METHOD 0 100
             /end TYPEDEF_CHARACTERISTIC
-            /begin RECORD_LAYOUT rl /end RECORD_LAYOUT
+            /begin RECORD_LAYOUT rl
+                FNC_VALUES 0 FLOAT32_IEEE ROW_DIR DIRECT
+            /end RECORD_LAYOUT
             /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit" /end COMPU_METHOD
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+        // invalid axis descr
+        assert_eq!(log_msgs.len(), 1);
+
+        // valid input, no errors to report
+        static A2L_TEXT3: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin TYPEDEF_CHARACTERISTIC name "" VALUE rl 0 cm 0 100
+            /end TYPEDEF_CHARACTERISTIC
+            /begin RECORD_LAYOUT rl
+                FNC_VALUES 0 FLOAT32_IEEE ROW_DIR DIRECT
+            /end RECORD_LAYOUT
+            /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit" /end COMPU_METHOD
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT3, None, &mut load_errors, true).unwrap();
         let mut log_msgs = Vec::new();
         super::check(&a2lfile, &mut log_msgs);
         assert_eq!(log_msgs.len(), 0);
@@ -1102,5 +1487,145 @@ mod test {
 
         // invalid component type
         assert_eq!(log_msgs.len(), 1);
+    }
+
+    #[test]
+    fn check_calc_limits() {
+        // Compu method type FORM: limits are set to f64::MIN and f64::MAX
+        let cm = CompuMethod::new(
+            "".to_string(),
+            "".to_string(),
+            ConversionType::Form,
+            "format".to_string(),
+            "unit".to_string(),
+        );
+        let datatype = DataType::Ubyte;
+        let (lower_limit, upper_limit) = super::calc_compu_method_limits(Some(&&cm), datatype);
+        // FORM conversion type: any value is allowed, because the formula is not evaluated
+        assert_eq!(lower_limit, f64::MIN);
+        assert_eq!(upper_limit, f64::MAX);
+
+        // Compu method type LINEAR: limits are calculated
+        let mut cm = CompuMethod::new(
+            "".to_string(),
+            "".to_string(),
+            ConversionType::Linear,
+            "format".to_string(),
+            "unit".to_string(),
+        );
+        cm.coeffs_linear = Some(CoeffsLinear::new(33.0, 2.0));
+        let datatype = DataType::Sbyte;
+        let (lower_limit, upper_limit) = super::calc_compu_method_limits(Some(&&cm), datatype);
+        // linear conversion type: lower and upper limits are physical values
+        assert_eq!(lower_limit, 33.0 * -128.0 + 2.0);
+        assert_eq!(upper_limit, 33.0 * 127.0 + 2.0);
+
+        // Compu method type RAT_FUNC, with a restricted formula: limits are calculated
+        let mut cm = CompuMethod::new(
+            "".to_string(),
+            "".to_string(),
+            ConversionType::RatFunc,
+            "format".to_string(),
+            "unit".to_string(),
+        );
+        cm.coeffs = Some(Coeffs::new(0.0, 3.5, 4.44, 0.0, 0.0, 2.0));
+        let datatype = DataType::Slong;
+        let (lower_limit, upper_limit) = super::calc_compu_method_limits(Some(&&cm), datatype);
+        // rational function conversion type: lower and upper limits are physical values
+        // y = (3.5x + 4.44) / 2 -> x = (2y - 4.44) / 3.5
+        assert_eq!(lower_limit, (2.0 * -2147483648.0 - 4.44) / 3.5);
+        assert_eq!(upper_limit, (2.0 * 2147483647.0 - 4.44) / 3.5);
+
+        // Compu method type RAT_FUNC, with a restricted formula for f64 values: limits are calculated
+        // In this calculation, the value could go to INFINITY if the operations are done in the wrong order
+        let mut cm = CompuMethod::new(
+            "".to_string(),
+            "".to_string(),
+            ConversionType::RatFunc,
+            "format".to_string(),
+            "unit".to_string(),
+        );
+        cm.coeffs = Some(Coeffs::new(0.0, -3.5, 4.44, 0.0, 0.0, 2.0));
+        let datatype = DataType::Float64Ieee;
+        let (lower_limit, upper_limit) = super::calc_compu_method_limits(Some(&&cm), datatype);
+        // min and max values are not f64::MIN, f64::MAX, -f64::INFINITY or f64::INFINITY
+        assert_ne!(lower_limit, f64::MIN);
+        assert_ne!(upper_limit, f64::MAX);
+        assert_ne!(lower_limit, -f64::INFINITY);
+        assert_ne!(upper_limit, f64::INFINITY);
+
+        // Compu method type RAT_FUNC, with a full formula: limits are set to f64::MIN and f64::MAX
+        let mut cm = CompuMethod::new(
+            "".to_string(),
+            "".to_string(),
+            ConversionType::RatFunc,
+            "format".to_string(),
+            "unit".to_string(),
+        );
+        cm.coeffs = Some(Coeffs::new(1.0, 3.5, 4.44, 2.0, 3.0, 4.0));
+        let datatype = DataType::Slong;
+        let (lower_limit, upper_limit) = super::calc_compu_method_limits(Some(&&cm), datatype);
+        assert_eq!(lower_limit, f64::MIN);
+        assert_eq!(upper_limit, f64::MAX);
+
+        // Compu method type IDENTICAL: limits are set to the datatype limits
+        let cm = CompuMethod::new(
+            "".to_string(),
+            "".to_string(),
+            ConversionType::Identical,
+            "format".to_string(),
+            "unit".to_string(),
+        );
+        let datatype = DataType::Float32Ieee;
+        let (lower_limit, upper_limit) = super::calc_compu_method_limits(Some(&&cm), datatype);
+        // identical conversion type: any value is allowed, because the compu method does not modify the limits given by the datatype
+        assert_eq!(lower_limit, f32::MIN as f64);
+        assert_eq!(upper_limit, f32::MAX as f64);
+    }
+
+    #[test]
+    fn check_limits() {
+        static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin CHARACTERISTIC c "" CURVE 0x1234 rl 0 cm 0 100000
+                /begin AXIS_DESCR STD_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD 1 -1E39 1E39
+                /end AXIS_DESCR
+            /end CHARACTERISTIC
+            /begin AXIS_PTS axis_points "" 0x1234 NO_INPUT_QUANTITY rl2 0 cm2 3 -100000.0 100000.0
+            /end AXIS_PTS
+            /begin MEASUREMENT m "" ULONG cm3 1 1.0 -1000000 1000000
+            /end MEASUREMENT
+            /begin RECORD_LAYOUT rl
+                FNC_VALUES 0 UWORD ROW_DIR DIRECT
+                AXIS_PTS_X 0 FLOAT32_IEEE INDEX_INCR DIRECT
+            /end RECORD_LAYOUT
+            /begin RECORD_LAYOUT rl2
+                AXIS_PTS_X 0 SWORD INDEX_INCR DIRECT
+            /end RECORD_LAYOUT
+            /begin COMPU_METHOD cm "" LINEAR "%4.2" "unit"
+                COEFFS_LINEAR 0.5 0
+            /end COMPU_METHOD
+            /begin COMPU_METHOD cm2 "" RAT_FUNC "%4.2" "unit"
+                COEFFS 0 500 4000 0 0 2.222
+            /end COMPU_METHOD
+            /begin COMPU_METHOD cm3 "" IDENTICAL "%4.2" "unit"
+            /end COMPU_METHOD
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let mut a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+        // invalid limits for each of CHARACTERISTIC, AXIS_DESCR, AXIS_PTS, and MEASUREMENT
+        assert_eq!(log_msgs.len(), 4);
+
+        // fix the errors in each item, now no errors should be reported
+        a2lfile.project.module[0].characteristic[0].upper_limit = u16::MAX as f64 * 0.5;
+        a2lfile.project.module[0].characteristic[0].axis_descr[0].upper_limit = f32::MAX as f64;
+        a2lfile.project.module[0].characteristic[0].axis_descr[0].lower_limit = f32::MIN as f64;
+        a2lfile.project.module[0].axis_pts[0].upper_limit = ((i16::MAX as f64 * 2.222) - 4000.0) / 500.0;
+        a2lfile.project.module[0].axis_pts[0].lower_limit = ((i16::MIN as f64 * 2.222) - 4000.0) / 500.0;
+        a2lfile.project.module[0].measurement[0].lower_limit = u32::MIN as f64;
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+        assert_eq!(log_msgs.len(), 0);
     }
 }

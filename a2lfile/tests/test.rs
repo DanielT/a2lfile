@@ -942,8 +942,8 @@ ASAP2_VERSION 1 61
                 /end AXIS_PTS
                 /begin BLOB blob_name "long_identifier" 0x1234 100
                 /end BLOB
-                /begin CHARACTERISTIC characteristic_name "long_identifier" VALUE 0x1234 record_layout_name 0 compu_method_name 0.0 10.0
-                    /begin AXIS_DESCR STD_AXIS measurement_name compu_method_name 1 0 100
+                /begin CHARACTERISTIC characteristic_name "long_identifier" CURVE 0x1234 record_layout_name 0 compu_method_name 0.0 10.0
+                    /begin AXIS_DESCR COM_AXIS measurement_name compu_method_name 1 0 100
                         AXIS_PTS_REF axispts_name BYTE_ORDER MSB_LAST CURVE_AXIS_REF characteristic_name DEPOSIT ABSOLUTE
                         EXTENDED_LIMITS -100 200 FIX_AXIS_PAR 0 0 0 FIX_AXIS_PAR_DIST 0 0 0
                         FORMAT "%1.1" MAX_GRAD 1 READ_ONLY STEP_SIZE 1
@@ -1248,7 +1248,7 @@ ASAP2_VERSION 1 61
         let mut characteristic = Characteristic::new(
             "characteristic_name".to_string(),
             "long_identifier".to_string(),
-            CharacteristicType::Value,
+            CharacteristicType::Curve,
             0x1234,
             "record_layout_name".to_string(),
             0.0,
@@ -1257,7 +1257,7 @@ ASAP2_VERSION 1 61
             10.0,
         );
         let mut axis_descr = AxisDescr::new(
-            AxisDescrAttribute::StdAxis,
+            AxisDescrAttribute::ComAxis,
             "measurement_name".to_string(),
             "compu_method_name".to_string(),
             1,
