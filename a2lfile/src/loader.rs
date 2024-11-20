@@ -221,6 +221,7 @@ mod tests {
 
     #[test]
     fn included_files() {
+        use std::path::{Path, MAIN_SEPARATOR};
         let dir = tempdir().unwrap();
 
         // base file at <tempdir>/base
@@ -257,5 +258,22 @@ mod tests {
         let out_path = Path::new(&out).canonicalize().unwrap();
         let expected = subdir.join("def/include2").canonicalize().unwrap();
         assert_eq!(out_path.to_string_lossy(), expected.to_string_lossy());
+
+        // verify if cross platform paths work
+        let (incname, expected_subdir) = if cfg!(windows) {
+            // unix-style input path on Windows
+            ("abc/include1", format!("abc{}include1", MAIN_SEPARATOR))
+        } else {
+            // Windows-style input path on Unix
+            (r"abc\include1", format!("abc{}include1", MAIN_SEPARATOR))
+        };
+        let out = make_include_filename(incname, base_filename.as_os_str())
+            .into_string()
+            .unwrap();
+        let out_path = Path::new(&out).canonicalize().expect("Output path should be resolvable");
+        let expected_path = dir.path().join(expected_subdir);
+        let expected = expected_path.canonicalize()
+        .expect("Expected path should be resolvable");
+        assert_eq!(out_path.to_string_lossy(), expected.to_string_lossy(), "Normalized output does not match");
     }
 }
