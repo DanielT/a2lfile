@@ -2,12 +2,24 @@ use crate::A2lError;
 use std::ffi::{OsStr, OsString};
 use std::fs::File;
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, MAIN_SEPARATOR};
 
 pub(crate) fn make_include_filename(incname: &str, base_filename: &OsStr) -> OsString {
-    let base = std::path::Path::new(base_filename);
+    let normalized_incname: String = incname
+        .replace('\\', MAIN_SEPARATOR.to_string().as_str())
+        .replace('/', MAIN_SEPARATOR.to_string().as_str());
+
+    let inc_path = Path::new(&normalized_incname);
+
+    if inc_path.is_absolute() {
+        return OsString::from(inc_path);
+    }
+
+    let base = Path::new(base_filename);
+
+    // If base has a parent directory, resolve relative path
     if let Some(basedir) = base.parent() {
-        let joined = basedir.join(incname);
+        let joined = basedir.join(inc_path);
         if joined.exists() {
             return OsString::from(joined);
         }
