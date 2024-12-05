@@ -1,6 +1,6 @@
 [package]
 name = "a2lfile"
-version = "2.3.2"
+version = "2.4.0"
 authors = ["Daniel Thaler <daniel@dthaler.de>"]
 edition = "2021"
 description = "read, modify and write a2l files"
@@ -14,7 +14,7 @@ repository = "https://github.com/DanielT/a2lfile"
 version = "2.2.0"
 
 [dependencies]
-thiserror = "1.0.50"
+thiserror = "2.0"
 
 [dev-dependencies]
 tempfile = "3.8"

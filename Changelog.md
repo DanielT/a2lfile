@@ -1,5 +1,16 @@
 # Changelog
 
+## Version 2.4.0
+
+- OS independen path separator handling in /include (Akhil T Thomas)
+- Add the APIs load_fragment2 and load_fragment_file2, deprecating the old versions
+- a2l checker improvements
+  - The RECORD_LAYOUT used by a CHARACTERISTIC must contain FNC_VALUES
+  - A RECORD_LAYOUT must contain an AXIS_PTS_X/Y/Z for each internal axis
+  - There should be a specific number of AXIS_DESCR depending on the type of RECORD_LAYOUT
+  - The lower and upper limits of CHARACTERISTICs, MEASUREMENTs and AXIS_PTS
+    are checked for plausibility based on the data type of the item and its COMPU_METHOD.
+
 ## Version 2.3.2
 
 - fix incorrect handling of escape codes \r, \n, \t while writing files
