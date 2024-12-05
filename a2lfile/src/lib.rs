@@ -230,6 +230,7 @@ fn load_impl(
 /// # Errors
 ///
 /// If reading or parsing of the file fails, the `A2lError` will give details about the problem.
+#[deprecated]
 pub fn load_fragment(a2ldata: &str) -> Result<Module, A2lError> {
     let fixed_a2ldata = format!(r#"fragment "" {a2ldata} /end MODULE"#);
     // tokenize the input data
@@ -253,15 +254,69 @@ pub fn load_fragment(a2ldata: &str) -> Result<Module, A2lError> {
         .map_err(|parser_error| A2lError::ParserError { parser_error })
 }
 
+/// load an a2l fragment
+///
+/// An a2l fragment is just the bare content of a module, without the enclosing PROJECT and MODULE.
+/// Because the fragment cannot specify a version, strict parsing is not available.
+///
+/// # Errors
+///
+/// If reading or parsing of the file fails, the `A2lError` will give details about the problem.
+pub fn load_fragment2(a2ldata: &str, a2ml_spec: Option<String>) -> Result<Module, A2lError> {
+    let fixed_a2ldata = format!(r#"fragment "" {a2ldata} /end MODULE"#);
+    // tokenize the input data
+    let tokenresult = tokenizer::tokenize(&Filename::from("(fragment)"), 0, &fixed_a2ldata)
+        .map_err(|tokenizer_error| A2lError::TokenizerError { tokenizer_error })?;
+    let firstline = tokenresult.tokens.first().map_or(1, |tok| tok.line);
+    let context = ParseContext {
+        element: "MODULE".to_string(),
+        fileid: 0,
+        line: firstline,
+        inside_block: true,
+    };
+
+    // create the parser state object
+    let mut log_msgs = Vec::<A2lError>::new();
+    let mut parser = ParserState::new(&tokenresult, &mut log_msgs, false);
+    parser.set_file_version(A2lVersion::V1_7_1); // doesn't really matter with strict = false
+
+    // if a built-in A2ml specification was passed as a string, then it is parsed here
+    if let Some(spec) = a2ml_spec {
+        parser.builtin_a2mlspec = Some(
+            a2ml::parse_a2ml(&Filename::from("(built-in)"), &spec)
+                .map_err(|parse_err| A2lError::InvalidBuiltinA2mlSpec { parse_err })?
+                .0,
+        );
+    }
+    // build the a2l data structures from the tokens
+    Module::parse(&mut parser, &context, 0)
+        .map_err(|parser_error| A2lError::ParserError { parser_error })
+}
+
 /// load an a2l fragment from a file
 ///
 /// # Errors
 ///
 /// If reading or parsing of the file fails, the `A2lError` will give details about the problem.
+#[deprecated]
 pub fn load_fragment_file<P: AsRef<Path>>(path: P) -> Result<Module, A2lError> {
     let pathref = path.as_ref();
     let filedata = loader::load(pathref)?;
-    load_fragment(&filedata)
+    load_fragment2(&filedata, None)
+}
+
+/// load an a2l fragment from a file
+///
+/// # Errors
+///
+/// If reading or parsing of the file fails, the `A2lError` will give details about the problem.
+pub fn load_fragment_file2<P: AsRef<Path>>(
+    path: P,
+    a2ml_spec: Option<String>,
+) -> Result<Module, A2lError> {
+    let pathref = path.as_ref();
+    let filedata = loader::load(pathref)?;
+    load_fragment2(&filedata, a2ml_spec)
 }
 
 impl A2lFile {
@@ -604,6 +659,32 @@ mod tests {
 
         // random data is not a valid fragment
         let result = load_fragment("12345");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_load_fagment2() {
+        // an empty string is a valid fragment
+        let result = load_fragment2("", None);
+        assert!(result.is_ok());
+
+        // load a fragment with some data
+        let result = load_fragment2(
+            r#"
+    /begin MEASUREMENT ASAM.M.SCALAR.UBYTE.IDENTICAL
+        "Scalar measurement"
+        UBYTE CM.IDENTICAL 0 0 0 255
+        ECU_ADDRESS 0x13A00
+        FORMAT "%5.0"    /* Note: Overwrites the format stated in the computation method */
+        DISPLAY_IDENTIFIER DI.ASAM.M.SCALAR.UBYTE.IDENTICAL    /* optional display identifier */
+        /begin IF_DATA ETK  KP_BLOB 0x13A00 INTERN 1 RASTER 2 /end IF_DATA
+    /end MEASUREMENT"#,
+            None,
+        );
+        assert!(result.is_ok());
+
+        // random data is not a valid fragment
+        let result = load_fragment2("12345", None);
         assert!(result.is_err());
     }
 }
