@@ -586,7 +586,7 @@ mod tests {
     fn write_with_banner() {
         // set the current working directory to a temp dir
         let dir = tempdir().unwrap();
-        std::env::set_current_dir(&dir.path()).unwrap();
+        std::env::set_current_dir(dir.path()).unwrap();
 
         let mut a2l = new();
         a2l.asap2_version
@@ -640,11 +640,11 @@ mod tests {
     #[test]
     fn test_load_fagment() {
         // an empty string is a valid fragment
-        let result = load_fragment("");
+        let result = load_fragment2("", None);
         assert!(result.is_ok());
 
         // load a fragment with some data
-        let result = load_fragment(
+        let result = load_fragment2(
             r#"
     /begin MEASUREMENT ASAM.M.SCALAR.UBYTE.IDENTICAL
         "Scalar measurement"
@@ -654,11 +654,12 @@ mod tests {
         DISPLAY_IDENTIFIER DI.ASAM.M.SCALAR.UBYTE.IDENTICAL    /* optional display identifier */
         /begin IF_DATA ETK  KP_BLOB 0x13A00 INTERN 1 RASTER 2 /end IF_DATA
     /end MEASUREMENT"#,
+            None,
         );
         assert!(result.is_ok());
 
         // random data is not a valid fragment
-        let result = load_fragment("12345");
+        let result = load_fragment2("12345", None);
         assert!(result.is_err());
     }
 

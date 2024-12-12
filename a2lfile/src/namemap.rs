@@ -389,7 +389,7 @@ pub(crate) fn build_namemap_function<'a>(
     namelist_function
 }
 
-impl<'a> NameMapObject<'a> {
+impl NameMapObject<'_> {
     pub(crate) fn get_line(&self) -> u32 {
         match self {
             Self::AxisPts(axis) => axis.get_line(),
@@ -411,7 +411,7 @@ impl<'a> NameMapObject<'a> {
     }
 }
 
-impl<'a> NameMapCompuTab<'a> {
+impl NameMapCompuTab<'_> {
     pub(crate) fn get_line(&self) -> u32 {
         match self {
             Self::CompuTab(computab) => computab.get_line(),
@@ -429,7 +429,7 @@ impl<'a> NameMapCompuTab<'a> {
     }
 }
 
-impl<'a> NameMapTypedef<'a> {
+impl NameMapTypedef<'_> {
     pub(crate) fn get_line(&self) -> u32 {
         match self {
             Self::TypedefAxis(axis) => axis.get_line(),

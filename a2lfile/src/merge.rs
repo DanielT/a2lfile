@@ -1391,9 +1391,23 @@ mod test {
         // to m1.MERGE. The group is merged, because GROUPS are merged based on the name only
         let group = &a2l_file_a.project.module[0].group[0];
         assert_eq!(group.name, "g1");
-        assert_eq!(group.ref_measurement.as_ref().unwrap().identifier_list[0], "m1");
-        assert_eq!(group.ref_measurement.as_ref().unwrap().identifier_list[1], "m1.MERGE");
-        assert_eq!(group.ref_measurement.as_ref().unwrap().identifier_list.len(), 2);
+        assert_eq!(
+            group.ref_measurement.as_ref().unwrap().identifier_list[0],
+            "m1"
+        );
+        assert_eq!(
+            group.ref_measurement.as_ref().unwrap().identifier_list[1],
+            "m1.MERGE"
+        );
+        assert_eq!(
+            group
+                .ref_measurement
+                .as_ref()
+                .unwrap()
+                .identifier_list
+                .len(),
+            2
+        );
 
         println!("{}", a2l_file_a.write_to_string());
     }
@@ -1441,16 +1455,73 @@ mod test {
         // to m1.MERGE. The function is merged, because FUNCTIONS are merged based on the name only
         let function = &a2l_file_a.project.module[0].function[0];
         assert_eq!(function.name, "f");
-        assert_eq!(function.in_measurement.as_ref().unwrap().identifier_list[0], "m1");
-        assert_eq!(function.in_measurement.as_ref().unwrap().identifier_list[1], "m1.MERGE");
-        assert_eq!(function.in_measurement.as_ref().unwrap().identifier_list.len(), 2);
-        assert_eq!(function.loc_measurement.as_ref().unwrap().identifier_list[0], "m1");
-        assert_eq!(function.loc_measurement.as_ref().unwrap().identifier_list[1], "m1.MERGE");
-        assert_eq!(function.loc_measurement.as_ref().unwrap().identifier_list.len(), 2);
-        assert_eq!(function.out_measurement.as_ref().unwrap().identifier_list[0], "m1");
-        assert_eq!(function.out_measurement.as_ref().unwrap().identifier_list[1], "m1.MERGE");
-        assert_eq!(function.out_measurement.as_ref().unwrap().identifier_list.len(), 2);
-        assert_eq!(function.ref_characteristic.as_ref().unwrap().identifier_list[0], "c");
-        assert_eq!(function.ref_characteristic.as_ref().unwrap().identifier_list.len(), 1);
+        assert_eq!(
+            function.in_measurement.as_ref().unwrap().identifier_list[0],
+            "m1"
+        );
+        assert_eq!(
+            function.in_measurement.as_ref().unwrap().identifier_list[1],
+            "m1.MERGE"
+        );
+        assert_eq!(
+            function
+                .in_measurement
+                .as_ref()
+                .unwrap()
+                .identifier_list
+                .len(),
+            2
+        );
+        assert_eq!(
+            function.loc_measurement.as_ref().unwrap().identifier_list[0],
+            "m1"
+        );
+        assert_eq!(
+            function.loc_measurement.as_ref().unwrap().identifier_list[1],
+            "m1.MERGE"
+        );
+        assert_eq!(
+            function
+                .loc_measurement
+                .as_ref()
+                .unwrap()
+                .identifier_list
+                .len(),
+            2
+        );
+        assert_eq!(
+            function.out_measurement.as_ref().unwrap().identifier_list[0],
+            "m1"
+        );
+        assert_eq!(
+            function.out_measurement.as_ref().unwrap().identifier_list[1],
+            "m1.MERGE"
+        );
+        assert_eq!(
+            function
+                .out_measurement
+                .as_ref()
+                .unwrap()
+                .identifier_list
+                .len(),
+            2
+        );
+        assert_eq!(
+            function
+                .ref_characteristic
+                .as_ref()
+                .unwrap()
+                .identifier_list[0],
+            "c"
+        );
+        assert_eq!(
+            function
+                .ref_characteristic
+                .as_ref()
+                .unwrap()
+                .identifier_list
+                .len(),
+            1
+        );
     }
 }

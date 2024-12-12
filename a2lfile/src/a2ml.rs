@@ -1383,7 +1383,7 @@ mod test {
 
         // set the current working directory to a temp dir
         let dir = tempdir().unwrap();
-        std::env::set_current_dir(&dir.path()).unwrap();
+        std::env::set_current_dir(dir.path()).unwrap();
 
         // create the empty "testfile" so that it can be included
         std::fs::File::create_new("testfile").unwrap();
@@ -1538,14 +1538,14 @@ mod test {
         // base file at <tempdir>/base
         let base_filename = dir.path().join("base");
         let mut basefile = std::fs::File::create_new(&base_filename).unwrap();
-        basefile.write(br#"/include "abc/include1""#).unwrap();
+        basefile.write_all(br#"/include "abc/include1""#).unwrap();
 
         // include file 1 at <tempdir>/abc/include1
         let subdir = dir.path().join("abc");
         let inc1name = subdir.join("include1");
         std::fs::create_dir(&subdir).unwrap();
         let mut incfile1 = std::fs::File::create_new(&inc1name).unwrap();
-        incfile1.write(br#"/include "def/include2""#).unwrap();
+        incfile1.write_all(br#"/include "def/include2""#).unwrap();
 
         // include file 2 at <tempdir>/abc/def/include2
         let subdir2 = subdir.join("def");
