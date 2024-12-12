@@ -402,9 +402,11 @@ fn get_basetype(typename: &str) -> BaseType {
         "char" => BaseType::Char,
         "int" => BaseType::Int,
         "long" => BaseType::Long,
+        "int64" => BaseType::Int64,
         "uchar" => BaseType::Uchar,
         "uint" => BaseType::Uint,
         "ulong" => BaseType::Ulong,
+        "uint64" => BaseType::Uint64,
         "double" => BaseType::Double,
         "float" => BaseType::Double, /* use double for greater precision even when float is requested by the spec. Other programs also do this */
         "ident" => BaseType::Ident,

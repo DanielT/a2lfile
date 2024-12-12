@@ -4405,7 +4405,7 @@ impl AxisRescaleDim {
 /// The `BIT_MASK` keyword can be used to mask out single bits of the value to be processed.
 #[derive(Clone)]
 pub struct BitMask {
-    pub mask: u32,
+    pub mask: u64,
     pub(crate) __block_info: BlockInfo<((u32, bool), ())>,
 }
 
@@ -4418,7 +4418,7 @@ impl std::fmt::Debug for BitMask {
 impl BitMask {
     #[allow(clippy::too_many_arguments)]
     #[must_use]
-    pub fn new(mask: u32) -> Self {
+    pub fn new(mask: u64) -> Self {
         Self {
             mask,
             __block_info: BlockInfo {
@@ -4469,7 +4469,7 @@ impl BitMask {
         let __uid = parser.get_next_id();
         let (__mask_location, mask) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer_u64(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -11195,7 +11195,7 @@ impl Epk {
 /// Used to mask bits of a MEASUREMENT which indicate that the value is in error
 #[derive(Clone)]
 pub struct ErrorMask {
-    pub mask: u32,
+    pub mask: u64,
     pub(crate) __block_info: BlockInfo<((u32, bool), ())>,
 }
 
@@ -11210,7 +11210,7 @@ impl std::fmt::Debug for ErrorMask {
 impl ErrorMask {
     #[allow(clippy::too_many_arguments)]
     #[must_use]
-    pub fn new(mask: u32) -> Self {
+    pub fn new(mask: u64) -> Self {
         Self {
             mask,
             __block_info: BlockInfo {
@@ -11261,7 +11261,7 @@ impl ErrorMask {
         let __uid = parser.get_next_id();
         let (__mask_location, mask) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer_u64(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();

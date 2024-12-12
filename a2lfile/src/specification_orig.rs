@@ -311,7 +311,7 @@ a2l_specification! {
 
     /// The BIT_MASK keyword can be used to mask out single bits of the value to be processed.
     keyword BIT_MASK {
-        ulong mask
+        uint64 mask
     }
 
     /// Used to perform bit operation on a value
@@ -654,7 +654,7 @@ a2l_specification! {
 
     /// Used to mask bits of a MEASUREMENT which indicate that the value is in error
     keyword ERROR_MASK {
-        ulong mask
+        uint64 mask
     }
 
     /// used to specify an extended range of values

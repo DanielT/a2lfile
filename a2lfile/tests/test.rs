@@ -1279,7 +1279,8 @@ ASAP2_VERSION 1 61
         axis_descr.read_only = Some(ReadOnly::new());
         axis_descr.step_size = Some(StepSize::new(1.0));
         characteristic.axis_descr.push(axis_descr);
-        characteristic.comparison_quantity = Some(ComparisonQuantity::new("measurement_name".to_string()));
+        characteristic.comparison_quantity =
+            Some(ComparisonQuantity::new("measurement_name".to_string()));
         let mut dependent_characteristic = DependentCharacteristic::new("formula".to_string());
         dependent_characteristic
             .characteristic_list
@@ -1715,5 +1716,32 @@ ASAP2_VERSION 1 61
         a2l_file.sort_new_items();
         a2l_file7.sort_new_items();
         assert_eq!(a2l_file, a2l_file7);
+    }
+
+    #[test]
+    fn long_masks() {
+        // regression test for issue #41 - 64bit BIT_MASK and ERROR_MASK values are not parsed correctly
+        let a2l = r#"ASAP2_VERSION 1 71
+        /begin PROJECT project ""
+            /begin MODULE module ""
+                /begin MEASUREMENT measurement_name "long_identifier" FLOAT32_IEEE compu_method_name 1 1.0 0 100
+                    BIT_MASK 0xFFFFFFFFFFFFFFFF
+                    ERROR_MASK 0xFFFFFFFFFFFFFFFF
+                /end MEASUREMENT
+            /end MODULE
+        /end PROJECT
+        "#;
+        let mut log_msgs = Vec::<A2lError>::new();
+        let a2lfile = a2lfile::load_from_string(a2l, None, &mut log_msgs, false).unwrap();
+
+        let measurement = &a2lfile.project.module[0].measurement[0];
+        assert_eq!(
+            measurement.bit_mask.as_ref().unwrap().mask,
+            0xFFFFFFFFFFFFFFFFu64
+        );
+        assert_eq!(
+            measurement.error_mask.as_ref().unwrap().mask,
+            0xFFFFFFFFFFFFFFFFu64
+        );
     }
 }
