@@ -584,7 +584,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let (data, valid) = result.unwrap();
         assert!(data.is_some());
-        assert_eq!(valid, false);
+        assert!(!valid);
 
         let result = parse_helper(r##"INT 5 /end IFDATA"##);
         assert!(result.is_ok());
@@ -595,7 +595,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let (data, valid) = result.unwrap();
         assert!(data.is_some());
-        assert_eq!(valid, false);
+        assert!(!valid);
 
         let result = parse_helper(r##"LONG 5 /end IFDATA"##);
         assert!(result.is_ok());
@@ -606,7 +606,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let (data, valid) = result.unwrap();
         assert!(data.is_some());
-        assert_eq!(valid, false);
+        assert!(!valid);
 
         let result = parse_helper(r##"INT64 5 /end IFDATA"##);
         assert!(result.is_ok());
@@ -617,7 +617,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let (data, valid) = result.unwrap();
         assert!(data.is_some());
-        assert_eq!(valid, false);
+        assert!(!valid);
 
         let result = parse_helper(r##"UCHAR 5 /end IFDATA"##);
         assert!(result.is_ok());
@@ -628,7 +628,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let (data, valid) = result.unwrap();
         assert!(data.is_some());
-        assert_eq!(valid, false);
+        assert!(!valid);
 
         let result = parse_helper(r##"UINT 5 /end IFDATA"##);
         assert!(result.is_ok());
@@ -639,7 +639,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let (data, valid) = result.unwrap();
         assert!(data.is_some());
-        assert_eq!(valid, false);
+        assert!(!valid);
 
         let result = parse_helper(r##"ULONG 5 /end IFDATA"##);
         assert!(result.is_ok());
@@ -650,7 +650,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let (data, valid) = result.unwrap();
         assert!(data.is_some());
-        assert_eq!(valid, false);
+        assert!(!valid);
 
         let result = parse_helper(r##"UINT64 5 /end IFDATA"##);
         assert!(result.is_ok());
@@ -661,7 +661,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let (data, valid) = result.unwrap();
         assert!(data.is_some());
-        assert_eq!(valid, false);
+        assert!(!valid);
 
         let result = parse_helper(r##"DOUBLE 5.5 /end IFDATA"##);
         assert!(result.is_ok());
@@ -672,7 +672,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let (data, valid) = result.unwrap();
         assert!(data.is_some());
-        assert_eq!(valid, false);
+        assert!(!valid);
 
         let result = parse_helper(r##"FLOAT 5.5 /end IFDATA"##);
         assert!(result.is_ok());
@@ -683,7 +683,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let (data, valid) = result.unwrap();
         assert!(data.is_some());
-        assert_eq!(valid, false);
+        assert!(!valid);
 
         let result = parse_helper(r##"STRUCT "text value" 3 /end IFDATA"##);
         assert!(result.is_ok());
@@ -696,7 +696,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let (data, valid) = result.unwrap();
         assert!(data.is_some());
-        assert_eq!(valid, false);
+        assert!(!valid);
 
         let result = parse_helper(r##"/begin BLOCK TAG1 3 /end BLOCK /end IFDATA"##);
         assert!(result.is_ok());
@@ -715,7 +715,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let (data, valid) = result.unwrap();
         assert!(data.is_some());
-        assert_eq!(valid, false);
+        assert!(!valid);
 
         let result = parse_helper(r##"ARRAY 7 8 9 /end IFDATA"##);
         assert!(result.is_ok());
@@ -726,7 +726,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let (data, valid) = result.unwrap();
         assert!(data.is_some());
-        assert_eq!(valid, false);
+        assert!(!valid);
 
         let result =
             parse_helper(r##"/begin SEQUENCE "name 1" "name 2" /end SEQUENCE /end IFDATA"##);
@@ -772,7 +772,7 @@ mod ifdata_test {
     fn check_and_decode(result: Result<(Option<GenericIfData>, bool), ParserError>) -> A2mlTest {
         let (data, valid) = result.unwrap();
         assert!(data.is_some());
-        assert_eq!(valid, true);
+        assert!(valid);
         let mut if_data = IfData::new();
         if_data.ifdata_items = data;
         if_data.ifdata_valid = valid;

@@ -80,7 +80,7 @@ ASAP2_VERSION 1 61
     fn full_test() {
         // work in a tempdir
         let dir = tempdir().unwrap();
-        std::env::set_current_dir(&dir.path()).unwrap();
+        std::env::set_current_dir(dir.path()).unwrap();
 
         let mut a2l_file = a2lfile::new();
 
@@ -842,16 +842,10 @@ ASAP2_VERSION 1 61
         // the first measurement was merged from the data that was loaded from the TEST_A2L string and then sorted to the beginning of the list.
         // It contains an IF_DATA block, but the content is nonsense
         assert_eq!(a2l_file3.project.module[0].measurement[0].if_data.len(), 1);
-        assert_eq!(
-            a2l_file3.project.module[0].measurement[0].if_data[0].ifdata_valid,
-            false
-        );
+        assert!(!a2l_file3.project.module[0].measurement[0].if_data[0].ifdata_valid);
         // ifdata on the other measurement is valid
         assert_eq!(a2l_file3.project.module[0].measurement[1].if_data.len(), 1);
-        assert_eq!(
-            a2l_file3.project.module[0].measurement[1].if_data[0].ifdata_valid,
-            true
-        );
+        assert!(a2l_file3.project.module[0].measurement[1].if_data[0].ifdata_valid);
         a2l_file3.ifdata_cleanup();
         // the nonsensical IF_DATA has been removed
         assert_eq!(a2l_file3.project.module[0].measurement[0].if_data.len(), 0);
@@ -866,47 +860,47 @@ ASAP2_VERSION 1 61
     fn parsing_weird_data() {
         let data_bad = r##"abcdef"##;
         let mut log_msgs = Vec::<A2lError>::new();
-        let load_result = a2lfile::load_from_string(&data_bad, None, &mut log_msgs, false);
+        let load_result = a2lfile::load_from_string(data_bad, None, &mut log_msgs, false);
         assert!(load_result.is_err());
 
         let data_bad = r##"ASAP2_VERSION 1 71"##;
         let mut log_msgs = Vec::<A2lError>::new();
-        let load_result = a2lfile::load_from_string(&data_bad, None, &mut log_msgs, false);
+        let load_result = a2lfile::load_from_string(data_bad, None, &mut log_msgs, false);
         assert!(load_result.is_err());
 
         let data_bad = r##"ASAP2_VERSION 1 71
         /begin PROJECT
         /end PROJECT"##;
         let mut log_msgs = Vec::<A2lError>::new();
-        let load_result = a2lfile::load_from_string(&data_bad, None, &mut log_msgs, false);
+        let load_result = a2lfile::load_from_string(data_bad, None, &mut log_msgs, false);
         assert!(load_result.is_err());
 
         let data_bad = r##"ASAP2_VERSION 1 71
         /begin PROJECT //x ""
         /end PROJECT"##;
         let mut log_msgs = Vec::<A2lError>::new();
-        let load_result = a2lfile::load_from_string(&data_bad, None, &mut log_msgs, false);
+        let load_result = a2lfile::load_from_string(data_bad, None, &mut log_msgs, false);
         assert!(load_result.is_err());
 
         let data_bad = r##"ASAP2_VERSION 1 71
         /beginPROJECT x ""
         /end PROJECT"##;
         let mut log_msgs = Vec::<A2lError>::new();
-        let load_result = a2lfile::load_from_string(&data_bad, None, &mut log_msgs, false);
+        let load_result = a2lfile::load_from_string(data_bad, None, &mut log_msgs, false);
         assert!(load_result.is_err());
 
         let data_good = r##"ASAP2_VERSION 1 0x47
         /begin PROJECT x ""
         /end PROJECT"##;
         let mut log_msgs = Vec::<A2lError>::new();
-        let load_result = a2lfile::load_from_string(&data_good, None, &mut log_msgs, false);
+        let load_result = a2lfile::load_from_string(data_good, None, &mut log_msgs, false);
         assert!(load_result.is_ok());
 
         let data_good = r##"ASAP2_VERSION 1 71
         /begin PROJECT x ""
         /end PROJECT"##;
         let mut log_msgs = Vec::<A2lError>::new();
-        let load_result = a2lfile::load_from_string(&data_good, None, &mut log_msgs, false);
+        let load_result = a2lfile::load_from_string(data_good, None, &mut log_msgs, false);
         assert!(load_result.is_ok());
 
         let data_good = r##"//comment
@@ -914,7 +908,7 @@ ASAP2_VERSION 1 61
         /begin PROJECT x "" /*/*////*
         /end PROJECT"##;
         let mut log_msgs = Vec::<A2lError>::new();
-        let load_result = a2lfile::load_from_string(&data_good, None, &mut log_msgs, false);
+        let load_result = a2lfile::load_from_string(data_good, None, &mut log_msgs, false);
         assert!(load_result.is_ok());
     }
 

@@ -163,7 +163,7 @@ mod tests {
 
     #[test]
     fn load_nonexistent_file() {
-        let result = load(&Path::new("file/does/not/exist"));
+        let result = load(Path::new("file/does/not/exist"));
         assert!(result.is_err());
     }
 
@@ -227,14 +227,14 @@ mod tests {
         // base file at <tempdir>/base
         let base_filename = dir.path().join("base");
         let mut basefile = std::fs::File::create_new(&base_filename).unwrap();
-        basefile.write(br#"/include "abc/include1""#).unwrap();
+        basefile.write_all(br#"/include "abc/include1""#).unwrap();
 
         // include file 1 at <tempdir>/abc/include1
         let subdir = dir.path().join("abc");
         let inc1name = subdir.join("include1");
         std::fs::create_dir(&subdir).unwrap();
         let mut incfile1 = std::fs::File::create_new(&inc1name).unwrap();
-        incfile1.write(br#"/include "def/include2""#).unwrap();
+        incfile1.write_all(br#"/include "def/include2""#).unwrap();
 
         // include file 2 at <tempdir>/abc/def/include2
         let subdir2 = subdir.join("def");
@@ -270,10 +270,17 @@ mod tests {
         let out = make_include_filename(incname, base_filename.as_os_str())
             .into_string()
             .unwrap();
-        let out_path = Path::new(&out).canonicalize().expect("Output path should be resolvable");
+        let out_path = Path::new(&out)
+            .canonicalize()
+            .expect("Output path should be resolvable");
         let expected_path = dir.path().join(expected_subdir);
-        let expected = expected_path.canonicalize()
-        .expect("Expected path should be resolvable");
-        assert_eq!(out_path.to_string_lossy(), expected.to_string_lossy(), "Normalized output does not match");
+        let expected = expected_path
+            .canonicalize()
+            .expect("Expected path should be resolvable");
+        assert_eq!(
+            out_path.to_string_lossy(),
+            expected.to_string_lossy(),
+            "Normalized output does not match"
+        );
     }
 }

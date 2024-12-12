@@ -1333,7 +1333,7 @@ mod tests {
         let bad_version = A2lVersion::new(1, 80);
         assert!(bad_version.is_err());
 
-        let cpy = v171.clone();
+        let cpy = v171;
         assert_eq!(cpy, v171);
 
         assert_eq!(format!("{v150}"), "1.5.0");
