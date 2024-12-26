@@ -45,7 +45,7 @@ fn generate_enum_writer(typename: &str, enumitems: &[EnumItem]) -> TokenStream {
                 let tag = match &self {
                     #(#match_arms),*
                 };
-                write!(f, "{}", tag)
+                f.write_str(tag)
             }
         }
     }
