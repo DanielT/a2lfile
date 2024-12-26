@@ -68,7 +68,7 @@ fn generate_enum_parser(typename: &str, enumitems: &[EnumItem]) -> TokenStream {
                 match &*enumname {
                     #(#match_branches)*
                     _ => Err(ParserError::InvalidEnumValue{
-                        filename: parser.filenames[context.fileid].to_owned(),
+                        filename: parser.filenames[context.fileid].to_string(),
                         error_line: parser.last_token_position,
                         enumtxt: enumname,
                         block: context.element.to_owned(),
@@ -109,7 +109,7 @@ fn generate_block_parser_generic(
             parser.expect_token(context, A2lTokenType::End)?;
             let ident = parser.get_identifier(context)?;
             if ident != context.element {
-                parser.error_or_log(ParserError::incorrect_end_tag(parser, &context, &ident))?;
+                parser.error_or_log(ParserError::incorrect_end_tag(parser, context, &ident))?;
             }
         }
     } else {
@@ -162,11 +162,39 @@ fn generate_struct_item_fragments(
                 itemnames.extend(generate_tagged_item_names(tuitems));
             }
             BaseType::Sequence { seqtype } => {
+                let seqtype: &BaseType = seqtype;
                 let itemname = format_ident!("{}", sitem.varname.clone().unwrap());
+                // stopwords are needed if the sequence is a list of identifiers and the next item is a
+                // tagged struct or union, which would otherwise be parsed as an identifier
+                // In particular, this could happen for tagged struct items that are not blocks, i.e. no /begin ... /end
+                // Even though the code is generalized, in practice we only see this in VAR_CRITERION.
+                let stopwords: Option<Vec<String>> = if *seqtype == BaseType::Ident && !is_last {
+                    match &structitems[idx + 1].basetype {
+                        BaseType::TaggedStruct { tsitems: items, .. }
+                        | BaseType::TaggedUnion { tuitems: items, .. } => {
+                            // collect all tags of keyword items in the tagged struct
+                            let kwitems: Vec<String> = items
+                                .iter()
+                                .filter(|item| !item.is_block)
+                                .map(|item| item.tag.clone())
+                                .collect();
+                            if !kwitems.is_empty() {
+                                Some(kwitems)
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    }
+                } else {
+                    None
+                };
+
                 itemparsers.push(generate_sequence_parser(
                     &itemname,
                     &sitem.typename,
                     seqtype,
+                    stopwords,
                 ));
                 location_names.push(format_ident!("__{}_location", itemname));
                 itemnames.push(itemname);
@@ -291,14 +319,32 @@ fn generate_sequence_parser(
     itemname: &Ident,
     typename: &Option<String>,
     seqitem: &BaseType,
+    stopwords: Option<Vec<String>>,
 ) -> TokenStream {
     let parserfunc = generate_item_parser_call(typename, seqitem);
     let itemname_location = format_ident!("__{}_location", itemname);
+
+    // if a sequence is a list of identifiers, and is followed by a tagged struct, then the next item could be a tag of the tagged struct
+    // stopwords contains the tags of keyword items in the tagged struct, if any exist
+    let stopcheck = if let Some(stopwords) = stopwords {
+        let stopword_len = stopwords.len();
+        quote! {
+            let stopwords: [&str; #stopword_len] = [#(#stopwords),*];
+            if stopwords.contains(&value.as_str()) {
+                parser.set_tokenpos(current_token);
+                done = true;
+            } else
+        }
+        // note: this contruction with the dangling "else" requires that the code to handle the OK case is alredy enclosed in {}
+    } else {
+        quote! {}
+    };
+
     quote! {
         let mut #itemname = Vec::new();
         let mut #itemname_location = Vec::new();
         let mut done = false;
-        while done == false {
+        while !done {
             let current_token = parser.get_tokenpos();
             let sequence_item = {|parser: &mut ParserState, context: &ParseContext| {Ok(#parserfunc)}}(parser, context);
             if sequence_item.is_err() {
@@ -307,8 +353,11 @@ fn generate_sequence_parser(
             }
             else {
                 let (location, value) = sequence_item?;
-                #itemname.push(value);
-                #itemname_location.push(location);
+                #stopcheck
+                {
+                    #itemname.push(value);
+                    #itemname_location.push(location);
+                }
             }
         }
     }
@@ -390,7 +439,7 @@ fn generate_taggeditem_match_arms(
                 multiplicity_check.extend(quote! {
                     if #itemname.len() == 0 {
                         parser.error_or_log(ParserError::InvalidMultiplicityNotPresent {
-                            filename: parser.filenames[context.fileid].to_owned(),
+                            filename: parser.filenames[context.fileid].to_string(),
                             error_line: parser.last_token_position,
                             tag: #tag_string.to_string(),
                             block: context.element.clone(),
@@ -415,7 +464,7 @@ fn generate_taggeditem_match_arms(
                         value
                     } else {
                         return Err(ParserError::InvalidMultiplicityNotPresent {
-                            filename: parser.filenames[context.fileid].to_owned(),
+                            filename: parser.filenames[context.fileid].to_string(),
                             error_line: parser.last_token_position,
                             tag: #tag_string.to_string(),
                             block: context.element.clone(),
@@ -511,7 +560,7 @@ fn generate_taggeditem_parser_core(
         if expect_block != is_block {
             if expect_block {
                 parser.error_or_log(ParserError::IncorrectBlockError{
-                    filename: parser.filenames[context.fileid].to_owned(),
+                    filename: parser.filenames[context.fileid].to_string(),
                     error_line: parser.last_token_position,
                     tag: tag.to_string(),
                     block: context.element.clone(),
@@ -519,7 +568,7 @@ fn generate_taggeditem_parser_core(
                 })?;
             } else {
                 parser.error_or_log(ParserError::IncorrectKeywordError{
-                    filename: parser.filenames[context.fileid].to_owned(),
+                    filename: parser.filenames[context.fileid].to_string(),
                     error_line: parser.last_token_position,
                     tag: tag.to_string(),
                     block: context.element.clone(),

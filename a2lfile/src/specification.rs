@@ -30933,8 +30933,14 @@ impl VarCriterion {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                value_list.push(value);
-                __value_list_location.push(location);
+                let stopwords: [&str; 2usize] = ["VAR_MEASUREMENT", "VAR_SELECTION_CHARACTERISTIC"];
+                if stopwords.contains(&value.as_str()) {
+                    parser.set_tokenpos(current_token);
+                    done = true;
+                } else {
+                    value_list.push(value);
+                    __value_list_location.push(location);
+                }
             }
         }
         let mut var_measurement: Option<VarMeasurement> = None;
