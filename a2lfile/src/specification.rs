@@ -53,6 +53,14 @@ pub(crate) trait PositionRestricted {
     }
 }
 
+pub(crate) trait ParseableA2lObject: Sized {
+    fn parse(
+        parser: &mut ParserState,
+        context: &ParseContext,
+        start_offset: u32,
+    ) -> Result<Self, ParserError>;
+}
+
 /// Contains all the objects of an A2lfile
 ///
 /// An instance of this struct is returned when an a2l file is loaded successfully
@@ -128,8 +136,8 @@ impl A2lObject<()> for A2lFile {
     }
 }
 
-impl A2lFile {
-    pub(crate) fn parse(
+impl ParseableA2lObject for A2lFile {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -144,23 +152,22 @@ impl A2lFile {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
-            const TAG_LIST: [&str; 3usize] = ["ASAP2_VERSION", "A2ML_VERSION", "PROJECT"];
+            let newcontext = ParseContext::from_token(tag, token);
             match tag {
                 "ASAP2_VERSION" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Asap2Version::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, asap2_version.is_some())?;
                     asap2_version = Some(newitem);
-                    expect_block = false;
                 }
                 "A2ML_VERSION" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = A2mlVersion::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, a2ml_version.is_some())?;
                     a2ml_version = Some(newitem);
-                    expect_block = false;
                 }
                 "PROJECT" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = Project::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(
                         context,
@@ -168,39 +175,13 @@ impl A2lFile {
                         __tmp_required_project.is_some(),
                     )?;
                     __tmp_required_project = Some(newitem);
-                    expect_block = true;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
+                    if is_block {
                         parser.undo_get_token();
-                        break;
                     }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.undo_get_token();
+                    break;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -346,8 +327,8 @@ impl A2lObject<((u32, bool), (u32, bool))> for A2mlVersion {
     }
 }
 
-impl A2mlVersion {
-    pub(crate) fn parse(
+impl ParseableA2lObject for A2mlVersion {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -456,8 +437,8 @@ impl A2lObject<((u32, bool), ())> for AddrEpk {
     }
 }
 
-impl AddrEpk {
-    pub(crate) fn parse(
+impl ParseableA2lObject for AddrEpk {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -510,10 +491,11 @@ pub enum AddrType {
     Direct,
 }
 
-impl AddrType {
-    pub(crate) fn parse(
+impl ParseableA2lObject for AddrType {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
+        __start_offset: u32,
     ) -> Result<Self, ParserError> {
         let enumname = parser.get_identifier(context)?;
         match &*enumname {
@@ -607,8 +589,8 @@ impl A2lObject<(u32, ())> for AddressType {
     }
 }
 
-impl AddressType {
-    pub(crate) fn parse(
+impl ParseableA2lObject for AddressType {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -618,7 +600,7 @@ impl AddressType {
         let __uid = parser.get_next_id();
         let (__address_type_location, address_type) = (
             parser.get_current_line_offset(),
-            AddrType::parse(parser, context)?,
+            AddrType::parse(parser, context, 0)?,
         );
         let __dummy = ();
         let __end_offset: u32 = 0;
@@ -705,8 +687,8 @@ impl A2lObject<((u32, bool), ())> for AlignmentByte {
     }
 }
 
-impl AlignmentByte {
-    pub(crate) fn parse(
+impl ParseableA2lObject for AlignmentByte {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -805,8 +787,8 @@ impl A2lObject<((u32, bool), ())> for AlignmentFloat16Ieee {
     }
 }
 
-impl AlignmentFloat16Ieee {
-    pub(crate) fn parse(
+impl ParseableA2lObject for AlignmentFloat16Ieee {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -905,8 +887,8 @@ impl A2lObject<((u32, bool), ())> for AlignmentFloat32Ieee {
     }
 }
 
-impl AlignmentFloat32Ieee {
-    pub(crate) fn parse(
+impl ParseableA2lObject for AlignmentFloat32Ieee {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -1005,8 +987,8 @@ impl A2lObject<((u32, bool), ())> for AlignmentFloat64Ieee {
     }
 }
 
-impl AlignmentFloat64Ieee {
-    pub(crate) fn parse(
+impl ParseableA2lObject for AlignmentFloat64Ieee {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -1105,8 +1087,8 @@ impl A2lObject<((u32, bool), ())> for AlignmentInt64 {
     }
 }
 
-impl AlignmentInt64 {
-    pub(crate) fn parse(
+impl ParseableA2lObject for AlignmentInt64 {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -1146,6 +1128,7 @@ impl AlignmentInt64 {
         writer.finish()
     }
 }
+
 /// Defines the alignment of long-sized values in complex objects (maps and axis)
 #[derive(Clone)]
 pub struct AlignmentLong {
@@ -1204,8 +1187,8 @@ impl A2lObject<((u32, bool), ())> for AlignmentLong {
     }
 }
 
-impl AlignmentLong {
-    pub(crate) fn parse(
+impl ParseableA2lObject for AlignmentLong {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -1245,6 +1228,7 @@ impl AlignmentLong {
         writer.finish()
     }
 }
+
 /// Defines the alignment of word-sized values in complex objects (maps and axis)
 #[derive(Clone)]
 pub struct AlignmentWord {
@@ -1303,8 +1287,8 @@ impl A2lObject<((u32, bool), ())> for AlignmentWord {
     }
 }
 
-impl AlignmentWord {
-    pub(crate) fn parse(
+impl ParseableA2lObject for AlignmentWord {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -1344,6 +1328,7 @@ impl AlignmentWord {
         writer.finish()
     }
 }
+
 /// An extended description text
 ///
 /// One ANNOTATION may represent a voluminous description. Its purpose is to be e.g.
@@ -1423,8 +1408,8 @@ impl A2lObject<()> for Annotation {
     }
 }
 
-impl Annotation {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Annotation {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -1439,60 +1424,30 @@ impl Annotation {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 3usize] =
                 ["ANNOTATION_LABEL", "ANNOTATION_ORIGIN", "ANNOTATION_TEXT"];
             match tag {
                 "ANNOTATION_LABEL" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AnnotationLabel::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, annotation_label.is_some())?;
                     annotation_label = Some(newitem);
-                    expect_block = false;
                 }
                 "ANNOTATION_ORIGIN" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AnnotationOrigin::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, annotation_origin.is_some())?;
                     annotation_origin = Some(newitem);
-                    expect_block = false;
                 }
                 "ANNOTATION_TEXT" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = AnnotationText::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, annotation_text.is_some())?;
                     annotation_text = Some(newitem);
-                    expect_block = true;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -1569,6 +1524,7 @@ impl Annotation {
         writer.finish()
     }
 }
+
 /// The label or title of an annotation
 #[derive(Clone)]
 pub struct AnnotationLabel {
@@ -1627,8 +1583,8 @@ impl A2lObject<(u32, ())> for AnnotationLabel {
     }
 }
 
-impl AnnotationLabel {
-    pub(crate) fn parse(
+impl ParseableA2lObject for AnnotationLabel {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -1722,8 +1678,8 @@ impl A2lObject<(u32, ())> for AnnotationOrigin {
     }
 }
 
-impl AnnotationOrigin {
-    pub(crate) fn parse(
+impl ParseableA2lObject for AnnotationOrigin {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -1819,8 +1775,8 @@ impl A2lObject<(Vec<u32>, ())> for AnnotationText {
     }
 }
 
-impl AnnotationText {
-    pub(crate) fn parse(
+impl ParseableA2lObject for AnnotationText {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -1846,8 +1802,10 @@ impl AnnotationText {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                annotation_text_list.push(value);
-                __annotation_text_list_location.push(location);
+                {
+                    annotation_text_list.push(value);
+                    __annotation_text_list_location.push(location);
+                }
             }
         }
         let __dummy = ();
@@ -1949,8 +1907,8 @@ impl A2lObject<(u32, ())> for ArComponent {
     }
 }
 
-impl ArComponent {
-    pub(crate) fn parse(
+impl ParseableA2lObject for ArComponent {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -1967,47 +1925,17 @@ impl ArComponent {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 1usize] = ["AR_PROTOTYPE_OF"];
             match tag {
                 "AR_PROTOTYPE_OF" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ArPrototypeOf::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, ar_prototype_of.is_some())?;
                     ar_prototype_of = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -2057,6 +1985,7 @@ impl ArComponent {
         writer.finish()
     }
 }
+
 /// Describes the resationship of the component type to to a component prototype in the Autosar system
 #[derive(Clone)]
 pub struct ArPrototypeOf {
@@ -2121,8 +2050,8 @@ impl A2lObjectName for ArPrototypeOf {
     }
 }
 
-impl ArPrototypeOf {
-    pub(crate) fn parse(
+impl ParseableA2lObject for ArPrototypeOf {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -2157,6 +2086,7 @@ impl ArPrototypeOf {
         writer.finish()
     }
 }
+
 /// marks a measurement object as an array of `<Number>` measurement values
 ///
 /// `ARRAY_SIZE` is obsolete: `MATRIX_DIM` should be used instead.
@@ -2217,8 +2147,8 @@ impl A2lObject<((u32, bool), ())> for ArraySize {
     }
 }
 
-impl ArraySize {
-    pub(crate) fn parse(
+impl ParseableA2lObject for ArraySize {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -2258,6 +2188,7 @@ impl ArraySize {
         writer.finish()
     }
 }
+
 /// Version of the ASAM MCD-2MC standard used by this file
 ///
 /// This keyword is mandatory. Example:
@@ -2322,8 +2253,8 @@ impl A2lObject<((u32, bool), (u32, bool))> for Asap2Version {
     }
 }
 
-impl Asap2Version {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Asap2Version {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -2373,6 +2304,7 @@ impl Asap2Version {
         writer.finish()
     }
 }
+
 /// Axis description within an adjustable object
 #[derive(Clone)]
 pub struct AxisDescr {
@@ -2563,8 +2495,8 @@ impl A2lObject<(u32, u32, u32, (u32, bool), u32, u32)> for AxisDescr {
     }
 }
 
-impl AxisDescr {
-    pub(crate) fn parse(
+impl ParseableA2lObject for AxisDescr {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -2574,7 +2506,7 @@ impl AxisDescr {
         let __uid = parser.get_next_id();
         let (__attribute_location, attribute) = (
             parser.get_current_line_offset(),
-            AxisDescrAttribute::parse(parser, context)?,
+            AxisDescrAttribute::parse(parser, context, 0)?,
         );
         let (__input_quantity_location, input_quantity) = (
             parser.get_current_line_offset(),
@@ -2616,8 +2548,7 @@ impl AxisDescr {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 15usize] = [
                 "ANNOTATION",
                 "AXIS_PTS_REF",
@@ -2637,127 +2568,98 @@ impl AxisDescr {
             ];
             match tag {
                 "ANNOTATION" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = Annotation::parse(parser, &newcontext, line_offset)?;
                     annotation.push(newitem);
-                    expect_block = true;
                 }
                 "AXIS_PTS_REF" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AxisPtsRef::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, axis_pts_ref.is_some())?;
                     axis_pts_ref = Some(newitem);
-                    expect_block = false;
                 }
                 "BYTE_ORDER" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ByteOrder::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, byte_order.is_some())?;
                     byte_order = Some(newitem);
-                    expect_block = false;
                 }
                 "CURVE_AXIS_REF" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = CurveAxisRef::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, curve_axis_ref.is_some())?;
                     curve_axis_ref = Some(newitem);
-                    expect_block = false;
                 }
                 "DEPOSIT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Deposit::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, deposit.is_some())?;
                     deposit = Some(newitem);
-                    expect_block = false;
                 }
                 "EXTENDED_LIMITS" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ExtendedLimits::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, extended_limits.is_some())?;
                     extended_limits = Some(newitem);
-                    expect_block = false;
                 }
                 "FIX_AXIS_PAR" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = FixAxisPar::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, fix_axis_par.is_some())?;
                     fix_axis_par = Some(newitem);
-                    expect_block = false;
                 }
                 "FIX_AXIS_PAR_DIST" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = FixAxisParDist::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, fix_axis_par_dist.is_some())?;
                     fix_axis_par_dist = Some(newitem);
-                    expect_block = false;
                 }
                 "FIX_AXIS_PAR_LIST" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = FixAxisParList::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, fix_axis_par_list.is_some())?;
                     fix_axis_par_list = Some(newitem);
-                    expect_block = true;
                 }
                 "FORMAT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Format::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, format.is_some())?;
                     format = Some(newitem);
-                    expect_block = false;
                 }
                 "MAX_GRAD" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = MaxGrad::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, max_grad.is_some())?;
                     max_grad = Some(newitem);
-                    expect_block = false;
                 }
                 "MONOTONY" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Monotony::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, monotony.is_some())?;
                     monotony = Some(newitem);
-                    expect_block = false;
                 }
                 "PHYS_UNIT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "PHYS_UNIT", A2lVersion::V1_6_0)?;
                     let newitem = PhysUnit::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, phys_unit.is_some())?;
                     phys_unit = Some(newitem);
-                    expect_block = false;
                 }
                 "READ_ONLY" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ReadOnly::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, read_only.is_some())?;
                     read_only = Some(newitem);
-                    expect_block = false;
                 }
                 "STEP_SIZE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "STEP_SIZE", A2lVersion::V1_6_0)?;
                     let newitem = StepSize::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, step_size.is_some())?;
                     step_size = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -3040,6 +2942,7 @@ impl AxisDescr {
         writer.finish()
     }
 }
+
 /// Description of the axis points
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AxisDescrAttribute {
@@ -3050,10 +2953,11 @@ pub enum AxisDescrAttribute {
     StdAxis,
 }
 
-impl AxisDescrAttribute {
-    pub(crate) fn parse(
+impl ParseableA2lObject for AxisDescrAttribute {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
+        __start_offset: u32,
     ) -> Result<Self, ParserError> {
         let enumname = parser.get_identifier(context)?;
         match &*enumname {
@@ -3085,6 +2989,7 @@ impl std::fmt::Display for AxisDescrAttribute {
         f.write_str(tag)
     }
 }
+
 /// Parameters for the handling of an axis points distribution
 #[derive(Clone)]
 pub struct AxisPts {
@@ -3390,8 +3295,8 @@ impl A2lObjectName for AxisPts {
     }
 }
 
-impl AxisPts {
-    pub(crate) fn parse(
+impl ParseableA2lObject for AxisPts {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -3464,8 +3369,7 @@ impl AxisPts {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 19usize] = [
                 "ANNOTATION",
                 "BYTE_ORDER",
@@ -3489,35 +3393,36 @@ impl AxisPts {
             ];
             match tag {
                 "ANNOTATION" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = Annotation::parse(parser, &newcontext, line_offset)?;
                     annotation.push(newitem);
-                    expect_block = true;
                 }
                 "BYTE_ORDER" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ByteOrder::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, byte_order.is_some())?;
                     byte_order = Some(newitem);
-                    expect_block = false;
                 }
                 "CALIBRATION_ACCESS" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = CalibrationAccess::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, calibration_access.is_some())?;
                     calibration_access = Some(newitem);
-                    expect_block = false;
                 }
                 "DEPOSIT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Deposit::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, deposit.is_some())?;
                     deposit = Some(newitem);
-                    expect_block = false;
                 }
                 "DISPLAY_IDENTIFIER" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = DisplayIdentifier::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, display_identifier.is_some())?;
                     display_identifier = Some(newitem);
-                    expect_block = false;
                 }
                 "ECU_ADDRESS_EXTENSION" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = EcuAddressExtension::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(
                         context,
@@ -3525,120 +3430,90 @@ impl AxisPts {
                         ecu_address_extension.is_some(),
                     )?;
                     ecu_address_extension = Some(newitem);
-                    expect_block = false;
                 }
                 "EXTENDED_LIMITS" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ExtendedLimits::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, extended_limits.is_some())?;
                     extended_limits = Some(newitem);
-                    expect_block = false;
                 }
                 "FORMAT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Format::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, format.is_some())?;
                     format = Some(newitem);
-                    expect_block = false;
                 }
                 "FUNCTION_LIST" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = FunctionList::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, function_list.is_some())?;
                     function_list = Some(newitem);
-                    expect_block = true;
                 }
                 "GUARD_RAILS" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = GuardRails::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, guard_rails.is_some())?;
                     guard_rails = Some(newitem);
-                    expect_block = false;
                 }
                 "IF_DATA" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = IfData::parse(parser, &newcontext, line_offset)?;
                     if_data.push(newitem);
-                    expect_block = true;
                 }
                 "MAX_REFRESH" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "MAX_REFRESH", A2lVersion::V1_7_0)?;
                     let newitem = MaxRefresh::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, max_refresh.is_some())?;
                     max_refresh = Some(newitem);
-                    expect_block = false;
                 }
                 "MODEL_LINK" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "MODEL_LINK", A2lVersion::V1_7_0)?;
                     let newitem = ModelLink::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, model_link.is_some())?;
                     model_link = Some(newitem);
-                    expect_block = false;
                 }
                 "MONOTONY" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Monotony::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, monotony.is_some())?;
                     monotony = Some(newitem);
-                    expect_block = false;
                 }
                 "PHYS_UNIT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "PHYS_UNIT", A2lVersion::V1_6_0)?;
                     let newitem = PhysUnit::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, phys_unit.is_some())?;
                     phys_unit = Some(newitem);
-                    expect_block = false;
                 }
                 "READ_ONLY" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ReadOnly::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, read_only.is_some())?;
                     read_only = Some(newitem);
-                    expect_block = false;
                 }
                 "REF_MEMORY_SEGMENT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = RefMemorySegment::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, ref_memory_segment.is_some())?;
                     ref_memory_segment = Some(newitem);
-                    expect_block = false;
                 }
                 "STEP_SIZE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "STEP_SIZE", A2lVersion::V1_6_0)?;
                     let newitem = StepSize::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, step_size.is_some())?;
                     step_size = Some(newitem);
-                    expect_block = false;
                 }
                 "SYMBOL_LINK" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = SymbolLink::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, symbol_link.is_some())?;
                     symbol_link = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -3994,6 +3869,7 @@ impl AxisPts {
         writer.finish()
     }
 }
+
 /// Description of the X, Y, Z, Z4 or Z5 axis points in memory
 #[derive(Clone)]
 pub struct AxisPtsDim {
@@ -4069,8 +3945,8 @@ impl A2lObject<((u32, bool), u32, u32, u32)> for AxisPtsDim {
     }
 }
 
-impl AxisPtsDim {
-    pub(crate) fn parse(
+impl ParseableA2lObject for AxisPtsDim {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -4085,15 +3961,15 @@ impl AxisPtsDim {
         };
         let (__datatype_location, datatype) = (
             parser.get_current_line_offset(),
-            DataType::parse(parser, context)?,
+            DataType::parse(parser, context, 0)?,
         );
         let (__index_incr_location, index_incr) = (
             parser.get_current_line_offset(),
-            IndexOrder::parse(parser, context)?,
+            IndexOrder::parse(parser, context, 0)?,
         );
         let (__addressing_location, addressing) = (
             parser.get_current_line_offset(),
-            AddrType::parse(parser, context)?,
+            AddrType::parse(parser, context, 0)?,
         );
         let __end_offset: u32 = 0;
         Ok(Self {
@@ -4141,6 +4017,7 @@ impl AxisPtsDim {
         writer.finish()
     }
 }
+
 /// Reference to an `AXIS_PTS` record
 #[derive(Clone)]
 pub struct AxisPtsRef {
@@ -4199,8 +4076,8 @@ impl A2lObject<(u32, ())> for AxisPtsRef {
     }
 }
 
-impl AxisPtsRef {
-    pub(crate) fn parse(
+impl ParseableA2lObject for AxisPtsRef {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -4235,6 +4112,7 @@ impl AxisPtsRef {
         writer.finish()
     }
 }
+
 /// Description of rescaling the axis values of an adjustable object
 #[derive(Clone)]
 pub struct AxisRescaleDim {
@@ -4318,8 +4196,8 @@ impl A2lObject<((u32, bool), u32, (u32, bool), u32, u32)> for AxisRescaleDim {
     }
 }
 
-impl AxisRescaleDim {
-    pub(crate) fn parse(
+impl ParseableA2lObject for AxisRescaleDim {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -4334,7 +4212,7 @@ impl AxisRescaleDim {
         };
         let (__datatype_location, datatype) = (
             parser.get_current_line_offset(),
-            DataType::parse(parser, context)?,
+            DataType::parse(parser, context, 0)?,
         );
         let (__max_number_of_rescale_pairs_location, max_number_of_rescale_pairs) = {
             let line = parser.get_current_line_offset();
@@ -4343,11 +4221,11 @@ impl AxisRescaleDim {
         };
         let (__index_incr_location, index_incr) = (
             parser.get_current_line_offset(),
-            IndexOrder::parse(parser, context)?,
+            IndexOrder::parse(parser, context, 0)?,
         );
         let (__addressing_location, addressing) = (
             parser.get_current_line_offset(),
-            AddrType::parse(parser, context)?,
+            AddrType::parse(parser, context, 0)?,
         );
         let __end_offset: u32 = 0;
         Ok(Self {
@@ -4402,6 +4280,7 @@ impl AxisRescaleDim {
         writer.finish()
     }
 }
+
 /// The `BIT_MASK` keyword can be used to mask out single bits of the value to be processed.
 #[derive(Clone)]
 pub struct BitMask {
@@ -4458,8 +4337,8 @@ impl A2lObject<((u32, bool), ())> for BitMask {
     }
 }
 
-impl BitMask {
-    pub(crate) fn parse(
+impl ParseableA2lObject for BitMask {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -4499,6 +4378,7 @@ impl BitMask {
         writer.finish()
     }
 }
+
 /// Used to perform bit operation on a value
 #[derive(Clone)]
 pub struct BitOperation {
@@ -4574,8 +4454,8 @@ impl A2lObject<()> for BitOperation {
     }
 }
 
-impl BitOperation {
-    pub(crate) fn parse(
+impl ParseableA2lObject for BitOperation {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -4590,59 +4470,29 @@ impl BitOperation {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 3usize] = ["LEFT_SHIFT", "RIGHT_SHIFT", "SIGN_EXTEND"];
             match tag {
                 "LEFT_SHIFT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = LeftShift::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, left_shift.is_some())?;
                     left_shift = Some(newitem);
-                    expect_block = false;
                 }
                 "RIGHT_SHIFT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = RightShift::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, right_shift.is_some())?;
                     right_shift = Some(newitem);
-                    expect_block = false;
                 }
                 "SIGN_EXTEND" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = SignExtend::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, sign_extend.is_some())?;
                     sign_extend = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -4719,6 +4569,7 @@ impl BitOperation {
         writer.finish()
     }
 }
+
 /// Special data object that can be used to handle domain specific data, which are processed inside the ECU in a dedicated way
 ///
 /// To the MCD system a blob is just an array of bytes without any interpretation
@@ -4860,8 +4711,8 @@ impl A2lObjectName for Blob {
     }
 }
 
-impl Blob {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Blob {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -4900,8 +4751,7 @@ impl Blob {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 9usize] = [
                 "ADDRESS_TYPE",
                 "ANNOTATION",
@@ -4915,29 +4765,30 @@ impl Blob {
             ];
             match tag {
                 "ADDRESS_TYPE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AddressType::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, address_type.is_some())?;
                     address_type = Some(newitem);
-                    expect_block = false;
                 }
                 "ANNOTATION" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = Annotation::parse(parser, &newcontext, line_offset)?;
                     annotation.push(newitem);
-                    expect_block = true;
                 }
                 "CALIBRATION_ACCESS" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = CalibrationAccess::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, calibration_access.is_some())?;
                     calibration_access = Some(newitem);
-                    expect_block = false;
                 }
                 "DISPLAY_IDENTIFIER" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = DisplayIdentifier::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, display_identifier.is_some())?;
                     display_identifier = Some(newitem);
-                    expect_block = false;
                 }
                 "ECU_ADDRESS_EXTENSION" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = EcuAddressExtension::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(
                         context,
@@ -4945,62 +4796,32 @@ impl Blob {
                         ecu_address_extension.is_some(),
                     )?;
                     ecu_address_extension = Some(newitem);
-                    expect_block = false;
                 }
                 "IF_DATA" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = IfData::parse(parser, &newcontext, line_offset)?;
                     if_data.push(newitem);
-                    expect_block = true;
                 }
                 "MAX_REFRESH" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = MaxRefresh::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, max_refresh.is_some())?;
                     max_refresh = Some(newitem);
-                    expect_block = false;
                 }
                 "MODEL_LINK" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ModelLink::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, model_link.is_some())?;
                     model_link = Some(newitem);
-                    expect_block = false;
                 }
                 "SYMBOL_LINK" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = SymbolLink::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, symbol_link.is_some())?;
                     symbol_link = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -5188,6 +5009,7 @@ impl Blob {
         writer.finish()
     }
 }
+
 /// Where the standard value does not apply this parameter can be used to specify the byte order
 ///
 /// Specification: 3.5.24
@@ -5248,8 +5070,8 @@ impl A2lObject<(u32, ())> for ByteOrder {
     }
 }
 
-impl ByteOrder {
-    pub(crate) fn parse(
+impl ParseableA2lObject for ByteOrder {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -5259,7 +5081,7 @@ impl ByteOrder {
         let __uid = parser.get_next_id();
         let (__byte_order_location, byte_order) = (
             parser.get_current_line_offset(),
-            ByteOrderEnum::parse(parser, context)?,
+            ByteOrderEnum::parse(parser, context, 0)?,
         );
         let __dummy = ();
         let __end_offset: u32 = 0;
@@ -5287,6 +5109,7 @@ impl ByteOrder {
         writer.finish()
     }
 }
+
 /// Byte ordering of a value on the ECU
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ByteOrderEnum {
@@ -5298,10 +5121,11 @@ pub enum ByteOrderEnum {
     MsbLastMswFirst,
 }
 
-impl ByteOrderEnum {
-    pub(crate) fn parse(
+impl ParseableA2lObject for ByteOrderEnum {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
+        __start_offset: u32,
     ) -> Result<Self, ParserError> {
         let enumname = parser.get_identifier(context)?;
         match &*enumname {
@@ -5355,6 +5179,7 @@ impl std::fmt::Display for ByteOrderEnum {
         f.write_str(tag)
     }
 }
+
 /// Specifies the access of a CHARACTERISTIC or `AXIS_PTS` for calibration
 #[derive(Clone)]
 pub struct CalibrationAccess {
@@ -5413,8 +5238,8 @@ impl A2lObject<(u32, ())> for CalibrationAccess {
     }
 }
 
-impl CalibrationAccess {
-    pub(crate) fn parse(
+impl ParseableA2lObject for CalibrationAccess {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -5424,7 +5249,7 @@ impl CalibrationAccess {
         let __uid = parser.get_next_id();
         let (__calibration_access_location, calibration_access) = (
             parser.get_current_line_offset(),
-            CalibrationAccessEnum::parse(parser, context)?,
+            CalibrationAccessEnum::parse(parser, context, 0)?,
         );
         let __dummy = ();
         let __end_offset: u32 = 0;
@@ -5452,6 +5277,7 @@ impl CalibrationAccess {
         writer.finish()
     }
 }
+
 /// Type of access that is possible for a CHARACTERISTIC or `AXIS_PTS` object
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CalibrationAccessEnum {
@@ -5461,10 +5287,11 @@ pub enum CalibrationAccessEnum {
     OfflineCalibration,
 }
 
-impl CalibrationAccessEnum {
-    pub(crate) fn parse(
+impl ParseableA2lObject for CalibrationAccessEnum {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
+        __start_offset: u32,
     ) -> Result<Self, ParserError> {
         let enumname = parser.get_identifier(context)?;
         match &*enumname {
@@ -5494,6 +5321,7 @@ impl std::fmt::Display for CalibrationAccessEnum {
         f.write_str(tag)
     }
 }
+
 /// calibration method specific data
 #[derive(Clone)]
 pub struct CalibrationHandle {
@@ -5559,8 +5387,8 @@ impl A2lObject<(Vec<(u32, bool)>, ())> for CalibrationHandle {
     }
 }
 
-impl CalibrationHandle {
-    pub(crate) fn parse(
+impl ParseableA2lObject for CalibrationHandle {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -5587,8 +5415,10 @@ impl CalibrationHandle {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                handle_list.push(value);
-                __handle_list_location.push(location);
+                {
+                    handle_list.push(value);
+                    __handle_list_location.push(location);
+                }
             }
         }
         let mut calibration_handle_text: Option<CalibrationHandleText> = None;
@@ -5596,11 +5426,11 @@ impl CalibrationHandle {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 1usize] = ["CALIBRATION_HANDLE_TEXT"];
             match tag {
                 "CALIBRATION_HANDLE_TEXT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(
                         context,
                         "CALIBRATION_HANDLE_TEXT",
@@ -5613,39 +5443,9 @@ impl CalibrationHandle {
                         calibration_handle_text.is_some(),
                     )?;
                     calibration_handle_text = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -5711,6 +5511,7 @@ impl CalibrationHandle {
         writer.finish()
     }
 }
+
 /// Additional text for a calibration handle
 ///
 /// Specification: 3.5.27
@@ -5771,8 +5572,8 @@ impl A2lObject<(u32, ())> for CalibrationHandleText {
     }
 }
 
-impl CalibrationHandleText {
-    pub(crate) fn parse(
+impl ParseableA2lObject for CalibrationHandleText {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -5807,6 +5608,7 @@ impl CalibrationHandleText {
         writer.finish()
     }
 }
+
 /// Indicates the different methods of access that are implemented in the ECU
 ///
 /// Valid method strings are: \"`InCircuit`\", \"SERAM\", \"DSERAP\", \"BSERAP\"
@@ -5878,8 +5680,8 @@ impl A2lObject<(u32, (u32, bool))> for CalibrationMethod {
     }
 }
 
-impl CalibrationMethod {
-    pub(crate) fn parse(
+impl ParseableA2lObject for CalibrationMethod {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -5901,47 +5703,17 @@ impl CalibrationMethod {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 1usize] = ["CALIBRATION_HANDLE"];
             match tag {
                 "CALIBRATION_HANDLE" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = CalibrationHandle::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, calibration_handle.is_some())?;
                     calibration_handle = Some(newitem);
-                    expect_block = true;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -5996,6 +5768,7 @@ impl CalibrationMethod {
         writer.finish()
     }
 }
+
 /// Describes the encoding of a string, if it is not ASCII
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CharacterEncoding {
@@ -6004,10 +5777,11 @@ pub enum CharacterEncoding {
     Utf32,
 }
 
-impl CharacterEncoding {
-    pub(crate) fn parse(
+impl ParseableA2lObject for CharacterEncoding {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
+        __start_offset: u32,
     ) -> Result<Self, ParserError> {
         let enumname = parser.get_identifier(context)?;
         match &*enumname {
@@ -6343,8 +6117,8 @@ impl A2lObjectName for Characteristic {
     }
 }
 
-impl Characteristic {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Characteristic {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -6362,7 +6136,7 @@ impl Characteristic {
         );
         let (__characteristic_type_location, characteristic_type) = (
             parser.get_current_line_offset(),
-            CharacteristicType::parse(parser, context)?,
+            CharacteristicType::parse(parser, context, 0)?,
         );
         let (__address_location, address) = {
             let line = parser.get_current_line_offset();
@@ -6420,8 +6194,7 @@ impl Characteristic {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 27usize] = [
                 "ANNOTATION",
                 "AXIS_DESCR",
@@ -6453,34 +6226,35 @@ impl Characteristic {
             ];
             match tag {
                 "ANNOTATION" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = Annotation::parse(parser, &newcontext, line_offset)?;
                     annotation.push(newitem);
-                    expect_block = true;
                 }
                 "AXIS_DESCR" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = AxisDescr::parse(parser, &newcontext, line_offset)?;
                     axis_descr.push(newitem);
-                    expect_block = true;
                 }
                 "BIT_MASK" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = BitMask::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, bit_mask.is_some())?;
                     bit_mask = Some(newitem);
-                    expect_block = false;
                 }
                 "BYTE_ORDER" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ByteOrder::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, byte_order.is_some())?;
                     byte_order = Some(newitem);
-                    expect_block = false;
                 }
                 "CALIBRATION_ACCESS" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = CalibrationAccess::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, calibration_access.is_some())?;
                     calibration_access = Some(newitem);
-                    expect_block = false;
                 }
                 "COMPARISON_QUANTITY" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ComparisonQuantity::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(
                         context,
@@ -6488,9 +6262,9 @@ impl Characteristic {
                         comparison_quantity.is_some(),
                     )?;
                     comparison_quantity = Some(newitem);
-                    expect_block = false;
                 }
                 "DEPENDENT_CHARACTERISTIC" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = DependentCharacteristic::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(
                         context,
@@ -6498,22 +6272,22 @@ impl Characteristic {
                         dependent_characteristic.is_some(),
                     )?;
                     dependent_characteristic = Some(newitem);
-                    expect_block = true;
                 }
                 "DISCRETE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "DISCRETE", A2lVersion::V1_6_0)?;
                     let newitem = Discrete::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, discrete.is_some())?;
                     discrete = Some(newitem);
-                    expect_block = false;
                 }
                 "DISPLAY_IDENTIFIER" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = DisplayIdentifier::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, display_identifier.is_some())?;
                     display_identifier = Some(newitem);
-                    expect_block = false;
                 }
                 "ECU_ADDRESS_EXTENSION" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = EcuAddressExtension::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(
                         context,
@@ -6521,109 +6295,109 @@ impl Characteristic {
                         ecu_address_extension.is_some(),
                     )?;
                     ecu_address_extension = Some(newitem);
-                    expect_block = false;
                 }
                 "ENCODING" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "ENCODING", A2lVersion::V1_7_0)?;
                     let newitem = Encoding::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, encoding.is_some())?;
                     encoding = Some(newitem);
-                    expect_block = false;
                 }
                 "EXTENDED_LIMITS" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ExtendedLimits::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, extended_limits.is_some())?;
                     extended_limits = Some(newitem);
-                    expect_block = false;
                 }
                 "FORMAT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Format::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, format.is_some())?;
                     format = Some(newitem);
-                    expect_block = false;
                 }
                 "FUNCTION_LIST" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = FunctionList::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, function_list.is_some())?;
                     function_list = Some(newitem);
-                    expect_block = true;
                 }
                 "GUARD_RAILS" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = GuardRails::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, guard_rails.is_some())?;
                     guard_rails = Some(newitem);
-                    expect_block = false;
                 }
                 "IF_DATA" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = IfData::parse(parser, &newcontext, line_offset)?;
                     if_data.push(newitem);
-                    expect_block = true;
                 }
                 "MAP_LIST" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = MapList::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, map_list.is_some())?;
                     map_list = Some(newitem);
-                    expect_block = true;
                 }
                 "MATRIX_DIM" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = MatrixDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, matrix_dim.is_some())?;
                     matrix_dim = Some(newitem);
-                    expect_block = false;
                 }
                 "MAX_REFRESH" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = MaxRefresh::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, max_refresh.is_some())?;
                     max_refresh = Some(newitem);
-                    expect_block = false;
                 }
                 "MODEL_LINK" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "MODEL_LINK", A2lVersion::V1_7_0)?;
                     let newitem = ModelLink::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, model_link.is_some())?;
                     model_link = Some(newitem);
-                    expect_block = false;
                 }
                 "NUMBER" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Number::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, number.is_some())?;
                     number = Some(newitem);
-                    expect_block = false;
                 }
                 "PHYS_UNIT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "PHYS_UNIT", A2lVersion::V1_6_0)?;
                     let newitem = PhysUnit::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, phys_unit.is_some())?;
                     phys_unit = Some(newitem);
-                    expect_block = false;
                 }
                 "READ_ONLY" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ReadOnly::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, read_only.is_some())?;
                     read_only = Some(newitem);
-                    expect_block = false;
                 }
                 "REF_MEMORY_SEGMENT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = RefMemorySegment::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, ref_memory_segment.is_some())?;
                     ref_memory_segment = Some(newitem);
-                    expect_block = false;
                 }
                 "STEP_SIZE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "STEP_SIZE", A2lVersion::V1_6_0)?;
                     let newitem = StepSize::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, step_size.is_some())?;
                     step_size = Some(newitem);
-                    expect_block = false;
                 }
                 "SYMBOL_LINK" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "SYMBOL_LINK", A2lVersion::V1_6_0)?;
                     let newitem = SymbolLink::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, symbol_link.is_some())?;
                     symbol_link = Some(newitem);
-                    expect_block = false;
                 }
                 "VIRTUAL_CHARACTERISTIC" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = VirtualCharacteristic::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(
                         context,
@@ -6631,39 +6405,9 @@ impl Characteristic {
                         virtual_characteristic.is_some(),
                     )?;
                     virtual_characteristic = Some(newitem);
-                    expect_block = true;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -7135,6 +6879,7 @@ impl Characteristic {
         writer.finish()
     }
 }
+
 /// Specifies the type of an adjustable object
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CharacteristicType {
@@ -7148,10 +6893,11 @@ pub enum CharacteristicType {
     Value,
 }
 
-impl CharacteristicType {
-    pub(crate) fn parse(
+impl ParseableA2lObject for CharacteristicType {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
+        __start_offset: u32,
     ) -> Result<Self, ParserError> {
         let enumname = parser.get_identifier(context)?;
         match &*enumname {
@@ -7195,6 +6941,7 @@ impl std::fmt::Display for CharacteristicType {
         f.write_str(tag)
     }
 }
+
 /// Specifies the coefficients for the formula f(x) = (axx + bx + c) / (dxx + ex + f)
 #[derive(Clone)]
 pub struct Coeffs {
@@ -7273,8 +7020,8 @@ impl A2lObject<(u32, u32, u32, u32, u32, u32)> for Coeffs {
     }
 }
 
-impl Coeffs {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Coeffs {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -7345,6 +7092,7 @@ impl Coeffs {
         writer.finish()
     }
 }
+
 /// Specifies the coefficients for the linear formula f(x) = ax + b
 #[derive(Clone)]
 pub struct CoeffsLinear {
@@ -7406,8 +7154,8 @@ impl A2lObject<(u32, u32)> for CoeffsLinear {
     }
 }
 
-impl CoeffsLinear {
-    pub(crate) fn parse(
+impl ParseableA2lObject for CoeffsLinear {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -7447,6 +7195,7 @@ impl CoeffsLinear {
         writer.finish()
     }
 }
+
 ///Auto generated for repeating sequence combination in block `VAR_FORBIDDEN_COMB`
 #[derive(Clone)]
 pub struct CombinationStruct {
@@ -7509,8 +7258,8 @@ impl A2lObject<(u32, u32)> for CombinationStruct {
     }
 }
 
-impl CombinationStruct {
-    pub(crate) fn parse(
+impl ParseableA2lObject for CombinationStruct {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -7548,6 +7297,7 @@ impl CombinationStruct {
         writer.add_str(&self.criterion_value, self.__block_info.item_location.1);
     }
 }
+
 /// references a valid MEASUREMENT
 #[derive(Clone)]
 pub struct ComparisonQuantity {
@@ -7612,8 +7362,8 @@ impl A2lObjectName for ComparisonQuantity {
     }
 }
 
-impl ComparisonQuantity {
-    pub(crate) fn parse(
+impl ParseableA2lObject for ComparisonQuantity {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -7648,6 +7398,7 @@ impl ComparisonQuantity {
         writer.finish()
     }
 }
+
 /// Specification of a conversion method from internal values to physical values
 #[derive(Clone)]
 pub struct CompuMethod {
@@ -7776,8 +7527,8 @@ impl A2lObjectName for CompuMethod {
     }
 }
 
-impl CompuMethod {
-    pub(crate) fn parse(
+impl ParseableA2lObject for CompuMethod {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -7795,7 +7546,7 @@ impl CompuMethod {
         );
         let (__conversion_type_location, conversion_type) = (
             parser.get_current_line_offset(),
-            ConversionType::parse(parser, context)?,
+            ConversionType::parse(parser, context, 0)?,
         );
         let (__format_location, format) = (
             parser.get_current_line_offset(),
@@ -7815,8 +7566,7 @@ impl CompuMethod {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 6usize] = [
                 "COEFFS",
                 "COEFFS_LINEAR",
@@ -7827,12 +7577,13 @@ impl CompuMethod {
             ];
             match tag {
                 "COEFFS" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Coeffs::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, coeffs.is_some())?;
                     coeffs = Some(newitem);
-                    expect_block = false;
                 }
                 "COEFFS_LINEAR" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(
                         context,
                         "COEFFS_LINEAR",
@@ -7841,27 +7592,27 @@ impl CompuMethod {
                     let newitem = CoeffsLinear::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, coeffs_linear.is_some())?;
                     coeffs_linear = Some(newitem);
-                    expect_block = false;
                 }
                 "COMPU_TAB_REF" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = CompuTabRef::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, compu_tab_ref.is_some())?;
                     compu_tab_ref = Some(newitem);
-                    expect_block = false;
                 }
                 "FORMULA" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = Formula::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, formula.is_some())?;
                     formula = Some(newitem);
-                    expect_block = true;
                 }
                 "REF_UNIT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = RefUnit::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, ref_unit.is_some())?;
                     ref_unit = Some(newitem);
-                    expect_block = false;
                 }
                 "STATUS_STRING_REF" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(
                         context,
                         "STATUS_STRING_REF",
@@ -7870,39 +7621,9 @@ impl CompuMethod {
                     let newitem = StatusStringRef::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, status_string_ref.is_some())?;
                     status_string_ref = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -8043,6 +7764,7 @@ impl CompuMethod {
         writer.finish()
     }
 }
+
 /// Conversion table for conversions that cannot be represented as a function
 #[derive(Clone)]
 pub struct CompuTab {
@@ -8142,8 +7864,8 @@ impl A2lObjectName for CompuTab {
     }
 }
 
-impl CompuTab {
-    pub(crate) fn parse(
+impl ParseableA2lObject for CompuTab {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -8161,7 +7883,7 @@ impl CompuTab {
         );
         let (__conversion_type_location, conversion_type) = (
             parser.get_current_line_offset(),
-            ConversionType::parse(parser, context)?,
+            ConversionType::parse(parser, context, 0)?,
         );
         let (__number_value_pairs_location, number_value_pairs) = {
             let line = parser.get_current_line_offset();
@@ -8186,8 +7908,10 @@ impl CompuTab {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                tab_entry.push(value);
-                __tab_entry_location.push(location);
+                {
+                    tab_entry.push(value);
+                    __tab_entry_location.push(location);
+                }
             }
         }
         let mut default_value: Option<DefaultValue> = None;
@@ -8196,17 +7920,17 @@ impl CompuTab {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 2usize] = ["DEFAULT_VALUE", "DEFAULT_VALUE_NUMERIC"];
             match tag {
                 "DEFAULT_VALUE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = DefaultValue::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, default_value.is_some())?;
                     default_value = Some(newitem);
-                    expect_block = false;
                 }
                 "DEFAULT_VALUE_NUMERIC" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(
                         context,
                         "DEFAULT_VALUE_NUMERIC",
@@ -8219,39 +7943,9 @@ impl CompuTab {
                         default_value_numeric.is_some(),
                     )?;
                     default_value_numeric = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -8338,6 +8032,7 @@ impl CompuTab {
         writer.finish()
     }
 }
+
 /// reference to a conversion table
 #[derive(Clone)]
 pub struct CompuTabRef {
@@ -8396,8 +8091,8 @@ impl A2lObject<(u32, ())> for CompuTabRef {
     }
 }
 
-impl CompuTabRef {
-    pub(crate) fn parse(
+impl ParseableA2lObject for CompuTabRef {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -8432,6 +8127,7 @@ impl CompuTabRef {
         writer.finish()
     }
 }
+
 /// Conversion table for the assignment of display strings to values. Typically used for enums.
 #[derive(Clone)]
 pub struct CompuVtab {
@@ -8524,8 +8220,8 @@ impl A2lObjectName for CompuVtab {
     }
 }
 
-impl CompuVtab {
-    pub(crate) fn parse(
+impl ParseableA2lObject for CompuVtab {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -8543,7 +8239,7 @@ impl CompuVtab {
         );
         let (__conversion_type_location, conversion_type) = (
             parser.get_current_line_offset(),
-            ConversionType::parse(parser, context)?,
+            ConversionType::parse(parser, context, 0)?,
         );
         let (__number_value_pairs_location, number_value_pairs) = {
             let line = parser.get_current_line_offset();
@@ -8568,8 +8264,10 @@ impl CompuVtab {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                value_pairs.push(value);
-                __value_pairs_location.push(location);
+                {
+                    value_pairs.push(value);
+                    __value_pairs_location.push(location);
+                }
             }
         }
         let mut default_value: Option<DefaultValue> = None;
@@ -8577,47 +8275,17 @@ impl CompuVtab {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 1usize] = ["DEFAULT_VALUE"];
             match tag {
                 "DEFAULT_VALUE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = DefaultValue::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, default_value.is_some())?;
                     default_value = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -8689,6 +8357,7 @@ impl CompuVtab {
         writer.finish()
     }
 }
+
 /// Conversion table for the assignment of display strings to a value range
 #[derive(Clone)]
 pub struct CompuVtabRange {
@@ -8772,8 +8441,8 @@ impl A2lObjectName for CompuVtabRange {
     }
 }
 
-impl CompuVtabRange {
-    pub(crate) fn parse(
+impl ParseableA2lObject for CompuVtabRange {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -8812,8 +8481,10 @@ impl CompuVtabRange {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                value_triples.push(value);
-                __value_triples_location.push(location);
+                {
+                    value_triples.push(value);
+                    __value_triples_location.push(location);
+                }
             }
         }
         let mut default_value: Option<DefaultValue> = None;
@@ -8821,47 +8492,17 @@ impl CompuVtabRange {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 1usize] = ["DEFAULT_VALUE"];
             match tag {
                 "DEFAULT_VALUE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = DefaultValue::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, default_value.is_some())?;
                     default_value = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -8927,6 +8568,7 @@ impl CompuVtabRange {
         writer.finish()
     }
 }
+
 /// indicates that an instance of a structure should always be handled completely
 #[derive(Clone)]
 pub struct ConsistentExchange {
@@ -8981,8 +8623,8 @@ impl A2lObject<()> for ConsistentExchange {
     }
 }
 
-impl ConsistentExchange {
-    pub(crate) fn parse(
+impl ParseableA2lObject for ConsistentExchange {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -9010,6 +8652,7 @@ impl ConsistentExchange {
         writer.finish()
     }
 }
+
 /// CONVERSION is used inside OVERWRITE to override the default conversion method
 #[derive(Clone)]
 pub struct Conversion {
@@ -9074,8 +8717,8 @@ impl A2lObjectName for Conversion {
     }
 }
 
-impl Conversion {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Conversion {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -9110,6 +8753,7 @@ impl Conversion {
         writer.finish()
     }
 }
+
 /// Describes how to convert internal input values to physical values
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConversionType {
@@ -9122,10 +8766,11 @@ pub enum ConversionType {
     TabVerb,
 }
 
-impl ConversionType {
-    pub(crate) fn parse(
+impl ParseableA2lObject for ConversionType {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
+        __start_offset: u32,
     ) -> Result<Self, ParserError> {
         let enumname = parser.get_identifier(context)?;
         match &*enumname {
@@ -9167,6 +8812,7 @@ impl std::fmt::Display for ConversionType {
         f.write_str(tag)
     }
 }
+
 /// Identifies the CPU used in the ECU
 #[derive(Clone)]
 pub struct CpuType {
@@ -9223,8 +8869,8 @@ impl A2lObject<(u32, ())> for CpuType {
     }
 }
 
-impl CpuType {
-    pub(crate) fn parse(
+impl ParseableA2lObject for CpuType {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -9259,6 +8905,7 @@ impl CpuType {
         writer.finish()
     }
 }
+
 /// Used to specify the adjustable CURVE CHARACTERISTIC that is used to normalize or scale the axis in an `AXIS_DESCR`
 #[derive(Clone)]
 pub struct CurveAxisRef {
@@ -9317,8 +8964,8 @@ impl A2lObject<(u32, ())> for CurveAxisRef {
     }
 }
 
-impl CurveAxisRef {
-    pub(crate) fn parse(
+impl ParseableA2lObject for CurveAxisRef {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -9353,6 +9000,7 @@ impl CurveAxisRef {
         writer.finish()
     }
 }
+
 /// Allows a customer name to be specified
 #[derive(Clone)]
 pub struct Customer {
@@ -9411,8 +9059,8 @@ impl A2lObject<(u32, ())> for Customer {
     }
 }
 
-impl Customer {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Customer {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -9447,6 +9095,7 @@ impl Customer {
         writer.finish()
     }
 }
+
 /// specify a customer number or identifier as a string
 #[derive(Clone)]
 pub struct CustomerNo {
@@ -9505,8 +9154,8 @@ impl A2lObject<(u32, ())> for CustomerNo {
     }
 }
 
-impl CustomerNo {
-    pub(crate) fn parse(
+impl ParseableA2lObject for CustomerNo {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -9541,6 +9190,7 @@ impl CustomerNo {
         writer.finish()
     }
 }
+
 /// Data size in bits
 #[derive(Clone)]
 pub struct DataSize {
@@ -9599,8 +9249,8 @@ impl A2lObject<((u32, bool), ())> for DataSize {
     }
 }
 
-impl DataSize {
-    pub(crate) fn parse(
+impl ParseableA2lObject for DataSize {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -9640,6 +9290,7 @@ impl DataSize {
         writer.finish()
     }
 }
+
 /// Description of the basic data types in the ECU program.
 ///
 /// Specification: predefined data types
@@ -9658,10 +9309,11 @@ pub enum DataType {
     Float64Ieee,
 }
 
-impl DataType {
-    pub(crate) fn parse(
+impl ParseableA2lObject for DataType {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
+        __start_offset: u32,
     ) -> Result<Self, ParserError> {
         let enumname = parser.get_identifier(context)?;
         match &*enumname {
@@ -9714,6 +9366,7 @@ impl std::fmt::Display for DataType {
         f.write_str(tag)
     }
 }
+
 /// Description of the word lengths in the ECU program.
 ///
 /// Specification: predefined data types (datasize)
@@ -9724,10 +9377,11 @@ pub enum DataTypeSize {
     Long,
 }
 
-impl DataTypeSize {
-    pub(crate) fn parse(
+impl ParseableA2lObject for DataTypeSize {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
+        __start_offset: u32,
     ) -> Result<Self, ParserError> {
         let enumname = parser.get_identifier(context)?;
         match &*enumname {
@@ -9755,6 +9409,7 @@ impl std::fmt::Display for DataTypeSize {
         f.write_str(tag)
     }
 }
+
 /// Defines which adjustable objects are used by a FUNCTION
 #[derive(Clone)]
 pub struct DefCharacteristic {
@@ -9813,8 +9468,8 @@ impl A2lObject<(Vec<u32>, ())> for DefCharacteristic {
     }
 }
 
-impl DefCharacteristic {
-    pub(crate) fn parse(
+impl ParseableA2lObject for DefCharacteristic {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -9840,8 +9495,10 @@ impl DefCharacteristic {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                identifier_list.push(value);
-                __identifier_list_location.push(location);
+                {
+                    identifier_list.push(value);
+                    __identifier_list_location.push(location);
+                }
             }
         }
         let __dummy = ();
@@ -9877,6 +9534,7 @@ impl DefCharacteristic {
         writer.finish()
     }
 }
+
 /// Sets the default text value of `COMPU_TAB`, `COMPU_VTAB` or `COMPU_VTAB_RANGE`
 #[derive(Clone)]
 pub struct DefaultValue {
@@ -9935,8 +9593,8 @@ impl A2lObject<(u32, ())> for DefaultValue {
     }
 }
 
-impl DefaultValue {
-    pub(crate) fn parse(
+impl ParseableA2lObject for DefaultValue {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -9971,6 +9629,7 @@ impl DefaultValue {
         writer.finish()
     }
 }
+
 /// Sets the default numerical value of `COMPU_TAB`, `COMPU_VTAB` or `COMPU_VTAB_RANGE`
 #[derive(Clone)]
 pub struct DefaultValueNumeric {
@@ -10029,8 +9688,8 @@ impl A2lObject<(u32, ())> for DefaultValueNumeric {
     }
 }
 
-impl DefaultValueNumeric {
-    pub(crate) fn parse(
+impl ParseableA2lObject for DefaultValueNumeric {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -10065,6 +9724,7 @@ impl DefaultValueNumeric {
         writer.finish()
     }
 }
+
 /// Specify characteristics that depend on a formula
 #[derive(Clone)]
 pub struct DependentCharacteristic {
@@ -10126,8 +9786,8 @@ impl A2lObject<(u32, Vec<u32>)> for DependentCharacteristic {
     }
 }
 
-impl DependentCharacteristic {
-    pub(crate) fn parse(
+impl ParseableA2lObject for DependentCharacteristic {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -10157,8 +9817,10 @@ impl DependentCharacteristic {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                characteristic_list.push(value);
-                __characteristic_list_location.push(location);
+                {
+                    characteristic_list.push(value);
+                    __characteristic_list_location.push(location);
+                }
             }
         }
         let __end_offset = parser.get_current_line_offset();
@@ -10195,6 +9857,7 @@ impl DependentCharacteristic {
         writer.finish()
     }
 }
+
 /// Specifies how the axis points of a characteristic are deposited in memory
 #[derive(Clone)]
 pub struct Deposit {
@@ -10251,8 +9914,8 @@ impl A2lObject<(u32, ())> for Deposit {
     }
 }
 
-impl Deposit {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Deposit {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -10262,7 +9925,7 @@ impl Deposit {
         let __uid = parser.get_next_id();
         let (__mode_location, mode) = (
             parser.get_current_line_offset(),
-            DepositMode::parse(parser, context)?,
+            DepositMode::parse(parser, context, 0)?,
         );
         let __dummy = ();
         let __end_offset: u32 = 0;
@@ -10287,6 +9950,7 @@ impl Deposit {
         writer.finish()
     }
 }
+
 /// Deposit of the axis points of a characteristic curve or map
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DepositMode {
@@ -10294,10 +9958,11 @@ pub enum DepositMode {
     Difference,
 }
 
-impl DepositMode {
-    pub(crate) fn parse(
+impl ParseableA2lObject for DepositMode {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
+        __start_offset: u32,
     ) -> Result<Self, ParserError> {
         let enumname = parser.get_identifier(context)?;
         match &*enumname {
@@ -10323,6 +9988,7 @@ impl std::fmt::Display for DepositMode {
         f.write_str(tag)
     }
 }
+
 /// Indicates that a measurement or calibration object has discrete values which should not be interpolated
 #[derive(Clone)]
 pub struct Discrete {
@@ -10377,8 +10043,8 @@ impl A2lObject<()> for Discrete {
     }
 }
 
-impl Discrete {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Discrete {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -10406,6 +10072,7 @@ impl Discrete {
         writer.finish()
     }
 }
+
 /// Gives the display name of a CHARACTERISTIC or MEASUREMENT value
 #[derive(Clone)]
 pub struct DisplayIdentifier {
@@ -10464,8 +10131,8 @@ impl A2lObject<(u32, ())> for DisplayIdentifier {
     }
 }
 
-impl DisplayIdentifier {
-    pub(crate) fn parse(
+impl ParseableA2lObject for DisplayIdentifier {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -10500,6 +10167,7 @@ impl DisplayIdentifier {
         writer.finish()
     }
 }
+
 /// Description of the distance operand in the deposit structure to compute the axis points for fixed characteristic curves and fixed characteristic maps
 #[derive(Clone)]
 pub struct DistOpDim {
@@ -10561,8 +10229,8 @@ impl A2lObject<((u32, bool), u32)> for DistOpDim {
     }
 }
 
-impl DistOpDim {
-    pub(crate) fn parse(
+impl ParseableA2lObject for DistOpDim {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -10577,7 +10245,7 @@ impl DistOpDim {
         };
         let (__datatype_location, datatype) = (
             parser.get_current_line_offset(),
-            DataType::parse(parser, context)?,
+            DataType::parse(parser, context, 0)?,
         );
         let __end_offset: u32 = 0;
         Ok(Self {
@@ -10610,6 +10278,7 @@ impl DistOpDim {
         writer.finish()
     }
 }
+
 /// String for identification of the control unit.
 #[derive(Clone)]
 pub struct Ecu {
@@ -10668,8 +10337,8 @@ impl A2lObject<(u32, ())> for Ecu {
     }
 }
 
-impl Ecu {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Ecu {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -10704,6 +10373,7 @@ impl Ecu {
         writer.finish()
     }
 }
+
 /// Provides the address of a MEASUREMENT
 #[derive(Clone)]
 pub struct EcuAddress {
@@ -10762,8 +10432,8 @@ impl A2lObject<((u32, bool), ())> for EcuAddress {
     }
 }
 
-impl EcuAddress {
-    pub(crate) fn parse(
+impl ParseableA2lObject for EcuAddress {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -10803,6 +10473,7 @@ impl EcuAddress {
         writer.finish()
     }
 }
+
 /// Used to specify additional address information
 #[derive(Clone)]
 pub struct EcuAddressExtension {
@@ -10861,8 +10532,8 @@ impl A2lObject<((u32, bool), ())> for EcuAddressExtension {
     }
 }
 
-impl EcuAddressExtension {
-    pub(crate) fn parse(
+impl ParseableA2lObject for EcuAddressExtension {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -10902,6 +10573,7 @@ impl EcuAddressExtension {
         writer.finish()
     }
 }
+
 /// Provide an address offset in order to handle near pointers or variant coding
 #[derive(Clone)]
 pub struct EcuCalibrationOffset {
@@ -10960,8 +10632,8 @@ impl A2lObject<((u32, bool), ())> for EcuCalibrationOffset {
     }
 }
 
-impl EcuCalibrationOffset {
-    pub(crate) fn parse(
+impl ParseableA2lObject for EcuCalibrationOffset {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -11001,6 +10673,7 @@ impl EcuCalibrationOffset {
         writer.finish()
     }
 }
+
 /// a CHARACTERISTIC of type ASCII can be configured to use a multi-byte encoding instead
 #[derive(Clone)]
 pub struct Encoding {
@@ -11059,8 +10732,8 @@ impl A2lObject<(u32, ())> for Encoding {
     }
 }
 
-impl Encoding {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Encoding {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -11070,7 +10743,7 @@ impl Encoding {
         let __uid = parser.get_next_id();
         let (__encoding_location, encoding) = (
             parser.get_current_line_offset(),
-            CharacterEncoding::parse(parser, context)?,
+            CharacterEncoding::parse(parser, context, 0)?,
         );
         let __dummy = ();
         let __end_offset: u32 = 0;
@@ -11098,6 +10771,7 @@ impl Encoding {
         writer.finish()
     }
 }
+
 /// EPROM identifier
 #[derive(Clone)]
 pub struct Epk {
@@ -11156,8 +10830,8 @@ impl A2lObject<(u32, ())> for Epk {
     }
 }
 
-impl Epk {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Epk {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -11192,6 +10866,7 @@ impl Epk {
         writer.finish()
     }
 }
+
 /// Used to mask bits of a MEASUREMENT which indicate that the value is in error
 #[derive(Clone)]
 pub struct ErrorMask {
@@ -11250,8 +10925,8 @@ impl A2lObject<((u32, bool), ())> for ErrorMask {
     }
 }
 
-impl ErrorMask {
-    pub(crate) fn parse(
+impl ParseableA2lObject for ErrorMask {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -11291,6 +10966,7 @@ impl ErrorMask {
         writer.finish()
     }
 }
+
 /// used to specify an extended range of values
 #[derive(Clone)]
 pub struct ExtendedLimits {
@@ -11352,8 +11028,8 @@ impl A2lObject<(u32, u32)> for ExtendedLimits {
     }
 }
 
-impl ExtendedLimits {
-    pub(crate) fn parse(
+impl ParseableA2lObject for ExtendedLimits {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -11393,6 +11069,7 @@ impl ExtendedLimits {
         writer.finish()
     }
 }
+
 /// Parameters for the calculation of fixed axis points: `X_i` = Offset + (i - 1)*2^shift
 #[derive(Clone)]
 pub struct FixAxisPar {
@@ -11459,8 +11136,8 @@ impl A2lObject<((u32, bool), (u32, bool), (u32, bool))> for FixAxisPar {
     }
 }
 
-impl FixAxisPar {
-    pub(crate) fn parse(
+impl ParseableA2lObject for FixAxisPar {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -11521,6 +11198,7 @@ impl FixAxisPar {
         writer.finish()
     }
 }
+
 /// Parameters for the calculation of fixed axis points: `X_i` = Offset + (i - 1)*distance
 #[derive(Clone)]
 pub struct FixAxisParDist {
@@ -11587,8 +11265,8 @@ impl A2lObject<((u32, bool), (u32, bool), (u32, bool))> for FixAxisParDist {
     }
 }
 
-impl FixAxisParDist {
-    pub(crate) fn parse(
+impl ParseableA2lObject for FixAxisParDist {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -11653,6 +11331,7 @@ impl FixAxisParDist {
         writer.finish()
     }
 }
+
 /// A list of fixed axis point, as implemented on the ECU
 #[derive(Clone)]
 pub struct FixAxisParList {
@@ -11711,8 +11390,8 @@ impl A2lObject<(Vec<u32>, ())> for FixAxisParList {
     }
 }
 
-impl FixAxisParList {
-    pub(crate) fn parse(
+impl ParseableA2lObject for FixAxisParList {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -11738,8 +11417,10 @@ impl FixAxisParList {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                axis_pts_value_list.push(value);
-                __axis_pts_value_list_location.push(location);
+                {
+                    axis_pts_value_list.push(value);
+                    __axis_pts_value_list_location.push(location);
+                }
             }
         }
         let __dummy = ();
@@ -11775,6 +11456,7 @@ impl FixAxisParList {
         writer.finish()
     }
 }
+
 /// Specifies the number of axis points available to CURVE, MAP, CUBOID, `CUBE_4` or `CUBE_5`
 #[derive(Clone)]
 pub struct FixNoAxisPtsDim {
@@ -11833,8 +11515,8 @@ impl A2lObject<((u32, bool), ())> for FixNoAxisPtsDim {
     }
 }
 
-impl FixNoAxisPtsDim {
-    pub(crate) fn parse(
+impl ParseableA2lObject for FixNoAxisPtsDim {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -11874,6 +11556,7 @@ impl FixNoAxisPtsDim {
         writer.finish()
     }
 }
+
 /// Description of the table values (function values) of an adjustable object
 #[derive(Clone)]
 pub struct FncValues {
@@ -11949,8 +11632,8 @@ impl A2lObject<((u32, bool), u32, u32, u32)> for FncValues {
     }
 }
 
-impl FncValues {
-    pub(crate) fn parse(
+impl ParseableA2lObject for FncValues {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -11965,15 +11648,15 @@ impl FncValues {
         };
         let (__datatype_location, datatype) = (
             parser.get_current_line_offset(),
-            DataType::parse(parser, context)?,
+            DataType::parse(parser, context, 0)?,
         );
         let (__index_mode_location, index_mode) = (
             parser.get_current_line_offset(),
-            IndexMode::parse(parser, context)?,
+            IndexMode::parse(parser, context, 0)?,
         );
         let (__address_type_location, address_type) = (
             parser.get_current_line_offset(),
-            AddrType::parse(parser, context)?,
+            AddrType::parse(parser, context, 0)?,
         );
         let __end_offset: u32 = 0;
         Ok(Self {
@@ -12021,6 +11704,7 @@ impl FncValues {
         writer.finish()
     }
 }
+
 /// Allows a display format string to be specified for a MEASUREMENT, CHARACTERISTIC or `AXIS_PTS` object
 #[derive(Clone)]
 pub struct Format {
@@ -12079,8 +11763,8 @@ impl A2lObject<(u32, ())> for Format {
     }
 }
 
-impl Format {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Format {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -12115,6 +11799,7 @@ impl Format {
         writer.finish()
     }
 }
+
 /// Allows any kind of formula to be specified
 #[derive(Clone)]
 pub struct Formula {
@@ -12179,8 +11864,8 @@ impl A2lObject<(u32, ())> for Formula {
     }
 }
 
-impl Formula {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Formula {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -12197,47 +11882,17 @@ impl Formula {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 1usize] = ["FORMULA_INV"];
             match tag {
                 "FORMULA_INV" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = FormulaInv::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, formula_inv.is_some())?;
                     formula_inv = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -12287,6 +11942,7 @@ impl Formula {
         writer.finish()
     }
 }
+
 /// Allows an inverse formula to be specified
 #[derive(Clone)]
 pub struct FormulaInv {
@@ -12343,8 +11999,8 @@ impl A2lObject<(u32, ())> for FormulaInv {
     }
 }
 
-impl FormulaInv {
-    pub(crate) fn parse(
+impl ParseableA2lObject for FormulaInv {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -12379,6 +12035,7 @@ impl FormulaInv {
         writer.finish()
     }
 }
+
 /// Defines a function frame to structure large amounts of measurement objects
 #[derive(Clone)]
 pub struct Frame {
@@ -12469,8 +12126,8 @@ impl A2lObjectName for Frame {
     }
 }
 
-impl Frame {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Frame {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -12502,52 +12159,22 @@ impl Frame {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 2usize] = ["FRAME_MEASUREMENT", "IF_DATA"];
             match tag {
                 "FRAME_MEASUREMENT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = FrameMeasurement::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, frame_measurement.is_some())?;
                     frame_measurement = Some(newitem);
-                    expect_block = false;
                 }
                 "IF_DATA" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = IfData::parse(parser, &newcontext, line_offset)?;
                     if_data.push(newitem);
-                    expect_block = true;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -12630,6 +12257,7 @@ impl Frame {
         writer.finish()
     }
 }
+
 /// Contains a list of identifiers of measurement objects
 #[derive(Clone)]
 pub struct FrameMeasurement {
@@ -12688,8 +12316,8 @@ impl A2lObject<(Vec<u32>, ())> for FrameMeasurement {
     }
 }
 
-impl FrameMeasurement {
-    pub(crate) fn parse(
+impl ParseableA2lObject for FrameMeasurement {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -12715,8 +12343,10 @@ impl FrameMeasurement {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                identifier_list.push(value);
-                __identifier_list_location.push(location);
+                {
+                    identifier_list.push(value);
+                    __identifier_list_location.push(location);
+                }
             }
         }
         let __dummy = ();
@@ -12747,6 +12377,7 @@ impl FrameMeasurement {
         writer.finish()
     }
 }
+
 /// Describes the input, local, and output variables of a function on the ECU
 #[derive(Clone)]
 pub struct Function {
@@ -12885,8 +12516,8 @@ impl A2lObjectName for Function {
     }
 }
 
-impl Function {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Function {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -12916,8 +12547,7 @@ impl Function {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 10usize] = [
                 "ANNOTATION",
                 "AR_COMPONENT",
@@ -12932,11 +12562,12 @@ impl Function {
             ];
             match tag {
                 "ANNOTATION" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = Annotation::parse(parser, &newcontext, line_offset)?;
                     annotation.push(newitem);
-                    expect_block = true;
                 }
                 "AR_COMPONENT" => {
+                    parser.require_block(tag, is_block, context)?;
                     parser.check_block_version_lower(
                         context,
                         "AR_COMPONENT",
@@ -12945,87 +12576,57 @@ impl Function {
                     let newitem = ArComponent::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, ar_component.is_some())?;
                     ar_component = Some(newitem);
-                    expect_block = true;
                 }
                 "DEF_CHARACTERISTIC" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = DefCharacteristic::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, def_characteristic.is_some())?;
                     def_characteristic = Some(newitem);
-                    expect_block = true;
                 }
                 "FUNCTION_VERSION" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = FunctionVersion::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, function_version.is_some())?;
                     function_version = Some(newitem);
-                    expect_block = false;
                 }
                 "IF_DATA" => {
+                    parser.require_block(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "IF_DATA", A2lVersion::V1_6_0)?;
                     let newitem = IfData::parse(parser, &newcontext, line_offset)?;
                     if_data.push(newitem);
-                    expect_block = true;
                 }
                 "IN_MEASUREMENT" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = InMeasurement::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, in_measurement.is_some())?;
                     in_measurement = Some(newitem);
-                    expect_block = true;
                 }
                 "LOC_MEASUREMENT" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = LocMeasurement::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, loc_measurement.is_some())?;
                     loc_measurement = Some(newitem);
-                    expect_block = true;
                 }
                 "OUT_MEASUREMENT" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = OutMeasurement::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, out_measurement.is_some())?;
                     out_measurement = Some(newitem);
-                    expect_block = true;
                 }
                 "REF_CHARACTERISTIC" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = RefCharacteristic::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, ref_characteristic.is_some())?;
                     ref_characteristic = Some(newitem);
-                    expect_block = true;
                 }
                 "SUB_FUNCTION" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = SubFunction::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, sub_function.is_some())?;
                     sub_function = Some(newitem);
-                    expect_block = true;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -13211,6 +12812,7 @@ impl Function {
         writer.finish()
     }
 }
+
 /// a list of FUNCTION objects
 #[derive(Clone)]
 pub struct FunctionList {
@@ -13269,8 +12871,8 @@ impl A2lObject<(Vec<u32>, ())> for FunctionList {
     }
 }
 
-impl FunctionList {
-    pub(crate) fn parse(
+impl ParseableA2lObject for FunctionList {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -13296,8 +12898,10 @@ impl FunctionList {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                name_list.push(value);
-                __name_list_location.push(location);
+                {
+                    name_list.push(value);
+                    __name_list_location.push(location);
+                }
             }
         }
         let __dummy = ();
@@ -13333,6 +12937,7 @@ impl FunctionList {
         writer.finish()
     }
 }
+
 /// A string containing the version of a FUNCTION
 #[derive(Clone)]
 pub struct FunctionVersion {
@@ -13391,8 +12996,8 @@ impl A2lObject<(u32, ())> for FunctionVersion {
     }
 }
 
-impl FunctionVersion {
-    pub(crate) fn parse(
+impl ParseableA2lObject for FunctionVersion {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -13427,6 +13032,7 @@ impl FunctionVersion {
         writer.finish()
     }
 }
+
 /// Defines a group of releated CHARACTERISTIC and MEASUREMENT objects
 #[derive(Clone)]
 pub struct Group {
@@ -13544,8 +13150,8 @@ impl A2lObjectName for Group {
     }
 }
 
-impl Group {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Group {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -13572,8 +13178,7 @@ impl Group {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 7usize] = [
                 "ANNOTATION",
                 "FUNCTION_LIST",
@@ -13585,77 +13190,48 @@ impl Group {
             ];
             match tag {
                 "ANNOTATION" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = Annotation::parse(parser, &newcontext, line_offset)?;
                     annotation.push(newitem);
-                    expect_block = true;
                 }
                 "FUNCTION_LIST" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = FunctionList::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, function_list.is_some())?;
                     function_list = Some(newitem);
-                    expect_block = true;
                 }
                 "IF_DATA" => {
+                    parser.require_block(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "IF_DATA", A2lVersion::V1_6_0)?;
                     let newitem = IfData::parse(parser, &newcontext, line_offset)?;
                     if_data.push(newitem);
-                    expect_block = true;
                 }
                 "REF_CHARACTERISTIC" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = RefCharacteristic::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, ref_characteristic.is_some())?;
                     ref_characteristic = Some(newitem);
-                    expect_block = true;
                 }
                 "REF_MEASUREMENT" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = RefMeasurement::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, ref_measurement.is_some())?;
                     ref_measurement = Some(newitem);
-                    expect_block = true;
                 }
                 "ROOT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Root::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, root.is_some())?;
                     root = Some(newitem);
-                    expect_block = false;
                 }
                 "SUB_GROUP" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = SubGroup::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, sub_group.is_some())?;
                     sub_group = Some(newitem);
-                    expect_block = true;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -13796,6 +13372,7 @@ impl Group {
         writer.finish()
     }
 }
+
 /// Used to indicate that an adjustable CURVE, MAP or `AXIS_PTS` uses guard rails
 #[derive(Clone)]
 pub struct GuardRails {
@@ -13850,8 +13427,8 @@ impl A2lObject<()> for GuardRails {
     }
 }
 
-impl GuardRails {
-    pub(crate) fn parse(
+impl ParseableA2lObject for GuardRails {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -13879,6 +13456,7 @@ impl GuardRails {
         writer.finish()
     }
 }
+
 /// The header of a project
 #[derive(Clone)]
 pub struct Header {
@@ -13951,8 +13529,8 @@ impl A2lObject<(u32, ())> for Header {
     }
 }
 
-impl Header {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Header {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -13970,53 +13548,23 @@ impl Header {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 2usize] = ["PROJECT_NO", "VERSION"];
             match tag {
                 "PROJECT_NO" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ProjectNo::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, project_no.is_some())?;
                     project_no = Some(newitem);
-                    expect_block = false;
                 }
                 "VERSION" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Version::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, version.is_some())?;
                     version = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -14081,6 +13629,7 @@ impl Header {
         writer.finish()
     }
 }
+
 /// used to describe that an \'identifier\' is deposited in a specific position in the adjustable object
 #[derive(Clone)]
 pub struct Identification {
@@ -14142,8 +13691,8 @@ impl A2lObject<((u32, bool), u32)> for Identification {
     }
 }
 
-impl Identification {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Identification {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -14158,7 +13707,7 @@ impl Identification {
         };
         let (__datatype_location, datatype) = (
             parser.get_current_line_offset(),
-            DataType::parse(parser, context)?,
+            DataType::parse(parser, context, 0)?,
         );
         let __end_offset: u32 = 0;
         Ok(Self {
@@ -14191,6 +13740,7 @@ impl Identification {
         writer.finish()
     }
 }
+
 /// Interface specific data
 /// A list of measurement objects that are used as the inputs of a function
 #[derive(Clone)]
@@ -14250,8 +13800,8 @@ impl A2lObject<(Vec<u32>, ())> for InMeasurement {
     }
 }
 
-impl InMeasurement {
-    pub(crate) fn parse(
+impl ParseableA2lObject for InMeasurement {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -14277,8 +13827,10 @@ impl InMeasurement {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                identifier_list.push(value);
-                __identifier_list_location.push(location);
+                {
+                    identifier_list.push(value);
+                    __identifier_list_location.push(location);
+                }
             }
         }
         let __dummy = ();
@@ -14314,6 +13866,7 @@ impl InMeasurement {
         writer.finish()
     }
 }
+
 /// Describes how the 2-dimensional table values are mapped onto the 1-dimensional address space
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IndexMode {
@@ -14324,10 +13877,11 @@ pub enum IndexMode {
     RowDir,
 }
 
-impl IndexMode {
-    pub(crate) fn parse(
+impl ParseableA2lObject for IndexMode {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
+        __start_offset: u32,
     ) -> Result<Self, ParserError> {
         let enumname = parser.get_identifier(context)?;
         match &*enumname {
@@ -14359,6 +13913,7 @@ impl std::fmt::Display for IndexMode {
         f.write_str(tag)
     }
 }
+
 /// Description of the axis point sequence in the memory.
 ///
 /// Specification: predefined data types
@@ -14368,10 +13923,11 @@ pub enum IndexOrder {
     IndexDecr,
 }
 
-impl IndexOrder {
-    pub(crate) fn parse(
+impl ParseableA2lObject for IndexOrder {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
+        __start_offset: u32,
     ) -> Result<Self, ParserError> {
         let enumname = parser.get_identifier(context)?;
         match &*enumname {
@@ -14397,6 +13953,7 @@ impl std::fmt::Display for IndexOrder {
         f.write_str(tag)
     }
 }
+
 ///`INPUT_QUANTITY` is used inside OVERWRITE to override the `input_quantity` of an INSTANCE
 #[derive(Clone)]
 pub struct InputQuantity {
@@ -14461,8 +14018,8 @@ impl A2lObjectName for InputQuantity {
     }
 }
 
-impl InputQuantity {
-    pub(crate) fn parse(
+impl ParseableA2lObject for InputQuantity {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -14497,6 +14054,7 @@ impl InputQuantity {
         writer.finish()
     }
 }
+
 /// Creates an instance of a type defined using `TYPEDEF_STRUCTURE`, `TYPEDEF_MEASUREMENT` or `TYPEDEF_CHARACTERISTIC`
 #[derive(Clone)]
 pub struct Instance {
@@ -14669,8 +14227,8 @@ impl A2lObjectName for Instance {
     }
 }
 
-impl Instance {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Instance {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -14712,8 +14270,7 @@ impl Instance {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 13usize] = [
                 "ADDRESS_TYPE",
                 "ANNOTATION",
@@ -14731,6 +14288,7 @@ impl Instance {
             ];
             match tag {
                 "ADDRESS_TYPE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(
                         context,
                         "ADDRESS_TYPE",
@@ -14739,26 +14297,26 @@ impl Instance {
                     let newitem = AddressType::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, address_type.is_some())?;
                     address_type = Some(newitem);
-                    expect_block = false;
                 }
                 "ANNOTATION" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = Annotation::parse(parser, &newcontext, line_offset)?;
                     annotation.push(newitem);
-                    expect_block = true;
                 }
                 "CALIBRATION_ACCESS" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = CalibrationAccess::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, calibration_access.is_some())?;
                     calibration_access = Some(newitem);
-                    expect_block = false;
                 }
                 "DISPLAY_IDENTIFIER" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = DisplayIdentifier::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, display_identifier.is_some())?;
                     display_identifier = Some(newitem);
-                    expect_block = false;
                 }
                 "ECU_ADDRESS_EXTENSION" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = EcuAddressExtension::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(
                         context,
@@ -14766,85 +14324,55 @@ impl Instance {
                         ecu_address_extension.is_some(),
                     )?;
                     ecu_address_extension = Some(newitem);
-                    expect_block = false;
                 }
                 "IF_DATA" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = IfData::parse(parser, &newcontext, line_offset)?;
                     if_data.push(newitem);
-                    expect_block = true;
                 }
                 "LAYOUT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Layout::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, layout.is_some())?;
                     layout = Some(newitem);
-                    expect_block = false;
                 }
                 "MATRIX_DIM" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = MatrixDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, matrix_dim.is_some())?;
                     matrix_dim = Some(newitem);
-                    expect_block = false;
                 }
                 "MAX_REFRESH" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = MaxRefresh::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, max_refresh.is_some())?;
                     max_refresh = Some(newitem);
-                    expect_block = false;
                 }
                 "MODEL_LINK" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ModelLink::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, model_link.is_some())?;
                     model_link = Some(newitem);
-                    expect_block = false;
                 }
                 "OVERWRITE" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = Overwrite::parse(parser, &newcontext, line_offset)?;
                     overwrite.push(newitem);
-                    expect_block = true;
                 }
                 "READ_ONLY" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ReadOnly::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, read_only.is_some())?;
                     read_only = Some(newitem);
-                    expect_block = false;
                 }
                 "SYMBOL_LINK" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = SymbolLink::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, symbol_link.is_some())?;
                     symbol_link = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -15088,6 +14616,7 @@ impl Instance {
         writer.finish()
     }
 }
+
 /// describes the layout of a multi-dimensional measurement array
 #[derive(Clone)]
 pub struct Layout {
@@ -15146,8 +14675,8 @@ impl A2lObject<(u32, ())> for Layout {
     }
 }
 
-impl Layout {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Layout {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -15157,7 +14686,7 @@ impl Layout {
         let __uid = parser.get_next_id();
         let (__index_mode_location, index_mode) = (
             parser.get_current_line_offset(),
-            IndexMode::parse(parser, context)?,
+            IndexMode::parse(parser, context, 0)?,
         );
         let __dummy = ();
         let __end_offset: u32 = 0;
@@ -15185,6 +14714,7 @@ impl Layout {
         writer.finish()
     }
 }
+
 /// Used within `BIT_OPERATION` to left-shift the bits of a value
 #[derive(Clone)]
 pub struct LeftShift {
@@ -15243,8 +14773,8 @@ impl A2lObject<((u32, bool), ())> for LeftShift {
     }
 }
 
-impl LeftShift {
-    pub(crate) fn parse(
+impl ParseableA2lObject for LeftShift {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -15284,6 +14814,7 @@ impl LeftShift {
         writer.finish()
     }
 }
+
 /// LIMITS is used inside OVERWRITE to override the limits of an INSTANCE
 #[derive(Clone)]
 pub struct Limits {
@@ -15345,8 +14876,8 @@ impl A2lObject<(u32, u32)> for Limits {
     }
 }
 
-impl Limits {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Limits {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -15386,6 +14917,7 @@ impl Limits {
         writer.finish()
     }
 }
+
 /// A list of measurement objects that are local variables of a function
 #[derive(Clone)]
 pub struct LocMeasurement {
@@ -15444,8 +14976,8 @@ impl A2lObject<(Vec<u32>, ())> for LocMeasurement {
     }
 }
 
-impl LocMeasurement {
-    pub(crate) fn parse(
+impl ParseableA2lObject for LocMeasurement {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -15471,8 +15003,10 @@ impl LocMeasurement {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                identifier_list.push(value);
-                __identifier_list_location.push(location);
+                {
+                    identifier_list.push(value);
+                    __identifier_list_location.push(location);
+                }
             }
         }
         let __dummy = ();
@@ -15508,6 +15042,7 @@ impl LocMeasurement {
         writer.finish()
     }
 }
+
 /// used to specify the list of MAPs which comprise a CUBOID
 #[derive(Clone)]
 pub struct MapList {
@@ -15566,8 +15101,8 @@ impl A2lObject<(Vec<u32>, ())> for MapList {
     }
 }
 
-impl MapList {
-    pub(crate) fn parse(
+impl ParseableA2lObject for MapList {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -15593,8 +15128,10 @@ impl MapList {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                name_list.push(value);
-                __name_list_location.push(location);
+                {
+                    name_list.push(value);
+                    __name_list_location.push(location);
+                }
             }
         }
         let __dummy = ();
@@ -15630,6 +15167,7 @@ impl MapList {
         writer.finish()
     }
 }
+
 /// describes the dimensions of a multidimensional array of values
 #[derive(Clone)]
 pub struct MatrixDim {
@@ -15688,8 +15226,8 @@ impl A2lObject<(Vec<(u32, bool)>, ())> for MatrixDim {
     }
 }
 
-impl MatrixDim {
-    pub(crate) fn parse(
+impl ParseableA2lObject for MatrixDim {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -15716,8 +15254,10 @@ impl MatrixDim {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                dim_list.push(value);
-                __dim_list_location.push(location);
+                {
+                    dim_list.push(value);
+                    __dim_list_location.push(location);
+                }
             }
         }
         let __dummy = ();
@@ -15759,6 +15299,7 @@ impl MatrixDim {
         writer.finish()
     }
 }
+
 /// specifies a maximum permissible gradient for an adjustable object
 #[derive(Clone)]
 pub struct MaxGrad {
@@ -15817,8 +15358,8 @@ impl A2lObject<(u32, ())> for MaxGrad {
     }
 }
 
-impl MaxGrad {
-    pub(crate) fn parse(
+impl ParseableA2lObject for MaxGrad {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -15853,6 +15394,7 @@ impl MaxGrad {
         writer.finish()
     }
 }
+
 /// specifies the maximum refresh rate in the control unit
 #[derive(Clone)]
 pub struct MaxRefresh {
@@ -15914,8 +15456,8 @@ impl A2lObject<((u32, bool), (u32, bool))> for MaxRefresh {
     }
 }
 
-impl MaxRefresh {
-    pub(crate) fn parse(
+impl ParseableA2lObject for MaxRefresh {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -15965,6 +15507,7 @@ impl MaxRefresh {
         writer.finish()
     }
 }
+
 /// describes the parameters for a measurement object
 #[derive(Clone)]
 pub struct Measurement {
@@ -16229,8 +15772,8 @@ impl A2lObjectName for Measurement {
     }
 }
 
-impl Measurement {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Measurement {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -16248,7 +15791,7 @@ impl Measurement {
         );
         let (__datatype_location, datatype) = (
             parser.get_current_line_offset(),
-            DataType::parse(parser, context)?,
+            DataType::parse(parser, context, 0)?,
         );
         let (__conversion_location, conversion) = (
             parser.get_current_line_offset(),
@@ -16298,8 +15841,7 @@ impl Measurement {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 23usize] = [
                 "ADDRESS_TYPE",
                 "ANNOTATION",
@@ -16327,6 +15869,7 @@ impl Measurement {
             ];
             match tag {
                 "ADDRESS_TYPE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(
                         context,
                         "ADDRESS_TYPE",
@@ -16335,58 +15878,58 @@ impl Measurement {
                     let newitem = AddressType::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, address_type.is_some())?;
                     address_type = Some(newitem);
-                    expect_block = false;
                 }
                 "ANNOTATION" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = Annotation::parse(parser, &newcontext, line_offset)?;
                     annotation.push(newitem);
-                    expect_block = true;
                 }
                 "ARRAY_SIZE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_upper(context, "ARRAY_SIZE", A2lVersion::V1_5_1);
                     let newitem = ArraySize::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, array_size.is_some())?;
                     array_size = Some(newitem);
-                    expect_block = false;
                 }
                 "BIT_MASK" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = BitMask::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, bit_mask.is_some())?;
                     bit_mask = Some(newitem);
-                    expect_block = false;
                 }
                 "BIT_OPERATION" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = BitOperation::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, bit_operation.is_some())?;
                     bit_operation = Some(newitem);
-                    expect_block = true;
                 }
                 "BYTE_ORDER" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ByteOrder::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, byte_order.is_some())?;
                     byte_order = Some(newitem);
-                    expect_block = false;
                 }
                 "DISCRETE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "DISCRETE", A2lVersion::V1_6_0)?;
                     let newitem = Discrete::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, discrete.is_some())?;
                     discrete = Some(newitem);
-                    expect_block = false;
                 }
                 "DISPLAY_IDENTIFIER" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = DisplayIdentifier::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, display_identifier.is_some())?;
                     display_identifier = Some(newitem);
-                    expect_block = false;
                 }
                 "ECU_ADDRESS" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = EcuAddress::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, ecu_address.is_some())?;
                     ecu_address = Some(newitem);
-                    expect_block = false;
                 }
                 "ECU_ADDRESS_EXTENSION" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = EcuAddressExtension::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(
                         context,
@@ -16394,120 +15937,90 @@ impl Measurement {
                         ecu_address_extension.is_some(),
                     )?;
                     ecu_address_extension = Some(newitem);
-                    expect_block = false;
                 }
                 "ERROR_MASK" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ErrorMask::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, error_mask.is_some())?;
                     error_mask = Some(newitem);
-                    expect_block = false;
                 }
                 "FORMAT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Format::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, format.is_some())?;
                     format = Some(newitem);
-                    expect_block = false;
                 }
                 "FUNCTION_LIST" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = FunctionList::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, function_list.is_some())?;
                     function_list = Some(newitem);
-                    expect_block = true;
                 }
                 "IF_DATA" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = IfData::parse(parser, &newcontext, line_offset)?;
                     if_data.push(newitem);
-                    expect_block = true;
                 }
                 "LAYOUT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "LAYOUT", A2lVersion::V1_6_0)?;
                     let newitem = Layout::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, layout.is_some())?;
                     layout = Some(newitem);
-                    expect_block = false;
                 }
                 "MATRIX_DIM" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = MatrixDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, matrix_dim.is_some())?;
                     matrix_dim = Some(newitem);
-                    expect_block = false;
                 }
                 "MAX_REFRESH" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = MaxRefresh::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, max_refresh.is_some())?;
                     max_refresh = Some(newitem);
-                    expect_block = false;
                 }
                 "MODEL_LINK" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "MODEL_LINK", A2lVersion::V1_7_0)?;
                     let newitem = ModelLink::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, model_link.is_some())?;
                     model_link = Some(newitem);
-                    expect_block = false;
                 }
                 "PHYS_UNIT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "PHYS_UNIT", A2lVersion::V1_6_0)?;
                     let newitem = PhysUnit::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, phys_unit.is_some())?;
                     phys_unit = Some(newitem);
-                    expect_block = false;
                 }
                 "READ_WRITE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ReadWrite::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, read_write.is_some())?;
                     read_write = Some(newitem);
-                    expect_block = false;
                 }
                 "REF_MEMORY_SEGMENT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = RefMemorySegment::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, ref_memory_segment.is_some())?;
                     ref_memory_segment = Some(newitem);
-                    expect_block = false;
                 }
                 "SYMBOL_LINK" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "SYMBOL_LINK", A2lVersion::V1_6_0)?;
                     let newitem = SymbolLink::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, symbol_link.is_some())?;
                     symbol_link = Some(newitem);
-                    expect_block = false;
                 }
                 "VIRTUAL" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = Virtual::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, var_virtual.is_some())?;
                     var_virtual = Some(newitem);
-                    expect_block = true;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -16916,6 +16429,7 @@ impl Measurement {
         writer.finish()
     }
 }
+
 /// specifies if a given memory region is internal or external
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MemoryAttribute {
@@ -16923,10 +16437,11 @@ pub enum MemoryAttribute {
     Extern,
 }
 
-impl MemoryAttribute {
-    pub(crate) fn parse(
+impl ParseableA2lObject for MemoryAttribute {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
+        __start_offset: u32,
     ) -> Result<Self, ParserError> {
         let enumname = parser.get_identifier(context)?;
         match &*enumname {
@@ -16952,6 +16467,7 @@ impl std::fmt::Display for MemoryAttribute {
         f.write_str(tag)
     }
 }
+
 /// describes the layout of the ECU memory
 #[derive(Clone)]
 pub struct MemoryLayout {
@@ -17042,8 +16558,8 @@ impl A2lObject<(u32, (u32, bool), (u32, bool), [(u32, bool); 5usize])> for Memor
     }
 }
 
-impl MemoryLayout {
-    pub(crate) fn parse(
+impl ParseableA2lObject for MemoryLayout {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -17053,7 +16569,7 @@ impl MemoryLayout {
         let __uid = parser.get_next_id();
         let (__prog_type_location, prog_type) = (
             parser.get_current_line_offset(),
-            ProgType::parse(parser, context)?,
+            ProgType::parse(parser, context, 0)?,
         );
         let (__address_location, address) = {
             let line = parser.get_current_line_offset();
@@ -17113,45 +16629,16 @@ impl MemoryLayout {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 1usize] = ["IF_DATA"];
-            let expect_block = match tag {
+            match tag {
                 "IF_DATA" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = IfData::parse(parser, &newcontext, line_offset)?;
                     if_data.push(newitem);
-                    true
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    is_block
-                }
-            };
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -17228,6 +16715,7 @@ impl MemoryLayout {
         writer.finish()
     }
 }
+
 /// describes a memory segment of the ECU program
 #[derive(Clone)]
 pub struct MemorySegment {
@@ -17393,8 +16881,8 @@ impl A2lObjectName for MemorySegment {
     }
 }
 
-impl MemorySegment {
-    pub(crate) fn parse(
+impl ParseableA2lObject for MemorySegment {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -17412,15 +16900,15 @@ impl MemorySegment {
         );
         let (__prg_type_location, prg_type) = (
             parser.get_current_line_offset(),
-            PrgType::parse(parser, context)?,
+            PrgType::parse(parser, context, 0)?,
         );
         let (__memory_type_location, memory_type) = (
             parser.get_current_line_offset(),
-            MemoryType::parse(parser, context)?,
+            MemoryType::parse(parser, context, 0)?,
         );
         let (__attribute_location, attribute) = (
             parser.get_current_line_offset(),
-            MemoryAttribute::parse(parser, context)?,
+            MemoryAttribute::parse(parser, context, 0)?,
         );
         let (__address_location, address) = {
             let line = parser.get_current_line_offset();
@@ -17480,45 +16968,16 @@ impl MemorySegment {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 1usize] = ["IF_DATA"];
-            let expect_block = match tag {
+            match tag {
                 "IF_DATA" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = IfData::parse(parser, &newcontext, line_offset)?;
                     if_data.push(newitem);
-                    true
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    is_block
-                }
-            };
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -17613,6 +17072,7 @@ impl MemorySegment {
         writer.finish()
     }
 }
+
 /// describes the type of memory used
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MemoryType {
@@ -17625,10 +17085,11 @@ pub enum MemoryType {
     NotInEcu,
 }
 
-impl MemoryType {
-    pub(crate) fn parse(
+impl ParseableA2lObject for MemoryType {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
+        __start_offset: u32,
     ) -> Result<Self, ParserError> {
         let enumname = parser.get_identifier(context)?;
         match &*enumname {
@@ -17667,6 +17128,7 @@ impl std::fmt::Display for MemoryType {
         f.write_str(tag)
     }
 }
+
 /// defines default values for the  entire module
 #[derive(Clone)]
 pub struct ModCommon {
@@ -17802,8 +17264,8 @@ impl A2lObject<(u32, ())> for ModCommon {
     }
 }
 
-impl ModCommon {
-    pub(crate) fn parse(
+impl ParseableA2lObject for ModCommon {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -17830,8 +17292,7 @@ impl ModCommon {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 11usize] = [
                 "ALIGNMENT_BYTE",
                 "ALIGNMENT_FLOAT16_IEEE",
@@ -17847,12 +17308,13 @@ impl ModCommon {
             ];
             match tag {
                 "ALIGNMENT_BYTE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AlignmentByte::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, alignment_byte.is_some())?;
                     alignment_byte = Some(newitem);
-                    expect_block = false;
                 }
                 "ALIGNMENT_FLOAT16_IEEE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(
                         context,
                         "ALIGNMENT_FLOAT16_IEEE",
@@ -17865,9 +17327,9 @@ impl ModCommon {
                         alignment_float16_ieee.is_some(),
                     )?;
                     alignment_float16_ieee = Some(newitem);
-                    expect_block = false;
                 }
                 "ALIGNMENT_FLOAT32_IEEE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AlignmentFloat32Ieee::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(
                         context,
@@ -17875,9 +17337,9 @@ impl ModCommon {
                         alignment_float32_ieee.is_some(),
                     )?;
                     alignment_float32_ieee = Some(newitem);
-                    expect_block = false;
                 }
                 "ALIGNMENT_FLOAT64_IEEE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AlignmentFloat64Ieee::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(
                         context,
@@ -17885,9 +17347,9 @@ impl ModCommon {
                         alignment_float64_ieee.is_some(),
                     )?;
                     alignment_float64_ieee = Some(newitem);
-                    expect_block = false;
                 }
                 "ALIGNMENT_INT64" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(
                         context,
                         "ALIGNMENT_INT64",
@@ -17896,76 +17358,46 @@ impl ModCommon {
                     let newitem = AlignmentInt64::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, alignment_int64.is_some())?;
                     alignment_int64 = Some(newitem);
-                    expect_block = false;
                 }
                 "ALIGNMENT_LONG" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AlignmentLong::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, alignment_long.is_some())?;
                     alignment_long = Some(newitem);
-                    expect_block = false;
                 }
                 "ALIGNMENT_WORD" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AlignmentWord::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, alignment_word.is_some())?;
                     alignment_word = Some(newitem);
-                    expect_block = false;
                 }
                 "BYTE_ORDER" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ByteOrder::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, byte_order.is_some())?;
                     byte_order = Some(newitem);
-                    expect_block = false;
                 }
                 "DATA_SIZE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = DataSize::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, data_size.is_some())?;
                     data_size = Some(newitem);
-                    expect_block = false;
                 }
                 "DEPOSIT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Deposit::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, deposit.is_some())?;
                     deposit = Some(newitem);
-                    expect_block = false;
                 }
                 "S_REC_LAYOUT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_upper(context, "S_REC_LAYOUT", A2lVersion::V1_6_0);
                     let newitem = SRecLayout::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, s_rec_layout.is_some())?;
                     s_rec_layout = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -18165,6 +17597,7 @@ impl ModCommon {
         writer.finish()
     }
 }
+
 /// defines system information and management data for the module
 #[derive(Clone)]
 pub struct ModPar {
@@ -18335,8 +17768,8 @@ impl A2lObject<(u32, ())> for ModPar {
     }
 }
 
-impl ModPar {
-    pub(crate) fn parse(
+impl ParseableA2lObject for ModPar {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -18368,8 +17801,7 @@ impl ModPar {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 16usize] = [
                 "ADDR_EPK",
                 "CALIBRATION_METHOD",
@@ -18390,40 +17822,41 @@ impl ModPar {
             ];
             match tag {
                 "ADDR_EPK" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AddrEpk::parse(parser, &newcontext, line_offset)?;
                     addr_epk.push(newitem);
-                    expect_block = false;
                 }
                 "CALIBRATION_METHOD" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = CalibrationMethod::parse(parser, &newcontext, line_offset)?;
                     calibration_method.push(newitem);
-                    expect_block = true;
                 }
                 "CPU_TYPE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = CpuType::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, cpu_type.is_some())?;
                     cpu_type = Some(newitem);
-                    expect_block = false;
                 }
                 "CUSTOMER" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Customer::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, customer.is_some())?;
                     customer = Some(newitem);
-                    expect_block = false;
                 }
                 "CUSTOMER_NO" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = CustomerNo::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, customer_no.is_some())?;
                     customer_no = Some(newitem);
-                    expect_block = false;
                 }
                 "ECU" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Ecu::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, ecu.is_some())?;
                     ecu = Some(newitem);
-                    expect_block = false;
                 }
                 "ECU_CALIBRATION_OFFSET" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = EcuCalibrationOffset::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(
                         context,
@@ -18431,90 +17864,60 @@ impl ModPar {
                         ecu_calibration_offset.is_some(),
                     )?;
                     ecu_calibration_offset = Some(newitem);
-                    expect_block = false;
                 }
                 "EPK" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Epk::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, epk.is_some())?;
                     epk = Some(newitem);
-                    expect_block = false;
                 }
                 "MEMORY_LAYOUT" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = MemoryLayout::parse(parser, &newcontext, line_offset)?;
                     memory_layout.push(newitem);
-                    expect_block = true;
                 }
                 "MEMORY_SEGMENT" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = MemorySegment::parse(parser, &newcontext, line_offset)?;
                     memory_segment.push(newitem);
-                    expect_block = true;
                 }
                 "NO_OF_INTERFACES" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = NoOfInterfaces::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, no_of_interfaces.is_some())?;
                     no_of_interfaces = Some(newitem);
-                    expect_block = false;
                 }
                 "PHONE_NO" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = PhoneNo::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, phone_no.is_some())?;
                     phone_no = Some(newitem);
-                    expect_block = false;
                 }
                 "SUPPLIER" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Supplier::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, supplier.is_some())?;
                     supplier = Some(newitem);
-                    expect_block = false;
                 }
                 "SYSTEM_CONSTANT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = SystemConstant::parse(parser, &newcontext, line_offset)?;
                     system_constant.push(newitem);
-                    expect_block = false;
                 }
                 "USER" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = User::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, user.is_some())?;
                     user = Some(newitem);
-                    expect_block = false;
                 }
                 "VERSION" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Version::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, version.is_some())?;
                     version = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -18789,6 +18192,7 @@ impl ModPar {
         writer.finish()
     }
 }
+
 /// add a string to a CHARACTERISTIC linking it to a name in the model
 #[derive(Clone)]
 pub struct ModelLink {
@@ -18847,8 +18251,8 @@ impl A2lObject<(u32, ())> for ModelLink {
     }
 }
 
-impl ModelLink {
-    pub(crate) fn parse(
+impl ParseableA2lObject for ModelLink {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -18883,6 +18287,7 @@ impl ModelLink {
         writer.finish()
     }
 }
+
 /// The MODULE keyword describes a complete ECU or device with all adjustable and measurement objects, conversion methods and functions
 ///
 /// At least one module must be defined within the PROJECT
@@ -19135,8 +18540,8 @@ impl A2lObjectName for Module {
     }
 }
 
-impl Module {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Module {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -19182,8 +18587,7 @@ impl Module {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 26usize] = [
                 "A2ML",
                 "AXIS_PTS",
@@ -19214,102 +18618,103 @@ impl Module {
             ];
             match tag {
                 "A2ML" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = A2ml::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, a2ml.is_some())?;
                     a2ml = Some(newitem);
-                    expect_block = true;
                 }
                 "AXIS_PTS" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = AxisPts::parse(parser, &newcontext, line_offset)?;
                     axis_pts.push(newitem);
-                    expect_block = true;
                 }
                 "BLOB" => {
+                    parser.require_block(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "BLOB", A2lVersion::V1_7_0)?;
                     let newitem = Blob::parse(parser, &newcontext, line_offset)?;
                     blob.push(newitem);
-                    expect_block = true;
                 }
                 "CHARACTERISTIC" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = Characteristic::parse(parser, &newcontext, line_offset)?;
                     characteristic.push(newitem);
-                    expect_block = true;
                 }
                 "COMPU_METHOD" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = CompuMethod::parse(parser, &newcontext, line_offset)?;
                     compu_method.push(newitem);
-                    expect_block = true;
                 }
                 "COMPU_TAB" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = CompuTab::parse(parser, &newcontext, line_offset)?;
                     compu_tab.push(newitem);
-                    expect_block = true;
                 }
                 "COMPU_VTAB" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = CompuVtab::parse(parser, &newcontext, line_offset)?;
                     compu_vtab.push(newitem);
-                    expect_block = true;
                 }
                 "COMPU_VTAB_RANGE" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = CompuVtabRange::parse(parser, &newcontext, line_offset)?;
                     compu_vtab_range.push(newitem);
-                    expect_block = true;
                 }
                 "FRAME" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = Frame::parse(parser, &newcontext, line_offset)?;
                     frame.push(newitem);
-                    expect_block = true;
                 }
                 "FUNCTION" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = Function::parse(parser, &newcontext, line_offset)?;
                     function.push(newitem);
-                    expect_block = true;
                 }
                 "GROUP" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = Group::parse(parser, &newcontext, line_offset)?;
                     group.push(newitem);
-                    expect_block = true;
                 }
                 "IF_DATA" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = IfData::parse(parser, &newcontext, line_offset)?;
                     if_data.push(newitem);
-                    expect_block = true;
                 }
                 "INSTANCE" => {
+                    parser.require_block(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "INSTANCE", A2lVersion::V1_7_0)?;
                     let newitem = Instance::parse(parser, &newcontext, line_offset)?;
                     instance.push(newitem);
-                    expect_block = true;
                 }
                 "MEASUREMENT" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = Measurement::parse(parser, &newcontext, line_offset)?;
                     measurement.push(newitem);
-                    expect_block = true;
                 }
                 "MOD_COMMON" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = ModCommon::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, mod_common.is_some())?;
                     mod_common = Some(newitem);
-                    expect_block = true;
                 }
                 "MOD_PAR" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = ModPar::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, mod_par.is_some())?;
                     mod_par = Some(newitem);
-                    expect_block = true;
                 }
                 "RECORD_LAYOUT" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = RecordLayout::parse(parser, &newcontext, line_offset)?;
                     record_layout.push(newitem);
-                    expect_block = true;
                 }
                 "TRANSFORMER" => {
+                    parser.require_block(tag, is_block, context)?;
                     parser.check_block_version_lower(context, "TRANSFORMER", A2lVersion::V1_7_0)?;
                     let newitem = Transformer::parse(parser, &newcontext, line_offset)?;
                     transformer.push(newitem);
-                    expect_block = true;
                 }
                 "TYPEDEF_AXIS" => {
+                    parser.require_block(tag, is_block, context)?;
                     parser.check_block_version_lower(
                         context,
                         "TYPEDEF_AXIS",
@@ -19317,9 +18722,9 @@ impl Module {
                     )?;
                     let newitem = TypedefAxis::parse(parser, &newcontext, line_offset)?;
                     typedef_axis.push(newitem);
-                    expect_block = true;
                 }
                 "TYPEDEF_BLOB" => {
+                    parser.require_block(tag, is_block, context)?;
                     parser.check_block_version_lower(
                         context,
                         "TYPEDEF_BLOB",
@@ -19327,9 +18732,9 @@ impl Module {
                     )?;
                     let newitem = TypedefBlob::parse(parser, &newcontext, line_offset)?;
                     typedef_blob.push(newitem);
-                    expect_block = true;
                 }
                 "TYPEDEF_CHARACTERISTIC" => {
+                    parser.require_block(tag, is_block, context)?;
                     parser.check_block_version_lower(
                         context,
                         "TYPEDEF_CHARACTERISTIC",
@@ -19337,9 +18742,9 @@ impl Module {
                     )?;
                     let newitem = TypedefCharacteristic::parse(parser, &newcontext, line_offset)?;
                     typedef_characteristic.push(newitem);
-                    expect_block = true;
                 }
                 "TYPEDEF_MEASUREMENT" => {
+                    parser.require_block(tag, is_block, context)?;
                     parser.check_block_version_lower(
                         context,
                         "TYPEDEF_MEASUREMENT",
@@ -19347,9 +18752,9 @@ impl Module {
                     )?;
                     let newitem = TypedefMeasurement::parse(parser, &newcontext, line_offset)?;
                     typedef_measurement.push(newitem);
-                    expect_block = true;
                 }
                 "TYPEDEF_STRUCTURE" => {
+                    parser.require_block(tag, is_block, context)?;
                     parser.check_block_version_lower(
                         context,
                         "TYPEDEF_STRUCTURE",
@@ -19357,55 +18762,25 @@ impl Module {
                     )?;
                     let newitem = TypedefStructure::parse(parser, &newcontext, line_offset)?;
                     typedef_structure.push(newitem);
-                    expect_block = true;
                 }
                 "UNIT" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = Unit::parse(parser, &newcontext, line_offset)?;
                     unit.push(newitem);
-                    expect_block = true;
                 }
                 "USER_RIGHTS" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = UserRights::parse(parser, &newcontext, line_offset)?;
                     user_rights.push(newitem);
-                    expect_block = true;
                 }
                 "VARIANT_CODING" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = VariantCoding::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, variant_coding.is_some())?;
                     variant_coding = Some(newitem);
-                    expect_block = true;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -19831,6 +19206,7 @@ impl Module {
         writer.finish()
     }
 }
+
 /// specifies the monotony of an adjustment object
 #[derive(Clone)]
 pub struct Monotony {
@@ -19889,8 +19265,8 @@ impl A2lObject<(u32, ())> for Monotony {
     }
 }
 
-impl Monotony {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Monotony {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -19900,7 +19276,7 @@ impl Monotony {
         let __uid = parser.get_next_id();
         let (__monotony_location, monotony) = (
             parser.get_current_line_offset(),
-            MonotonyType::parse(parser, context)?,
+            MonotonyType::parse(parser, context, 0)?,
         );
         let __dummy = ();
         let __end_offset: u32 = 0;
@@ -19928,6 +19304,7 @@ impl Monotony {
         writer.finish()
     }
 }
+
 /// describes the possible ways an adjustment object can be monotonous
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MonotonyType {
@@ -19940,10 +19317,11 @@ pub enum MonotonyType {
     NotMon,
 }
 
-impl MonotonyType {
-    pub(crate) fn parse(
+impl ParseableA2lObject for MonotonyType {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
+        __start_offset: u32,
     ) -> Result<Self, ParserError> {
         let enumname = parser.get_identifier(context)?;
         match &*enumname {
@@ -19988,6 +19366,7 @@ impl std::fmt::Display for MonotonyType {
         f.write_str(tag)
     }
 }
+
 /// Description of the number of axis points in an adjustable object
 #[derive(Clone)]
 pub struct NoAxisPtsDim {
@@ -20049,8 +19428,8 @@ impl A2lObject<((u32, bool), u32)> for NoAxisPtsDim {
     }
 }
 
-impl NoAxisPtsDim {
-    pub(crate) fn parse(
+impl ParseableA2lObject for NoAxisPtsDim {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -20065,7 +19444,7 @@ impl NoAxisPtsDim {
         };
         let (__datatype_location, datatype) = (
             parser.get_current_line_offset(),
-            DataType::parse(parser, context)?,
+            DataType::parse(parser, context, 0)?,
         );
         let __end_offset: u32 = 0;
         Ok(Self {
@@ -20098,6 +19477,7 @@ impl NoAxisPtsDim {
         writer.finish()
     }
 }
+
 /// the number of interfaces
 #[derive(Clone)]
 pub struct NoOfInterfaces {
@@ -20156,8 +19536,8 @@ impl A2lObject<((u32, bool), ())> for NoOfInterfaces {
     }
 }
 
-impl NoOfInterfaces {
-    pub(crate) fn parse(
+impl ParseableA2lObject for NoOfInterfaces {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -20197,6 +19577,7 @@ impl NoOfInterfaces {
         writer.finish()
     }
 }
+
 /// number of rescaling axis point value pairs
 #[derive(Clone)]
 pub struct NoRescaleDim {
@@ -20258,8 +19639,8 @@ impl A2lObject<((u32, bool), u32)> for NoRescaleDim {
     }
 }
 
-impl NoRescaleDim {
-    pub(crate) fn parse(
+impl ParseableA2lObject for NoRescaleDim {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -20274,7 +19655,7 @@ impl NoRescaleDim {
         };
         let (__datatype_location, datatype) = (
             parser.get_current_line_offset(),
-            DataType::parse(parser, context)?,
+            DataType::parse(parser, context, 0)?,
         );
         let __end_offset: u32 = 0;
         Ok(Self {
@@ -20307,6 +19688,7 @@ impl NoRescaleDim {
         writer.finish()
     }
 }
+
 /// specifies the number of values in an array. Obsolete, replaced by `MATRIX_DIM`
 #[derive(Clone)]
 pub struct Number {
@@ -20365,8 +19747,8 @@ impl A2lObject<((u32, bool), ())> for Number {
     }
 }
 
-impl Number {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Number {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -20406,6 +19788,7 @@ impl Number {
         writer.finish()
     }
 }
+
 /// Description of the \'offset\' parameter in the deposit structure
 #[derive(Clone)]
 pub struct OffsetDim {
@@ -20467,8 +19850,8 @@ impl A2lObject<((u32, bool), u32)> for OffsetDim {
     }
 }
 
-impl OffsetDim {
-    pub(crate) fn parse(
+impl ParseableA2lObject for OffsetDim {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -20483,7 +19866,7 @@ impl OffsetDim {
         };
         let (__datatype_location, datatype) = (
             parser.get_current_line_offset(),
-            DataType::parse(parser, context)?,
+            DataType::parse(parser, context, 0)?,
         );
         let __end_offset: u32 = 0;
         Ok(Self {
@@ -20516,6 +19899,7 @@ impl OffsetDim {
         writer.finish()
     }
 }
+
 /// defines output quantities of a function
 #[derive(Clone)]
 pub struct OutMeasurement {
@@ -20574,8 +19958,8 @@ impl A2lObject<(Vec<u32>, ())> for OutMeasurement {
     }
 }
 
-impl OutMeasurement {
-    pub(crate) fn parse(
+impl ParseableA2lObject for OutMeasurement {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -20601,8 +19985,10 @@ impl OutMeasurement {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                identifier_list.push(value);
-                __identifier_list_location.push(location);
+                {
+                    identifier_list.push(value);
+                    __identifier_list_location.push(location);
+                }
             }
         }
         let __dummy = ();
@@ -20638,6 +20024,7 @@ impl OutMeasurement {
         writer.finish()
     }
 }
+
 /// override some default attributes of a type definition in a specific INSTANCE.
 #[derive(Clone)]
 pub struct Overwrite {
@@ -20755,8 +20142,8 @@ impl A2lObjectName for Overwrite {
     }
 }
 
-impl Overwrite {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Overwrite {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -20784,8 +20171,7 @@ impl Overwrite {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 7usize] = [
                 "CONVERSION",
                 "EXTENDED_LIMITS",
@@ -20797,78 +20183,49 @@ impl Overwrite {
             ];
             match tag {
                 "CONVERSION" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Conversion::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, conversion.is_some())?;
                     conversion = Some(newitem);
-                    expect_block = false;
                 }
                 "EXTENDED_LIMITS" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ExtendedLimits::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, extended_limits.is_some())?;
                     extended_limits = Some(newitem);
-                    expect_block = false;
                 }
                 "FORMAT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Format::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, format.is_some())?;
                     format = Some(newitem);
-                    expect_block = false;
                 }
                 "INPUT_QUANTITY" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = InputQuantity::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, input_quantity.is_some())?;
                     input_quantity = Some(newitem);
-                    expect_block = false;
                 }
                 "LIMITS" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Limits::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, limits.is_some())?;
                     limits = Some(newitem);
-                    expect_block = false;
                 }
                 "MONOTONY" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Monotony::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, monotony.is_some())?;
                     monotony = Some(newitem);
-                    expect_block = false;
                 }
                 "PHYS_UNIT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = PhysUnit::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, phys_unit.is_some())?;
                     phys_unit = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -21013,6 +20370,7 @@ impl Overwrite {
         writer.finish()
     }
 }
+
 /// contains a phone number, e.g. of the calibration engineer
 #[derive(Clone)]
 pub struct PhoneNo {
@@ -21071,8 +20429,8 @@ impl A2lObject<(u32, ())> for PhoneNo {
     }
 }
 
-impl PhoneNo {
-    pub(crate) fn parse(
+impl ParseableA2lObject for PhoneNo {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -21107,6 +20465,7 @@ impl PhoneNo {
         writer.finish()
     }
 }
+
 /// specifies the physical unit of a measurement or calibration object as a string
 #[derive(Clone)]
 pub struct PhysUnit {
@@ -21165,8 +20524,8 @@ impl A2lObject<(u32, ())> for PhysUnit {
     }
 }
 
-impl PhysUnit {
-    pub(crate) fn parse(
+impl ParseableA2lObject for PhysUnit {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -21201,6 +20560,7 @@ impl PhysUnit {
         writer.finish()
     }
 }
+
 /// Describes the types of data in the ECU program
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PrgType {
@@ -21214,10 +20574,11 @@ pub enum PrgType {
     Variables,
 }
 
-impl PrgType {
-    pub(crate) fn parse(
+impl ParseableA2lObject for PrgType {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
+        __start_offset: u32,
     ) -> Result<Self, ParserError> {
         let enumname = parser.get_identifier(context)?;
         match &*enumname {
@@ -21255,6 +20616,7 @@ impl std::fmt::Display for PrgType {
         f.write_str(tag)
     }
 }
+
 /// describes the types of program segments
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProgType {
@@ -21263,10 +20625,11 @@ pub enum ProgType {
     PrgReserved,
 }
 
-impl ProgType {
-    pub(crate) fn parse(
+impl ParseableA2lObject for ProgType {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
+        __start_offset: u32,
     ) -> Result<Self, ParserError> {
         let enumname = parser.get_identifier(context)?;
         match &*enumname {
@@ -21294,6 +20657,7 @@ impl std::fmt::Display for ProgType {
         f.write_str(tag)
     }
 }
+
 /// Project description with project header and all modules belonging to the project. Required.
 #[derive(Clone)]
 pub struct Project {
@@ -21376,8 +20740,8 @@ impl A2lObjectName for Project {
     }
 }
 
-impl Project {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Project {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -21399,52 +20763,22 @@ impl Project {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 2usize] = ["HEADER", "MODULE"];
             match tag {
                 "HEADER" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = Header::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, header.is_some())?;
                     header = Some(newitem);
-                    expect_block = true;
                 }
                 "MODULE" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = Module::parse(parser, &newcontext, line_offset)?;
                     module.push(newitem);
-                    expect_block = true;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -21519,6 +20853,7 @@ impl Project {
         writer.finish()
     }
 }
+
 /// Gives the project identifier
 #[derive(Clone)]
 pub struct ProjectNo {
@@ -21577,8 +20912,8 @@ impl A2lObject<(u32, ())> for ProjectNo {
     }
 }
 
-impl ProjectNo {
-    pub(crate) fn parse(
+impl ParseableA2lObject for ProjectNo {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -21613,6 +20948,7 @@ impl ProjectNo {
         writer.finish()
     }
 }
+
 /// used to indicate that an adjustable object is read-only
 #[derive(Clone)]
 pub struct ReadOnly {
@@ -21667,8 +21003,8 @@ impl A2lObject<()> for ReadOnly {
     }
 }
 
-impl ReadOnly {
-    pub(crate) fn parse(
+impl ParseableA2lObject for ReadOnly {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -21696,6 +21032,7 @@ impl ReadOnly {
         writer.finish()
     }
 }
+
 /// used to indicate that a measurement object is writeable
 #[derive(Clone)]
 pub struct ReadWrite {
@@ -21750,8 +21087,8 @@ impl A2lObject<()> for ReadWrite {
     }
 }
 
-impl ReadWrite {
-    pub(crate) fn parse(
+impl ParseableA2lObject for ReadWrite {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -21779,6 +21116,7 @@ impl ReadWrite {
         writer.finish()
     }
 }
+
 /// specifies the various data structures of an adjustable objects in memory
 #[derive(Clone)]
 pub struct RecordLayout {
@@ -22284,8 +21622,8 @@ impl A2lObjectName for RecordLayout {
     }
 }
 
-impl RecordLayout {
-    pub(crate) fn parse(
+impl ParseableA2lObject for RecordLayout {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -22364,8 +21702,7 @@ impl RecordLayout {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 63usize] = [
                 "ALIGNMENT_BYTE",
                 "ALIGNMENT_FLOAT16_IEEE",
@@ -22433,12 +21770,13 @@ impl RecordLayout {
             ];
             match tag {
                 "ALIGNMENT_BYTE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AlignmentByte::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, alignment_byte.is_some())?;
                     alignment_byte = Some(newitem);
-                    expect_block = false;
                 }
                 "ALIGNMENT_FLOAT16_IEEE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(
                         context,
                         "ALIGNMENT_FLOAT16_IEEE",
@@ -22451,9 +21789,9 @@ impl RecordLayout {
                         alignment_float16_ieee.is_some(),
                     )?;
                     alignment_float16_ieee = Some(newitem);
-                    expect_block = false;
                 }
                 "ALIGNMENT_FLOAT32_IEEE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AlignmentFloat32Ieee::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(
                         context,
@@ -22461,9 +21799,9 @@ impl RecordLayout {
                         alignment_float32_ieee.is_some(),
                     )?;
                     alignment_float32_ieee = Some(newitem);
-                    expect_block = false;
                 }
                 "ALIGNMENT_FLOAT64_IEEE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AlignmentFloat64Ieee::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(
                         context,
@@ -22471,350 +21809,350 @@ impl RecordLayout {
                         alignment_float64_ieee.is_some(),
                     )?;
                     alignment_float64_ieee = Some(newitem);
-                    expect_block = false;
                 }
                 "ALIGNMENT_INT64" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AlignmentInt64::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, alignment_int64.is_some())?;
                     alignment_int64 = Some(newitem);
-                    expect_block = false;
                 }
                 "ALIGNMENT_LONG" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AlignmentLong::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, alignment_long.is_some())?;
                     alignment_long = Some(newitem);
-                    expect_block = false;
                 }
                 "ALIGNMENT_WORD" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AlignmentWord::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, alignment_word.is_some())?;
                     alignment_word = Some(newitem);
-                    expect_block = false;
                 }
                 "AXIS_PTS_X" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AxisPtsDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, axis_pts_x.is_some())?;
                     axis_pts_x = Some(newitem);
-                    expect_block = false;
                 }
                 "AXIS_PTS_Y" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AxisPtsDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, axis_pts_y.is_some())?;
                     axis_pts_y = Some(newitem);
-                    expect_block = false;
                 }
                 "AXIS_PTS_Z" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AxisPtsDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, axis_pts_z.is_some())?;
                     axis_pts_z = Some(newitem);
-                    expect_block = false;
                 }
                 "AXIS_PTS_4" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AxisPtsDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, axis_pts_4.is_some())?;
                     axis_pts_4 = Some(newitem);
-                    expect_block = false;
                 }
                 "AXIS_PTS_5" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AxisPtsDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, axis_pts_5.is_some())?;
                     axis_pts_5 = Some(newitem);
-                    expect_block = false;
                 }
                 "AXIS_RESCALE_X" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AxisRescaleDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, axis_rescale_x.is_some())?;
                     axis_rescale_x = Some(newitem);
-                    expect_block = false;
                 }
                 "AXIS_RESCALE_Y" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AxisRescaleDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, axis_rescale_y.is_some())?;
                     axis_rescale_y = Some(newitem);
-                    expect_block = false;
                 }
                 "AXIS_RESCALE_Z" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AxisRescaleDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, axis_rescale_z.is_some())?;
                     axis_rescale_z = Some(newitem);
-                    expect_block = false;
                 }
                 "AXIS_RESCALE_4" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AxisRescaleDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, axis_rescale_4.is_some())?;
                     axis_rescale_4 = Some(newitem);
-                    expect_block = false;
                 }
                 "AXIS_RESCALE_5" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AxisRescaleDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, axis_rescale_5.is_some())?;
                     axis_rescale_5 = Some(newitem);
-                    expect_block = false;
                 }
                 "DIST_OP_X" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = DistOpDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, dist_op_x.is_some())?;
                     dist_op_x = Some(newitem);
-                    expect_block = false;
                 }
                 "DIST_OP_Y" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = DistOpDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, dist_op_y.is_some())?;
                     dist_op_y = Some(newitem);
-                    expect_block = false;
                 }
                 "DIST_OP_Z" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = DistOpDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, dist_op_z.is_some())?;
                     dist_op_z = Some(newitem);
-                    expect_block = false;
                 }
                 "DIST_OP_4" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = DistOpDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, dist_op_4.is_some())?;
                     dist_op_4 = Some(newitem);
-                    expect_block = false;
                 }
                 "DIST_OP_5" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = DistOpDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, dist_op_5.is_some())?;
                     dist_op_5 = Some(newitem);
-                    expect_block = false;
                 }
                 "FIX_NO_AXIS_PTS_X" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = FixNoAxisPtsDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, fix_no_axis_pts_x.is_some())?;
                     fix_no_axis_pts_x = Some(newitem);
-                    expect_block = false;
                 }
                 "FIX_NO_AXIS_PTS_Y" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = FixNoAxisPtsDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, fix_no_axis_pts_y.is_some())?;
                     fix_no_axis_pts_y = Some(newitem);
-                    expect_block = false;
                 }
                 "FIX_NO_AXIS_PTS_Z" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = FixNoAxisPtsDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, fix_no_axis_pts_z.is_some())?;
                     fix_no_axis_pts_z = Some(newitem);
-                    expect_block = false;
                 }
                 "FIX_NO_AXIS_PTS_4" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = FixNoAxisPtsDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, fix_no_axis_pts_4.is_some())?;
                     fix_no_axis_pts_4 = Some(newitem);
-                    expect_block = false;
                 }
                 "FIX_NO_AXIS_PTS_5" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = FixNoAxisPtsDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, fix_no_axis_pts_5.is_some())?;
                     fix_no_axis_pts_5 = Some(newitem);
-                    expect_block = false;
                 }
                 "FNC_VALUES" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = FncValues::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, fnc_values.is_some())?;
                     fnc_values = Some(newitem);
-                    expect_block = false;
                 }
                 "IDENTIFICATION" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Identification::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, identification.is_some())?;
                     identification = Some(newitem);
-                    expect_block = false;
                 }
                 "NO_AXIS_PTS_X" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = NoAxisPtsDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, no_axis_pts_x.is_some())?;
                     no_axis_pts_x = Some(newitem);
-                    expect_block = false;
                 }
                 "NO_AXIS_PTS_Y" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = NoAxisPtsDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, no_axis_pts_y.is_some())?;
                     no_axis_pts_y = Some(newitem);
-                    expect_block = false;
                 }
                 "NO_AXIS_PTS_Z" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = NoAxisPtsDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, no_axis_pts_z.is_some())?;
                     no_axis_pts_z = Some(newitem);
-                    expect_block = false;
                 }
                 "NO_AXIS_PTS_4" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = NoAxisPtsDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, no_axis_pts_4.is_some())?;
                     no_axis_pts_4 = Some(newitem);
-                    expect_block = false;
                 }
                 "NO_AXIS_PTS_5" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = NoAxisPtsDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, no_axis_pts_5.is_some())?;
                     no_axis_pts_5 = Some(newitem);
-                    expect_block = false;
                 }
                 "NO_RESCALE_X" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = NoRescaleDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, no_rescale_x.is_some())?;
                     no_rescale_x = Some(newitem);
-                    expect_block = false;
                 }
                 "NO_RESCALE_Y" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = NoRescaleDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, no_rescale_y.is_some())?;
                     no_rescale_y = Some(newitem);
-                    expect_block = false;
                 }
                 "NO_RESCALE_Z" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = NoRescaleDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, no_rescale_z.is_some())?;
                     no_rescale_z = Some(newitem);
-                    expect_block = false;
                 }
                 "NO_RESCALE_4" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = NoRescaleDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, no_rescale_4.is_some())?;
                     no_rescale_4 = Some(newitem);
-                    expect_block = false;
                 }
                 "NO_RESCALE_5" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = NoRescaleDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, no_rescale_5.is_some())?;
                     no_rescale_5 = Some(newitem);
-                    expect_block = false;
                 }
                 "OFFSET_X" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = OffsetDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, offset_x.is_some())?;
                     offset_x = Some(newitem);
-                    expect_block = false;
                 }
                 "OFFSET_Y" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = OffsetDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, offset_y.is_some())?;
                     offset_y = Some(newitem);
-                    expect_block = false;
                 }
                 "OFFSET_Z" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = OffsetDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, offset_z.is_some())?;
                     offset_z = Some(newitem);
-                    expect_block = false;
                 }
                 "OFFSET_4" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = OffsetDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, offset_4.is_some())?;
                     offset_4 = Some(newitem);
-                    expect_block = false;
                 }
                 "OFFSET_5" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = OffsetDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, offset_5.is_some())?;
                     offset_5 = Some(newitem);
-                    expect_block = false;
                 }
                 "RESERVED" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Reserved::parse(parser, &newcontext, line_offset)?;
                     reserved.push(newitem);
-                    expect_block = false;
                 }
                 "RIP_ADDR_W" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = RipAddrDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, rip_addr_w.is_some())?;
                     rip_addr_w = Some(newitem);
-                    expect_block = false;
                 }
                 "RIP_ADDR_X" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = RipAddrDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, rip_addr_x.is_some())?;
                     rip_addr_x = Some(newitem);
-                    expect_block = false;
                 }
                 "RIP_ADDR_Y" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = RipAddrDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, rip_addr_y.is_some())?;
                     rip_addr_y = Some(newitem);
-                    expect_block = false;
                 }
                 "RIP_ADDR_Z" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = RipAddrDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, rip_addr_z.is_some())?;
                     rip_addr_z = Some(newitem);
-                    expect_block = false;
                 }
                 "RIP_ADDR_4" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = RipAddrDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, rip_addr_4.is_some())?;
                     rip_addr_4 = Some(newitem);
-                    expect_block = false;
                 }
                 "RIP_ADDR_5" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = RipAddrDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, rip_addr_5.is_some())?;
                     rip_addr_5 = Some(newitem);
-                    expect_block = false;
                 }
                 "SRC_ADDR_X" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = SrcAddrDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, src_addr_x.is_some())?;
                     src_addr_x = Some(newitem);
-                    expect_block = false;
                 }
                 "SRC_ADDR_Y" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = SrcAddrDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, src_addr_y.is_some())?;
                     src_addr_y = Some(newitem);
-                    expect_block = false;
                 }
                 "SRC_ADDR_Z" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = SrcAddrDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, src_addr_z.is_some())?;
                     src_addr_z = Some(newitem);
-                    expect_block = false;
                 }
                 "SRC_ADDR_4" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = SrcAddrDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, src_addr_4.is_some())?;
                     src_addr_4 = Some(newitem);
-                    expect_block = false;
                 }
                 "SRC_ADDR_5" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = SrcAddrDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, src_addr_5.is_some())?;
                     src_addr_5 = Some(newitem);
-                    expect_block = false;
                 }
                 "SHIFT_OP_X" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ShiftOpDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, shift_op_x.is_some())?;
                     shift_op_x = Some(newitem);
-                    expect_block = false;
                 }
                 "SHIFT_OP_Y" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ShiftOpDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, shift_op_y.is_some())?;
                     shift_op_y = Some(newitem);
-                    expect_block = false;
                 }
                 "SHIFT_OP_Z" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ShiftOpDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, shift_op_z.is_some())?;
                     shift_op_z = Some(newitem);
-                    expect_block = false;
                 }
                 "SHIFT_OP_4" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ShiftOpDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, shift_op_4.is_some())?;
                     shift_op_4 = Some(newitem);
-                    expect_block = false;
                 }
                 "SHIFT_OP_5" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ShiftOpDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, shift_op_5.is_some())?;
                     shift_op_5 = Some(newitem);
-                    expect_block = false;
                 }
                 "STATIC_RECORD_LAYOUT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(
                         context,
                         "STATIC_RECORD_LAYOUT",
@@ -22827,9 +22165,9 @@ impl RecordLayout {
                         static_record_layout.is_some(),
                     )?;
                     static_record_layout = Some(newitem);
-                    expect_block = false;
                 }
                 "STATIC_ADDRESS_OFFSETS" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(
                         context,
                         "STATIC_ADDRESS_OFFSETS",
@@ -22842,39 +22180,9 @@ impl RecordLayout {
                         static_address_offsets.is_some(),
                     )?;
                     static_address_offsets = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -23854,6 +23162,7 @@ impl RecordLayout {
         writer.finish()
     }
 }
+
 /// defines a list of adjustable objects that can be referenced by a function or group
 #[derive(Clone)]
 pub struct RefCharacteristic {
@@ -23912,8 +23221,8 @@ impl A2lObject<(Vec<u32>, ())> for RefCharacteristic {
     }
 }
 
-impl RefCharacteristic {
-    pub(crate) fn parse(
+impl ParseableA2lObject for RefCharacteristic {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -23939,8 +23248,10 @@ impl RefCharacteristic {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                identifier_list.push(value);
-                __identifier_list_location.push(location);
+                {
+                    identifier_list.push(value);
+                    __identifier_list_location.push(location);
+                }
             }
         }
         let __dummy = ();
@@ -23976,6 +23287,7 @@ impl RefCharacteristic {
         writer.finish()
     }
 }
+
 /// defines a list of groups for use by `USER_RIGHTS`
 #[derive(Clone)]
 pub struct RefGroup {
@@ -24034,8 +23346,8 @@ impl A2lObject<(Vec<u32>, ())> for RefGroup {
     }
 }
 
-impl RefGroup {
-    pub(crate) fn parse(
+impl ParseableA2lObject for RefGroup {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -24061,8 +23373,10 @@ impl RefGroup {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                identifier_list.push(value);
-                __identifier_list_location.push(location);
+                {
+                    identifier_list.push(value);
+                    __identifier_list_location.push(location);
+                }
             }
         }
         let __dummy = ();
@@ -24098,6 +23412,7 @@ impl RefGroup {
         writer.finish()
     }
 }
+
 /// defines a list of measurement objects that can be referenced by a group
 #[derive(Clone)]
 pub struct RefMeasurement {
@@ -24156,8 +23471,8 @@ impl A2lObject<(Vec<u32>, ())> for RefMeasurement {
     }
 }
 
-impl RefMeasurement {
-    pub(crate) fn parse(
+impl ParseableA2lObject for RefMeasurement {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -24183,8 +23498,10 @@ impl RefMeasurement {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                identifier_list.push(value);
-                __identifier_list_location.push(location);
+                {
+                    identifier_list.push(value);
+                    __identifier_list_location.push(location);
+                }
             }
         }
         let __dummy = ();
@@ -24220,6 +23537,7 @@ impl RefMeasurement {
         writer.finish()
     }
 }
+
 /// reference to a `MEMORY_SEGMENT`
 #[derive(Clone)]
 pub struct RefMemorySegment {
@@ -24284,8 +23602,8 @@ impl A2lObjectName for RefMemorySegment {
     }
 }
 
-impl RefMemorySegment {
-    pub(crate) fn parse(
+impl ParseableA2lObject for RefMemorySegment {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -24320,6 +23638,7 @@ impl RefMemorySegment {
         writer.finish()
     }
 }
+
 /// reference to a UNIT
 #[derive(Clone)]
 pub struct RefUnit {
@@ -24376,8 +23695,8 @@ impl A2lObject<(u32, ())> for RefUnit {
     }
 }
 
-impl RefUnit {
-    pub(crate) fn parse(
+impl ParseableA2lObject for RefUnit {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -24412,6 +23731,7 @@ impl RefUnit {
         writer.finish()
     }
 }
+
 /// indicates that the data at the given position is reserved and should not be interpreted by the MCD system
 #[derive(Clone)]
 pub struct Reserved {
@@ -24473,8 +23793,8 @@ impl A2lObject<((u32, bool), u32)> for Reserved {
     }
 }
 
-impl Reserved {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Reserved {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -24489,7 +23809,7 @@ impl Reserved {
         };
         let (__data_size_location, data_size) = (
             parser.get_current_line_offset(),
-            DataTypeSize::parse(parser, context)?,
+            DataTypeSize::parse(parser, context, 0)?,
         );
         let __end_offset: u32 = 0;
         Ok(Self {
@@ -24522,6 +23842,7 @@ impl Reserved {
         writer.finish()
     }
 }
+
 /// Used within `BIT_OPERATION` to right-shift the bits of a value
 #[derive(Clone)]
 pub struct RightShift {
@@ -24580,8 +23901,8 @@ impl A2lObject<((u32, bool), ())> for RightShift {
     }
 }
 
-impl RightShift {
-    pub(crate) fn parse(
+impl ParseableA2lObject for RightShift {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -24621,6 +23942,7 @@ impl RightShift {
         writer.finish()
     }
 }
+
 /// Describes the storage of the ECU-internal result of interpolation (RIP)
 #[derive(Clone)]
 pub struct RipAddrDim {
@@ -24682,8 +24004,8 @@ impl A2lObject<((u32, bool), u32)> for RipAddrDim {
     }
 }
 
-impl RipAddrDim {
-    pub(crate) fn parse(
+impl ParseableA2lObject for RipAddrDim {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -24698,7 +24020,7 @@ impl RipAddrDim {
         };
         let (__datatype_location, datatype) = (
             parser.get_current_line_offset(),
-            DataType::parse(parser, context)?,
+            DataType::parse(parser, context, 0)?,
         );
         let __end_offset: u32 = 0;
         Ok(Self {
@@ -24731,6 +24053,7 @@ impl RipAddrDim {
         writer.finish()
     }
 }
+
 /// indicates that the current group is at the root of the navigation tree
 #[derive(Clone)]
 pub struct Root {
@@ -24785,8 +24108,8 @@ impl A2lObject<()> for Root {
     }
 }
 
-impl Root {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Root {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -24814,6 +24137,7 @@ impl Root {
         writer.finish()
     }
 }
+
 /// sets the standard record layout for the module
 #[derive(Clone)]
 pub struct SRecLayout {
@@ -24878,8 +24202,8 @@ impl A2lObjectName for SRecLayout {
     }
 }
 
-impl SRecLayout {
-    pub(crate) fn parse(
+impl ParseableA2lObject for SRecLayout {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -24914,6 +24238,7 @@ impl SRecLayout {
         writer.finish()
     }
 }
+
 /// Description of the shift operand in the deposit structure to compute the axis points for fixed characteristic curves and fixed characteristic maps
 #[derive(Clone)]
 pub struct ShiftOpDim {
@@ -24975,8 +24300,8 @@ impl A2lObject<((u32, bool), u32)> for ShiftOpDim {
     }
 }
 
-impl ShiftOpDim {
-    pub(crate) fn parse(
+impl ParseableA2lObject for ShiftOpDim {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -24991,7 +24316,7 @@ impl ShiftOpDim {
         };
         let (__datatype_location, datatype) = (
             parser.get_current_line_offset(),
-            DataType::parse(parser, context)?,
+            DataType::parse(parser, context, 0)?,
         );
         let __end_offset: u32 = 0;
         Ok(Self {
@@ -25024,6 +24349,7 @@ impl ShiftOpDim {
         writer.finish()
     }
 }
+
 /// the seven base dimensions required to define an extended SI unit
 #[derive(Clone)]
 pub struct SiExponents {
@@ -25160,8 +24486,8 @@ impl
     }
 }
 
-impl SiExponents {
-    pub(crate) fn parse(
+impl ParseableA2lObject for SiExponents {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -25274,6 +24600,7 @@ impl SiExponents {
         writer.finish()
     }
 }
+
 /// used in `BIT_OPERATION` to specify that sign extension should be performed
 #[derive(Clone)]
 pub struct SignExtend {
@@ -25328,8 +24655,8 @@ impl A2lObject<()> for SignExtend {
     }
 }
 
-impl SignExtend {
-    pub(crate) fn parse(
+impl ParseableA2lObject for SignExtend {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -25357,6 +24684,7 @@ impl SignExtend {
         writer.finish()
     }
 }
+
 /// Description of the address of the input quantity in an adjustable object
 #[derive(Clone)]
 pub struct SrcAddrDim {
@@ -25418,8 +24746,8 @@ impl A2lObject<((u32, bool), u32)> for SrcAddrDim {
     }
 }
 
-impl SrcAddrDim {
-    pub(crate) fn parse(
+impl ParseableA2lObject for SrcAddrDim {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -25434,7 +24762,7 @@ impl SrcAddrDim {
         };
         let (__datatype_location, datatype) = (
             parser.get_current_line_offset(),
-            DataType::parse(parser, context)?,
+            DataType::parse(parser, context, 0)?,
         );
         let __end_offset: u32 = 0;
         Ok(Self {
@@ -25467,6 +24795,7 @@ impl SrcAddrDim {
         writer.finish()
     }
 }
+
 /// indicates that the start addresses of axes and function values of an adjustable object do not change when removing or inserting axis points
 #[derive(Clone)]
 pub struct StaticAddressOffsets {
@@ -25521,8 +24850,8 @@ impl A2lObject<()> for StaticAddressOffsets {
     }
 }
 
-impl StaticAddressOffsets {
-    pub(crate) fn parse(
+impl ParseableA2lObject for StaticAddressOffsets {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -25550,6 +24879,7 @@ impl StaticAddressOffsets {
         writer.finish()
     }
 }
+
 /// indicates that an adjustable object with dynamic number of axis points does not compact or expand data when removing or inserting axis points
 #[derive(Clone)]
 pub struct StaticRecordLayout {
@@ -25604,8 +24934,8 @@ impl A2lObject<()> for StaticRecordLayout {
     }
 }
 
-impl StaticRecordLayout {
-    pub(crate) fn parse(
+impl ParseableA2lObject for StaticRecordLayout {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -25633,6 +24963,7 @@ impl StaticRecordLayout {
         writer.finish()
     }
 }
+
 /// used to split up the value range of ECU internal values into a numerical and a verbal part
 #[derive(Clone)]
 pub struct StatusStringRef {
@@ -25691,8 +25022,8 @@ impl A2lObject<(u32, ())> for StatusStringRef {
     }
 }
 
-impl StatusStringRef {
-    pub(crate) fn parse(
+impl ParseableA2lObject for StatusStringRef {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -25727,6 +25058,7 @@ impl StatusStringRef {
         writer.finish()
     }
 }
+
 /// step size when adjusting the value of a CHARACTERISTIC, `AXIS_PTS` or `AXIS_DESCR`
 #[derive(Clone)]
 pub struct StepSize {
@@ -25785,8 +25117,8 @@ impl A2lObject<(u32, ())> for StepSize {
     }
 }
 
-impl StepSize {
-    pub(crate) fn parse(
+impl ParseableA2lObject for StepSize {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -25821,6 +25153,7 @@ impl StepSize {
         writer.finish()
     }
 }
+
 /// defines a single component of a `TYPEDEF_STRUCTURE`
 #[derive(Clone)]
 pub struct StructureComponent {
@@ -25915,8 +25248,8 @@ impl A2lObject<(u32, u32, (u32, bool))> for StructureComponent {
     }
 }
 
-impl StructureComponent {
-    pub(crate) fn parse(
+impl ParseableA2lObject for StructureComponent {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -25945,12 +25278,12 @@ impl StructureComponent {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 4usize] =
                 ["ADDRESS_TYPE", "LAYOUT", "MATRIX_DIM", "SYMBOL_TYPE_LINK"];
             match tag {
                 "ADDRESS_TYPE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(
                         context,
                         "ADDRESS_TYPE",
@@ -25959,57 +25292,27 @@ impl StructureComponent {
                     let newitem = AddressType::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, address_type.is_some())?;
                     address_type = Some(newitem);
-                    expect_block = false;
                 }
                 "LAYOUT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Layout::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, layout.is_some())?;
                     layout = Some(newitem);
-                    expect_block = false;
                 }
                 "MATRIX_DIM" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = MatrixDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, matrix_dim.is_some())?;
                     matrix_dim = Some(newitem);
-                    expect_block = false;
                 }
                 "SYMBOL_TYPE_LINK" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = SymbolTypeLink::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, symbol_type_link.is_some())?;
                     symbol_type_link = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -26115,6 +25418,7 @@ impl StructureComponent {
         writer.finish()
     }
 }
+
 /// a list of identifiers of functions which are sub-functions of the current function
 #[derive(Clone)]
 pub struct SubFunction {
@@ -26173,8 +25477,8 @@ impl A2lObject<(Vec<u32>, ())> for SubFunction {
     }
 }
 
-impl SubFunction {
-    pub(crate) fn parse(
+impl ParseableA2lObject for SubFunction {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -26200,8 +25504,10 @@ impl SubFunction {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                identifier_list.push(value);
-                __identifier_list_location.push(location);
+                {
+                    identifier_list.push(value);
+                    __identifier_list_location.push(location);
+                }
             }
         }
         let __dummy = ();
@@ -26237,6 +25543,7 @@ impl SubFunction {
         writer.finish()
     }
 }
+
 /// a list of identifiers of groups which are subgroups of the current group
 #[derive(Clone)]
 pub struct SubGroup {
@@ -26295,8 +25602,8 @@ impl A2lObject<(Vec<u32>, ())> for SubGroup {
     }
 }
 
-impl SubGroup {
-    pub(crate) fn parse(
+impl ParseableA2lObject for SubGroup {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -26322,8 +25629,10 @@ impl SubGroup {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                identifier_list.push(value);
-                __identifier_list_location.push(location);
+                {
+                    identifier_list.push(value);
+                    __identifier_list_location.push(location);
+                }
             }
         }
         let __dummy = ();
@@ -26359,6 +25668,7 @@ impl SubGroup {
         writer.finish()
     }
 }
+
 /// Name of the ECU manufacturer
 #[derive(Clone)]
 pub struct Supplier {
@@ -26417,8 +25727,8 @@ impl A2lObject<(u32, ())> for Supplier {
     }
 }
 
-impl Supplier {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Supplier {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -26453,6 +25763,7 @@ impl Supplier {
         writer.finish()
     }
 }
+
 /// specifes the name of a symbol within a linker map file that corresponds to the a2l object
 #[derive(Clone)]
 pub struct SymbolLink {
@@ -26514,8 +25825,8 @@ impl A2lObject<(u32, (u32, bool))> for SymbolLink {
     }
 }
 
-impl SymbolLink {
-    pub(crate) fn parse(
+impl ParseableA2lObject for SymbolLink {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -26560,6 +25871,7 @@ impl SymbolLink {
         writer.finish()
     }
 }
+
 /// Specifies the name of a symbol within a linker map file or debug file that describes a class, class member, structure or structure component
 #[derive(Clone)]
 pub struct SymbolTypeLink {
@@ -26618,8 +25930,8 @@ impl A2lObject<(u32, ())> for SymbolTypeLink {
     }
 }
 
-impl SymbolTypeLink {
-    pub(crate) fn parse(
+impl ParseableA2lObject for SymbolTypeLink {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -26654,6 +25966,7 @@ impl SymbolTypeLink {
         writer.finish()
     }
 }
+
 /// defines a system constant that can be used in conversion formulas
 #[derive(Clone)]
 pub struct SystemConstant {
@@ -26715,8 +26028,8 @@ impl A2lObject<(u32, u32)> for SystemConstant {
     }
 }
 
-impl SystemConstant {
-    pub(crate) fn parse(
+impl ParseableA2lObject for SystemConstant {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -26756,6 +26069,7 @@ impl SystemConstant {
         writer.finish()
     }
 }
+
 ///Auto generated for repeating sequence `tab_entry` in block `COMPU_TAB`
 #[derive(Clone)]
 pub struct TabEntryStruct {
@@ -26817,8 +26131,8 @@ impl A2lObject<(u32, u32)> for TabEntryStruct {
     }
 }
 
-impl TabEntryStruct {
-    pub(crate) fn parse(
+impl ParseableA2lObject for TabEntryStruct {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -26856,6 +26170,7 @@ impl TabEntryStruct {
         writer.add_float(self.out_val, self.__block_info.item_location.1);
     }
 }
+
 /// Definition of call to an external function (32-bit or 64-bit DLL) for converting calibration object values between their implementation format and physical format
 #[derive(Clone)]
 pub struct Transformer {
@@ -26966,8 +26281,8 @@ impl A2lObjectName for Transformer {
     }
 }
 
-impl Transformer {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Transformer {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -26998,7 +26313,7 @@ impl Transformer {
         };
         let (__trigger_location, trigger) = (
             parser.get_current_line_offset(),
-            TransformerTrigger::parse(parser, context)?,
+            TransformerTrigger::parse(parser, context, 0)?,
         );
         let (__inverse_transformer_location, inverse_transformer) = (
             parser.get_current_line_offset(),
@@ -27010,11 +26325,11 @@ impl Transformer {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 2usize] = ["TRANSFORMER_IN_OBJECTS", "TRANSFORMER_OUT_OBJECTS"];
             match tag {
                 "TRANSFORMER_IN_OBJECTS" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = TransformerInObjects::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(
                         context,
@@ -27022,9 +26337,9 @@ impl Transformer {
                         transformer_in_objects.is_some(),
                     )?;
                     transformer_in_objects = Some(newitem);
-                    expect_block = true;
                 }
                 "TRANSFORMER_OUT_OBJECTS" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = TransformerOutObjects::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(
                         context,
@@ -27032,39 +26347,9 @@ impl Transformer {
                         transformer_out_objects.is_some(),
                     )?;
                     transformer_out_objects = Some(newitem);
-                    expect_block = true;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -27152,6 +26437,7 @@ impl Transformer {
         writer.finish()
     }
 }
+
 /// provides a list of inputs for a TRANSFORMER
 #[derive(Clone)]
 pub struct TransformerInObjects {
@@ -27210,8 +26496,8 @@ impl A2lObject<(Vec<u32>, ())> for TransformerInObjects {
     }
 }
 
-impl TransformerInObjects {
-    pub(crate) fn parse(
+impl ParseableA2lObject for TransformerInObjects {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -27237,8 +26523,10 @@ impl TransformerInObjects {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                identifier_list.push(value);
-                __identifier_list_location.push(location);
+                {
+                    identifier_list.push(value);
+                    __identifier_list_location.push(location);
+                }
             }
         }
         let __dummy = ();
@@ -27274,6 +26562,7 @@ impl TransformerInObjects {
         writer.finish()
     }
 }
+
 /// provides a list of outputs for a TRANSFORMER
 #[derive(Clone)]
 pub struct TransformerOutObjects {
@@ -27332,8 +26621,8 @@ impl A2lObject<(Vec<u32>, ())> for TransformerOutObjects {
     }
 }
 
-impl TransformerOutObjects {
-    pub(crate) fn parse(
+impl ParseableA2lObject for TransformerOutObjects {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -27359,8 +26648,10 @@ impl TransformerOutObjects {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                identifier_list.push(value);
-                __identifier_list_location.push(location);
+                {
+                    identifier_list.push(value);
+                    __identifier_list_location.push(location);
+                }
             }
         }
         let __dummy = ();
@@ -27396,6 +26687,7 @@ impl TransformerOutObjects {
         writer.finish()
     }
 }
+
 /// the trigger conditions of a TRANSFORMER
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransformerTrigger {
@@ -27403,10 +26695,11 @@ pub enum TransformerTrigger {
     OnChange,
 }
 
-impl TransformerTrigger {
-    pub(crate) fn parse(
+impl ParseableA2lObject for TransformerTrigger {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
+        __start_offset: u32,
     ) -> Result<Self, ParserError> {
         let enumname = parser.get_identifier(context)?;
         match &*enumname {
@@ -27432,6 +26725,7 @@ impl std::fmt::Display for TransformerTrigger {
         f.write_str(tag)
     }
 }
+
 /// Type definition of an axis object
 #[derive(Clone)]
 pub struct TypedefAxis {
@@ -27599,8 +26893,8 @@ impl A2lObjectName for TypedefAxis {
     }
 }
 
-impl TypedefAxis {
-    pub(crate) fn parse(
+impl ParseableA2lObject for TypedefAxis {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -27656,8 +26950,7 @@ impl TypedefAxis {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 7usize] = [
                 "BYTE_ORDER",
                 "DEPOSIT",
@@ -27669,78 +26962,49 @@ impl TypedefAxis {
             ];
             match tag {
                 "BYTE_ORDER" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ByteOrder::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, byte_order.is_some())?;
                     byte_order = Some(newitem);
-                    expect_block = false;
                 }
                 "DEPOSIT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Deposit::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, deposit.is_some())?;
                     deposit = Some(newitem);
-                    expect_block = false;
                 }
                 "EXTENDED_LIMITS" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ExtendedLimits::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, extended_limits.is_some())?;
                     extended_limits = Some(newitem);
-                    expect_block = false;
                 }
                 "FORMAT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Format::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, format.is_some())?;
                     format = Some(newitem);
-                    expect_block = false;
                 }
                 "MONOTONY" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Monotony::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, monotony.is_some())?;
                     monotony = Some(newitem);
-                    expect_block = false;
                 }
                 "PHYS_UNIT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = PhysUnit::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, phys_unit.is_some())?;
                     phys_unit = Some(newitem);
-                    expect_block = false;
                 }
                 "STEP_SIZE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = StepSize::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, step_size.is_some())?;
                     step_size = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -27909,6 +27173,7 @@ impl TypedefAxis {
         writer.finish()
     }
 }
+
 /// Type definition of a BLOB
 #[derive(Clone)]
 pub struct TypedefBlob {
@@ -27988,8 +27253,8 @@ impl A2lObjectName for TypedefBlob {
     }
 }
 
-impl TypedefBlob {
-    pub(crate) fn parse(
+impl ParseableA2lObject for TypedefBlob {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -28015,11 +27280,11 @@ impl TypedefBlob {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 1usize] = ["ADDRESS_TYPE"];
             match tag {
                 "ADDRESS_TYPE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     parser.check_block_version_lower(
                         context,
                         "ADDRESS_TYPE",
@@ -28028,39 +27293,9 @@ impl TypedefBlob {
                     let newitem = AddressType::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, address_type.is_some())?;
                     address_type = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -28117,6 +27352,7 @@ impl TypedefBlob {
         writer.finish()
     }
 }
+
 /// Type definition of a calibration object
 #[derive(Clone)]
 pub struct TypedefCharacteristic {
@@ -28295,8 +27531,8 @@ impl A2lObjectName for TypedefCharacteristic {
     }
 }
 
-impl TypedefCharacteristic {
-    pub(crate) fn parse(
+impl ParseableA2lObject for TypedefCharacteristic {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -28314,7 +27550,7 @@ impl TypedefCharacteristic {
         );
         let (__characteristic_type_location, characteristic_type) = (
             parser.get_current_line_offset(),
-            CharacteristicType::parse(parser, context)?,
+            CharacteristicType::parse(parser, context, 0)?,
         );
         let (__record_layout_location, record_layout) = (
             parser.get_current_line_offset(),
@@ -28351,8 +27587,7 @@ impl TypedefCharacteristic {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 11usize] = [
                 "AXIS_DESCR",
                 "BIT_MASK",
@@ -28368,101 +27603,72 @@ impl TypedefCharacteristic {
             ];
             match tag {
                 "AXIS_DESCR" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = AxisDescr::parse(parser, &newcontext, line_offset)?;
                     axis_descr.push(newitem);
-                    expect_block = true;
                 }
                 "BIT_MASK" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = BitMask::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, bit_mask.is_some())?;
                     bit_mask = Some(newitem);
-                    expect_block = false;
                 }
                 "BYTE_ORDER" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ByteOrder::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, byte_order.is_some())?;
                     byte_order = Some(newitem);
-                    expect_block = false;
                 }
                 "DISCRETE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Discrete::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, discrete.is_some())?;
                     discrete = Some(newitem);
-                    expect_block = false;
                 }
                 "ENCODING" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Encoding::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, encoding.is_some())?;
                     encoding = Some(newitem);
-                    expect_block = false;
                 }
                 "EXTENDED_LIMITS" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ExtendedLimits::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, extended_limits.is_some())?;
                     extended_limits = Some(newitem);
-                    expect_block = false;
                 }
                 "FORMAT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Format::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, format.is_some())?;
                     format = Some(newitem);
-                    expect_block = false;
                 }
                 "MATRIX_DIM" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = MatrixDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, matrix_dim.is_some())?;
                     matrix_dim = Some(newitem);
-                    expect_block = false;
                 }
                 "NUMBER" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Number::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, number.is_some())?;
                     number = Some(newitem);
-                    expect_block = false;
                 }
                 "PHYS_UNIT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = PhysUnit::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, phys_unit.is_some())?;
                     phys_unit = Some(newitem);
-                    expect_block = false;
                 }
                 "STEP_SIZE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = StepSize::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, step_size.is_some())?;
                     step_size = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -28687,6 +27893,7 @@ impl TypedefCharacteristic {
         writer.finish()
     }
 }
+
 /// Type definition of a measurement object
 #[derive(Clone)]
 pub struct TypedefMeasurement {
@@ -28860,8 +28067,8 @@ impl A2lObjectName for TypedefMeasurement {
     }
 }
 
-impl TypedefMeasurement {
-    pub(crate) fn parse(
+impl ParseableA2lObject for TypedefMeasurement {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -28879,7 +28086,7 @@ impl TypedefMeasurement {
         );
         let (__datatype_location, datatype) = (
             parser.get_current_line_offset(),
-            DataType::parse(parser, context)?,
+            DataType::parse(parser, context, 0)?,
         );
         let (__conversion_location, conversion) = (
             parser.get_current_line_offset(),
@@ -28916,8 +28123,7 @@ impl TypedefMeasurement {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 10usize] = [
                 "ADDRESS_TYPE",
                 "BIT_MASK",
@@ -28932,96 +28138,67 @@ impl TypedefMeasurement {
             ];
             match tag {
                 "ADDRESS_TYPE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AddressType::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, address_type.is_some())?;
                     address_type = Some(newitem);
-                    expect_block = false;
                 }
                 "BIT_MASK" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = BitMask::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, bit_mask.is_some())?;
                     bit_mask = Some(newitem);
-                    expect_block = false;
                 }
                 "BIT_OPERATION" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = BitOperation::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, bit_operation.is_some())?;
                     bit_operation = Some(newitem);
-                    expect_block = true;
                 }
                 "BYTE_ORDER" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ByteOrder::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, byte_order.is_some())?;
                     byte_order = Some(newitem);
-                    expect_block = false;
                 }
                 "DISCRETE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Discrete::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, discrete.is_some())?;
                     discrete = Some(newitem);
-                    expect_block = false;
                 }
                 "ERROR_MASK" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ErrorMask::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, error_mask.is_some())?;
                     error_mask = Some(newitem);
-                    expect_block = false;
                 }
                 "FORMAT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Format::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, format.is_some())?;
                     format = Some(newitem);
-                    expect_block = false;
                 }
                 "LAYOUT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = Layout::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, layout.is_some())?;
                     layout = Some(newitem);
-                    expect_block = false;
                 }
                 "MATRIX_DIM" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = MatrixDim::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, matrix_dim.is_some())?;
                     matrix_dim = Some(newitem);
-                    expect_block = false;
                 }
                 "PHYS_UNIT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = PhysUnit::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, phys_unit.is_some())?;
                     phys_unit = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -29235,6 +28412,7 @@ impl TypedefMeasurement {
         writer.finish()
     }
 }
+
 /// Definition of structured data types similar to the \"typedef\" command in C
 #[derive(Clone)]
 pub struct TypedefStructure {
@@ -29335,8 +28513,8 @@ impl A2lObjectName for TypedefStructure {
     }
 }
 
-impl TypedefStructure {
-    pub(crate) fn parse(
+impl ParseableA2lObject for TypedefStructure {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -29365,8 +28543,7 @@ impl TypedefStructure {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 4usize] = [
                 "ADDRESS_TYPE",
                 "CONSISTENT_EXCHANGE",
@@ -29375,12 +28552,13 @@ impl TypedefStructure {
             ];
             match tag {
                 "ADDRESS_TYPE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = AddressType::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, address_type.is_some())?;
                     address_type = Some(newitem);
-                    expect_block = false;
                 }
                 "CONSISTENT_EXCHANGE" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ConsistentExchange::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(
                         context,
@@ -29388,50 +28566,20 @@ impl TypedefStructure {
                         consistent_exchange.is_some(),
                     )?;
                     consistent_exchange = Some(newitem);
-                    expect_block = false;
                 }
                 "STRUCTURE_COMPONENT" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = StructureComponent::parse(parser, &newcontext, line_offset)?;
                     structure_component.push(newitem);
-                    expect_block = true;
                 }
                 "SYMBOL_TYPE_LINK" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = SymbolTypeLink::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, symbol_type_link.is_some())?;
                     symbol_type_link = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -29537,6 +28685,7 @@ impl TypedefStructure {
         writer.finish()
     }
 }
+
 /// Specification of a measurement unit
 #[derive(Clone)]
 pub struct Unit {
@@ -29639,8 +28788,8 @@ impl A2lObjectName for Unit {
     }
 }
 
-impl Unit {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Unit {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -29662,7 +28811,7 @@ impl Unit {
         );
         let (__unit_type_location, unit_type) = (
             parser.get_current_line_offset(),
-            UnitType::parse(parser, context)?,
+            UnitType::parse(parser, context, 0)?,
         );
         let mut ref_unit: Option<RefUnit> = None;
         let mut si_exponents: Option<SiExponents> = None;
@@ -29671,59 +28820,29 @@ impl Unit {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 3usize] = ["REF_UNIT", "SI_EXPONENTS", "UNIT_CONVERSION"];
             match tag {
                 "REF_UNIT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = RefUnit::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, ref_unit.is_some())?;
                     ref_unit = Some(newitem);
-                    expect_block = false;
                 }
                 "SI_EXPONENTS" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = SiExponents::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, si_exponents.is_some())?;
                     si_exponents = Some(newitem);
-                    expect_block = false;
                 }
                 "UNIT_CONVERSION" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = UnitConversion::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, unit_conversion.is_some())?;
                     unit_conversion = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -29816,6 +28935,7 @@ impl Unit {
         writer.finish()
     }
 }
+
 /// Specification of the linear relationship between two measurement units
 #[derive(Clone)]
 pub struct UnitConversion {
@@ -29877,8 +28997,8 @@ impl A2lObject<(u32, u32)> for UnitConversion {
     }
 }
 
-impl UnitConversion {
-    pub(crate) fn parse(
+impl ParseableA2lObject for UnitConversion {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -29918,6 +29038,7 @@ impl UnitConversion {
         writer.finish()
     }
 }
+
 /// Type of the UNIT
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnitType {
@@ -29925,10 +29046,11 @@ pub enum UnitType {
     ExtendedSi,
 }
 
-impl UnitType {
-    pub(crate) fn parse(
+impl ParseableA2lObject for UnitType {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
+        __start_offset: u32,
     ) -> Result<Self, ParserError> {
         let enumname = parser.get_identifier(context)?;
         match &*enumname {
@@ -29954,6 +29076,7 @@ impl std::fmt::Display for UnitType {
         f.write_str(tag)
     }
 }
+
 /// Name of the user
 #[derive(Clone)]
 pub struct User {
@@ -30012,8 +29135,8 @@ impl A2lObject<(u32, ())> for User {
     }
 }
 
-impl User {
-    pub(crate) fn parse(
+impl ParseableA2lObject for User {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -30048,6 +29171,7 @@ impl User {
         writer.finish()
     }
 }
+
 /// used to define groups accessible only for certain users
 #[derive(Clone)]
 pub struct UserRights {
@@ -30120,8 +29244,8 @@ impl A2lObject<(u32, ())> for UserRights {
     }
 }
 
-impl UserRights {
-    pub(crate) fn parse(
+impl ParseableA2lObject for UserRights {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -30139,52 +29263,22 @@ impl UserRights {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 2usize] = ["READ_ONLY", "REF_GROUP"];
             match tag {
                 "READ_ONLY" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = ReadOnly::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, read_only.is_some())?;
                     read_only = Some(newitem);
-                    expect_block = false;
                 }
                 "REF_GROUP" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = RefGroup::parse(parser, &newcontext, line_offset)?;
                     ref_group.push(newitem);
-                    expect_block = true;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -30249,6 +29343,7 @@ impl UserRights {
         writer.finish()
     }
 }
+
 ///Auto generated for repeating sequence `value_pairs` in block `COMPU_VTAB`
 #[derive(Clone)]
 pub struct ValuePairsStruct {
@@ -30310,8 +29405,8 @@ impl A2lObject<(u32, u32)> for ValuePairsStruct {
     }
 }
 
-impl ValuePairsStruct {
-    pub(crate) fn parse(
+impl ParseableA2lObject for ValuePairsStruct {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -30349,6 +29444,7 @@ impl ValuePairsStruct {
         writer.add_quoted_string(&self.out_val, self.__block_info.item_location.1);
     }
 }
+
 ///Auto generated for repeating sequence `value_triples` in block `COMPU_VTAB_RANGE`
 #[derive(Clone)]
 pub struct ValueTriplesStruct {
@@ -30415,8 +29511,8 @@ impl A2lObject<(u32, u32, u32)> for ValueTriplesStruct {
     }
 }
 
-impl ValueTriplesStruct {
-    pub(crate) fn parse(
+impl ParseableA2lObject for ValueTriplesStruct {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -30464,6 +29560,7 @@ impl ValueTriplesStruct {
         writer.add_quoted_string(&self.out_val, self.__block_info.item_location.2);
     }
 }
+
 /// define a list of start addresses of variant coded adjustable objects
 #[derive(Clone)]
 pub struct VarAddress {
@@ -30522,8 +29619,8 @@ impl A2lObject<(Vec<(u32, bool)>, ())> for VarAddress {
     }
 }
 
-impl VarAddress {
-    pub(crate) fn parse(
+impl ParseableA2lObject for VarAddress {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -30550,8 +29647,10 @@ impl VarAddress {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                address_list.push(value);
-                __address_list_location.push(location);
+                {
+                    address_list.push(value);
+                    __address_list_location.push(location);
+                }
             }
         }
         let __dummy = ();
@@ -30598,6 +29697,7 @@ impl VarAddress {
         writer.finish()
     }
 }
+
 /// defines one adjustable object to be variant coded
 #[derive(Clone)]
 pub struct VarCharacteristic {
@@ -30673,8 +29773,8 @@ impl A2lObjectName for VarCharacteristic {
     }
 }
 
-impl VarCharacteristic {
-    pub(crate) fn parse(
+impl ParseableA2lObject for VarCharacteristic {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -30704,8 +29804,10 @@ impl VarCharacteristic {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                criterion_name_list.push(value);
-                __criterion_name_list_location.push(location);
+                {
+                    criterion_name_list.push(value);
+                    __criterion_name_list_location.push(location);
+                }
             }
         }
         let mut var_address: Option<VarAddress> = None;
@@ -30713,47 +29815,17 @@ impl VarCharacteristic {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 1usize] = ["VAR_ADDRESS"];
             match tag {
                 "VAR_ADDRESS" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = VarAddress::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, var_address.is_some())?;
                     var_address = Some(newitem);
-                    expect_block = true;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -30809,6 +29881,7 @@ impl VarCharacteristic {
         writer.finish()
     }
 }
+
 /// describes a variant criterion
 #[derive(Clone)]
 pub struct VarCriterion {
@@ -30898,8 +29971,8 @@ impl A2lObjectName for VarCriterion {
     }
 }
 
-impl VarCriterion {
-    pub(crate) fn parse(
+impl ParseableA2lObject for VarCriterion {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -30949,17 +30022,17 @@ impl VarCriterion {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 2usize] = ["VAR_MEASUREMENT", "VAR_SELECTION_CHARACTERISTIC"];
             match tag {
                 "VAR_MEASUREMENT" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = VarMeasurement::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, var_measurement.is_some())?;
                     var_measurement = Some(newitem);
-                    expect_block = false;
                 }
                 "VAR_SELECTION_CHARACTERISTIC" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem =
                         VarSelectionCharacteristic::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(
@@ -30968,39 +30041,9 @@ impl VarCriterion {
                         var_selection_characteristic.is_some(),
                     )?;
                     var_selection_characteristic = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -31078,6 +30121,7 @@ impl VarCriterion {
         writer.finish()
     }
 }
+
 /// describes a forbidden combination of values of different variant criteria
 #[derive(Clone)]
 pub struct VarForbiddenComb {
@@ -31136,8 +30180,8 @@ impl A2lObject<(Vec<u32>, ())> for VarForbiddenComb {
     }
 }
 
-impl VarForbiddenComb {
-    pub(crate) fn parse(
+impl ParseableA2lObject for VarForbiddenComb {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -31163,8 +30207,10 @@ impl VarForbiddenComb {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                combination.push(value);
-                __combination_location.push(location);
+                {
+                    combination.push(value);
+                    __combination_location.push(location);
+                }
             }
         }
         let __dummy = ();
@@ -31197,6 +30243,7 @@ impl VarForbiddenComb {
         writer.finish()
     }
 }
+
 /// specify a special measurement object which indicates the currently active variant
 #[derive(Clone)]
 pub struct VarMeasurement {
@@ -31261,8 +30308,8 @@ impl A2lObjectName for VarMeasurement {
     }
 }
 
-impl VarMeasurement {
-    pub(crate) fn parse(
+impl ParseableA2lObject for VarMeasurement {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -31297,6 +30344,7 @@ impl VarMeasurement {
         writer.finish()
     }
 }
+
 /// defines the format of the variant extension (index) of adjustable object names
 #[derive(Clone)]
 pub struct VarNaming {
@@ -31353,8 +30401,8 @@ impl A2lObject<(u32, ())> for VarNaming {
     }
 }
 
-impl VarNaming {
-    pub(crate) fn parse(
+impl ParseableA2lObject for VarNaming {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -31364,7 +30412,7 @@ impl VarNaming {
         let __uid = parser.get_next_id();
         let (__tag_location, tag) = (
             parser.get_current_line_offset(),
-            VarNamingTag::parse(parser, context)?,
+            VarNamingTag::parse(parser, context, 0)?,
         );
         let __dummy = ();
         let __end_offset: u32 = 0;
@@ -31389,16 +30437,18 @@ impl VarNaming {
         writer.finish()
     }
 }
+
 /// intended to define the format of the variant extension. Currently only one format is supported
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VarNamingTag {
     Numeric,
 }
 
-impl VarNamingTag {
-    pub(crate) fn parse(
+impl ParseableA2lObject for VarNamingTag {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
+        __start_offset: u32,
     ) -> Result<Self, ParserError> {
         let enumname = parser.get_identifier(context)?;
         match &*enumname {
@@ -31487,8 +30537,8 @@ impl A2lObjectName for VarSelectionCharacteristic {
     }
 }
 
-impl VarSelectionCharacteristic {
-    pub(crate) fn parse(
+impl ParseableA2lObject for VarSelectionCharacteristic {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -31523,6 +30573,7 @@ impl VarSelectionCharacteristic {
         writer.finish()
     }
 }
+
 /// defines the separating symbol between the two parts of an adjustable object name
 #[derive(Clone)]
 pub struct VarSeparator {
@@ -31581,8 +30632,8 @@ impl A2lObject<(u32, ())> for VarSeparator {
     }
 }
 
-impl VarSeparator {
-    pub(crate) fn parse(
+impl ParseableA2lObject for VarSeparator {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -31617,6 +30668,7 @@ impl VarSeparator {
         writer.finish()
     }
 }
+
 /// All information related to variant coding is grouped in this structure
 #[derive(Clone)]
 pub struct VariantCoding {
@@ -31706,8 +30758,8 @@ impl A2lObject<()> for VariantCoding {
     }
 }
 
-impl VariantCoding {
-    pub(crate) fn parse(
+impl ParseableA2lObject for VariantCoding {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -31724,8 +30776,7 @@ impl VariantCoding {
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
             let tag = parser.get_token_text(token);
-            let newcontext = ParseContext::from_token(tag, token, is_block);
-            let expect_block: bool;
+            let newcontext = ParseContext::from_token(tag, token);
             const TAG_LIST: [&str; 5usize] = [
                 "VAR_CHARACTERISTIC",
                 "VAR_CRITERION",
@@ -31735,63 +30786,34 @@ impl VariantCoding {
             ];
             match tag {
                 "VAR_CHARACTERISTIC" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = VarCharacteristic::parse(parser, &newcontext, line_offset)?;
                     var_characteristic.push(newitem);
-                    expect_block = true;
                 }
                 "VAR_CRITERION" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = VarCriterion::parse(parser, &newcontext, line_offset)?;
                     var_criterion.push(newitem);
-                    expect_block = true;
                 }
                 "VAR_FORBIDDEN_COMB" => {
+                    parser.require_block(tag, is_block, context)?;
                     let newitem = VarForbiddenComb::parse(parser, &newcontext, line_offset)?;
                     var_forbidden_comb.push(newitem);
-                    expect_block = true;
                 }
                 "VAR_NAMING" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = VarNaming::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, var_naming.is_some())?;
                     var_naming = Some(newitem);
-                    expect_block = false;
                 }
                 "VAR_SEPARATOR" => {
+                    parser.require_keyword(tag, is_block, context)?;
                     let newitem = VarSeparator::parse(parser, &newcontext, line_offset)?;
                     parser.handle_multiplicity_error(context, tag, var_separator.is_some())?;
                     var_separator = Some(newitem);
-                    expect_block = false;
                 }
                 _ => {
-                    if context.inside_block {
-                        parser
-                            .handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-                    } else {
-                        if is_block {
-                            parser.undo_get_token();
-                        }
-                        parser.undo_get_token();
-                        break;
-                    }
-                    expect_block = is_block;
-                }
-            }
-            if expect_block != is_block {
-                if expect_block {
-                    parser.error_or_log(ParserError::IncorrectBlockError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
-                } else {
-                    parser.error_or_log(ParserError::IncorrectKeywordError {
-                        filename: parser.filenames[context.fileid].to_string(),
-                        error_line: parser.last_token_position,
-                        tag: tag.to_string(),
-                        block: context.element.clone(),
-                        block_line: context.line,
-                    })?;
+                    parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
                 }
             }
             next_tag = parser.get_next_tag(context)?;
@@ -31898,6 +30920,7 @@ impl VariantCoding {
         writer.finish()
     }
 }
+
 /// version identifier
 #[derive(Clone)]
 pub struct Version {
@@ -31956,8 +30979,8 @@ impl A2lObject<(u32, ())> for Version {
     }
 }
 
-impl Version {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Version {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -31992,6 +31015,7 @@ impl Version {
         writer.finish()
     }
 }
+
 /// specification of the measurement objects for a virtual measurement channel
 #[derive(Clone)]
 pub struct Virtual {
@@ -32050,8 +31074,8 @@ impl A2lObject<(Vec<u32>, ())> for Virtual {
     }
 }
 
-impl Virtual {
-    pub(crate) fn parse(
+impl ParseableA2lObject for Virtual {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -32077,8 +31101,10 @@ impl Virtual {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                measuring_channel_list.push(value);
-                __measuring_channel_list_location.push(location);
+                {
+                    measuring_channel_list.push(value);
+                    __measuring_channel_list_location.push(location);
+                }
             }
         }
         let __dummy = ();
@@ -32114,6 +31140,7 @@ impl Virtual {
         writer.finish()
     }
 }
+
 /// defines characteristics that are not deposited in the memory of the control unit, but can be used to indirectly calibrate other characteristic values
 #[derive(Clone)]
 pub struct VirtualCharacteristic {
@@ -32175,8 +31202,8 @@ impl A2lObject<(u32, Vec<u32>)> for VirtualCharacteristic {
     }
 }
 
-impl VirtualCharacteristic {
-    pub(crate) fn parse(
+impl ParseableA2lObject for VirtualCharacteristic {
+    fn parse(
         parser: &mut ParserState,
         context: &ParseContext,
         __start_offset: u32,
@@ -32206,8 +31233,10 @@ impl VirtualCharacteristic {
                 done = true;
             } else {
                 let (location, value) = sequence_item?;
-                characteristic_list.push(value);
-                __characteristic_list_location.push(location);
+                {
+                    characteristic_list.push(value);
+                    __characteristic_list_location.push(location);
+                }
             }
         }
         let __end_offset = parser.get_current_line_offset();
@@ -32244,6 +31273,7 @@ impl VirtualCharacteristic {
         writer.finish()
     }
 }
+
 /// A2ML is a special case in the specification.
 /// It contains the ASAP2 metalanguage code that describes the content of `IF_DATA` blocks
 #[derive(Clone)]
@@ -32366,6 +31396,7 @@ impl PartialEq for A2ml {
         self.a2ml_text == other.a2ml_text
     }
 }
+
 /// The content of `IF_DATA` blocks is not directly described in the specification.
 /// Instead the content description is provided at runtime through the A2ML block.
 #[derive(Clone)]

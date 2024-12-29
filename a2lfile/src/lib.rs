@@ -241,7 +241,6 @@ pub fn load_fragment(a2ldata: &str) -> Result<Module, A2lError> {
         element: "MODULE".to_string(),
         fileid: 0,
         line: firstline,
-        inside_block: true,
     };
 
     // create the parser state object
@@ -272,7 +271,6 @@ pub fn load_fragment2(a2ldata: &str, a2ml_spec: Option<String>) -> Result<Module
         element: "MODULE".to_string(),
         fileid: 0,
         line: firstline,
-        inside_block: true,
     };
 
     // create the parser state object

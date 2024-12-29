@@ -3,7 +3,7 @@ use thiserror::Error;
 
 use crate::a2ml::A2mlTypeSpec;
 use crate::tokenizer::{A2lToken, A2lTokenType, TokenResult};
-use crate::{A2lError, Filename};
+use crate::{A2lError, Filename, ParseableA2lObject};
 
 const MAX_IDENT: usize = 1024;
 
@@ -41,7 +41,6 @@ pub struct ParseContext {
     pub element: String,
     pub fileid: usize,
     pub line: u32,
-    pub inside_block: bool,
 }
 #[derive(Debug, Error)]
 #[non_exhaustive]
@@ -295,7 +294,6 @@ impl<'a> ParserState<'a> {
             element: "A2L_FILE".to_string(),
             fileid: 0,
             line: firstline,
-            inside_block: false,
         };
 
         // try to get the file version. Starting with 1.60, the ASAP2_VERSION element is mandatory. For
@@ -320,7 +318,7 @@ impl<'a> ParserState<'a> {
     fn parse_version(&mut self, context: &ParseContext) -> Result<crate::A2lVersion, ParserError> {
         if let Some(token) = self.peek_token() {
             let ident = self.get_identifier(context);
-            let ver_context = ParseContext::from_token("", token, false);
+            let ver_context = ParseContext::from_token("", token);
             if let Ok("ASAP2_VERSION") = ident.as_deref() {
                 let version_result = crate::Asap2Version::parse(self, &ver_context, 0)
                     .map_err(|_| ParserError::MissingVersionInfo)
@@ -861,7 +859,7 @@ impl<'a> ParserState<'a> {
         let startpos = self.get_tokenpos();
         let text = self.get_token_text(&self.token_cursor.tokens[startpos]);
         let errcontext =
-            ParseContext::from_token(text, &self.token_cursor.tokens[startpos], item_is_block);
+            ParseContext::from_token(text, &self.token_cursor.tokens[startpos]);
 
         let mut balance = 0;
         if item_is_block {
@@ -914,7 +912,7 @@ impl<'a> ParserState<'a> {
                     }
                 }
                 _ => {
-                    // once balance == 0 is reachd for a block, the next tag should be an Identifier
+                    // once balance == 0 is reached for a block, the next tag should be an Identifier
                     if item_is_block && balance == 0 {
                         return Err(ParserError::incorrect_end_tag(self, &errcontext, text));
                     }
@@ -939,15 +937,42 @@ impl<'a> ParserState<'a> {
         }
         Ok(())
     }
+
+    pub(crate) fn require_block(&self, tag: &str, is_block: bool, context: &ParseContext) -> Result<(), ParserError> {
+        if !is_block {
+            Err(ParserError::IncorrectBlockError{
+                filename: self.filenames[context.fileid].to_string(),
+                error_line: self.last_token_position,
+                tag: tag.to_string(),
+                block: context.element.clone(),
+                block_line: context.line,
+            })
+        } else {
+            Ok(())
+        }
+    }
+
+    pub(crate) fn require_keyword(&self, tag: &str, is_block: bool, context: &ParseContext) -> Result<(), ParserError> {
+        if is_block {
+            Err(ParserError::IncorrectKeywordError{
+                filename: self.filenames[context.fileid].to_string(),
+                error_line: self.last_token_position,
+                tag: tag.to_string(),
+                block: context.element.clone(),
+                block_line: context.line,
+            })
+        } else {
+            Ok(())
+        }
+    }
 }
 
 impl ParseContext {
-    pub(crate) fn from_token(text: &str, token: &A2lToken, is_block: bool) -> ParseContext {
+    pub(crate) fn from_token(text: &str, token: &A2lToken) -> ParseContext {
         ParseContext {
             element: text.to_string(),
             fileid: token.fileid,
             line: token.line,
-            inside_block: is_block,
         }
     }
 }
@@ -1137,7 +1162,6 @@ mod tests {
             element: "TEST".to_string(),
             fileid: 0,
             line: 0,
-            inside_block: true,
         };
 
         // uint8: 0
@@ -1246,7 +1270,6 @@ mod tests {
             element: "TEST".to_string(),
             fileid: 0,
             line: 0,
-            inside_block: true,
         };
 
         // identifier: ident
@@ -1273,7 +1296,6 @@ mod tests {
             element: "TEST".to_string(),
             fileid: 0,
             line: 0,
-            inside_block: true,
         };
         parser.file_ver = A2lVersion::V1_6_0;
 

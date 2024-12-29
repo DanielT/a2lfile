@@ -51,6 +51,10 @@ pub(crate) trait PositionRestricted {
     }
 }
 
+pub(crate) trait ParseableA2lObject: Sized {
+    fn parse(parser: &mut ParserState, context: &ParseContext, start_offset: u32) -> Result<Self, ParserError>;
+}
+
 a2l_specification! {
     /// Contains all the objects of an A2lfile
     ///

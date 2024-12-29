@@ -62,8 +62,8 @@ fn generate_enum_parser(typename: &str, enumitems: &[EnumItem]) -> TokenStream {
     }
 
     quote! {
-        impl #name {
-            pub(crate) fn parse(parser: &mut ParserState, context: &ParseContext) -> Result<Self, ParserError> {
+        impl ParseableA2lObject for #name {
+            fn parse(parser: &mut ParserState, context: &ParseContext, __start_offset: u32) -> Result<Self, ParserError> {
                 let enumname = parser.get_identifier(context)?;
                 match &*enumname {
                     #(#match_branches)*
@@ -100,7 +100,7 @@ fn generate_block_parser_generic(
     is_block: bool,
 ) -> TokenStream {
     let name = format_ident!("{}", typename);
-    let (itemnames, itemparsers, location_names) = generate_struct_item_fragments(structitems);
+    let (itemnames, itemparsers, location_names) = generate_struct_item_fragments(structitems, is_block);
 
     // check the block /end tag - blocks only, not for keywords or structs
     let blockcheck = if is_block {
@@ -119,8 +119,8 @@ fn generate_block_parser_generic(
     };
 
     quote! {
-        impl #name {
-            pub(crate) fn parse(parser: &mut ParserState, context: &ParseContext, __start_offset: u32) -> Result<Self, ParserError> {
+        impl ParseableA2lObject for #name {
+            fn parse(parser: &mut ParserState, context: &ParseContext, __start_offset: u32) -> Result<Self, ParserError> {
                 let __location_incfile = parser.get_incfilename(context.fileid);
                 let __location_line = context.line;
                 let __uid = parser.get_next_id();
@@ -146,6 +146,7 @@ fn generate_block_parser_generic(
 // generate a list of struct elements as well as TokenStreams with code to parse these elements
 fn generate_struct_item_fragments(
     structitems: &[DataItem],
+    is_block: bool,
 ) -> (Vec<Ident>, Vec<TokenStream>, Vec<Ident>) {
     let mut itemparsers = Vec::<TokenStream>::new();
     let mut itemnames = Vec::<Ident>::new();
@@ -154,11 +155,13 @@ fn generate_struct_item_fragments(
         let is_last = idx == (structitems.len() - 1);
         match &sitem.basetype {
             BaseType::TaggedStruct { tsitems } => {
-                itemparsers.push(generate_taggeditem_parser(tsitems, false, is_last));
+                itemparsers.push(generate_taggeditem_parser(
+                    tsitems, false, is_block, is_last,
+                ));
                 itemnames.extend(generate_tagged_item_names(tsitems));
             }
             BaseType::TaggedUnion { tuitems } => {
-                itemparsers.push(generate_taggeditem_parser(tuitems, true, is_last));
+                itemparsers.push(generate_taggeditem_parser(tuitems, true, is_block, is_last));
                 itemnames.extend(generate_tagged_item_names(tuitems));
             }
             BaseType::Sequence { seqtype } => {
@@ -269,7 +272,7 @@ fn generate_item_parser_call(typename: &Option<String>, item: &BaseType) -> Toke
         BaseType::EnumRef => {
             let typename = typename.as_ref().unwrap();
             let name = format_ident!("{}", typename);
-            quote! { (parser.get_current_line_offset(), #name::parse(parser, context)?) }
+            quote! { (parser.get_current_line_offset(), #name::parse(parser, context, 0)?) }
         }
         BaseType::StructRef => {
             let typename = typename.as_ref().unwrap();
@@ -368,6 +371,7 @@ fn generate_sequence_parser(
 fn generate_taggeditem_parser(
     tg_items: &[TaggedItem],
     is_taggedunion: bool,
+    parent_is_block: bool,
     is_last: bool,
 ) -> TokenStream {
     // result: the TokenStream that ultimately collcts all the code fragements in this function
@@ -380,8 +384,13 @@ fn generate_taggeditem_parser(
     result.extend(var_definitions);
 
     // generate the full match statement that has one arm for each tgitem
-    let parser_core =
-        generate_taggeditem_parser_core(tg_items, is_taggedunion, is_last, &item_match_arms);
+    let parser_core = generate_taggeditem_parser_core(
+        tg_items,
+        is_taggedunion,
+        is_last,
+        &item_match_arms,
+        parent_is_block,
+    );
 
     // wrap the match statement inside an if or a while loop
     if is_taggedunion {
@@ -482,6 +491,16 @@ fn generate_taggeditem_match_arms(
             }
         }
 
+        let block_keyword_check = if item.is_block {
+            quote! {
+                parser.require_block(tag, is_block, context)?;
+            }
+        } else {
+            quote! {
+                parser.require_keyword(tag, is_block, context)?;
+            }
+        };
+
         let mut version_check = quote! {};
         if let Some(min_ver) = item.version_lower {
             version_check.append_all(quote! {
@@ -494,13 +513,12 @@ fn generate_taggeditem_match_arms(
             });
         }
 
-        let is_block_item = item.is_block;
         item_match_arms.push(quote! {
             #tag_string => {
+                #block_keyword_check
                 #version_check
                 let newitem = #typename::parse(parser, &newcontext, line_offset)?;
                 #store_item
-                expect_block = #is_block_item;
             }
         });
     }
@@ -515,7 +533,11 @@ fn generate_taggeditem_parser_core(
     is_taggedunion: bool,
     is_last: bool,
     item_match_arms: &[TokenStream],
+    parent_is_block: bool,
 ) -> TokenStream {
+    // NOTE: parent_is_block in the proc macro refers to the status of the parent block, which is known at compile time
+    // is_block in the generated code refers to the status of the parsed block (inside the parse loop), which is known at runtime
+
     // default action if a tag is not recognized: step back in the tokenstream and let it be handled somewhere else
     let mut default_match_arm = quote! {
         if is_block {
@@ -531,14 +553,9 @@ fn generate_taggeditem_parser_core(
 
     // if this taggedstruct / taggedunion is the last element in the block
     // and this block (at runtime) is actually inside /begin ...  /end, then there is no way to let the unknown tag to be handled somewhere else
-    if is_last {
+    if parent_is_block && is_last {
         default_match_arm = quote! {
-            if context.inside_block {
-                parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
-            } else {
-                #default_match_arm
-            }
-            expect_block = is_block;
+            parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
         };
     }
 
@@ -548,32 +565,12 @@ fn generate_taggeditem_parser_core(
     quote! {
         let (token, is_block, line_offset) = next_tag.unwrap();
         let tag = parser.get_token_text(token);
-        let newcontext = ParseContext::from_token(tag, token, is_block);
-        let expect_block: bool;
+        let newcontext = ParseContext::from_token(tag, token);
         const TAG_LIST: [&str; #taglist_len] = [#(#taglist),*];
         match tag {
             #(#item_match_arms)*
             _ => {
                 #default_match_arm
-            }
-        }
-        if expect_block != is_block {
-            if expect_block {
-                parser.error_or_log(ParserError::IncorrectBlockError{
-                    filename: parser.filenames[context.fileid].to_string(),
-                    error_line: parser.last_token_position,
-                    tag: tag.to_string(),
-                    block: context.element.clone(),
-                    block_line: context.line,
-                })?;
-            } else {
-                parser.error_or_log(ParserError::IncorrectKeywordError{
-                    filename: parser.filenames[context.fileid].to_string(),
-                    error_line: parser.last_token_position,
-                    tag: tag.to_string(),
-                    block: context.element.clone(),
-                    block_line: context.line,
-                })?;
             }
         }
     }

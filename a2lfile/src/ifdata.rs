@@ -234,7 +234,7 @@ fn parse_ifdata_taggeditem(
             let uid = parser.get_next_id();
 
             // parse the content of the tagged item
-            let newcontext = ParseContext::from_token(tag, token, is_block);
+            let newcontext = ParseContext::from_token(tag, token);
             let data = parse_ifdata_item(parser, &newcontext, &taggedspec.item)?;
             let parsed_item = parse_ifdata_make_block(
                 data,
@@ -316,7 +316,7 @@ pub(crate) fn parse_unknown_ifdata_start(
         let token = parser.get_token(context)?;
         let tag = parser.get_token_text(token);
         let uid = parser.get_next_id();
-        let newcontext = ParseContext::from_token(tag, token, false);
+        let newcontext = ParseContext::from_token(tag, token);
         let result = parse_unknown_ifdata(parser, &newcontext, true)?;
         let end_offset = parser.get_current_line_offset();
         let taggeditem = GenericIfDataTaggedItem {
@@ -427,7 +427,7 @@ fn parse_unknown_taggedstruct(
     while let Ok(Some((token, is_block, start_offset))) = parser.get_next_tag(context) {
         let uid = parser.get_next_id();
         let tag = parser.get_token_text(token);
-        let newcontext = ParseContext::from_token(tag, token, true);
+        let newcontext = ParseContext::from_token(tag, token);
         let result = parse_unknown_ifdata(parser, &newcontext, is_block)?;
 
         let end_offset = parser.get_current_line_offset();
@@ -764,7 +764,6 @@ mod ifdata_test {
                 fileid: 0,
                 line: 0,
                 element: "IFDATA".to_string(),
-                inside_block: true,
             },
         )
     }
