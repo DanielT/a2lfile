@@ -26,13 +26,6 @@ The program [a2ltool](https://github.com/DanielT/a2ltool) is based on this libra
 
 ## Documentation
 
-Add this to your `Cargo.toml`:
-
-```toml
-[dependencies]
-a2lfile = "2.3"
-```
-
 A simple program based on the `a2lfile` library might look like this:
 
 ```rust
