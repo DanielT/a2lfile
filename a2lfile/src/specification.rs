@@ -31753,8 +31753,14 @@ impl PositionRestricted for VirtualCharacteristic {}
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::Filename;
 
-    fn trait_test_helper<L, T: std::fmt::Debug + A2lObject<L> + PositionRestricted>(item: &mut T) {
+    fn trait_test_helper<
+        L,
+        T: std::fmt::Debug + A2lObject<L> + PartialEq + Clone + PositionRestricted,
+    >(
+        item: &mut T,
+    ) {
         item.get_layout_mut().uid = 1;
         assert_eq!(item.get_layout().uid, 1);
 
@@ -31769,11 +31775,34 @@ mod test {
 
         let dbg_disp = format!("{item:#?}");
         assert!(!dbg_disp.is_empty());
+
+        let item2 = item.clone();
+        assert_eq!(item, &item2);
+    }
+
+    fn trait_test_helper_unrestricted<L, T: std::fmt::Debug + A2lObject<L> + PartialEq + Clone>(
+        item: &mut T,
+    ) {
+        item.get_layout_mut().uid = 1;
+        assert_eq!(item.get_layout().uid, 1);
+
+        item.reset_location();
+        assert_eq!(item.get_layout().uid, 0);
+
+        assert_eq!(item.get_line(), 0);
+
+        item.merge_includes();
+
+        let dbg_disp = format!("{item:#?}");
+        assert!(!dbg_disp.is_empty());
+
+        let item2 = item.clone();
+        assert_eq!(item, &item2);
     }
 
     #[test]
     fn traits_test() {
-        let mut item = A2lFile::new(Project::new("".to_string(), "".to_string()));
+        let mut item = A2lFile::new(Project::new("name".to_string(), "".to_string()));
         trait_test_helper(&mut item);
         let mut item = A2ml::new("".to_string());
         trait_test_helper(&mut item);
@@ -31807,8 +31836,9 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = ArComponent::new("".to_string());
         trait_test_helper(&mut item);
-        let mut item = ArPrototypeOf::new("".to_string());
+        let mut item = ArPrototypeOf::new("name".to_string());
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = ArraySize::new(0);
         trait_test_helper(&mut item);
         let mut item = Asap2Version::new(0, 0);
@@ -31823,7 +31853,7 @@ mod test {
         );
         trait_test_helper(&mut item);
         let mut item = AxisPts::new(
-            "".to_string(),
+            "name".to_string(),
             "".to_string(),
             0,
             "".to_string(),
@@ -31835,6 +31865,7 @@ mod test {
             0.0,
         );
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = AxisPtsDim::new(0, DataType::Ubyte, IndexOrder::IndexIncr, AddrType::Direct);
         trait_test_helper(&mut item);
         let mut item = AxisPtsRef::new("".to_string());
@@ -31864,7 +31895,7 @@ mod test {
         let mut item = CalibrationMethod::new("".to_string(), 0);
         trait_test_helper(&mut item);
         let mut item = Characteristic::new(
-            "".to_string(),
+            "name".to_string(),
             "".to_string(),
             CharacteristicType::Value,
             0,
@@ -31875,32 +31906,51 @@ mod test {
             0.0,
         );
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = Coeffs::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
         trait_test_helper(&mut item);
         let mut item = CoeffsLinear::new(0.0, 0.0);
         trait_test_helper(&mut item);
-        let mut item = ComparisonQuantity::new("".to_string());
+        let mut item = CombinationStruct::new("".to_string(), "".to_string());
+        trait_test_helper_unrestricted(&mut item);
+        let mut item = ComparisonQuantity::new("name".to_string());
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = CompuMethod::new(
-            "".to_string(),
+            "name".to_string(),
             "".to_string(),
             ConversionType::Identical,
             "".to_string(),
             "".to_string(),
         );
         trait_test_helper(&mut item);
-        let mut item = CompuTab::new("".to_string(), "".to_string(), ConversionType::Identical, 0);
+        assert_eq!(item.get_name(), "name");
+        let mut item = CompuTab::new(
+            "name".to_string(),
+            "".to_string(),
+            ConversionType::Identical,
+            0,
+        );
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = CompuTabRef::new("".to_string());
         trait_test_helper(&mut item);
-        let mut item = CompuVtab::new("".to_string(), "".to_string(), ConversionType::Identical, 0);
+        let mut item = CompuVtab::new(
+            "name".to_string(),
+            "".to_string(),
+            ConversionType::Identical,
+            0,
+        );
         trait_test_helper(&mut item);
-        let mut item = CompuVtabRange::new("".to_string(), "".to_string(), 0);
+        assert_eq!(item.get_name(), "name");
+        let mut item = CompuVtabRange::new("name".to_string(), "".to_string(), 0);
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = ConsistentExchange::new();
         trait_test_helper(&mut item);
-        let mut item = Conversion::new("".to_string());
+        let mut item = Conversion::new("name".to_string());
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = CpuType::new("".to_string());
         trait_test_helper(&mut item);
         let mut item = CurveAxisRef::new("".to_string());
@@ -31924,6 +31974,8 @@ mod test {
         let mut item = Discrete::new();
         trait_test_helper(&mut item);
         let mut item = DisplayIdentifier::new("".to_string());
+        trait_test_helper(&mut item);
+        let mut item = DistOpDim::new(0, DataType::AUint64);
         trait_test_helper(&mut item);
         let mut item = Ecu::new("".to_string());
         trait_test_helper(&mut item);
@@ -31957,32 +32009,37 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = FormulaInv::new("".to_string());
         trait_test_helper(&mut item);
-        let mut item = Frame::new("".to_string(), "".to_string(), 0, 0);
+        let mut item = Frame::new("name".to_string(), "".to_string(), 0, 0);
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = FrameMeasurement::new();
         trait_test_helper(&mut item);
-        let mut item = Function::new("".to_string(), "".to_string());
+        let mut item = Function::new("name".to_string(), "".to_string());
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = FunctionList::new();
         trait_test_helper(&mut item);
         let mut item = FunctionVersion::new("".to_string());
         trait_test_helper(&mut item);
-        let mut item = Group::new("".to_string(), "".to_string());
+        let mut item = Group::new("name".to_string(), "".to_string());
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = GuardRails::new();
         trait_test_helper(&mut item);
         let mut item = Header::new("".to_string());
         trait_test_helper(&mut item);
         let mut item = Identification::new(0, DataType::Sbyte);
         trait_test_helper(&mut item);
-        let mut item = IfData::new();
+        let mut item = IfData::default();
         trait_test_helper(&mut item);
         let mut item = InMeasurement::new();
         trait_test_helper(&mut item);
-        let mut item = InputQuantity::new("".to_string());
+        let mut item = InputQuantity::new("name".to_string());
         trait_test_helper(&mut item);
-        let mut item = Instance::new("".to_string(), "".to_string(), "".to_string(), 0);
+        assert_eq!(item.get_name(), "name");
+        let mut item = Instance::new("name".to_string(), "".to_string(), "".to_string(), 0);
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = Layout::new(IndexMode::RowDir);
         trait_test_helper(&mut item);
         let mut item = LeftShift::new(0);
@@ -32000,7 +32057,7 @@ mod test {
         let mut item = MaxRefresh::new(0, 0);
         trait_test_helper(&mut item);
         let mut item = Measurement::new(
-            "".to_string(),
+            "name".to_string(),
             "".to_string(),
             DataType::Sword,
             "".to_string(),
@@ -32009,11 +32066,12 @@ mod test {
             0.0,
             0.0,
         );
+        assert_eq!(item.get_name(), "name");
         trait_test_helper(&mut item);
         let mut item = MemoryLayout::new(ProgType::PrgReserved, 0, 0, [0, 0, 0, 0, 0]);
         trait_test_helper(&mut item);
         let mut item = MemorySegment::new(
-            "".to_string(),
+            "name".to_string(),
             "".to_string(),
             PrgType::Code,
             MemoryType::Flash,
@@ -32022,6 +32080,7 @@ mod test {
             0,
             [0, 0, 0, 0, 0],
         );
+        assert_eq!(item.get_name(), "name");
         trait_test_helper(&mut item);
         let mut item = ModCommon::new("".to_string());
         trait_test_helper(&mut item);
@@ -32029,8 +32088,9 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = ModelLink::new("".to_string());
         trait_test_helper(&mut item);
-        let mut item = Module::new("".to_string(), "".to_string());
+        let mut item = Module::new("name".to_string(), "".to_string());
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = Monotony::new(MonotonyType::MonIncrease);
         trait_test_helper(&mut item);
         let mut item = NoAxisPtsDim::new(0, DataType::Ubyte);
@@ -32045,30 +32105,34 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = OutMeasurement::new();
         trait_test_helper(&mut item);
-        let mut item = Overwrite::new("".to_string(), 0);
+        let mut item = Overwrite::new("name".to_string(), 0);
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = PhoneNo::new("".to_string());
         trait_test_helper(&mut item);
         let mut item = PhysUnit::new("".to_string());
         trait_test_helper(&mut item);
-        let mut item = Project::new("".to_string(), "".to_string());
+        let mut item = Project::new("name".to_string(), "".to_string());
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = ProjectNo::new("".to_string());
         trait_test_helper(&mut item);
         let mut item = ReadOnly::new();
         trait_test_helper(&mut item);
         let mut item = ReadWrite::new();
         trait_test_helper(&mut item);
-        let mut item = RecordLayout::new("".to_string());
+        let mut item = RecordLayout::new("name".to_string());
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = RefCharacteristic::new();
         trait_test_helper(&mut item);
         let mut item = RefGroup::new();
         trait_test_helper(&mut item);
         let mut item = RefMeasurement::new();
         trait_test_helper(&mut item);
-        let mut item = RefMemorySegment::new("".to_string());
+        let mut item = RefMemorySegment::new("name".to_string());
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = RefUnit::new("".to_string());
         trait_test_helper(&mut item);
         let mut item = Reserved::new(0, DataTypeSize::Long);
@@ -32079,8 +32143,9 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = Root::new();
         trait_test_helper(&mut item);
-        let mut item = SRecLayout::new("".to_string());
+        let mut item = SRecLayout::new("name".to_string());
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = ShiftOpDim::new(0, DataType::Slong);
         trait_test_helper(&mut item);
         let mut item = SiExponents::new(0, 0, 0, 0, 0, 0, 0);
@@ -32109,10 +32174,12 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = SymbolTypeLink::new("".to_string());
         trait_test_helper(&mut item);
-        let mut item = SystemConstant::new("".to_string(), "".to_string());
+        let mut item = SystemConstant::new("name".to_string(), "".to_string());
         trait_test_helper(&mut item);
+        let mut item = TabEntryStruct::new(0.0, 1.0);
+        trait_test_helper_unrestricted(&mut item);
         let mut item = Transformer::new(
-            "".to_string(),
+            "name".to_string(),
             "".to_string(),
             "".to_string(),
             "".to_string(),
@@ -32120,13 +32187,14 @@ mod test {
             TransformerTrigger::OnChange,
             "".to_string(),
         );
+        assert_eq!(item.get_name(), "name");
         trait_test_helper(&mut item);
         let mut item = TransformerInObjects::new();
         trait_test_helper(&mut item);
         let mut item = TransformerOutObjects::new();
         trait_test_helper(&mut item);
         let mut item = TypedefAxis::new(
-            "".to_string(),
+            "name".to_string(),
             "".to_string(),
             "".to_string(),
             "".to_string(),
@@ -32136,11 +32204,13 @@ mod test {
             0.0,
             0.0,
         );
+        assert_eq!(item.get_name(), "name");
         trait_test_helper(&mut item);
-        let mut item = TypedefBlob::new("".to_string(), "".to_string(), 0);
+        let mut item = TypedefBlob::new("name".to_string(), "".to_string(), 0);
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = TypedefCharacteristic::new(
-            "".to_string(),
+            "name".to_string(),
             "".to_string(),
             CharacteristicType::Value,
             "".to_string(),
@@ -32149,9 +32219,10 @@ mod test {
             0.0,
             0.0,
         );
+        assert_eq!(item.get_name(), "name");
         trait_test_helper(&mut item);
         let mut item = TypedefMeasurement::new(
-            "".to_string(),
+            "name".to_string(),
             "".to_string(),
             DataType::Ubyte,
             "".to_string(),
@@ -32160,15 +32231,18 @@ mod test {
             0.0,
             0.0,
         );
+        assert_eq!(item.get_name(), "name");
         trait_test_helper(&mut item);
-        let mut item = TypedefStructure::new("".to_string(), "".to_string(), 0);
+        let mut item = TypedefStructure::new("name".to_string(), "".to_string(), 0);
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = Unit::new(
-            "".to_string(),
+            "name".to_string(),
             "".to_string(),
             "".to_string(),
             UnitType::Derived,
         );
+        assert_eq!(item.get_name(), "name");
         trait_test_helper(&mut item);
         let mut item = UnitConversion::new(0.0, 0.0);
         trait_test_helper(&mut item);
@@ -32176,20 +32250,28 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = UserRights::new("".to_string());
         trait_test_helper(&mut item);
+        let mut item = ValuePairsStruct::new(0.0, "".to_string());
+        trait_test_helper_unrestricted(&mut item);
+        let mut item = ValueTriplesStruct::new(0.0, 0.0, "".to_string());
+        trait_test_helper_unrestricted(&mut item);
         let mut item = VarAddress::new();
         trait_test_helper(&mut item);
-        let mut item = VarCharacteristic::new("".to_string());
+        let mut item = VarCharacteristic::new("name".to_string());
         trait_test_helper(&mut item);
-        let mut item = VarCriterion::new("".to_string(), "".to_string());
+        assert_eq!(item.get_name(), "name");
+        let mut item = VarCriterion::new("name".to_string(), "".to_string());
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = VarForbiddenComb::new();
         trait_test_helper(&mut item);
-        let mut item = VarMeasurement::new("".to_string());
+        let mut item = VarMeasurement::new("name".to_string());
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = VarNaming::new(VarNamingTag::Numeric);
         trait_test_helper(&mut item);
-        let mut item = VarSelectionCharacteristic::new("".to_string());
+        let mut item = VarSelectionCharacteristic::new("name".to_string());
         trait_test_helper(&mut item);
+        assert_eq!(item.get_name(), "name");
         let mut item = VarSeparator::new("".to_string());
         trait_test_helper(&mut item);
         let mut item = VariantCoding::new();
@@ -32200,5 +32282,736 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = VirtualCharacteristic::new("".to_string());
         trait_test_helper(&mut item);
+    }
+
+    fn parse_helper<T: ParseableA2lObject>(
+        data: &'static str,
+        itemname: &str,
+        strict: bool,
+    ) -> Result<T, ParserError> {
+        let mut log_msgs = Vec::new();
+        let filedatas = [data.to_string()];
+        let filenames = [Filename::from("test")];
+        let token_result = crate::tokenizer::tokenize(&Filename::from("test"), 0, data).unwrap();
+        let context = ParseContext {
+            element: itemname.to_string(),
+            fileid: 0,
+            line: 1,
+        };
+        let mut parser = ParserState::new_internal(
+            &token_result.tokens,
+            &filedatas,
+            &filenames,
+            &mut log_msgs,
+            strict,
+        );
+        T::parse(&mut parser, &context, 0)
+    }
+
+    #[test]
+    fn test_parse_a2lfile() {
+        // parse an A2lFile element - correct input
+        static DATA: &str = r#"
+            ASAP2_VERSION 1 71
+            A2ML_VERSION 1 31
+            /begin PROJECT p1 ""
+                /begin MODULE m1 ""
+                /end MODULE
+            /end PROJECT"#;
+
+        let result = parse_helper::<A2lFile>(DATA, "A2LFILE", true);
+        assert!(result.is_ok());
+        let a2l_file = result.unwrap();
+        assert_eq!(a2l_file.project.name, "p1");
+        assert_eq!(a2l_file.asap2_version.as_ref().unwrap().version_no, 1);
+        assert_eq!(a2l_file.asap2_version.as_ref().unwrap().upgrade_no, 71);
+        assert_eq!(a2l_file.a2ml_version.as_ref().unwrap().version_no, 1);
+        assert_eq!(a2l_file.a2ml_version.as_ref().unwrap().upgrade_no, 31);
+        assert_eq!(a2l_file.project.module.len(), 1);
+
+        // parse an A2lFile element - incorrect input: Project is not a block
+        static DATA2: &str = r#"
+            ASAP2_VERSION 1 71
+            A2ML_VERSION 1 31
+            PROJECT p1 ""
+                /begin MODULE m1 ""
+                /end MODULE
+            "#;
+        // parse the A2lFile element
+        let result = parse_helper::<A2lFile>(DATA2, "A2LFILE", true);
+        assert!(result.is_err());
+
+        // parse an A2lFile element - incorrect input: ASAP2_VERSION is a block
+        static DATA3: &str = r#"
+            /begin ASAP2_VERSION 1 71 /end ASAP2_VERSION
+            A2ML_VERSION 1 31
+            /begin PROJECT p1 ""
+                /begin MODULE m1 ""
+                /end MODULE
+            /end PROJECT"#;
+        // parse the A2lFile element
+        let result = parse_helper::<A2lFile>(DATA3, "A2LFILE", true);
+        assert!(result.is_err());
+
+        // parse an A2lFile element - incorrect input: Unknown element
+        static DATA4: &str = r#"
+            ASAP2_VERSION 1 71
+            A2ML_VERSION 1 31
+            /begin UNKNOWN_ITEM /end UNKNOWN_ITEM
+            /begin PROJECT p1 ""
+                /begin MODULE m1 ""
+                /end MODULE
+            /end PROJECT"#;
+        // parse the A2lFile element
+        let result = parse_helper::<A2lFile>(DATA4, "A2LFILE", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_asap2_version() {
+        // parse an ASAP2_VERSION element
+        let asap2_version = parse_helper::<Asap2Version>("1 71", "ASAP2_VERSION", true).unwrap();
+        assert_eq!(asap2_version.version_no, 1);
+        assert_eq!(asap2_version.upgrade_no, 71);
+
+        // parse an ASAP2_VERSION element - incorrect input: not enough arguments
+        let result = parse_helper::<Asap2Version>("1", "ASAP2_VERSION", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_addr_epk() {
+        // parse an ADDR_EPK element
+        let addr_epk = parse_helper::<AddrEpk>("0", "ADDR_EPK", true).unwrap();
+        assert_eq!(addr_epk.address, 0);
+
+        // parse an ADDR_EPK element - incorrect input: bad token
+        let result = parse_helper::<AddrEpk>("A", "ADDR_EPK", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_addrtype() {
+        // parse an ADDR_TYPE element
+        let addr_type = parse_helper::<AddrType>("DIRECT", "ADDR_TYPE", true).unwrap();
+        assert_eq!(addr_type, AddrType::Direct);
+        let addr_type = parse_helper::<AddrType>("PBYTE", "ADDR_TYPE", true).unwrap();
+        assert_eq!(addr_type, AddrType::Pbyte);
+        let addr_type = parse_helper::<AddrType>("PWORD", "ADDR_TYPE", true).unwrap();
+        assert_eq!(addr_type, AddrType::Pword);
+        let addr_type = parse_helper::<AddrType>("PLONG", "ADDR_TYPE", true).unwrap();
+        assert_eq!(addr_type, AddrType::Plong);
+        let addr_type = parse_helper::<AddrType>("PLONGLONG", "ADDR_TYPE", true).unwrap();
+        assert_eq!(addr_type, AddrType::Plonglong);
+
+        let result = parse_helper::<AddrType>("UNKNOWN", "ADDR_TYPE", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_annotation() {
+        // parse an ANNOTATION element
+        let data = r#"
+                ANNOTATION_LABEL "label"
+                ANNOTATION_ORIGIN "origin"
+                /begin ANNOTATION_TEXT
+                    "text"
+                /end ANNOTATION_TEXT
+            /end ANNOTATION"#;
+        let annotation = parse_helper::<Annotation>(data, "ANNOTATION", true).unwrap();
+        assert!(annotation.annotation_label.is_some());
+        assert!(annotation.annotation_origin.is_some());
+
+        // parse an ANNOTATION element - incorrect input: ANNOTATION_LABEL is a block
+        let data = r#"
+                /begin ANNOTATION_LABEL "label" /end ANNOTATION_LABEL
+                ANNOTATION_ORIGIN "origin"
+                /begin ANNOTATION_TEXT
+                    "text"
+                /end ANNOTATION_TEXT
+            /end ANNOTATION"#;
+        let result = parse_helper::<Annotation>(data, "ANNOTATION", true);
+        assert!(result.is_err());
+
+        // parse an ANNOTATION element - incorrect input: ANNOTATION_TEXT is not a block
+        let data = r#"
+                ANNOTATION_LABEL "label"
+                ANNOTATION_ORIGIN "origin"
+                ANNOTATION_TEXT "text"
+            /end ANNOTATION"#;
+        let result = parse_helper::<Annotation>(data, "ANNOTATION", true);
+        assert!(result.is_err());
+
+        // parse an ANNOTATION element - incorrect input: Unknown element
+        let data = r#"
+                ANNOTATION_LABEL "label"
+                ANNOTATION_ORIGIN "origin"
+                /begin UNKNOWN_ITEM /end UNKNOWN_ITEM
+            /end ANNOTATION"#;
+        let result = parse_helper::<Annotation>(data, "ANNOTATION", true);
+        assert!(result.is_err());
+
+        // parse an ANNOTATION element - incorrect input: Incorect end tag
+        let data = r#"
+                ANNOTATION_LABEL "label"
+                ANNOTATION_ORIGIN "origin"
+                /end INCORRECT"#;
+        let result = parse_helper::<Annotation>(data, "ANNOTATION", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_annotation_text() {
+        // parse an ANNOTATION_TEXT element
+        let data = r#"
+            "text"
+            /end ANNOTATION_TEXT"#;
+        let annotation_text =
+            parse_helper::<AnnotationText>(data, "ANNOTATION_TEXT", true).unwrap();
+        assert_eq!(annotation_text.annotation_text_list, &["text"]);
+
+        // parse an ANNOTATION_TEXT element - incorrect input: Incorrect end tag
+        let data = r#"
+            "text"
+            /end INCORRECT"#;
+        let result = parse_helper::<AnnotationText>(data, "ANNOTATION_TEXT", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_ar_component() {
+        // parse an AR_COMPONENT element
+        let data = r#"
+            "ar_component"
+            AR_PROTOTYPE_OF function
+            /end AR_COMPONENT"#;
+        let ar_component = parse_helper::<ArComponent>(data, "AR_COMPONENT", true).unwrap();
+        assert_eq!(ar_component.component_type, "ar_component");
+        assert!(ar_component.ar_prototype_of.is_some());
+
+        // parse an AR_COMPONENT element - incorrect input: AR_PROTOTYPE_OF is a block
+        let data = r#"
+            "ar_component"
+            /begin AR_PROTOTYPE_OF function /end AR_PROTOTYPE_OF
+            /end AR_COMPONENT"#;
+        let result = parse_helper::<ArComponent>(data, "AR_COMPONENT", true);
+        assert!(result.is_err());
+
+        // parse an AR_COMPONENT element - incorrect input: Unknown element
+        let data = r#"
+            "ar_component"
+            /begin UNKNOWN_ITEM /end UNKNOWN_ITEM
+            /end AR_COMPONENT"#;
+        let result = parse_helper::<ArComponent>(data, "AR_COMPONENT", true);
+        assert!(result.is_err());
+
+        // parse an AR_COMPONENT element - incorrect input: bad end tag
+        let data = r#"
+            "ar_component"
+            /end INCORRECT"#;
+        let result = parse_helper::<ArComponent>(data, "AR_COMPONENT", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_axis_descr() {
+        // parse an AXIS_DESCR element
+        let data = r#"
+            COM_AXIS measurement_name compu_method_name 1 0 100
+            /end AXIS_DESCR"#;
+        let axis_descr = parse_helper::<AxisDescr>(data, "AXIS_DESCR", true).unwrap();
+        assert_eq!(axis_descr.max_axis_points, 1);
+
+        // parse an AXIS_DESCR element - incorrect input: unknown element
+        let data = r#"
+            COM_AXIS measurement_name compu_method_name 1 0 100
+            UNKNOWN_ITEM
+            /end AXIS_DESCR"#;
+        let result = parse_helper::<AxisDescr>(data, "AXIS_DESCR", true);
+        assert!(result.is_err());
+
+        // parse an AXIS_DESCR element - incorrect input: bad end tag
+        let data = r#"
+            COM_AXIS measurement_name compu_method_name 1 0 100
+            /end INCORRECT"#;
+        let result = parse_helper::<AxisDescr>(data, "AXIS_DESCR", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_axis_descr_attribute() {
+        // parse an AXIS_DESCR_ATTRIBUTE element
+        let axis_descr_attribute =
+            parse_helper::<AxisDescrAttribute>("STD_AXIS", "", true).unwrap();
+        assert_eq!(axis_descr_attribute, AxisDescrAttribute::StdAxis);
+        assert_eq!(format!("{axis_descr_attribute}"), "STD_AXIS");
+        let axis_descr_attribute =
+            parse_helper::<AxisDescrAttribute>("COM_AXIS", "", true).unwrap();
+        assert_eq!(axis_descr_attribute, AxisDescrAttribute::ComAxis);
+        assert_eq!(format!("{axis_descr_attribute}"), "COM_AXIS");
+        let axis_descr_attribute =
+            parse_helper::<AxisDescrAttribute>("FIX_AXIS", "", true).unwrap();
+        assert_eq!(axis_descr_attribute, AxisDescrAttribute::FixAxis);
+        assert_eq!(format!("{axis_descr_attribute}"), "FIX_AXIS");
+        let axis_descr_attribute =
+            parse_helper::<AxisDescrAttribute>("RES_AXIS", "", true).unwrap();
+        assert_eq!(axis_descr_attribute, AxisDescrAttribute::ResAxis);
+        assert_eq!(format!("{axis_descr_attribute}"), "RES_AXIS");
+        let axis_descr_attribute =
+            parse_helper::<AxisDescrAttribute>("CURVE_AXIS", "", true).unwrap();
+        assert_eq!(axis_descr_attribute, AxisDescrAttribute::CurveAxis);
+        assert_eq!(format!("{axis_descr_attribute}"), "CURVE_AXIS");
+
+        // parse an AXIS_DESCR_ATTRIBUTE element - incorrect input: unknown element
+        let result = parse_helper::<AxisDescrAttribute>("UNKNOWN", "", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_axis_pts() {
+        // parse an AXIS_PTS element
+        let data = r#"
+            axispts_name "" 0x1234 measurement_name record_layout_name 0 compu_method_name 3 0.0 10.0
+            /end AXIS_PTS"#;
+        let axis_pts = parse_helper::<AxisPts>(data, "AXIS_PTS", true).unwrap();
+        assert_eq!(axis_pts.max_axis_points, 3);
+
+        // parse an AXIS_PTS element - incorrect input: unknown element
+        let data = r#"
+            axispts_name "" 0x1234 measurement_name record_layout_name 0 compu_method_name 3 0.0 10.0
+            UNKNOWN_ITEM
+            /end AXIS_PTS"#;
+        let result = parse_helper::<AxisPts>(data, "AXIS_PTS", true);
+        assert!(result.is_err());
+
+        // parse an AXIS_PTS element - incorrect input: bad end tag
+        let data = r#"
+            axispts_name "" 0x1234 measurement_name record_layout_name 0 compu_method_name 3 0.0 10.0
+            /end INCORRECT"#;
+        let result = parse_helper::<AxisPts>(data, "AXIS_PTS", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_bit_operation() {
+        // parse a BIT_OPERATION element
+        let data = r#"
+            LEFT_SHIFT 1
+            /end BIT_OPERATION"#;
+        let bit_operation = parse_helper::<BitOperation>(data, "BIT_OPERATION", true).unwrap();
+        assert_eq!(bit_operation.left_shift.as_ref().unwrap().bitcount, 1);
+
+        // parse a BIT_OPERATION element - incorrect input: unknown element
+        let data = r#"
+            RIGHT_SHIFT 1
+            UNKNOWN_ITEM
+            /end BIT_OPERATION"#;
+        let result = parse_helper::<BitOperation>(data, "BIT_OPERATION", true);
+        assert!(result.is_err());
+
+        // parse a BIT_OPERATION element - incorrect input: bad end tag
+        let data = r#"
+            /end INCORRECT"#;
+        let result = parse_helper::<BitOperation>(data, "BIT_OPERATION", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_byte_order() {
+        let byte_order = parse_helper::<ByteOrderEnum>("MSB_FIRST", "", true).unwrap();
+        assert_eq!(byte_order, ByteOrderEnum::MsbFirst);
+        assert_eq!(format!("{byte_order}"), "MSB_FIRST");
+        let byte_order = parse_helper::<ByteOrderEnum>("MSB_LAST", "", true).unwrap();
+        assert_eq!(byte_order, ByteOrderEnum::MsbLast);
+        assert_eq!(format!("{byte_order}"), "MSB_LAST");
+        let byte_order = parse_helper::<ByteOrderEnum>("MSB_FIRST_MSW_LAST", "", true).unwrap();
+        assert_eq!(byte_order, ByteOrderEnum::MsbFirstMswLast);
+        assert_eq!(format!("{byte_order}"), "MSB_FIRST_MSW_LAST");
+        let byte_order = parse_helper::<ByteOrderEnum>("MSB_LAST_MSW_FIRST", "", true).unwrap();
+        assert_eq!(byte_order, ByteOrderEnum::MsbLastMswFirst);
+        assert_eq!(format!("{byte_order}"), "MSB_LAST_MSW_FIRST");
+        let byte_order = parse_helper::<ByteOrderEnum>("LITTLE_ENDIAN", "", false).unwrap();
+        assert_eq!(byte_order, ByteOrderEnum::LittleEndian);
+        assert_eq!(format!("{byte_order}"), "LITTLE_ENDIAN");
+        let byte_order = parse_helper::<ByteOrderEnum>("BIG_ENDIAN", "", false).unwrap();
+        assert_eq!(byte_order, ByteOrderEnum::BigEndian);
+        assert_eq!(format!("{byte_order}"), "BIG_ENDIAN");
+
+        // parse a BYTE_ORDER element - incorrect input: unknown element
+        let result = parse_helper::<ByteOrder>("UNKNOWN", "", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_calibration_access_enum() {
+        let calibration_access =
+            parse_helper::<CalibrationAccessEnum>("CALIBRATION", "", true).unwrap();
+        assert_eq!(calibration_access, CalibrationAccessEnum::Calibration);
+        assert_eq!(format!("{calibration_access}"), "CALIBRATION");
+        let calibration_access =
+            parse_helper::<CalibrationAccessEnum>("NO_CALIBRATION", "", true).unwrap();
+        assert_eq!(calibration_access, CalibrationAccessEnum::NoCalibration);
+        assert_eq!(format!("{calibration_access}"), "NO_CALIBRATION");
+        let calibration_access =
+            parse_helper::<CalibrationAccessEnum>("NOT_IN_MCD_SYSTEM", "", true).unwrap();
+        assert_eq!(calibration_access, CalibrationAccessEnum::NotInMcdSystem);
+        assert_eq!(format!("{calibration_access}"), "NOT_IN_MCD_SYSTEM");
+        let calibration_access =
+            parse_helper::<CalibrationAccessEnum>("OFFLINE_CALIBRATION", "", true).unwrap();
+        assert_eq!(
+            calibration_access,
+            CalibrationAccessEnum::OfflineCalibration
+        );
+        assert_eq!(format!("{calibration_access}"), "OFFLINE_CALIBRATION");
+
+        // parse a CALIBRATION_ACCESS element - incorrect input: unknown element
+        let result = parse_helper::<CalibrationAccess>("UNKNOWN", "", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_character_encoding() {
+        let character_encoding = parse_helper::<CharacterEncoding>("UTF8", "", true).unwrap();
+        assert_eq!(character_encoding, CharacterEncoding::Utf8);
+        assert_eq!(format!("{character_encoding}"), "UTF8");
+        let character_encoding = parse_helper::<CharacterEncoding>("UTF16", "", true).unwrap();
+        assert_eq!(character_encoding, CharacterEncoding::Utf16);
+        assert_eq!(format!("{character_encoding}"), "UTF16");
+        let character_encoding = parse_helper::<CharacterEncoding>("UTF32", "", true).unwrap();
+        assert_eq!(character_encoding, CharacterEncoding::Utf32);
+        assert_eq!(format!("{character_encoding}"), "UTF32");
+
+        // parse a CHARACTER_ENCODING element - incorrect input: unknown element
+        let result = parse_helper::<CharacterEncoding>("UNKNOWN", "", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_characteristic_type() {
+        let characteristic_type = parse_helper::<CharacteristicType>("ASCII", "", true).unwrap();
+        assert_eq!(characteristic_type, CharacteristicType::Ascii);
+        assert_eq!(format!("{characteristic_type}"), "ASCII");
+        let characteristic_type = parse_helper::<CharacteristicType>("VALUE", "", true).unwrap();
+        assert_eq!(characteristic_type, CharacteristicType::Value);
+        assert_eq!(format!("{characteristic_type}"), "VALUE");
+        let characteristic_type = parse_helper::<CharacteristicType>("VAL_BLK", "", true).unwrap();
+        assert_eq!(characteristic_type, CharacteristicType::ValBlk);
+        assert_eq!(format!("{characteristic_type}"), "VAL_BLK");
+        let characteristic_type = parse_helper::<CharacteristicType>("CURVE", "", true).unwrap();
+        assert_eq!(characteristic_type, CharacteristicType::Curve);
+        assert_eq!(format!("{characteristic_type}"), "CURVE");
+        let characteristic_type = parse_helper::<CharacteristicType>("MAP", "", true).unwrap();
+        assert_eq!(characteristic_type, CharacteristicType::Map);
+        assert_eq!(format!("{characteristic_type}"), "MAP");
+        let characteristic_type = parse_helper::<CharacteristicType>("CUBOID", "", true).unwrap();
+        assert_eq!(characteristic_type, CharacteristicType::Cuboid);
+        assert_eq!(format!("{characteristic_type}"), "CUBOID");
+        let characteristic_type = parse_helper::<CharacteristicType>("CUBE_4", "", true).unwrap();
+        assert_eq!(characteristic_type, CharacteristicType::Cube4);
+        assert_eq!(format!("{characteristic_type}"), "CUBE_4");
+        let characteristic_type = parse_helper::<CharacteristicType>("CUBE_5", "", true).unwrap();
+        assert_eq!(characteristic_type, CharacteristicType::Cube5);
+        assert_eq!(format!("{characteristic_type}"), "CUBE_5");
+
+        // parse a CHARACTERISTIC_TYPE element - incorrect input: unknown element
+        let result = parse_helper::<CharacteristicType>("UNKNOWN", "", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_conversion_type() {
+        let conversion_type = parse_helper::<ConversionType>("IDENTICAL", "", true).unwrap();
+        assert_eq!(conversion_type, ConversionType::Identical);
+        assert_eq!(format!("{conversion_type}"), "IDENTICAL");
+        let conversion_type = parse_helper::<ConversionType>("LINEAR", "", true).unwrap();
+        assert_eq!(conversion_type, ConversionType::Linear);
+        assert_eq!(format!("{conversion_type}"), "LINEAR");
+        let conversion_type = parse_helper::<ConversionType>("RAT_FUNC", "", true).unwrap();
+        assert_eq!(conversion_type, ConversionType::RatFunc);
+        assert_eq!(format!("{conversion_type}"), "RAT_FUNC");
+        let conversion_type = parse_helper::<ConversionType>("TAB_INTP", "", true).unwrap();
+        assert_eq!(conversion_type, ConversionType::TabIntp);
+        assert_eq!(format!("{conversion_type}"), "TAB_INTP");
+        let conversion_type = parse_helper::<ConversionType>("TAB_NOINTP", "", true).unwrap();
+        assert_eq!(conversion_type, ConversionType::TabNointp);
+        assert_eq!(format!("{conversion_type}"), "TAB_NOINTP");
+        let conversion_type = parse_helper::<ConversionType>("FORM", "", true).unwrap();
+        assert_eq!(conversion_type, ConversionType::Form);
+        assert_eq!(format!("{conversion_type}"), "FORM");
+        let conversion_type = parse_helper::<ConversionType>("TAB_VERB", "", true).unwrap();
+        assert_eq!(conversion_type, ConversionType::TabVerb);
+        assert_eq!(format!("{conversion_type}"), "TAB_VERB");
+
+        // parse a CONVERSION_TYPE element - incorrect input: unknown element
+        let result = parse_helper::<ConversionType>("UNKNOWN", "", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_datatype() {
+        let datatype = parse_helper::<DataType>("UWORD", "", true).unwrap();
+        assert_eq!(datatype, DataType::Uword);
+        assert_eq!(format!("{datatype}"), "UWORD");
+        let datatype = parse_helper::<DataType>("SWORD", "", true).unwrap();
+        assert_eq!(datatype, DataType::Sword);
+        assert_eq!(format!("{datatype}"), "SWORD");
+        let datatype = parse_helper::<DataType>("UBYTE", "", true).unwrap();
+        assert_eq!(datatype, DataType::Ubyte);
+        assert_eq!(format!("{datatype}"), "UBYTE");
+        let datatype = parse_helper::<DataType>("SBYTE", "", true).unwrap();
+        assert_eq!(datatype, DataType::Sbyte);
+        assert_eq!(format!("{datatype}"), "SBYTE");
+        let datatype = parse_helper::<DataType>("ULONG", "", true).unwrap();
+        assert_eq!(datatype, DataType::Ulong);
+        assert_eq!(format!("{datatype}"), "ULONG");
+        let datatype = parse_helper::<DataType>("SLONG", "", true).unwrap();
+        assert_eq!(datatype, DataType::Slong);
+        assert_eq!(format!("{datatype}"), "SLONG");
+        let datatype = parse_helper::<DataType>("FLOAT32_IEEE", "", true).unwrap();
+        assert_eq!(datatype, DataType::Float32Ieee);
+        assert_eq!(format!("{datatype}"), "FLOAT32_IEEE");
+        let datatype = parse_helper::<DataType>("FLOAT64_IEEE", "", true).unwrap();
+        assert_eq!(datatype, DataType::Float64Ieee);
+        assert_eq!(format!("{datatype}"), "FLOAT64_IEEE");
+        let datatype = parse_helper::<DataType>("A_UINT64", "", true).unwrap();
+        assert_eq!(datatype, DataType::AUint64);
+        assert_eq!(format!("{datatype}"), "A_UINT64");
+        let datatype = parse_helper::<DataType>("A_INT64", "", true).unwrap();
+        assert_eq!(datatype, DataType::AInt64);
+        assert_eq!(format!("{datatype}"), "A_INT64");
+
+        // parse a DATATYPE element - incorrect
+        let result = parse_helper::<DataType>("UNKNOWN", "", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_datatype_size() {
+        let datatype_size = parse_helper::<DataTypeSize>("BYTE", "", true).unwrap();
+        assert_eq!(datatype_size, DataTypeSize::Byte);
+        assert_eq!(format!("{datatype_size}"), "BYTE");
+        let datatype_size = parse_helper::<DataTypeSize>("WORD", "", true).unwrap();
+        assert_eq!(datatype_size, DataTypeSize::Word);
+        assert_eq!(format!("{datatype_size}"), "WORD");
+        let datatype_size = parse_helper::<DataTypeSize>("LONG", "", true).unwrap();
+        assert_eq!(datatype_size, DataTypeSize::Long);
+        assert_eq!(format!("{datatype_size}"), "LONG");
+
+        // parse a DATATYPE_SIZE element - incorrect
+        let result = parse_helper::<DataTypeSize>("UNKNOWN", "", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_deposit_mode() {
+        let deposit_mode = parse_helper::<DepositMode>("ABSOLUTE", "", true).unwrap();
+        assert_eq!(deposit_mode, DepositMode::Absolute);
+        assert_eq!(format!("{deposit_mode}"), "ABSOLUTE");
+        let deposit_mode = parse_helper::<DepositMode>("DIFFERENCE", "", true).unwrap();
+        assert_eq!(deposit_mode, DepositMode::Difference);
+        assert_eq!(format!("{deposit_mode}"), "DIFFERENCE");
+
+        // parse a DEPOSIT_MODE element - incorrect
+        let result = parse_helper::<DepositMode>("UNKNOWN", "", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_indexmode() {
+        let indexmode = parse_helper::<IndexMode>("ROW_DIR", "", true).unwrap();
+        assert_eq!(indexmode, IndexMode::RowDir);
+        assert_eq!(format!("{indexmode}"), "ROW_DIR");
+        let indexmode = parse_helper::<IndexMode>("COLUMN_DIR", "", true).unwrap();
+        assert_eq!(indexmode, IndexMode::ColumnDir);
+        assert_eq!(format!("{indexmode}"), "COLUMN_DIR");
+        let indexmode = parse_helper::<IndexMode>("ALTERNATE_CURVES", "", true).unwrap();
+        assert_eq!(indexmode, IndexMode::AlternateCurves);
+        assert_eq!(format!("{indexmode}"), "ALTERNATE_CURVES");
+        let indexmode = parse_helper::<IndexMode>("ALTERNATE_WITH_X", "", true).unwrap();
+        assert_eq!(indexmode, IndexMode::AlternateWithX);
+        assert_eq!(format!("{indexmode}"), "ALTERNATE_WITH_X");
+        let indexmode = parse_helper::<IndexMode>("ALTERNATE_WITH_Y", "", true).unwrap();
+        assert_eq!(indexmode, IndexMode::AlternateWithY);
+        assert_eq!(format!("{indexmode}"), "ALTERNATE_WITH_Y");
+
+        // parse a INDEXMODE element - incorrect
+        let result = parse_helper::<IndexMode>("UNKNOWN", "", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_indexorder() {
+        let indexorder = parse_helper::<IndexOrder>("INDEX_DECR", "", true).unwrap();
+        assert_eq!(indexorder, IndexOrder::IndexDecr);
+        assert_eq!(format!("{indexorder}"), "INDEX_DECR");
+        let indexorder = parse_helper::<IndexOrder>("INDEX_INCR", "", true).unwrap();
+        assert_eq!(indexorder, IndexOrder::IndexIncr);
+        assert_eq!(format!("{indexorder}"), "INDEX_INCR");
+
+        // parse a INDEXORDER element - incorrect
+        let result = parse_helper::<IndexOrder>("UNKNOWN", "", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_memory_attribute() {
+        let memory_attribute = parse_helper::<MemoryAttribute>("EXTERN", "", true).unwrap();
+        assert_eq!(memory_attribute, MemoryAttribute::Extern);
+        assert_eq!(format!("{memory_attribute}"), "EXTERN");
+        let memory_attribute = parse_helper::<MemoryAttribute>("INTERN", "", true).unwrap();
+        assert_eq!(memory_attribute, MemoryAttribute::Intern);
+        assert_eq!(format!("{memory_attribute}"), "INTERN");
+
+        // parse a MEMORY_ATTRIBUTE element - incorrect
+        let result = parse_helper::<MemoryAttribute>("UNKNOWN", "", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_memory_type() {
+        let memory_type = parse_helper::<MemoryType>("EEPROM", "", true).unwrap();
+        assert_eq!(memory_type, MemoryType::Eeprom);
+        assert_eq!(format!("{memory_type}"), "EEPROM");
+        let memory_type = parse_helper::<MemoryType>("EPROM", "", true).unwrap();
+        assert_eq!(memory_type, MemoryType::Eprom);
+        assert_eq!(format!("{memory_type}"), "EPROM");
+        let memory_type = parse_helper::<MemoryType>("FLASH", "", true).unwrap();
+        assert_eq!(memory_type, MemoryType::Flash);
+        assert_eq!(format!("{memory_type}"), "FLASH");
+        let memory_type = parse_helper::<MemoryType>("RAM", "", true).unwrap();
+        assert_eq!(memory_type, MemoryType::Ram);
+        assert_eq!(format!("{memory_type}"), "RAM");
+        let memory_type = parse_helper::<MemoryType>("ROM", "", true).unwrap();
+        assert_eq!(memory_type, MemoryType::Rom);
+        assert_eq!(format!("{memory_type}"), "ROM");
+        let memory_type = parse_helper::<MemoryType>("REGISTER", "", true).unwrap();
+        assert_eq!(memory_type, MemoryType::Register);
+        assert_eq!(format!("{memory_type}"), "REGISTER");
+        let memory_type = parse_helper::<MemoryType>("NOT_IN_ECU", "", true).unwrap();
+        assert_eq!(memory_type, MemoryType::NotInEcu);
+        assert_eq!(format!("{memory_type}"), "NOT_IN_ECU");
+
+        // parse a MEMORY_TYPE element - incorrect
+        let result = parse_helper::<MemoryType>("UNKNOWN", "", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_monotony_type() {
+        let monotony_type = parse_helper::<MonotonyType>("MON_DECREASE", "", true).unwrap();
+        assert_eq!(monotony_type, MonotonyType::MonDecrease);
+        assert_eq!(format!("{monotony_type}"), "MON_DECREASE");
+        let monotony_type = parse_helper::<MonotonyType>("MON_INCREASE", "", true).unwrap();
+        assert_eq!(monotony_type, MonotonyType::MonIncrease);
+        assert_eq!(format!("{monotony_type}"), "MON_INCREASE");
+        let monotony_type = parse_helper::<MonotonyType>("MONOTONOUS", "", true).unwrap();
+        assert_eq!(monotony_type, MonotonyType::Monotonous);
+        assert_eq!(format!("{monotony_type}"), "MONOTONOUS");
+        let monotony_type = parse_helper::<MonotonyType>("STRICT_DECREASE", "", true).unwrap();
+        assert_eq!(monotony_type, MonotonyType::StrictDecrease);
+        assert_eq!(format!("{monotony_type}"), "STRICT_DECREASE");
+        let monotony_type = parse_helper::<MonotonyType>("STRICT_INCREASE", "", true).unwrap();
+        assert_eq!(monotony_type, MonotonyType::StrictIncrease);
+        assert_eq!(format!("{monotony_type}"), "STRICT_INCREASE");
+        let monotony_type = parse_helper::<MonotonyType>("STRICT_MON", "", true).unwrap();
+        assert_eq!(monotony_type, MonotonyType::StrictMon);
+        assert_eq!(format!("{monotony_type}"), "STRICT_MON");
+        let monotony_type = parse_helper::<MonotonyType>("NOT_MON", "", true).unwrap();
+        assert_eq!(monotony_type, MonotonyType::NotMon);
+        assert_eq!(format!("{monotony_type}"), "NOT_MON");
+
+        // parse a MONOTONY_TYPE element - incorrect
+        let result = parse_helper::<MonotonyType>("UNKNOWN", "", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_prg_type() {
+        let prg_type = parse_helper::<PrgType>("CALIBRATION_VARIABLES", "", true).unwrap();
+        assert_eq!(prg_type, PrgType::CalibrationVariables);
+        assert_eq!(format!("{prg_type}"), "CALIBRATION_VARIABLES");
+        let prg_type = parse_helper::<PrgType>("CODE", "", true).unwrap();
+        assert_eq!(prg_type, PrgType::Code);
+        assert_eq!(format!("{prg_type}"), "CODE");
+        let prg_type = parse_helper::<PrgType>("DATA", "", true).unwrap();
+        assert_eq!(prg_type, PrgType::Data);
+        assert_eq!(format!("{prg_type}"), "DATA");
+        let prg_type = parse_helper::<PrgType>("EXCLUDE_FROM_FLASH", "", true).unwrap();
+        assert_eq!(prg_type, PrgType::ExcludeFromFlash);
+        assert_eq!(format!("{prg_type}"), "EXCLUDE_FROM_FLASH");
+        let prg_type = parse_helper::<PrgType>("OFFLINE_DATA", "", true).unwrap();
+        assert_eq!(prg_type, PrgType::OfflineData);
+        assert_eq!(format!("{prg_type}"), "OFFLINE_DATA");
+        let prg_type = parse_helper::<PrgType>("SERAM", "", true).unwrap();
+        assert_eq!(prg_type, PrgType::Seram);
+        assert_eq!(format!("{prg_type}"), "SERAM");
+        let prg_type = parse_helper::<PrgType>("VARIABLES", "", true).unwrap();
+        assert_eq!(prg_type, PrgType::Variables);
+        assert_eq!(format!("{prg_type}"), "VARIABLES");
+        let prg_type = parse_helper::<PrgType>("RESERVED", "", true).unwrap();
+        assert_eq!(prg_type, PrgType::Reserved);
+        assert_eq!(format!("{prg_type}"), "RESERVED");
+
+        // parse a PRG_TYPE element - incorrect
+        let result = parse_helper::<PrgType>("UNKNOWN", "", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_prog_type() {
+        let prog_type = parse_helper::<ProgType>("PRG_CODE", "", true).unwrap();
+        assert_eq!(prog_type, ProgType::PrgCode);
+        assert_eq!(format!("{prog_type}"), "PRG_CODE");
+        let prog_type = parse_helper::<ProgType>("PRG_DATA", "", true).unwrap();
+        assert_eq!(prog_type, ProgType::PrgData);
+        assert_eq!(format!("{prog_type}"), "PRG_DATA");
+        let prog_type = parse_helper::<ProgType>("PRG_RESERVED", "", true).unwrap();
+        assert_eq!(prog_type, ProgType::PrgReserved);
+        assert_eq!(format!("{prog_type}"), "PRG_RESERVED");
+
+        // parse a PROG_TYPE element - incorrect
+        let result = parse_helper::<ProgType>("UNKNOWN", "", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_transformer_trigger() {
+        let transformer_trigger =
+            parse_helper::<TransformerTrigger>("ON_USER_REQUEST", "", true).unwrap();
+        assert_eq!(transformer_trigger, TransformerTrigger::OnUserRequest);
+        assert_eq!(format!("{transformer_trigger}"), "ON_USER_REQUEST");
+        let transformer_trigger =
+            parse_helper::<TransformerTrigger>("ON_CHANGE", "", true).unwrap();
+        assert_eq!(transformer_trigger, TransformerTrigger::OnChange);
+        assert_eq!(format!("{transformer_trigger}"), "ON_CHANGE");
+
+        // parse a TRANSFORMER_TRIGGER element - incorrect
+        let result = parse_helper::<TransformerTrigger>("UNKNOWN", "", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_unit_type() {
+        let unit_type = parse_helper::<UnitType>("EXTENDED_SI", "", true).unwrap();
+        assert_eq!(unit_type, UnitType::ExtendedSi);
+        assert_eq!(format!("{unit_type}"), "EXTENDED_SI");
+        let unit_type = parse_helper::<UnitType>("DERIVED", "", true).unwrap();
+        assert_eq!(unit_type, UnitType::Derived);
+        assert_eq!(format!("{unit_type}"), "DERIVED");
+
+        // parse a UNIT_TYPE element - incorrect
+        let result = parse_helper::<UnitType>("UNKNOWN", "", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_var_naming_tag() {
+        let var_naming_tag = parse_helper::<VarNamingTag>("NUMERIC", "", true).unwrap();
+        assert_eq!(var_naming_tag, VarNamingTag::Numeric);
+        assert_eq!(format!("{var_naming_tag}"), "NUMERIC");
+
+        // parse a VAR_NAMING_TAG element - incorrect
+        let result = parse_helper::<VarNamingTag>("UNKNOWN", "", true);
+        assert!(result.is_err());
     }
 }

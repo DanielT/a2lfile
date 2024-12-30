@@ -294,7 +294,7 @@ fn tokenize_core(
                 line,
             });
             separated = false;
-        } else if !(filebytes[bytepos]).is_ascii_digit() && is_identchar(filebytes[bytepos]) {
+        } else if filebytes[bytepos].is_ascii_alphabetic() || filebytes[bytepos] == b'_' {
             // an identifier
             separator_check(separated, &filename, line)?;
             while bytepos < datalen && is_identchar(filebytes[bytepos]) {
@@ -324,17 +324,11 @@ fn tokenize_core(
             }
             if bytepos == datalen || !is_identchar(filebytes[bytepos]) {
                 let number = &filebytes[startpos..bytepos];
-                if number == b"-" {
+                if number == b"-" || number == b"." || number == b"0x" {
                     return Err(TokenizerError::InvalidNumericalConstant {
                         filename,
                         line,
-                        tokentext: "-".to_owned(),
-                    });
-                } else if number == b"0x" {
-                    return Err(TokenizerError::InvalidNumericalConstant {
-                        filename,
-                        line,
-                        tokentext: "0x".to_owned(),
+                        tokentext: String::from_utf8_lossy(number).into_owned(),
                     });
                 }
                 tokens.push(A2lToken {
@@ -585,38 +579,38 @@ mod tests {
         let data = String::from("/**/");
         let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 0);
-        //assert_eq!(tok[0].ttype, A2lTokenType::BlockComment);
 
         let data = String::from("/*/*/");
         let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 0);
-        //assert_eq!(tok[0].ttype, A2lTokenType::BlockComment);
 
         let data = String::from("/***********/");
         let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 0);
-        //assert_eq!(tok[0].ttype, A2lTokenType::BlockComment);
 
         let data = String::from("/***********/ abcdef");
         let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
-        //assert_eq!(tok[0].ttype, A2lTokenType::BlockComment);
 
         let data = String::from("//");
         let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 0);
-        //assert_eq!(tok[0].ttype, A2lTokenType::LineComment);
 
         let data = String::from("// abcdef");
         let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 0);
-        //assert_eq!(tok[0].ttype, A2lTokenType::LineComment);
 
         let data = String::from("// abcdef\nabcde");
         let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
-        //assert_eq!(tok[0].ttype, A2lTokenType::LineComment);
-        //assert_eq!(tok[1].data.line, 2);
+
+        // unclosed block comment
+        let data = String::from("/*");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data);
+        assert!(matches!(
+            tokresult,
+            Err(TokenizerError::UnclosedComment { .. })
+        ));
     }
 
     #[test]
@@ -635,6 +629,13 @@ mod tests {
         let tokresult = tokenize_core(String::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.len(), 1);
         assert_eq!(tokresult[0].ttype, A2lTokenType::Include);
+
+        let data = String::from("/bad");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data);
+        assert!(matches!(
+            tokresult,
+            Err(TokenizerError::InvalidA2lToken { .. })
+        ));
     }
 
     #[test]
@@ -680,6 +681,14 @@ mod tests {
         let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::String);
+
+        /* an incomplete string */
+        let data = String::from("\"sdf sdf sdf");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data);
+        assert!(matches!(
+            tokresult,
+            Err(TokenizerError::UnclosedString { .. })
+        ));
     }
 
     #[test]
@@ -701,6 +710,34 @@ mod tests {
         let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Identifier);
+
+        let data = String::from("-");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data);
+        assert!(matches!(
+            tokresult,
+            Err(TokenizerError::InvalidNumericalConstant { .. })
+        ));
+
+        let data = String::from(".");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data);
+        assert!(matches!(
+            tokresult,
+            Err(TokenizerError::InvalidNumericalConstant { .. })
+        ));
+
+        let data = String::from("0x");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data);
+        assert!(matches!(
+            tokresult,
+            Err(TokenizerError::InvalidNumericalConstant { .. })
+        ));
+
+        // "..." is not a valid number, but the tokenizer accepts it for convenience
+        // the parser will reject it later on
+        let data = String::from("...");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Number);
     }
 
     #[test]
@@ -738,6 +775,7 @@ ASAP2_VERSION 1 60
                 uint;
             }; /* trap: /end A2ML */
             / / //
+            // a comment
         /end A2ML
     /end MODULE
 /end PROJECT
@@ -763,7 +801,6 @@ ASAP2_VERSION 1 60
 
         let tokresult = tokenize_core(String::from("test"), 0, &data).expect("Error");
         assert_eq!(tokresult.len(), 8);
-        println!("{:?}", tokresult);
         assert_eq!(tokresult[0].ttype, A2lTokenType::Include);
         assert_eq!(tokresult[1].ttype, A2lTokenType::Identifier);
         assert_eq!(tokresult[2].ttype, A2lTokenType::Include);
@@ -772,6 +809,30 @@ ASAP2_VERSION 1 60
         assert_eq!(tokresult[5].ttype, A2lTokenType::String);
         assert_eq!(tokresult[6].ttype, A2lTokenType::Include);
         assert_eq!(tokresult[7].ttype, A2lTokenType::String);
+
+        // include a nonexistent file - string
+        let data = String::from(r#"/include "nonexistent.a2l""#);
+        let tokresult = tokenize(&Filename::from("test"), 0, &data);
+        assert!(matches!(
+            tokresult,
+            Err(TokenizerError::IncludeFileError { .. })
+        ));
+
+        // include a nonexistent file - identifier
+        let data = String::from(r#"/include nonexistent.a2l"#);
+        let tokresult = tokenize(&Filename::from("test"), 0, &data);
+        assert!(matches!(
+            tokresult,
+            Err(TokenizerError::IncludeFileError { .. })
+        ));
+
+        // include with a bad token
+        let data = String::from(r#"/include 123"#);
+        let tokresult = tokenize(&Filename::from("test"), 0, &data);
+        assert!(matches!(
+            tokresult,
+            Err(TokenizerError::IncompleteIncludeError { .. })
+        ));
     }
 
     #[test]

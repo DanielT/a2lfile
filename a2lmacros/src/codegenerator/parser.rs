@@ -100,7 +100,8 @@ fn generate_block_parser_generic(
     is_block: bool,
 ) -> TokenStream {
     let name = format_ident!("{}", typename);
-    let (itemnames, itemparsers, location_names) = generate_struct_item_fragments(structitems, is_block);
+    let (itemnames, itemparsers, location_names) =
+        generate_struct_item_fragments(structitems, is_block);
 
     // check the block /end tag - blocks only, not for keywords or structs
     let blockcheck = if is_block {

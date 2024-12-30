@@ -858,8 +858,7 @@ impl<'a> ParserState<'a> {
         self.undo_get_token();
         let startpos = self.get_tokenpos();
         let text = self.get_token_text(&self.token_cursor.tokens[startpos]);
-        let errcontext =
-            ParseContext::from_token(text, &self.token_cursor.tokens[startpos]);
+        let errcontext = ParseContext::from_token(text, &self.token_cursor.tokens[startpos]);
 
         let mut balance = 0;
         if item_is_block {
@@ -938,9 +937,14 @@ impl<'a> ParserState<'a> {
         Ok(())
     }
 
-    pub(crate) fn require_block(&self, tag: &str, is_block: bool, context: &ParseContext) -> Result<(), ParserError> {
+    pub(crate) fn require_block(
+        &self,
+        tag: &str,
+        is_block: bool,
+        context: &ParseContext,
+    ) -> Result<(), ParserError> {
         if !is_block {
-            Err(ParserError::IncorrectBlockError{
+            Err(ParserError::IncorrectBlockError {
                 filename: self.filenames[context.fileid].to_string(),
                 error_line: self.last_token_position,
                 tag: tag.to_string(),
@@ -952,9 +956,14 @@ impl<'a> ParserState<'a> {
         }
     }
 
-    pub(crate) fn require_keyword(&self, tag: &str, is_block: bool, context: &ParseContext) -> Result<(), ParserError> {
+    pub(crate) fn require_keyword(
+        &self,
+        tag: &str,
+        is_block: bool,
+        context: &ParseContext,
+    ) -> Result<(), ParserError> {
         if is_block {
-            Err(ParserError::IncorrectKeywordError{
+            Err(ParserError::IncorrectKeywordError {
                 filename: self.filenames[context.fileid].to_string(),
                 error_line: self.last_token_position,
                 tag: tag.to_string(),
@@ -1462,5 +1471,44 @@ mod tests {
                 parser_error: ParserError::InvalidIdentifier { .. }
             })
         ));
+    }
+
+    #[test]
+    fn test_handle_unknown_taggedstruct_tag() {
+        // balanced unknown block
+        static DATA: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin UNKNOWN_TAG abc def /begin ghi /end ghi /end UNKNOWN_TAG
+        /end MODULE /end PROJECT"#;
+        let mut log_msgs = vec![];
+        let result = load_from_string(DATA, None, &mut log_msgs, false);
+        assert!(result.is_ok());
+        let a2l_file = result.unwrap();
+        assert_eq!(a2l_file.project.module.len(), 1);
+
+        // unbalanced unknown block
+        static DATA2: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin UNKNOWN_TAG abc def
+        /end MODULE /end PROJECT"#;
+        let mut log_msgs = vec![];
+        let result = load_from_string(DATA2, None, &mut log_msgs, false);
+        assert!(matches!(
+            result,
+            Err(A2lError::ParserError {
+                parser_error: ParserError::IncorrectEndTag { .. }
+            })
+        ));
+
+        //unknown keyword
+        static DATA3: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            UNKNOWN_TAG abc def /begin ghi /end ghi
+            /begin GROUP group_name "" ROOT
+            /end GROUP
+        /end MODULE /end PROJECT"#;
+        let mut log_msgs = vec![];
+        let result = load_from_string(DATA3, None, &mut log_msgs, false);
+        assert!(result.is_ok());
+        let a2l_file = result.unwrap();
+        assert_eq!(a2l_file.project.module.len(), 1);
+        assert_eq!(a2l_file.project.module[0].group.len(), 1);
     }
 }
