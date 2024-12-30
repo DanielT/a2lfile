@@ -175,3 +175,45 @@ impl ToTokens for A2lVersion {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_data_item_eq() {
+        let item1 = DataItem {
+            typename: Some("foo".to_string()),
+            basetype: BaseType::Int,
+            varname: Some("foo".to_string()),
+            comment: None,
+        };
+        let item2 = DataItem {
+            typename: Some("bar".to_string()),
+            basetype: BaseType::Int,
+            varname: Some("bar".to_string()),
+            comment: None,
+        };
+        assert_eq!(item1, item1);
+        assert_ne!(item1, item2);
+    }
+
+    #[test]
+    fn test_a2lversion() {
+        let v1_5_0: A2lVersion = "1.50".parse().unwrap();
+        let v1_5_1: A2lVersion = "1.51".parse().unwrap();
+        let v1_6_0: A2lVersion = "1.60".parse().unwrap();
+        let v1_6_1: A2lVersion = "1.61".parse().unwrap();
+        let v1_7_0: A2lVersion = "1.70".parse().unwrap();
+        let v1_7_1: A2lVersion = "1.71".parse().unwrap();
+        assert_eq!(v1_5_0, A2lVersion::V1_5_0);
+        assert_eq!(v1_5_1, A2lVersion::V1_5_1);
+        assert_eq!(v1_6_0, A2lVersion::V1_6_0);
+        assert_eq!(v1_6_1, A2lVersion::V1_6_1);
+        assert_eq!(v1_7_0, A2lVersion::V1_7_0);
+        assert_eq!(v1_7_1, A2lVersion::V1_7_1);
+
+        let bad_version = "bad".parse::<A2lVersion>();
+        assert!(bad_version.is_err());
+    }
+}

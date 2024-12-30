@@ -777,4 +777,33 @@ mod ifdata_test {
         if_data.ifdata_valid = valid;
         A2mlTest::load_from_ifdata(&if_data).unwrap()
     }
+
+    #[test]
+    fn test_parse_unknown() {
+        // parse unknown valid data
+        let result = parse_helper(
+            r##"abc def ghi /begin AAA 12 23 34 45 "foo" "bar" /end AAA /end IFDATA"##,
+        );
+        assert!(result.is_ok());
+        let (gen_ifdata, valid) = result.unwrap();
+        assert!(!valid);
+        let gen_ifdata = gen_ifdata.unwrap();
+        let (_, _, items) = gen_ifdata.get_block_items().unwrap();
+
+        // by default, IF_DATA is wrapped in a taggedunion. Therefore "abc" is the tag.
+        assert_eq!(items.len(), 1);
+        let taggedunion = &items[0];
+        let opt_tag_content = taggedunion
+            .get_single_optitem("abc", |data, _, _, _| Ok(data.clone()))
+            .unwrap()
+            .unwrap();
+        // the tag conntains a struct with 3 items: "def", "ghi" and a taggedstruct "AAA"
+        let (_, _, items) = opt_tag_content.get_struct_items().unwrap();
+        assert_eq!(items.len(), 3);
+
+        // parse unknown invalid data
+        let result =
+            parse_helper(r##"abc def ghi /begin AAA 12 23 34 45 "foo" "bar" /end IFDATA"##);
+        assert!(result.is_err());
+    }
 }

@@ -2015,7 +2015,8 @@ mod test {
     #[test]
     fn test_merge_compu_tab() {
         let mut log_msgs = vec![];
-        static FILE_A: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m "" /end MODULE /end PROJECT"#;
+        static FILE_A: &str =
+            r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m "" /end MODULE /end PROJECT"#;
         static FILE_B: &str = r#"ASAP2_VERSION 1 71
         /begin PROJECT p ""
             /begin MODULE m ""

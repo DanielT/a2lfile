@@ -930,11 +930,19 @@ ASAP2_VERSION 1 61
                     /begin ANNOTATION
                         ANNOTATION_LABEL "label" ANNOTATION_ORIGIN "origin"
                         /begin ANNOTATION_TEXT
+                            "text"
                         /end ANNOTATION_TEXT
                     /end ANNOTATION
+                    /begin FUNCTION_LIST
+                    /end FUNCTION_LIST
+                    CALIBRATION_ACCESS NO_CALIBRATION
                     GUARD_RAILS READ_ONLY
+                    /begin IF_DATA
+                    /end IF_DATA
                 /end AXIS_PTS
                 /begin BLOB blob_name "long_identifier" 0x1234 100
+                    /begin IF_DATA
+                    /end IF_DATA
                 /end BLOB
                 /begin CHARACTERISTIC characteristic_name "long_identifier" CURVE 0x1234 record_layout_name 0 compu_method_name 0.0 10.0
                     /begin AXIS_DESCR COM_AXIS measurement_name compu_method_name 1 0 100
@@ -950,6 +958,11 @@ ASAP2_VERSION 1 61
                     /end DEPENDENT_CHARACTERISTIC
                     /begin MAP_LIST
                     /end MAP_LIST
+                    /begin IF_DATA
+                    /end IF_DATA
+                    /begin VIRTUAL_CHARACTERISTIC
+                        "formula" characteristic_name
+                    /end VIRTUAL_CHARACTERISTIC
                     NUMBER 1
                 /end CHARACTERISTIC
                 /begin COMPU_METHOD compu_method_name "" IDENTICAL "%4.2" "unit"
@@ -979,8 +992,12 @@ ASAP2_VERSION 1 61
                 /end COMPU_VTAB_RANGE
                 /begin FRAME frame_name "long_identifier" 1 2
                     FRAME_MEASUREMENT measurement_name
+                    /begin IF_DATA
+                    /end IF_DATA
                 /end FRAME
                 /begin FUNCTION function_name "long_identifier"
+                    /begin ANNOTATION
+                    /end ANNOTATION
                     /begin AR_COMPONENT "ar_component"
                         AR_PROTOTYPE_OF function
                     /end AR_COMPONENT
@@ -997,6 +1014,8 @@ ASAP2_VERSION 1 61
                     /end REF_CHARACTERISTIC
                     /begin SUB_FUNCTION function_name
                     /end SUB_FUNCTION
+                    /begin IF_DATA
+                    /end IF_DATA
                 /end FUNCTION
                 /begin GROUP group_name "long_identifier"
                     /begin FUNCTION_LIST
@@ -1008,6 +1027,8 @@ ASAP2_VERSION 1 61
                     ROOT
                     /begin SUB_GROUP
                     /end SUB_GROUP
+                    /begin IF_DATA
+                    /end IF_DATA
                 /end GROUP
                 /begin IF_DATA
                     1
@@ -1032,6 +1053,8 @@ ASAP2_VERSION 1 61
                     /end OVERWRITE
                     READ_ONLY
                     SYMBOL_LINK "symbol name" 0x1234
+                    /begin IF_DATA
+                    /end IF_DATA
                 /end INSTANCE
                 /begin MEASUREMENT measurement_name "long_identifier" FLOAT32_IEEE compu_method_name 1 1.0 0 100
                     ARRAY_SIZE 1
@@ -1059,6 +1082,8 @@ ASAP2_VERSION 1 61
                     /begin VIRTUAL
                         ident
                     /end VIRTUAL
+                    /begin IF_DATA
+                    /end IF_DATA
                 /end MEASUREMENT
                 /begin MOD_COMMON "description"
                     ALIGNMENT_BYTE 1
@@ -1087,6 +1112,8 @@ ASAP2_VERSION 1 61
                     ECU_CALIBRATION_OFFSET 1
                     EPK "e"
                     /begin MEMORY_LAYOUT PRG_DATA 0x1234 1 0 0 0 0 0
+                        /begin IF_DATA
+                        /end IF_DATA
                     /end MEMORY_LAYOUT
                     /begin MEMORY_SEGMENT memory_segment "long_identifier" DATA RAM EXTERN 0 0 0 0 0 0 0
                     /end MEMORY_SEGMENT
@@ -1098,19 +1125,67 @@ ASAP2_VERSION 1 61
                     VERSION "1"
                 /end MOD_PAR
                 /begin RECORD_LAYOUT record_layout_name
+                    ALIGNMENT_BYTE 1
+                    ALIGNMENT_FLOAT16_IEEE 2
+                    ALIGNMENT_FLOAT32_IEEE 4
+                    ALIGNMENT_FLOAT64_IEEE 8
+                    ALIGNMENT_INT64 8
+                    ALIGNMENT_LONG 4
+                    ALIGNMENT_WORD 2
                     AXIS_PTS_X 1 SWORD INDEX_INCR DIRECT
+                    AXIS_PTS_Y 1 SWORD INDEX_INCR DIRECT
+                    AXIS_PTS_Z 1 SWORD INDEX_INCR DIRECT
+                    AXIS_PTS_4 1 SWORD INDEX_INCR DIRECT
+                    AXIS_PTS_5 1 SWORD INDEX_INCR DIRECT
                     AXIS_RESCALE_X 2 SWORD 1 INDEX_INCR DIRECT
+                    AXIS_RESCALE_Y 2 SWORD 1 INDEX_INCR DIRECT
+                    AXIS_RESCALE_Z 2 SWORD 1 INDEX_INCR DIRECT
+                    AXIS_RESCALE_4 2 SWORD 1 INDEX_INCR DIRECT
+                    AXIS_RESCALE_5 2 SWORD 1 INDEX_INCR DIRECT
                     DIST_OP_X 3 SWORD
+                    DIST_OP_Y 3 SWORD
+                    DIST_OP_Z 3 SWORD
+                    DIST_OP_4 3 SWORD
+                    DIST_OP_5 3 SWORD
                     FIX_NO_AXIS_PTS_X 1
+                    FIX_NO_AXIS_PTS_Y 1
+                    FIX_NO_AXIS_PTS_Z 1
+                    FIX_NO_AXIS_PTS_4 1
+                    FIX_NO_AXIS_PTS_5 1
                     FNC_VALUES 4 SWORD ROW_DIR DIRECT
                     RESERVED 5 WORD
+                    RIP_ADDR_W 6 SWORD
                     RIP_ADDR_X 6 SWORD
+                    RIP_ADDR_Y 6 SWORD
+                    RIP_ADDR_Z 6 SWORD
+                    RIP_ADDR_4 6 SWORD
+                    RIP_ADDR_5 6 SWORD
                     SRC_ADDR_X 7 SWORD
+                    SRC_ADDR_Y 7 SWORD
+                    SRC_ADDR_Z 7 SWORD
+                    SRC_ADDR_4 7 SWORD
+                    SRC_ADDR_5 7 SWORD
                     SHIFT_OP_X 8 SWORD
+                    SHIFT_OP_Y 8 SWORD
+                    SHIFT_OP_Z 8 SWORD
+                    SHIFT_OP_4 8 SWORD
+                    SHIFT_OP_5 8 SWORD
                     IDENTIFICATION 9 SWORD
                     NO_AXIS_PTS_X 10 SWORD
+                    NO_AXIS_PTS_Y 10 SWORD
+                    NO_AXIS_PTS_Z 10 SWORD
+                    NO_AXIS_PTS_4 10 SWORD
+                    NO_AXIS_PTS_5 10 SWORD
                     NO_RESCALE_X 11 SWORD
+                    NO_RESCALE_Y 11 SWORD
+                    NO_RESCALE_Z 11 SWORD
+                    NO_RESCALE_4 11 SWORD
+                    NO_RESCALE_5 11 SWORD
                     OFFSET_X 12 SWORD
+                    OFFSET_Y 12 SWORD
+                    OFFSET_Z 12 SWORD
+                    OFFSET_4 12 SWORD
+                    OFFSET_5 12 SWORD
                     STATIC_RECORD_LAYOUT
                     STATIC_ADDRESS_OFFSETS
                 /end RECORD_LAYOUT
@@ -1165,10 +1240,19 @@ ASAP2_VERSION 1 61
                     /end VAR_CHARACTERISTIC 
                     VAR_NAMING NUMERIC
                     VAR_SEPARATOR "."
+                    /begin VAR_FORBIDDEN_COMB
+                        abc def
+                    /end VAR_FORBIDDEN_COMB
+                    /begin VAR_CRITERION var_criterion_name ""
+                        abc def
+                        VAR_MEASUREMENT measurement_name
+                        VAR_SELECTION_CHARACTERISTIC characteristic_name
+                    /end VAR_CRITERION
                 /end VARIANT_CODING
             /end MODULE
         /end PROJECT
         "#;
+
     #[test]
     fn specification_test() {
         let mut log_msgs = Vec::new();
@@ -1227,17 +1311,26 @@ ASAP2_VERSION 1 61
         let mut annotation = Annotation::new();
         annotation.annotation_label = Some(AnnotationLabel::new("label".to_string()));
         annotation.annotation_origin = Some(AnnotationOrigin::new("origin".to_string()));
-        annotation.annotation_text = Some(AnnotationText::new());
+        let mut annotation_text = AnnotationText::new();
+        annotation_text
+            .annotation_text_list
+            .push("text".to_string());
+        annotation.annotation_text = Some(annotation_text);
         axis_pts.annotation.push(annotation);
         axis_pts.guard_rails = Some(GuardRails::new());
         axis_pts.read_only = Some(ReadOnly::new());
+        axis_pts.calibration_access =
+            Some(CalibrationAccess::new(CalibrationAccessEnum::NoCalibration));
+        axis_pts.function_list = Some(FunctionList::new());
+        axis_pts.if_data.push(IfData::default());
         module.axis_pts.push(axis_pts);
-        let blob = Blob::new(
+        let mut blob = Blob::new(
             "blob_name".to_string(),
             "long_identifier".to_string(),
             0x1234,
             100,
         );
+        blob.if_data.push(IfData::default());
         module.blob.push(blob);
         let mut characteristic = Characteristic::new(
             "characteristic_name".to_string(),
@@ -1282,6 +1375,12 @@ ASAP2_VERSION 1 61
         characteristic.dependent_characteristic = Some(dependent_characteristic);
         characteristic.map_list = Some(MapList::new());
         characteristic.number = Some(Number::new(1));
+        let mut virtual_characteristic = VirtualCharacteristic::new("formula".to_string());
+        virtual_characteristic
+            .characteristic_list
+            .push("characteristic_name".to_string());
+        characteristic.virtual_characteristic = Some(virtual_characteristic);
+        characteristic.if_data.push(IfData::default());
         module.characteristic.push(characteristic);
         let mut compu_method = CompuMethod::new(
             "compu_method_name".to_string(),
@@ -1345,9 +1444,11 @@ ASAP2_VERSION 1 61
             .identifier_list
             .push("measurement_name".to_string());
         frame.frame_measurement = Some(frame_measurement);
+        frame.if_data.push(IfData::default());
         module.frame.push(frame);
         let mut function =
             Function::new("function_name".to_string(), "long_identifier".to_string());
+        function.annotation.push(Annotation::new());
         let mut ar_component = ArComponent::new("ar_component".to_string());
         ar_component.ar_prototype_of = Some(ArPrototypeOf::new("function".to_string()));
         function.ar_component = Some(ar_component);
@@ -1382,6 +1483,7 @@ ASAP2_VERSION 1 61
             .identifier_list
             .push("function_name".to_string());
         function.sub_function = Some(sub_function);
+        function.if_data.push(IfData::default());
         module.function.push(function);
         let mut group = Group::new("group_name".to_string(), "long_identifier".to_string());
         group.function_list = Some(FunctionList::new());
@@ -1389,6 +1491,7 @@ ASAP2_VERSION 1 61
         group.ref_measurement = Some(RefMeasurement::new());
         group.root = Some(Root::new());
         group.sub_group = Some(SubGroup::new());
+        group.if_data.push(IfData::default());
         module.group.push(group);
         let mut if_data = IfData::new();
         if_data.ifdata_items = Some(GenericIfData::Block {
@@ -1427,6 +1530,7 @@ ASAP2_VERSION 1 61
         instance.overwrite.push(overwrite);
         instance.read_only = Some(ReadOnly::new());
         instance.symbol_link = Some(SymbolLink::new("symbol name".to_string(), 0x1234));
+        instance.if_data.push(IfData::default());
         module.instance.push(instance);
         let mut measurement = Measurement::new(
             "measurement_name".to_string(),
@@ -1440,6 +1544,7 @@ ASAP2_VERSION 1 61
         );
         measurement.array_size = Some(ArraySize::new(1));
         measurement.bit_mask = Some(BitMask::new(0xF0));
+        measurement.if_data.push(IfData::default());
         let mut bit_operation = BitOperation::new();
         bit_operation.left_shift = Some(LeftShift::new(1));
         bit_operation.right_shift = Some(RightShift::new(2));
@@ -1495,9 +1600,9 @@ ASAP2_VERSION 1 61
         mod_par.ecu = Some(Ecu::new("e".to_string()));
         mod_par.ecu_calibration_offset = Some(EcuCalibrationOffset::new(1));
         mod_par.epk = Some(Epk::new("e".to_string()));
-        mod_par
-            .memory_layout
-            .push(MemoryLayout::new(ProgType::PrgData, 0x1234, 1, [0; 5]));
+        let mut memory_layout = MemoryLayout::new(ProgType::PrgData, 0x1234, 1, [0; 5]);
+        memory_layout.if_data.push(IfData::default());
+        mod_par.memory_layout.push(memory_layout);
         mod_par.memory_segment.push(MemorySegment::new(
             "memory_segment".to_string(),
             "long_identifier".to_string(),
@@ -1518,7 +1623,38 @@ ASAP2_VERSION 1 61
         mod_par.version = Some(Version::new("1".to_string()));
         module.mod_par = Some(mod_par);
         let mut record_layout = RecordLayout::new("record_layout_name".to_string());
+        record_layout.alignment_byte = Some(AlignmentByte::new(1));
+        record_layout.alignment_float16_ieee = Some(AlignmentFloat16Ieee::new(2));
+        record_layout.alignment_float32_ieee = Some(AlignmentFloat32Ieee::new(4));
+        record_layout.alignment_float64_ieee = Some(AlignmentFloat64Ieee::new(8));
+        record_layout.alignment_int64 = Some(AlignmentInt64::new(8));
+        record_layout.alignment_long = Some(AlignmentLong::new(4));
+        record_layout.alignment_word = Some(AlignmentWord::new(2));
         record_layout.axis_pts_x = Some(AxisPtsDim::new(
+            1,
+            DataType::Sword,
+            IndexOrder::IndexIncr,
+            AddrType::Direct,
+        ));
+        record_layout.axis_pts_y = Some(AxisPtsDim::new(
+            1,
+            DataType::Sword,
+            IndexOrder::IndexIncr,
+            AddrType::Direct,
+        ));
+        record_layout.axis_pts_z = Some(AxisPtsDim::new(
+            1,
+            DataType::Sword,
+            IndexOrder::IndexIncr,
+            AddrType::Direct,
+        ));
+        record_layout.axis_pts_4 = Some(AxisPtsDim::new(
+            1,
+            DataType::Sword,
+            IndexOrder::IndexIncr,
+            AddrType::Direct,
+        ));
+        record_layout.axis_pts_5 = Some(AxisPtsDim::new(
             1,
             DataType::Sword,
             IndexOrder::IndexIncr,
@@ -1531,8 +1667,44 @@ ASAP2_VERSION 1 61
             IndexOrder::IndexIncr,
             AddrType::Direct,
         ));
+        record_layout.axis_rescale_y = Some(AxisRescaleDim::new(
+            2,
+            DataType::Sword,
+            1,
+            IndexOrder::IndexIncr,
+            AddrType::Direct,
+        ));
+        record_layout.axis_rescale_z = Some(AxisRescaleDim::new(
+            2,
+            DataType::Sword,
+            1,
+            IndexOrder::IndexIncr,
+            AddrType::Direct,
+        ));
+        record_layout.axis_rescale_4 = Some(AxisRescaleDim::new(
+            2,
+            DataType::Sword,
+            1,
+            IndexOrder::IndexIncr,
+            AddrType::Direct,
+        ));
+        record_layout.axis_rescale_5 = Some(AxisRescaleDim::new(
+            2,
+            DataType::Sword,
+            1,
+            IndexOrder::IndexIncr,
+            AddrType::Direct,
+        ));
         record_layout.dist_op_x = Some(DistOpDim::new(3, DataType::Sword));
+        record_layout.dist_op_y = Some(DistOpDim::new(3, DataType::Sword));
+        record_layout.dist_op_z = Some(DistOpDim::new(3, DataType::Sword));
+        record_layout.dist_op_4 = Some(DistOpDim::new(3, DataType::Sword));
+        record_layout.dist_op_5 = Some(DistOpDim::new(3, DataType::Sword));
         record_layout.fix_no_axis_pts_x = Some(FixNoAxisPtsDim::new(1));
+        record_layout.fix_no_axis_pts_y = Some(FixNoAxisPtsDim::new(1));
+        record_layout.fix_no_axis_pts_z = Some(FixNoAxisPtsDim::new(1));
+        record_layout.fix_no_axis_pts_4 = Some(FixNoAxisPtsDim::new(1));
+        record_layout.fix_no_axis_pts_5 = Some(FixNoAxisPtsDim::new(1));
         record_layout.fnc_values = Some(FncValues::new(
             4,
             DataType::Sword,
@@ -1541,14 +1713,39 @@ ASAP2_VERSION 1 61
         ));
         record_layout.identification = Some(Identification::new(9, DataType::Sword));
         record_layout.no_axis_pts_x = Some(NoAxisPtsDim::new(10, DataType::Sword));
+        record_layout.no_axis_pts_y = Some(NoAxisPtsDim::new(10, DataType::Sword));
+        record_layout.no_axis_pts_z = Some(NoAxisPtsDim::new(10, DataType::Sword));
+        record_layout.no_axis_pts_4 = Some(NoAxisPtsDim::new(10, DataType::Sword));
+        record_layout.no_axis_pts_5 = Some(NoAxisPtsDim::new(10, DataType::Sword));
         record_layout.no_rescale_x = Some(NoRescaleDim::new(11, DataType::Sword));
+        record_layout.no_rescale_y = Some(NoRescaleDim::new(11, DataType::Sword));
+        record_layout.no_rescale_z = Some(NoRescaleDim::new(11, DataType::Sword));
+        record_layout.no_rescale_4 = Some(NoRescaleDim::new(11, DataType::Sword));
+        record_layout.no_rescale_5 = Some(NoRescaleDim::new(11, DataType::Sword));
         record_layout.offset_x = Some(OffsetDim::new(12, DataType::Sword));
+        record_layout.offset_y = Some(OffsetDim::new(12, DataType::Sword));
+        record_layout.offset_z = Some(OffsetDim::new(12, DataType::Sword));
+        record_layout.offset_4 = Some(OffsetDim::new(12, DataType::Sword));
+        record_layout.offset_5 = Some(OffsetDim::new(12, DataType::Sword));
         record_layout
             .reserved
             .push(Reserved::new(5, DataTypeSize::Word));
+        record_layout.rip_addr_w = Some(RipAddrDim::new(6, DataType::Sword));
         record_layout.rip_addr_x = Some(RipAddrDim::new(6, DataType::Sword));
+        record_layout.rip_addr_y = Some(RipAddrDim::new(6, DataType::Sword));
+        record_layout.rip_addr_z = Some(RipAddrDim::new(6, DataType::Sword));
+        record_layout.rip_addr_4 = Some(RipAddrDim::new(6, DataType::Sword));
+        record_layout.rip_addr_5 = Some(RipAddrDim::new(6, DataType::Sword));
         record_layout.src_addr_x = Some(SrcAddrDim::new(7, DataType::Sword));
+        record_layout.src_addr_y = Some(SrcAddrDim::new(7, DataType::Sword));
+        record_layout.src_addr_z = Some(SrcAddrDim::new(7, DataType::Sword));
+        record_layout.src_addr_4 = Some(SrcAddrDim::new(7, DataType::Sword));
+        record_layout.src_addr_5 = Some(SrcAddrDim::new(7, DataType::Sword));
         record_layout.shift_op_x = Some(ShiftOpDim::new(8, DataType::Sword));
+        record_layout.shift_op_y = Some(ShiftOpDim::new(8, DataType::Sword));
+        record_layout.shift_op_z = Some(ShiftOpDim::new(8, DataType::Sword));
+        record_layout.shift_op_4 = Some(ShiftOpDim::new(8, DataType::Sword));
+        record_layout.shift_op_5 = Some(ShiftOpDim::new(8, DataType::Sword));
         record_layout.static_address_offsets = Some(StaticAddressOffsets::new());
         record_layout.static_record_layout = Some(StaticRecordLayout::new());
         module.record_layout.push(record_layout);
@@ -1662,9 +1859,23 @@ ASAP2_VERSION 1 61
         let mut var_address = VarAddress::new();
         var_address.address_list.push(0x1234);
         var_characteristic.var_address = Some(var_address);
+        let mut var_forbidden_comb = VarForbiddenComb::new();
+        var_forbidden_comb
+            .combination
+            .push(CombinationStruct::new("abc".to_string(), "def".to_string()));
+        let mut var_criterion = VarCriterion::new("var_criterion_name".to_string(), "".to_string());
+        var_criterion
+            .value_list
+            .extend(["abc".to_string(), "def".to_string()]);
+        var_criterion.var_measurement = Some(VarMeasurement::new("measurement_name".to_string()));
+        var_criterion.var_selection_characteristic = Some(VarSelectionCharacteristic::new(
+            "characteristic_name".to_string(),
+        ));
         variant_coding.var_characteristic.push(var_characteristic);
         variant_coding.var_naming = Some(VarNaming::new(VarNamingTag::Numeric));
         variant_coding.var_separator = Some(VarSeparator::new(".".to_string()));
+        variant_coding.var_forbidden_comb.push(var_forbidden_comb);
+        variant_coding.var_criterion.push(var_criterion);
         module.variant_coding = Some(variant_coding);
         assert_eq!(a2l_file, a2l_file5);
 

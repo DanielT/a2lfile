@@ -1382,6 +1382,28 @@ mod test {
         let result = quote::quote! {
             <Testspec>
 
+            enum SomeEnum {
+                "SOME_ENUM_A" = 1,
+                "SOME_ENUM_B" = 2,
+                "SOME_EMUM_C" = 0x3,
+            };
+
+            taggedunion tu {
+                "FOO" uint ;
+                "BAR" uchar ;
+            };
+
+            taggedstruct ts {
+                ("REP_ITEM" uint rep_item)*;
+                "NORMAL_ITEM" struct {
+                    char my_string[128];
+                };
+                "REP_ITEM_INNER" (struct InnerRepStruct {
+                    uint foo;
+                    uint bar;
+                })*;
+            };
+
             struct SomeStruct {
                 uchar my_uchar; /// comment 1
                 uint my_uint;  /// comment 2
@@ -1396,25 +1418,9 @@ mod test {
                     "ANON_ENUM_A" = 0,
                     "ANUN_ENUM_B" = 1
                 };
-                enum SomeEnum {
-                    "SOME_ENUM_A" = 1,
-                    "SOME_ENUM_B" = 2,
-                    "SOME_EMUM_C" = 0x3,
-                } my_enum; // comment 10
-                taggedunion {
-                    "FOO" uint ;
-                    "BAR" uchar ;
-                };
-                taggedstruct {
-                    ("REP_ITEM" uint rep_item)*;
-                    "NORMAL_ITEM" struct {
-                        char my_string[128];
-                    };
-                    "REP_ITEM_INNER" (struct InnerRepStruct {
-                        uint foo;
-                        uint bar;
-                    })*;
-                };
+                enum SomeEnum my_enum; // comment 10
+                taggedunion tu;
+                taggedstruct ts;
             };
 
             block "IF_DATA" struct SomeStruct;
@@ -1428,7 +1434,7 @@ mod test {
         let ts = get_test_tokenstream();
         let mut iter: TokenStreamIter = ts.into_iter().peekable();
         let spec = parse_specification(&mut iter);
-        assert_eq!(spec.types.list.len(), 1);
+        assert_eq!(spec.types.list.len(), 4);
     }
 
     #[test]
@@ -1444,7 +1450,10 @@ mod test {
         let ts = get_test_tokenstream();
         let mut iter: TokenStreamIter = ts.into_iter().peekable();
         let spec = parse_specification(&mut iter);
-        let _outtypes = fixup_output_datatypes(&spec);
+        let outtypes = fixup_output_datatypes(&spec);
+        assert!(outtypes.contains_key("Testspec"));
+        assert!(outtypes.contains_key("Foo"));
+        assert!(outtypes.contains_key("Bar"));
     }
 
     #[test]

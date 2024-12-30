@@ -1195,139 +1195,32 @@ impl GenericIfData {
 // Two elements are equal if their contained values match, regardless of the line numbers.
 impl PartialEq for GenericIfData {
     fn eq(&self, other: &Self) -> bool {
-        match self {
-            Self::None => {
-                matches!(other, Self::None)
-            }
-            Self::Char(_, val) => {
-                if let Self::Char(_, otherval) = other {
-                    val == otherval
-                } else {
-                    false
-                }
-            }
-            Self::Int(_, val) => {
-                if let Self::Int(_, otherval) = other {
-                    val == otherval
-                } else {
-                    false
-                }
-            }
-            Self::Long(_, val) => {
-                if let Self::Long(_, otherval) = other {
-                    val == otherval
-                } else {
-                    false
-                }
-            }
-            Self::Int64(_, val) => {
-                if let Self::Int64(_, otherval) = other {
-                    val == otherval
-                } else {
-                    false
-                }
-            }
-            Self::UChar(_, val) => {
-                if let Self::UChar(_, otherval) = other {
-                    val == otherval
-                } else {
-                    false
-                }
-            }
-            Self::UInt(_, val) => {
-                if let Self::UInt(_, otherval) = other {
-                    val == otherval
-                } else {
-                    false
-                }
-            }
-            Self::ULong(_, val) => {
-                if let Self::ULong(_, otherval) = other {
-                    val == otherval
-                } else {
-                    false
-                }
-            }
-            Self::UInt64(_, val) => {
-                if let Self::UInt64(_, otherval) = other {
-                    val == otherval
-                } else {
-                    false
-                }
-            }
-            Self::Float(_, val) => {
-                if let Self::Float(_, otherval) = other {
-                    val == otherval
-                } else {
-                    false
-                }
-            }
-            Self::Double(_, val) => {
-                if let Self::Double(_, otherval) = other {
-                    val == otherval
-                } else {
-                    false
-                }
-            }
-            Self::String(_, val) => {
-                if let Self::String(_, otherval) = other {
-                    val == otherval
-                } else {
-                    false
-                }
-            }
-            Self::Array(arr) => {
-                if let Self::Array(otherarr) = other {
-                    arr == otherarr
-                } else {
-                    false
-                }
-            }
-            Self::EnumItem(_, val) => {
-                if let Self::EnumItem(_, otherval) = other {
-                    val == otherval
-                } else {
-                    false
-                }
-            }
-            Self::Struct(_, _, items) => {
-                if let Self::Struct(_, _, otheritems) = other {
-                    items == otheritems
-                } else {
-                    false
-                }
-            }
-            Self::Sequence(seq) => {
-                if let Self::Sequence(otherseq) = other {
-                    seq == otherseq
-                } else {
-                    false
-                }
-            }
-            Self::TaggedStruct(tgitems) => {
-                if let Self::TaggedStruct(othertgi) = other {
-                    tgitems == othertgi
-                } else {
-                    false
-                }
-            }
-            Self::TaggedUnion(tgitems) => {
-                if let Self::TaggedUnion(othertgi) = other {
-                    tgitems == othertgi
-                } else {
-                    false
-                }
-            }
-            Self::Block { items, .. } => {
-                if let Self::Block {
+        match (self, other) {
+            (Self::None, Self::None) => true,
+            (Self::Char(_, val), Self::Char(_, otherval)) => val == otherval,
+            (Self::Int(_, val), Self::Int(_, otherval)) => val == otherval,
+            (Self::Long(_, val), Self::Long(_, otherval)) => val == otherval,
+            (Self::Int64(_, val), Self::Int64(_, otherval)) => val == otherval,
+            (Self::UChar(_, val), Self::UChar(_, otherval)) => val == otherval,
+            (Self::UInt(_, val), Self::UInt(_, otherval)) => val == otherval,
+            (Self::ULong(_, val), Self::ULong(_, otherval)) => val == otherval,
+            (Self::UInt64(_, val), Self::UInt64(_, otherval)) => val == otherval,
+            (Self::Float(_, val), Self::Float(_, otherval)) => val == otherval,
+            (Self::Double(_, val), Self::Double(_, otherval)) => val == otherval,
+            (Self::String(_, val), Self::String(_, otherval)) => val == otherval,
+            (Self::EnumItem(_, val), Self::EnumItem(_, otherval)) => val == otherval,
+            (Self::Array(arr), Self::Array(otherarr)) => arr == otherarr,
+            (Self::Struct(_, _, items), Self::Struct(_, _, otheritems))
+            | (
+                Self::Block { items, .. },
+                Self::Block {
                     items: otheritems, ..
-                } = other
-                {
-                    items == otheritems
-                } else {
-                    false
-                }
-            }
+                },
+            ) => items == otheritems,
+            (Self::Sequence(seq), Self::Sequence(otherseq)) => seq == otherseq,
+            (Self::TaggedStruct(tgitems), Self::TaggedStruct(othertgi))
+            | (Self::TaggedUnion(tgitems), Self::TaggedUnion(othertgi)) => tgitems == othertgi,
+            _ => false,
         }
     }
 }
@@ -1558,5 +1451,330 @@ mod test {
             tokenize_a2ml(&Filename::from(base_filename.as_path()), &filetext).unwrap();
         assert_eq!(tokens.len(), 0);
         assert!(fulltext.trim().is_empty());
+    }
+
+    #[test]
+    fn test_parse_generic_ifdata() {
+        static A2L_TEXT: &str = r#"
+        ASAP2_VERSION 1 71
+        /begin PROJECT test ""
+        /begin MODULE test ""
+        /begin A2ML
+            struct SomeStruct {
+                uchar;
+                uint;
+                ulong;
+                char;
+                int;
+                long;
+                float;
+                double;
+                uint[3];
+                enum {
+                    "ANON_ENUM_A" = 0,
+                    "ANON_ENUM_B" = 1
+                };
+                enum xyz {
+                    "SOME_ENUM_A" = 1,
+                    "SOME_ENUM_B" = 2,
+                    "SOME_EMUM_C" = 3
+                };
+                taggedunion {
+                    "FOO" uint;
+                    "BAR" uchar;
+                };
+                taggedstruct {
+                    ("REP_ITEM" uint)*;
+                    "NORMAL_ITEM" struct {
+                        char[128];
+                    };
+                    block "REP_BLOCK_ITEM" (struct RepBlockStruct {
+                        uint;
+                    })*;
+                };
+            };
+
+            block "IF_DATA" struct SomeStruct;
+        /end A2ML
+        /begin IF_DATA 0 1 2 3 4 5 6.0 7.0 8 9 10 
+            // unnamed enum
+            ANON_ENUM_A
+            // enum xyz
+            SOME_ENUM_B
+            // taggedunion
+            FOO 13
+            // taggedstruct
+            REP_ITEM 14
+            REP_ITEM 15
+            NORMAL_ITEM "hello"
+            /begin REP_BLOCK_ITEM 16 17 18 /end REP_BLOCK_ITEM
+        /end IF_DATA
+        /end MODULE
+        /end PROJECT"#;
+
+        let mut log_msgs = vec![];
+        let a2l_file = crate::load_from_string(A2L_TEXT, None, &mut log_msgs, true).unwrap();
+        assert!(a2l_file.project.module[0].if_data[0].ifdata_valid);
+
+        let if_data = &a2l_file.project.module[0].if_data[0];
+        let generic_ifdata = if_data.ifdata_items.as_ref().unwrap();
+
+        let expected_generic_ifdata = GenericIfData::Block {
+            incfile: None,
+            line: 0,
+            items: vec![
+                GenericIfData::UChar(0, (0, false)),
+                GenericIfData::UInt(0, (1, false)),
+                GenericIfData::ULong(0, (2, false)),
+                GenericIfData::Char(0, (3, false)),
+                GenericIfData::Int(0, (4, false)),
+                GenericIfData::Long(0, (5, false)),
+                GenericIfData::Float(0, 6.0),
+                GenericIfData::Double(0, 7.0),
+                GenericIfData::Array(vec![
+                    GenericIfData::UInt(0, (8, false)),
+                    GenericIfData::UInt(0, (9, false)),
+                    GenericIfData::UInt(0, (10, false)),
+                ]),
+                GenericIfData::EnumItem(0, "ANON_ENUM_A".to_string()),
+                GenericIfData::EnumItem(0, "SOME_ENUM_B".to_string()),
+                GenericIfData::TaggedUnion(
+                    vec![(
+                        "FOO".to_string(),
+                        vec![GenericIfDataTaggedItem {
+                            tag: "FOO".to_string(),
+                            incfile: None,
+                            uid: 13,
+                            line: 13,
+                            start_offset: 13,
+                            end_offset: 1,
+                            is_block: false,
+                            data: GenericIfData::Block {
+                                items: vec![GenericIfData::UInt(13, (13, false))],
+                                incfile: None,
+                                line: 0,
+                            },
+                        }],
+                    )]
+                    .into_iter()
+                    .collect(),
+                ),
+                GenericIfData::TaggedStruct(
+                    vec![
+                        (
+                            "REP_ITEM".to_string(),
+                            vec![
+                                GenericIfDataTaggedItem {
+                                    tag: "REP_ITEM".to_string(),
+                                    incfile: None,
+                                    uid: 15,
+                                    line: 15,
+                                    start_offset: 15,
+                                    end_offset: 1,
+                                    is_block: false,
+                                    data: GenericIfData::Block {
+                                        incfile: None,
+                                        line: 15,
+                                        items: vec![GenericIfData::UInt(0, (14, false))],
+                                    },
+                                },
+                                GenericIfDataTaggedItem {
+                                    tag: "REP_ITEM".to_string(),
+                                    incfile: None,
+                                    uid: 15,
+                                    line: 15,
+                                    start_offset: 15,
+                                    end_offset: 1,
+                                    is_block: false,
+                                    data: GenericIfData::Block {
+                                        incfile: None,
+                                        line: 15,
+                                        items: vec![GenericIfData::UInt(0, (15, false))],
+                                    },
+                                },
+                            ],
+                        ),
+                        (
+                            "NORMAL_ITEM".to_string(),
+                            vec![GenericIfDataTaggedItem {
+                                tag: "NORMAL_ITEM".to_string(),
+                                incfile: None,
+                                uid: 16,
+                                line: 16,
+                                start_offset: 16,
+                                end_offset: 1,
+                                is_block: false,
+                                data: GenericIfData::Block {
+                                    incfile: None,
+                                    line: 16,
+                                    items: vec![GenericIfData::String(0, "hello".to_string())],
+                                },
+                            }],
+                        ),
+                        (
+                            "REP_BLOCK_ITEM".to_string(),
+                            vec![GenericIfDataTaggedItem {
+                                tag: "REP_BLOCK_ITEM".to_string(),
+                                incfile: None,
+                                uid: 16,
+                                line: 16,
+                                start_offset: 16,
+                                end_offset: 1,
+                                is_block: true,
+                                data: GenericIfData::Block {
+                                    incfile: None,
+                                    line: 16,
+                                    items: vec![GenericIfData::Sequence(vec![
+                                        GenericIfData::Struct(
+                                            None,
+                                            16,
+                                            vec![GenericIfData::UInt(0, (16, false))],
+                                        ),
+                                        GenericIfData::Struct(
+                                            None,
+                                            16,
+                                            vec![GenericIfData::UInt(0, (17, false))],
+                                        ),
+                                        GenericIfData::Struct(
+                                            None,
+                                            16,
+                                            vec![GenericIfData::UInt(0, (18, false))],
+                                        ),
+                                    ])],
+                                },
+                            }],
+                        ),
+                    ]
+                    .into_iter()
+                    .collect(),
+                ),
+            ],
+        };
+        assert_eq!(generic_ifdata, &expected_generic_ifdata);
+
+        // extract data from the generic if data using the helper functions
+        let (_file, _line, items) = generic_ifdata.get_block_items().unwrap();
+        let value0 = items[0].get_integer_u8().unwrap();
+        assert_eq!(value0, 0);
+        let value1 = items[1].get_integer_u16().unwrap();
+        assert_eq!(value1, 1);
+        let value2 = items[2].get_integer_u32().unwrap();
+        assert_eq!(value2, 2);
+        let value3 = items[3].get_integer_i8().unwrap();
+        assert_eq!(value3, 3);
+        let value4 = items[4].get_integer_i16().unwrap();
+        assert_eq!(value4, 4);
+        let value5 = items[5].get_integer_i32().unwrap();
+        assert_eq!(value5, 5);
+        let value6 = items[6].get_float().unwrap();
+        assert_eq!(value6, 6.0);
+        let value7 = items[7].get_double().unwrap();
+        assert_eq!(value7, 7.0);
+        let array = items[8].get_array().unwrap();
+        assert_eq!(array.len(), 3);
+        let value8 = array[0].get_integer_u16().unwrap();
+        assert_eq!(value8, 8);
+        let value9 = array[1].get_integer_u16().unwrap();
+        assert_eq!(value9, 9);
+        let value10 = array[2].get_integer_u16().unwrap();
+        assert_eq!(value10, 10);
+        assert!(
+            matches!(&items[9], GenericIfData::EnumItem(_, anon_enum_a) if anon_enum_a == "ANON_ENUM_A")
+        );
+        assert!(
+            matches!(&items[10], GenericIfData::EnumItem(_, some_enum_b) if some_enum_b == "SOME_ENUM_B")
+        );
+
+        // let bar_value = items[11]
+        //     .get_single_optitem("BAR", |data, _, _, _| data.get_integer_u8())
+        //     .unwrap();
+        // assert_eq!(bar_value, None);
+        let foo_value = items[11]
+            .get_single_optitem("FOO", |data, _, _, _| {
+                let inner_items = data.get_block_items().unwrap().2;
+                inner_items[0].get_integer_u16()
+            })
+            .unwrap();
+        assert_eq!(foo_value.unwrap(), 13);
+
+        let rep_item_values = items[12]
+            .get_multiple_optitems("REP_ITEM", |data, _, _, _| {
+                let inner_items = data.get_block_items().unwrap().2;
+                inner_items[0].get_integer_u16()
+            })
+            .unwrap();
+        assert_eq!(rep_item_values, vec![14, 15]);
+
+        let normal_item_value = items[12]
+            .get_single_optitem("NORMAL_ITEM", |data, _, _, _| {
+                let inner_items = data.get_block_items().unwrap().2;
+                inner_items[0].get_stringval()
+            })
+            .unwrap();
+        assert_eq!(normal_item_value.unwrap(), "hello");
+
+        let rep_block_item_values = items[12]
+            .get_single_optitem("REP_BLOCK_ITEM", |data, _, _, _| {
+                let inner_items = data.get_block_items().unwrap().2;
+                let seq = inner_items[0].get_sequence()?;
+                let values = seq
+                    .iter()
+                    .map(|seqitem| {
+                        let structitems = seqitem.get_struct_items()?.2;
+                        structitems[0].get_integer_u16()
+                    })
+                    .collect::<Result<Vec<_>, _>>();
+                values
+            })
+            .unwrap();
+        assert_eq!(rep_block_item_values, Some(vec![16, 17, 18]));
+
+        // API usage errors
+        let result = items[1].get_integer_u8();
+        assert!(result.is_err());
+        let result = items[2].get_integer_u16();
+        assert!(result.is_err());
+        let result = items[1].get_integer_u32();
+        assert!(result.is_err());
+        let result = items[1].get_integer_u64();
+        assert!(result.is_err());
+        let result = items[1].get_integer_i8();
+        assert!(result.is_err());
+        let result = items[1].get_integer_i16();
+        assert!(result.is_err());
+        let result = items[1].get_integer_i32();
+        assert!(result.is_err());
+        let result = items[1].get_integer_i64();
+        assert!(result.is_err());
+        let result = items[1].get_float();
+        assert!(result.is_err());
+        let result = items[1].get_double();
+        assert!(result.is_err());
+        let result = items[1].get_stringval();
+        assert!(result.is_err());
+        let result = items[1].get_array();
+        assert!(result.is_err());
+        let result = items[1].get_struct_items();
+        assert!(result.is_err());
+        let result = items[1].get_sequence();
+        assert!(result.is_err());
+        let result = items[0].get_block_items();
+        assert!(result.is_err());
+
+        let result = items[1].get_line();
+        assert!(result.is_ok());
+        let result = generic_ifdata.get_line();
+        assert!(result.is_ok());
+        let result = items[12].get_line(); // this is a taggedstruct, which has no line info
+        assert!(result.is_err());
+
+        // test the write function
+        let written_text = generic_ifdata.write(0);
+        assert!(written_text.contains("0 1 2 3"));
+        assert!(written_text.contains("ANON_ENUM_A"));
+        assert!(written_text.contains("SOME_ENUM_B"));
+        assert!(written_text.contains("FOO 13"));
+        assert!(written_text.contains("REP_ITEM 14"));
+        assert!(written_text.contains("REP_ITEM 15"));
     }
 }

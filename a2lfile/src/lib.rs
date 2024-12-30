@@ -446,6 +446,34 @@ mod tests {
     }
 
     #[test]
+    fn test_load_file() {
+        let dir = tempdir().unwrap();
+
+        // create a file in a temp directory and load it
+        let path = dir.path().join("test.a2l");
+        let path = path.to_str().unwrap();
+
+        let text = r#"
+            ASAP2_VERSION 1 71
+            /begin PROJECT new_project ""
+                /begin MODULE new_module ""
+                /end MODULE
+            /end PROJECT
+        "#;
+        std::fs::write(path, text).unwrap();
+
+        let mut log_msgs = Vec::<A2lError>::new();
+        let a2l = load(path, None, &mut log_msgs, false).unwrap();
+        assert_eq!(a2l.project.module[0].name, "new_module");
+
+        // try to load a file that does not exist
+        let nonexistent_path = dir.path().join("nonexistent.a2l");
+        let nonexistent_path = nonexistent_path.to_str().unwrap();
+        let result = load(nonexistent_path, None, &mut log_msgs, false);
+        assert!(matches!(result, Err(A2lError::FileOpenError { .. })));
+    }
+
+    #[test]
     fn bad_a2ml_data() {
         let mut log_msgs = Vec::new();
         let result = load_from_string(
@@ -541,7 +569,8 @@ mod tests {
     fn write_with_banner() {
         // set the current working directory to a temp dir
         let dir = tempdir().unwrap();
-        std::env::set_current_dir(dir.path()).unwrap();
+        let path = dir.path().join("test.a2l");
+        let path = path.to_str().unwrap();
 
         let mut a2l = new();
         a2l.asap2_version
@@ -549,27 +578,27 @@ mod tests {
             .unwrap()
             .get_layout_mut()
             .start_offset = 0;
-        let result = a2l.write("test.a2l", Some("test case write_nonexistent_file()"));
+        let result = a2l.write(path, Some("test case write_nonexistent_file()"));
         assert!(result.is_ok());
-        let file_text = String::from_utf8(std::fs::read("test.a2l").unwrap()).unwrap();
+        let file_text = String::from_utf8(std::fs::read(path).unwrap()).unwrap();
         assert!(file_text.starts_with("/* test case write_nonexistent_file() */"));
-        std::fs::remove_file("test.a2l").unwrap();
+        std::fs::remove_file(path).unwrap();
 
         a2l.asap2_version
             .as_mut()
             .unwrap()
             .get_layout_mut()
             .start_offset = 1;
-        let result = a2l.write("test.a2l", Some("test case write_nonexistent_file()"));
+        let result = a2l.write(path, Some("test case write_nonexistent_file()"));
         assert!(result.is_ok());
-        let file_text = String::from_utf8(std::fs::read("test.a2l").unwrap()).unwrap();
+        let file_text = String::from_utf8(std::fs::read(path).unwrap()).unwrap();
         assert!(file_text.starts_with("/* test case write_nonexistent_file() */"));
-        std::fs::remove_file("test.a2l").unwrap();
+        std::fs::remove_file(path).unwrap();
     }
 
     #[test]
     fn merge() {
-        // version is copied if non exists
+        // version is copied if none exists
         let mut a2l = new();
         let mut a2l_2 = new();
         a2l.asap2_version = None;
@@ -590,6 +619,20 @@ mod tests {
                 ..
             })
         ));
+
+        // merge modules
+        let mut a2l = new();
+        let mut a2l_2 = new();
+        // create an item in the module of a2l_2
+        a2l_2.project.module[0].compu_tab.push(CompuTab::new(
+            "compu_tab".to_string(),
+            String::new(),
+            ConversionType::Identical,
+            0,
+        ));
+        a2l.project.module[0].merge(&mut a2l_2.project.module[0]);
+        // verify that the item was merged into the module of a2l
+        assert_eq!(a2l.project.module[0].compu_tab.len(), 1);
     }
 
     #[test]
@@ -601,20 +644,102 @@ mod tests {
         // load a fragment with some data
         let result = load_fragment(
             r#"
-    /begin MEASUREMENT ASAM.M.SCALAR.UBYTE.IDENTICAL
-        "Scalar measurement"
-        UBYTE CM.IDENTICAL 0 0 0 255
-        ECU_ADDRESS 0x13A00
-        FORMAT "%5.0"    /* Note: Overwrites the format stated in the computation method */
-        DISPLAY_IDENTIFIER DI.ASAM.M.SCALAR.UBYTE.IDENTICAL    /* optional display identifier */
-        /begin IF_DATA ETK  KP_BLOB 0x13A00 INTERN 1 RASTER 2 /end IF_DATA
-    /end MEASUREMENT"#,
+            /begin MEASUREMENT measurement_name ""
+                UBYTE CM.IDENTICAL 0 0 0 255
+                ECU_ADDRESS 0x13A00
+                FORMAT "%5.0"    /* Note: Overwrites the format stated in the computation method */
+                DISPLAY_IDENTIFIER DI.ASAM.M.SCALAR.UBYTE.IDENTICAL    /* optional display identifier */
+                /begin IF_DATA ETK  KP_BLOB 0x13A00 INTERN 1 RASTER 2 /end IF_DATA
+            /end MEASUREMENT"#,
             None,
         );
         assert!(result.is_ok());
 
+        // load a fragment with some data and a specification
+        let result = load_fragment(
+            r#"
+            /begin MEASUREMENT measurement_name ""
+                UBYTE CM.IDENTICAL 0 0 0 255
+                ECU_ADDRESS 0x13A00
+                /begin IF_DATA ETK  KP_BLOB 0x13A00 INTERN 1 RASTER 2 /end IF_DATA
+            /end MEASUREMENT"#,
+            Some(r#"block "IF_DATA" long;"#.to_string()),
+        );
+        assert!(result.is_ok());
+
+        // load a fragment with some data and an invalid specification
+        let result = load_fragment(
+            r#"
+            /begin MEASUREMENT measurement_name ""
+                UBYTE CM.IDENTICAL 0 0 0 255
+                ECU_ADDRESS 0x13A00
+                /begin IF_DATA ETK  KP_BLOB 0x13A00 INTERN 1 RASTER 2 /end IF_DATA
+            /end MEASUREMENT"#,
+            Some(r#"lorem ipsum"#.to_string()),
+        );
+        assert!(matches!(
+            result,
+            Err(A2lError::InvalidBuiltinA2mlSpec { .. })
+        ));
+
         // random data is not a valid fragment
         let result = load_fragment("12345", None);
-        assert!(result.is_err());
+        assert!(matches!(result, Err(A2lError::ParserError { .. })));
+
+        let result = load_fragment(",,,", None);
+        println!("{:?}", result);
+        assert!(matches!(result, Err(A2lError::TokenizerError { .. })));
+    }
+
+    #[test]
+    fn test_load_fagment_file() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("fragment.a2l");
+        let path = path.to_str().unwrap();
+
+        // load a fragment with some data
+        std::fs::write(
+            path,
+            r#"
+            /begin MEASUREMENT measurement_name ""
+                UBYTE CM.IDENTICAL 0 0 0 255
+            /end MEASUREMENT"#,
+        )
+        .unwrap();
+        let result = load_fragment_file(path, None);
+        assert!(result.is_ok());
+
+        // try to load a nonexistent file
+        let nonexistent_path = dir.path().join("nonexistent.a2l");
+        let nonexistent_path = nonexistent_path.to_str().unwrap();
+        let result = load_fragment_file(nonexistent_path, None);
+        assert!(matches!(result, Err(A2lError::FileOpenError { .. })));
+    }
+
+    #[test]
+    fn test_module_namemap() {
+        let data = r#"
+            /begin MEASUREMENT measurement1 "" UBYTE NO_COMPU_METHOD 0 0 0 255
+            /end MEASUREMENT
+            /begin MEASUREMENT measurement2 "" UBYTE NO_COMPU_METHOD 0 0 0 255
+            /end MEASUREMENT"#;
+
+        let module = load_fragment(data, None).unwrap();
+        let namemap = module.build_namemap();
+        assert_eq!(namemap.object.len(), 2);
+        assert!(namemap.object.contains_key("measurement1"));
+        assert!(namemap.object.contains_key("measurement2"));
+    }
+
+    #[test]
+    fn test_filename() {
+        let filename = Filename::from("test.a2l");
+        assert_eq!(filename.to_string(), "test.a2l");
+
+        let filename = Filename::from(OsString::from("test.a2l"));
+        assert_eq!(filename.to_string(), "test.a2l");
+
+        let filename = Filename::from(Path::new("test.a2l"));
+        assert_eq!(filename.to_string(), "test.a2l");
     }
 }
