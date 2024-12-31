@@ -76,6 +76,12 @@ ASAP2_VERSION 1 61
         assert_eq!(TEST_A2L, text);
     }
 
+    #[cfg(all(
+        feature = "merge",
+        feature = "sort",
+        feature = "check",
+        feature = "cleanup"
+    ))]
     #[test]
     fn full_test() {
         // work in a tempdir
@@ -1252,6 +1258,7 @@ ASAP2_VERSION 1 61
         /end PROJECT
         "#;
 
+    #[cfg(all(feature = "check", feature = "sort"))]
     #[test]
     fn specification_test() {
         let mut log_msgs = Vec::new();

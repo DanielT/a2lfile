@@ -1,15 +1,27 @@
 //! a2lfile is a library that allows you to read, modify and write a2l files.
 //!
 //! It is fast, preserves the formatting of the input, and has support for files using standard version 1.71.
+//!
+//! # Features
+//!
+//! - `check`: perform a consistency check on the data
+//! - `cleanup`: remove unused `GROUP`s, `RECORD_LAYOUTs`, `COMPU_METHOD`s, `COMPU_(V)TAB`s and `UNIT`s
+//! - `ifdata_cleanup`: remove any `IF_DATA` blocks that could not be parsed using either the specification provided during load or the specification in the A2ML block in the file
+//! - `merge`: merge two a2l files on the `MODULE` level
+//! - `sort`: sort the data in the a2l file
 
 mod a2ml;
+#[cfg(feature = "check")]
 mod checker;
+#[cfg(feature = "cleanup")]
 mod cleanup;
 mod ifdata;
 mod loader;
+#[cfg(feature = "merge")]
 mod merge;
 mod namemap;
 mod parser;
+#[cfg(feature = "sort")]
 mod sort;
 mod specification;
 mod tokenizer;
@@ -368,6 +380,7 @@ impl A2lFile {
         Ok(())
     }
 
+    #[cfg(feature = "merge")]
     /// Merge another a2l file on the MODULE level.
     ///
     /// The input file and the merge file must each contain exactly one MODULE.
@@ -395,27 +408,33 @@ impl A2lFile {
         }
     }
 
+    #[cfg(feature = "check")]
     /// perform a consistency check on the data.
+    #[must_use]
     pub fn check(&self) -> Vec<A2lError> {
         checker::check(self)
     }
 
+    #[cfg(feature = "sort")]
     /// sort the data in the a2l file.
     /// This changes the order in which the blocks will be written to an output file
     pub fn sort(&mut self) {
         sort::sort(self);
     }
 
+    #[cfg(feature = "sort")]
     /// sort newly added or merged blocks into sensible locations between the existing blocks
     pub fn sort_new_items(&mut self) {
         sort::sort_new_items(self);
     }
 
+    #[cfg(feature = "cleanup")]
     /// cleanup: remove unused GROUPs, `RECORD_LAYOUTs`, `COMPU_METHODs`, COMPU_(V)TABs and UNITs
     pub fn cleanup(&mut self) {
         cleanup::cleanup(self);
     }
 
+    #[cfg(feature = "ifdata_cleanup")]
     /// cleanup `IF_DATA`: remove any `IF_DATA` blocks that could not be parsed using either the
     /// specification provided during load or the specification in the A2ML block in the file
     pub fn ifdata_cleanup(&mut self) {
@@ -430,6 +449,7 @@ impl Module {
         ModuleNameMap::build(self)
     }
 
+    #[cfg(feature = "merge")]
     /// merge another module with this module
     ///
     /// Any elements in other that are not present in this module will be moved over. The other module will typically be empty at the end of the merge.
@@ -653,6 +673,7 @@ mod tests {
         std::fs::remove_file(path).unwrap();
     }
 
+    #[cfg(feature = "merge")]
     #[test]
     fn merge() {
         // version is copied if none exists

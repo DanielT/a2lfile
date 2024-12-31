@@ -1,8 +1,10 @@
 use crate::a2ml::{A2mlTaggedTypeSpec, A2mlTypeSpec, GenericIfData, GenericIfDataTaggedItem};
 use crate::parser::{ParseContext, ParserError, ParserState};
-use crate::specification::{A2lFile, IfData};
 use crate::tokenizer::{A2lToken, A2lTokenType};
 use std::collections::HashMap;
+
+#[cfg(feature = "ifdata_cleanup")]
+use crate::specification::{A2lFile, IfData};
 
 // parse_ifdata()
 // entry point for ifdata parsing.
@@ -479,6 +481,7 @@ fn parse_unknown_taggedstruct(
     Ok(GenericIfData::TaggedStruct(tsitems))
 }
 
+#[cfg(feature = "ifdata_cleanup")]
 pub(crate) fn remove_unknown_ifdata(a2l_file: &mut A2lFile) {
     for module in &mut a2l_file.project.module {
         remove_unknown_ifdata_from_list(&mut module.if_data);
@@ -527,6 +530,7 @@ pub(crate) fn remove_unknown_ifdata(a2l_file: &mut A2lFile) {
     }
 }
 
+#[cfg(feature = "ifdata_cleanup")]
 fn remove_unknown_ifdata_from_list(ifdata_list: &mut Vec<IfData>) {
     let mut new_ifdata_list = Vec::new();
     std::mem::swap(ifdata_list, &mut new_ifdata_list);

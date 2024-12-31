@@ -26,13 +26,6 @@ The program [a2ltool](https://github.com/DanielT/a2ltool) is based on this libra
 
 ## Documentation
 
-Add this to your `Cargo.toml`:
-
-```toml
-[dependencies]
-a2lfile = "2.2"
-```
-
 A simple program based on the `a2lfile` library might look like this:
 
 ```rust
@@ -89,6 +82,16 @@ fn main() {
 }
 
 ```
+
+## Crate Features
+
+All features are active by default. If "default-features = false" is set in Cargo.toml, then the following features can be enabled separately:
+
+- `check`: perform a consistency check on the data
+- `cleanup`: remove unused `GROUP`s, `RECORD_LAYOUT`s, `COMPU_METHOD`s, `COMPU_(V)TAB`s and `UNIT`s
+- `ifdata_cleanup`: remove any `IF_DATA` blocks that could not be parsed using either the specification provided during load or the specification in the A2ML block in the file
+- `merge`: merge two a2l files on the `MODULE` level
+- `sort`: sort the data in the a2l file
 
 ## License
 

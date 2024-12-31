@@ -10,6 +10,14 @@ keywords = ["a2l", "file", "file-format", "ASAM-MCD-2MC"]
 categories = ["parser-implementations"]
 repository = "https://github.com/DanielT/a2lfile"
 
+[features]
+default = ["check", "cleanup", "ifdata_cleanup", "merge", "sort"]
+check = []
+cleanup = []
+ifdata_cleanup = []
+merge = []
+sort = []
+
 [dependencies.a2lmacros]
 version = "2.2.0"
 

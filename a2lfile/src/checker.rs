@@ -8,6 +8,7 @@ enum CharacteristicWrapper<'a> {
     TypedefCharacteristic(&'a TypedefCharacteristic),
 }
 
+#[must_use]
 // check the cross references between various elements
 pub fn check(a2l_file: &A2lFile) -> Vec<A2lError> {
     let mut results = Vec::new();
