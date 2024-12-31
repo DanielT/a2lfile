@@ -72,6 +72,64 @@ pub enum A2lError {
         filename: PathBuf,
         ioerror: std::io::Error,
     },
+
+    /// `NameCollisionError`: A name collision occurred bateween two blocks of the same type
+    #[error("Name collision: {blockname} blocks on line {line_1} and {line_2} both use the name \"{item_name}\"")]
+    NameCollisionError {
+        item_name: String,
+        blockname: String,
+        line_1: u32,
+        line_2: u32,
+    },
+
+    /// `NameCollisionError2`: A name collision occurred bateween two different blocks which share the same namespace
+    #[error("Name collision: {blockname_1} on line {line_1} and {blockname_2} on line {line_2} both use the name \"{item_name}\"")]
+    NameCollisionError2 {
+        item_name: String,
+        blockname_1: String,
+        line_1: u32,
+        blockname_2: String,
+        line_2: u32,
+    },
+
+    /// `CrossReferenceError`: A reference to a non-existent item was found
+    #[error("Cross-reference error: {source_type} {source_name} on line {source_line} references a non-existent {target_type} {target_name}")]
+    CrossReferenceError {
+        source_type: String,
+        source_name: String,
+        source_line: u32,
+        target_type: String,
+        target_name: String,
+    },
+
+    /// `LimitCheckError`: The given limits are outside of the calculated limits
+    #[error("Limit check error: {blockname} {item_name} on line {line} has limits {lower_limit} .. {upper_limit}, but the calculated limits are {calculated_lower_limit} .. {calculated_upper_limit}")]
+    LimitCheckError {
+        item_name: String,
+        blockname: String,
+        line: u32,
+        lower_limit: f64,
+        upper_limit: f64,
+        calculated_lower_limit: f64,
+        calculated_upper_limit: f64,
+    },
+
+    /// `GroupStructureError`: A GROUP block cannot be both a ROOT and a sub group at the same time. it also cannot be a sub group of multiple groups
+    #[error("Group structure error: GROUP {group_name} on line {line} {description}")]
+    GroupStructureError {
+        group_name: String,
+        line: u32,
+        description: String,
+    },
+
+    /// `ContentError`: A block contains invalid content of some description
+    #[error("Content error: {blockname} {item_name} on line {line}: {description}")]
+    ContentError {
+        item_name: String,
+        blockname: String,
+        line: u32,
+        description: String,
+    },
 }
 
 /**
@@ -338,8 +396,8 @@ impl A2lFile {
     }
 
     /// perform a consistency check on the data.
-    pub fn check(&self, log_msgs: &mut Vec<String>) {
-        checker::check(self, log_msgs);
+    pub fn check(&self) -> Vec<A2lError> {
+        checker::check(self)
     }
 
     /// sort the data in the a2l file.
@@ -368,9 +426,8 @@ impl A2lFile {
 impl Module {
     /// build a map of all named elements inside the module
     #[must_use]
-    pub fn build_namemap(&self) -> ModuleNameMap {
-        let mut log_msgs = vec![];
-        ModuleNameMap::build(self, &mut log_msgs)
+    pub fn build_namemap(&self) -> (ModuleNameMap, Vec<A2lError>) {
+        ModuleNameMap::build(self)
     }
 
     /// merge another module with this module
@@ -725,7 +782,7 @@ mod tests {
             /end MEASUREMENT"#;
 
         let module = load_fragment(data, None).unwrap();
-        let namemap = module.build_namemap();
+        let (namemap, _) = module.build_namemap();
         assert_eq!(namemap.object.len(), 2);
         assert!(namemap.object.contains_key("measurement1"));
         assert!(namemap.object.contains_key("measurement2"));

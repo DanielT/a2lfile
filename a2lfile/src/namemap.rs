@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::specification::*;
+use crate::{specification::*, A2lError};
 
 #[derive(Debug, PartialEq)]
 pub enum NameMapObject<'a> {
@@ -32,13 +32,12 @@ pub enum NameMapTypedef<'a> {
 macro_rules! check_and_insert {
     ( $hash:expr, $key:expr, $item:expr, $log_msgs:expr, $blockname:expr ) => {
         if let Some(existing_val) = $hash.get(&$key) {
-            $log_msgs.push(format!(
-                "Name collision: The {} blocks on line {} and {} both use the name {}",
-                $blockname,
-                existing_val.get_line(),
-                $item.get_line(),
-                $key
-            ));
+            $log_msgs.push(A2lError::NameCollisionError {
+                item_name: $key,
+                blockname: $blockname.to_string(),
+                line_1: existing_val.get_line(),
+                line_2: $item.get_line(),
+            });
         } else {
             $hash.insert($key, $item);
         }
@@ -48,12 +47,17 @@ macro_rules! check_and_insert {
 macro_rules! check_and_insert_multi {
     ( $hash:expr, $key:expr, $item:expr, $log_msgs:expr, $blockname:expr ) => {
         if let Some(existing_val) = $hash.get(&$key) {
-            $log_msgs.push(format!("Name collision: The block {} on line {} and the block {} on line {} both use the name {}",
-                existing_val.get_blockname(), existing_val.get_line(), $blockname, $item.get_line(), $key));
+            $log_msgs.push(A2lError::NameCollisionError2 {
+                item_name: $key,
+                blockname_1: existing_val.get_blockname().to_string(),
+                line_1: existing_val.get_line(),
+                blockname_2: $blockname.to_string(),
+                line_2: $item.get_line(),
+            });
         } else {
             $hash.insert($key, $item);
         }
-    }
+    };
 }
 
 /// `ModuleNameMap` collects references to all items with a [Module] into `HashMaps`, making it possible to access them all by name.
@@ -91,27 +95,31 @@ pub struct ModuleNameMap<'a> {
 
 impl<'a> ModuleNameMap<'a> {
     /// build a new `ModuleNameMap` for the given [Module]
-    pub fn build(module: &'a Module, log_msgs: &mut Vec<String>) -> Self {
-        Self {
-            compu_method: build_namemap_compu_method(module, log_msgs),
-            compu_tab: build_namemap_compu_tab(module, log_msgs),
-            frame: build_namemap_frame(module, log_msgs),
-            function: build_namemap_function(module, log_msgs),
-            group: build_namemap_group(module, log_msgs),
-            memory_segment: build_namemap_memory_segment(module, log_msgs),
-            object: build_namemap_object(module, log_msgs),
-            record_layout: build_namemap_record_layout(module, log_msgs),
-            transformer: build_namemap_transformer(module, log_msgs),
-            typedef: build_namemap_typedef(module, log_msgs),
-            unit: build_namemap_unit(module, log_msgs),
-            variant: build_namemap_variant(module, log_msgs),
-        }
+    pub fn build(module: &'a Module) -> (Self, Vec<A2lError>) {
+        let mut log_msgs = Vec::new();
+        (
+            Self {
+                compu_method: build_namemap_compu_method(module, &mut log_msgs),
+                compu_tab: build_namemap_compu_tab(module, &mut log_msgs),
+                frame: build_namemap_frame(module, &mut log_msgs),
+                function: build_namemap_function(module, &mut log_msgs),
+                group: build_namemap_group(module, &mut log_msgs),
+                memory_segment: build_namemap_memory_segment(module, &mut log_msgs),
+                object: build_namemap_object(module, &mut log_msgs),
+                record_layout: build_namemap_record_layout(module, &mut log_msgs),
+                transformer: build_namemap_transformer(module, &mut log_msgs),
+                typedef: build_namemap_typedef(module, &mut log_msgs),
+                unit: build_namemap_unit(module, &mut log_msgs),
+                variant: build_namemap_variant(module, &mut log_msgs),
+            },
+            log_msgs,
+        )
     }
 }
 
 pub(crate) fn build_namemap_unit<'a>(
     module: &'a Module,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) -> HashMap<String, &'a Unit> {
     let mut namelist_unit = HashMap::<String, &'a Unit>::new();
     for unit in &module.unit {
@@ -122,7 +130,7 @@ pub(crate) fn build_namemap_unit<'a>(
 
 pub(crate) fn build_namemap_typedef<'a>(
     module: &'a Module,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) -> HashMap<String, NameMapTypedef<'a>> {
     let mut namelist_typedef = HashMap::<String, NameMapTypedef<'a>>::new();
     for typedef_axis in &module.typedef_axis {
@@ -175,7 +183,7 @@ pub(crate) fn build_namemap_typedef<'a>(
 
 pub(crate) fn build_namemap_record_layout<'a>(
     module: &'a Module,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) -> HashMap<String, &'a RecordLayout> {
     let mut namelist_record_layout = HashMap::<String, &'a RecordLayout>::new();
     for record_layout in &module.record_layout {
@@ -192,7 +200,7 @@ pub(crate) fn build_namemap_record_layout<'a>(
 
 pub(crate) fn build_namemap_memory_segment<'a>(
     module: &'a Module,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) -> HashMap<String, &'a MemorySegment> {
     let mut namelist_memory_segment = HashMap::<String, &'a MemorySegment>::new();
     if let Some(mod_par) = &module.mod_par {
@@ -211,7 +219,7 @@ pub(crate) fn build_namemap_memory_segment<'a>(
 
 pub(crate) fn build_namemap_compu_tab<'a>(
     module: &'a Module,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) -> HashMap<String, NameMapCompuTab<'a>> {
     let mut namelist_compu_tab = HashMap::<String, NameMapCompuTab<'a>>::new();
     for compu_tab in &module.compu_tab {
@@ -246,7 +254,7 @@ pub(crate) fn build_namemap_compu_tab<'a>(
 
 pub(crate) fn build_namemap_compu_method<'a>(
     module: &'a Module,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) -> HashMap<String, &'a CompuMethod> {
     let mut namelist_compu_method = HashMap::<String, &'a CompuMethod>::new();
     for compu_method in &module.compu_method {
@@ -263,7 +271,7 @@ pub(crate) fn build_namemap_compu_method<'a>(
 
 pub(crate) fn build_namemap_transformer<'a>(
     module: &'a Module,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) -> HashMap<String, &'a Transformer> {
     let mut namelist_transformer = HashMap::<String, &'a Transformer>::new();
     for transformer in &module.transformer {
@@ -280,7 +288,7 @@ pub(crate) fn build_namemap_transformer<'a>(
 
 pub(crate) fn build_namemap_object<'a>(
     module: &'a Module,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) -> HashMap<String, NameMapObject<'a>> {
     let mut namelist_object = HashMap::<String, NameMapObject<'a>>::new();
     for measurement in &module.measurement {
@@ -333,7 +341,7 @@ pub(crate) fn build_namemap_object<'a>(
 
 pub(crate) fn build_namemap_variant<'a>(
     module: &'a Module,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) -> HashMap<String, &'a VarCriterion> {
     let mut namelist_variant = HashMap::<String, &'a VarCriterion>::new();
     if let Some(variant_coding) = &module.variant_coding {
@@ -352,7 +360,7 @@ pub(crate) fn build_namemap_variant<'a>(
 
 pub(crate) fn build_namemap_group<'a>(
     module: &'a Module,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) -> HashMap<String, &'a Group> {
     let mut namelist_group = HashMap::<String, &'a Group>::new();
     for group in &module.group {
@@ -363,7 +371,7 @@ pub(crate) fn build_namemap_group<'a>(
 
 pub(crate) fn build_namemap_frame<'a>(
     module: &'a Module,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) -> HashMap<String, &'a Frame> {
     let mut namelist_frame = HashMap::<String, &'a Frame>::new();
     for frame in &module.frame {
@@ -374,7 +382,7 @@ pub(crate) fn build_namemap_frame<'a>(
 
 pub(crate) fn build_namemap_function<'a>(
     module: &'a Module,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) -> HashMap<String, &'a Function> {
     let mut namelist_function = HashMap::<String, &'a Function>::new();
     for function in &module.function {

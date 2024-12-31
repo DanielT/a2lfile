@@ -143,7 +143,7 @@ mod test {
         cleanup(&mut a2l_file);
 
         let module = &a2l_file.project.module[0];
-        let namemap = module.build_namemap();
+        let (namemap, _) = module.build_namemap();
 
         // MEASUREMENTs are not removed during cleanup, so measurement_1 should still be present
         assert!(namemap.object.contains_key("measurement1"));

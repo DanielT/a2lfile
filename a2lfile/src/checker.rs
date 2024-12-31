@@ -1,5 +1,5 @@
 use crate::namemap::ModuleNameMap;
-use crate::specification::*;
+use crate::{specification::*, A2lError};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -9,95 +9,115 @@ enum CharacteristicWrapper<'a> {
 }
 
 // check the cross references between various elements
-pub fn check(a2l_file: &A2lFile, log_msgs: &mut Vec<String>) {
+pub fn check(a2l_file: &A2lFile) -> Vec<A2lError> {
+    let mut results = Vec::new();
+
     for module in &a2l_file.project.module {
-        let name_map = ModuleNameMap::build(&a2l_file.project.module[0], log_msgs);
+        let (name_map, errors) = ModuleNameMap::build(&a2l_file.project.module[0]);
+        results.extend(errors);
 
         for axis_pts in &module.axis_pts {
-            check_axis_pts(axis_pts, &name_map, log_msgs);
+            check_axis_pts(axis_pts, &name_map, &mut results);
         }
 
         for t_axis in &module.typedef_axis {
-            check_typedef_axis(t_axis, &name_map, log_msgs);
+            check_typedef_axis(t_axis, &name_map, &mut results);
         }
 
         for characteristic in &module.characteristic {
-            check_characteristic(characteristic, &name_map, log_msgs);
+            check_characteristic(characteristic, &name_map, &mut results);
         }
 
         for t_characteristic in &module.typedef_characteristic {
-            check_typedef_characteristic(t_characteristic, &name_map, log_msgs);
+            check_typedef_characteristic(t_characteristic, &name_map, &mut results);
         }
 
         for compu_method in &module.compu_method {
-            check_compu_method(compu_method, &name_map, log_msgs);
+            check_compu_method(compu_method, &name_map, &mut results);
         }
 
         for function in &module.function {
-            check_function(function, &name_map, log_msgs);
+            check_function(function, &name_map, &mut results);
         }
 
         for group in &module.group {
-            check_group(group, &name_map, log_msgs);
+            check_group(group, &name_map, &mut results);
         }
-        check_group_structure(&module.group, log_msgs);
+        check_group_structure(&module.group, &mut results);
 
         for measurement in &module.measurement {
-            check_measurement(measurement, &name_map, log_msgs);
+            check_measurement(measurement, &name_map, &mut results);
         }
 
         for t_measurement in &module.typedef_measurement {
-            check_typedef_measurement(t_measurement, &name_map, log_msgs);
+            check_typedef_measurement(t_measurement, &name_map, &mut results);
         }
 
         for transformer in &module.transformer {
-            check_transformer(transformer, &name_map, log_msgs);
+            check_transformer(transformer, &name_map, &mut results);
         }
 
         for instance in &module.instance {
-            check_instance(instance, &name_map, log_msgs);
+            check_instance(instance, &name_map, &mut results);
         }
 
         for typedef_structure in &module.typedef_structure {
-            check_typedef_structure(typedef_structure, &name_map, log_msgs);
+            check_typedef_structure(typedef_structure, &name_map, &mut results);
         }
     }
+
+    results
 }
 
 fn check_axis_descr(
+    idx: usize,
     parent_name: &str,
     axis_descr: &AxisDescr,
     name_map: &ModuleNameMap,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) {
     let line = axis_descr.get_line();
     if axis_descr.input_quantity != "NO_INPUT_QUANTITY"
         && !name_map.object.contains_key(&axis_descr.input_quantity)
     {
-        log_msgs.push(format!("In AXIS_DESCR of CHARACTERISTIC {parent_name} on line {line}: Referenced input MEASUREMENT {} does not exist.",
-        axis_descr.input_quantity));
+        log_msgs.push(A2lError::CrossReferenceError {
+            source_type: format!("AXIS_DESCR[{idx}] of CHARACTERISTIC"),
+            source_name: parent_name.to_string(),
+            source_line: line,
+            target_type: "MEASUREMENT".to_string(),
+            target_name: axis_descr.input_quantity.to_string(),
+        });
     }
 
     if axis_descr.conversion != "NO_COMPU_METHOD"
         && !name_map.compu_method.contains_key(&axis_descr.conversion)
     {
-        log_msgs.push(format!("In AXIS_DESCR of CHARACTERISTIC {parent_name} on line {line}: Referenced COMPU_METHOD {} does not exist.",
-        axis_descr.conversion));
+        log_msgs.push(A2lError::CrossReferenceError {
+            source_type: format!("AXIS_DESCR[{idx}] of CHARACTERISTIC"),
+            source_name: parent_name.to_string(),
+            source_line: line,
+            target_type: "COMPU_METHOD".to_string(),
+            target_name: axis_descr.conversion.to_string(),
+        });
     }
 
     // type is (COM_AXIS, RES_AXIS) XOR AXIS_PTS_REF is present
     match (axis_descr.attribute, axis_descr.axis_pts_ref.is_some()) {
         (AxisDescrAttribute::ComAxis, false) | (AxisDescrAttribute::ResAxis, false) => {
-            log_msgs.push(format!(
-                "In AXIS_DESCR of CHARACTERISTIC {parent_name} on line {line}: {} requires an AXIS_PTS_REF.",
-                axis_descr.attribute
-            ));
+            log_msgs.push(A2lError::ContentError {
+                item_name: parent_name.to_string(),
+                blockname: format!("AXIS_DESCR[{idx}] of CHARACTERISTIC"),
+                line,
+                description: format!("{} requires an AXIS_PTS_REF.", axis_descr.attribute),
+            });
         }
         (AxisDescrAttribute::StdAxis, true) | (AxisDescrAttribute::FixAxis, true) => {
-            log_msgs.push(format!(
-                "In AXIS_DESCR of CHARACTERISTIC {parent_name} on line {line}: {} does not use AXIS_PTS_REF.",
-                axis_descr.attribute
-            ));
+            log_msgs.push(A2lError::ContentError {
+                item_name: parent_name.to_string(),
+                blockname: format!("AXIS_DESCR[{idx}] of CHARACTERISTIC"),
+                line,
+                description: format!("{} does not use AXIS_PTS_REF.", axis_descr.attribute),
+            });
         }
         // other combinations are valid
         _ => {}
@@ -106,72 +126,99 @@ fn check_axis_descr(
     if let Some(axis_pts_ref) = &axis_descr.axis_pts_ref {
         let apr_line = axis_pts_ref.get_line();
         if !name_map.object.contains_key(&axis_pts_ref.axis_points) {
-            log_msgs.push(format!("In AXIS_DESCR of CHARACTERISTIC {} on line {}: Referenced AXIS_PTS {} does not exist",
-            parent_name, apr_line, axis_pts_ref.axis_points));
+            log_msgs.push(A2lError::CrossReferenceError {
+                source_type: format!("AXIS_DESCR[{idx}] of CHARACTERISTIC"),
+                source_name: parent_name.to_string(),
+                source_line: apr_line,
+                target_type: "AXIS_PTS".to_string(),
+                target_name: axis_pts_ref.axis_points.to_string(),
+            });
         }
     }
 
     if let Some(curve_axis_ref) = &axis_descr.curve_axis_ref {
         let car_line = curve_axis_ref.get_line();
         if !name_map.object.contains_key(&curve_axis_ref.curve_axis) {
-            log_msgs.push(format!(
-                "In CURVE_AXIS_REF on line {car_line}: Referenced CHARACTERISTIC {} does not exist",
-                curve_axis_ref.curve_axis
-            ));
+            log_msgs.push(A2lError::CrossReferenceError {
+                source_type: format!("AXIS_DESCR[{idx}] of CHARACTERISTIC"),
+                source_name: parent_name.to_string(),
+                source_line: car_line,
+                target_type: "CHARACTERISTIC".to_string(),
+                target_name: curve_axis_ref.curve_axis.to_string(),
+            });
         }
     }
 }
 
-fn check_typedef_axis(t_axis: &TypedefAxis, name_map: &ModuleNameMap, log_msgs: &mut Vec<String>) {
+fn check_typedef_axis(
+    t_axis: &TypedefAxis,
+    name_map: &ModuleNameMap,
+    log_msgs: &mut Vec<A2lError>,
+) {
     let name = t_axis.get_name();
     let line = t_axis.get_line();
 
     if t_axis.input_quantity != "NO_INPUT_QUANTITY"
         && !name_map.object.contains_key(&t_axis.input_quantity)
     {
-        log_msgs.push(format!(
-            "In TYPEDEF_AXIS {name} on line {line}: Referenced input MEASUREMENT {} does not exist.",
-            t_axis.input_quantity
-        ));
+        log_msgs.push(A2lError::CrossReferenceError {
+            source_type: "TYPEDEF_AXIS".to_string(),
+            source_name: name.to_string(),
+            source_line: line,
+            target_type: "MEASUREMENT".to_string(),
+            target_name: t_axis.input_quantity.to_string(),
+        });
     }
 
     if !name_map.record_layout.contains_key(&t_axis.record_layout) {
-        log_msgs.push(format!(
-            "In TYPEDEF_AXIS {name} on line {line}: Referenced RECORD_LAYOUT {} does not exist.",
-            t_axis.record_layout
-        ));
+        log_msgs.push(A2lError::CrossReferenceError {
+            source_type: "TYPEDEF_AXIS".to_string(),
+            source_name: name.to_string(),
+            source_line: line,
+            target_type: "RECORD_LAYOUT".to_string(),
+            target_name: t_axis.record_layout.to_string(),
+        });
     }
 
     if t_axis.conversion != "NO_COMPU_METHOD"
         && !name_map.compu_method.contains_key(&t_axis.conversion)
     {
-        log_msgs.push(format!(
-            "In TYPEDEF_AXIS {name} on line {line}: Referenced COMPU_METHOD {} does not exist.",
-            t_axis.conversion
-        ));
+        log_msgs.push(A2lError::CrossReferenceError {
+            source_type: "TYPEDEF_AXIS".to_string(),
+            source_name: name.to_string(),
+            source_line: line,
+            target_type: "COMPU_METHOD".to_string(),
+            target_name: t_axis.conversion.to_string(),
+        });
     }
 }
 
-fn check_axis_pts(axis_pts: &AxisPts, name_map: &ModuleNameMap, log_msgs: &mut Vec<String>) {
+fn check_axis_pts(axis_pts: &AxisPts, name_map: &ModuleNameMap, log_msgs: &mut Vec<A2lError>) {
     let name = &axis_pts.name;
     let line = axis_pts.get_line();
 
     if axis_pts.conversion != "NO_COMPU_METHOD"
         && !name_map.compu_method.contains_key(&axis_pts.conversion)
     {
-        log_msgs.push(format!(
-            "In AXIS_PTS {} on line {}: Referenced COMPU_METHOD {} does not exist.",
-            name, line, axis_pts.conversion
-        ));
+        log_msgs.push(A2lError::CrossReferenceError {
+            source_type: "AXIS_PTS".to_string(),
+            source_name: name.to_string(),
+            source_line: line,
+            target_type: "COMPU_METHOD".to_string(),
+            target_name: axis_pts.conversion.to_string(),
+        });
     }
 
     if axis_pts.input_quantity != "NO_INPUT_QUANTITY"
         && !name_map.object.contains_key(&axis_pts.input_quantity)
     {
-        log_msgs.push(format!(
-            "In AXIS_PTS {} on line {}: Referenced input MEASUREMENT {} does not exist.",
-            name, line, axis_pts.input_quantity
-        ));
+        log_msgs.push(A2lError::CrossReferenceError {
+            source_type: "AXIS_PTS".to_string(),
+            source_name: name.to_string(),
+            source_line: line,
+            target_type: "MEASUREMENT".to_string(),
+            target_name: axis_pts.input_quantity.to_string(),
+        });
     }
 
     if let Some(rl) = name_map.record_layout.get(&axis_pts.deposit_record) {
@@ -180,22 +227,35 @@ fn check_axis_pts(axis_pts: &AxisPts, name_map: &ModuleNameMap, log_msgs: &mut V
             let calculated_limits = calc_compu_method_limits(opt_compu_method, axis_pts_x.datatype);
             let existing_limits = (axis_pts.lower_limit, axis_pts.upper_limit);
             if !check_limits_valid(existing_limits, calculated_limits) {
-                log_msgs.push(format!(
-                    "In AXIS_PTS {name} on line {line}: Limits [{}, {}] are outside of [{}, {}] calculated based on the data type and conversion",
-                    axis_pts.lower_limit, axis_pts.upper_limit, calculated_limits.0, calculated_limits.1
-                ));
+                log_msgs.push(A2lError::LimitCheckError {
+                    item_name: name.to_string(),
+                    blockname: "AXIS_PTS".to_string(),
+                    line,
+                    lower_limit: axis_pts.lower_limit,
+                    upper_limit: axis_pts.upper_limit,
+                    calculated_lower_limit: calculated_limits.0,
+                    calculated_upper_limit: calculated_limits.1,
+                });
             }
         } else {
-            log_msgs.push(format!(
-                "In AXIS_PTS {} on line {}: Referenced RECORD_LAYOUT {} does not have AXIS_PTS_X.",
-                name, line, axis_pts.deposit_record
-            ));
+            log_msgs.push(A2lError::ContentError {
+                item_name: name.to_string(),
+                blockname: "AXIS_PTS".to_string(),
+                line,
+                description: format!(
+                    "Referenced RECORD_LAYOUT {} does not have AXIS_PTS_X.",
+                    axis_pts.deposit_record
+                ),
+            });
         }
     } else {
-        log_msgs.push(format!(
-            "In AXIS_PTS {} on line {}: Referenced RECORD_LAYOUT {} does not exist.",
-            name, line, axis_pts.deposit_record
-        ));
+        log_msgs.push(A2lError::CrossReferenceError {
+            source_type: "AXIS_PTS".to_string(),
+            source_name: name.to_string(),
+            source_line: line,
+            target_type: "RECORD_LAYOUT".to_string(),
+            target_name: axis_pts.deposit_record.to_string(),
+        });
     }
 
     check_function_list(&axis_pts.function_list, name_map, log_msgs);
@@ -205,7 +265,7 @@ fn check_axis_pts(axis_pts: &AxisPts, name_map: &ModuleNameMap, log_msgs: &mut V
 fn check_characteristic(
     characteristic: &Characteristic,
     name_map: &ModuleNameMap,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) {
     check_characteristic_common(
         CharacteristicWrapper::Characteristic(characteristic),
@@ -216,10 +276,13 @@ fn check_characteristic(
     if let Some(comparison_quantity) = &characteristic.comparison_quantity {
         let cqline = comparison_quantity.get_line();
         if !name_map.object.contains_key(&comparison_quantity.name) {
-            log_msgs.push(format!(
-                "In COMPARISON_QUANTITY on line {cqline}: Referenced MEASUREMENT {} does not exist",
-                comparison_quantity.name
-            ));
+            log_msgs.push(A2lError::CrossReferenceError {
+                source_type: "CHARACTERISTIC".to_string(),
+                source_name: characteristic.name.to_string(),
+                source_line: cqline,
+                target_type: "MEASUREMENT".to_string(),
+                target_name: comparison_quantity.name.to_string(),
+            });
         }
     }
 
@@ -266,7 +329,7 @@ fn check_characteristic(
 fn check_typedef_characteristic(
     t_characteristic: &TypedefCharacteristic,
     name_map: &ModuleNameMap,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) {
     check_characteristic_common(
         CharacteristicWrapper::TypedefCharacteristic(t_characteristic),
@@ -279,7 +342,7 @@ fn check_typedef_characteristic(
 fn check_characteristic_common(
     characteristic: CharacteristicWrapper,
     name_map: &ModuleNameMap,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) {
     let kind = characteristic.kind();
     let name = characteristic.name();
@@ -290,14 +353,17 @@ fn check_characteristic_common(
             .compu_method
             .contains_key(characteristic.conversion())
     {
-        log_msgs.push(format!(
-            "In TYPEDEF_CHARACTERISTIC {name} on line {line}: Referenced COMPU_METHOD {} does not exist.",
-            characteristic.conversion()
-        ));
+        log_msgs.push(A2lError::CrossReferenceError {
+            source_type: kind.to_string(),
+            source_name: name.to_string(),
+            source_line: line,
+            target_type: "COMPU_METHOD".to_string(),
+            target_name: characteristic.conversion().to_string(),
+        });
     }
 
-    for axis_descr in characteristic.axis_descr() {
-        check_axis_descr(name, axis_descr, name_map, log_msgs);
+    for (idx, axis_descr) in characteristic.axis_descr().iter().enumerate() {
+        check_axis_descr(idx, name, axis_descr, name_map, log_msgs);
     }
 
     let expected_axis_count = match characteristic.characteristic_type() {
@@ -309,11 +375,16 @@ fn check_characteristic_common(
         CharacteristicType::Cube5 => 5,
     };
     if characteristic.axis_descr().len() != expected_axis_count {
-        log_msgs.push(format!(
-            "In {kind} {name} on line {line}: Expected {expected_axis_count} AXIS_DESCR for type {}, found {}",
-            characteristic.characteristic_type(),
-            characteristic.axis_descr().len()
-        ));
+        log_msgs.push(A2lError::ContentError {
+            item_name: name.to_string(),
+            blockname: kind.to_string(),
+            line,
+            description: format!(
+                "Expected {expected_axis_count} AXIS_DESCR for type {}, found {}",
+                characteristic.characteristic_type(),
+                characteristic.axis_descr().len()
+            ),
+        });
     }
 
     let rl_name = characteristic.record_layout();
@@ -325,19 +396,25 @@ fn check_characteristic_common(
             let calculated_limits = calc_compu_method_limits(opt_compu_method, fnc_values.datatype);
             let existing_limits = (characteristic.lower_limit(), characteristic.upper_limit());
             if !check_limits_valid(existing_limits, calculated_limits) {
-                log_msgs.push(format!(
-                    "In {kind} {name} on line {line}: Limits [{}, {}] are outside of [{}, {}] calculated based on the data type and conversion",
-                    characteristic.lower_limit(),
-                    characteristic.upper_limit(),
-                    calculated_limits.0,
-                    calculated_limits.1,
-                ));
+                log_msgs.push(A2lError::LimitCheckError {
+                    item_name: name.to_string(),
+                    blockname: kind.to_string(),
+                    line,
+                    lower_limit: characteristic.lower_limit(),
+                    upper_limit: characteristic.upper_limit(),
+                    calculated_lower_limit: calculated_limits.0,
+                    calculated_upper_limit: calculated_limits.1,
+                });
             }
         } else {
-            log_msgs.push(format!(
-                "In {kind} {name} on line {line}: Referenced RECORD_LAYOUT {} does not have FNC_VALUES.",
-                rl_name
-            ));
+            log_msgs.push(A2lError::ContentError {
+                item_name: name.to_string(),
+                blockname: kind.to_string(),
+                line,
+                description: format!(
+                    "Referenced RECORD_LAYOUT {rl_name} does not have FNC_VALUES."
+                ),
+            });
         }
 
         // make an array of references to the axis_pts fields in the record layout, some or all of which may be None
@@ -360,34 +437,44 @@ fn check_characteristic_common(
                     let existing_limits = (axis_descr.lower_limit, axis_descr.upper_limit);
                     if !check_limits_valid(existing_limits, calculated_limits) {
                         let ad_line = axis_descr.get_line();
-                        log_msgs.push(format!(
-                            "In AXIS_DESCR on line {ad_line}: Limits [{}, {}] are outside of [{}, {}] calculated based on the data type and conversion",
-                            axis_descr.lower_limit,
-                            axis_descr.upper_limit,
-                            calculated_limits.0,
-                            calculated_limits.1,
-                        ));
+                        log_msgs.push(A2lError::LimitCheckError {
+                            item_name: name.to_string(),
+                            blockname: "AXIS_DESCR".to_string(),
+                            line: ad_line,
+                            lower_limit: axis_descr.lower_limit,
+                            upper_limit: axis_descr.upper_limit,
+                            calculated_lower_limit: calculated_limits.0,
+                            calculated_upper_limit: calculated_limits.1,
+                        });
                     }
                 } else {
-                    log_msgs.push(format!(
-                        "In {kind} {name} on line {line}: Referenced RECORD_LAYOUT {} does not have AXIS_PTS_{}.",
-                        rl_name, axis_pts_names[idx],
-                    ));
+                    log_msgs.push(A2lError::ContentError {
+                        item_name: name.to_string(),
+                        blockname: kind.to_string(),
+                        line,
+                        description: format!(
+                            "Referenced RECORD_LAYOUT {rl_name} does not have AXIS_PTS_{}.",
+                            axis_pts_names[idx]
+                        ),
+                    });
                 }
             }
         }
     } else {
-        log_msgs.push(format!(
-            "In {kind} {name} on line {line}: Referenced RECORD_LAYOUT {} does not exist.",
-            rl_name
-        ));
+        log_msgs.push(A2lError::CrossReferenceError {
+            source_type: kind.to_string(),
+            source_name: name.to_string(),
+            source_line: line,
+            target_type: "RECORD_LAYOUT".to_string(),
+            target_name: rl_name.to_string(),
+        });
     }
 }
 
 fn check_compu_method(
     compu_method: &CompuMethod,
     name_map: &ModuleNameMap,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) {
     let line = compu_method.get_line();
 
@@ -396,19 +483,25 @@ fn check_compu_method(
             .compu_tab
             .contains_key(&compu_tab_ref.conversion_table)
         {
-            log_msgs.push(format!(
-                "In COMPU_METHOD on line {}: The COMPU_TAB_REF references nonexistent COMPU_TAB {}",
-                line, compu_tab_ref.conversion_table
-            ));
+            log_msgs.push(A2lError::CrossReferenceError {
+                source_type: "COMPU_METHOD".to_string(),
+                source_name: compu_method.name.to_string(),
+                source_line: line,
+                target_type: "COMPU_TAB".to_string(),
+                target_name: compu_tab_ref.conversion_table.to_string(),
+            });
         }
     }
 
     if let Some(ref_unit) = &compu_method.ref_unit {
         if !name_map.unit.contains_key(&ref_unit.unit) {
-            log_msgs.push(format!(
-                "In COMPU_METHOD on line {}: The REF_UNIT references nonexistent UNIT {}",
-                line, ref_unit.unit
-            ));
+            log_msgs.push(A2lError::CrossReferenceError {
+                source_type: "COMPU_METHOD".to_string(),
+                source_name: compu_method.name.to_string(),
+                source_line: line,
+                target_type: "UNIT".to_string(),
+                target_name: ref_unit.unit.to_string(),
+            });
         }
     }
 
@@ -417,15 +510,18 @@ fn check_compu_method(
             .compu_tab
             .contains_key(&status_string_ref.conversion_table)
         {
-            log_msgs.push(format!(
-                "In COMPU_METHOD on line {}: The STATUS_STRING_REF references nonexistent COMPU_TAB {}",
-                line, status_string_ref.conversion_table
-            ));
+            log_msgs.push(A2lError::CrossReferenceError {
+                source_type: "COMPU_METHOD".to_string(),
+                source_name: compu_method.name.to_string(),
+                source_line: line,
+                target_type: "COMPU_VTAB".to_string(),
+                target_name: status_string_ref.conversion_table.to_string(),
+            });
         }
     }
 }
 
-fn check_function(function: &Function, name_map: &ModuleNameMap, log_msgs: &mut Vec<String>) {
+fn check_function(function: &Function, name_map: &ModuleNameMap, log_msgs: &mut Vec<A2lError>) {
     if let Some(in_measurement) = &function.in_measurement {
         let line = in_measurement.get_line();
         check_reference_list(
@@ -502,7 +598,7 @@ fn check_function(function: &Function, name_map: &ModuleNameMap, log_msgs: &mut 
 fn check_function_list(
     opt_function_list: &Option<FunctionList>,
     name_map: &ModuleNameMap,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) {
     if let Some(function_list) = opt_function_list {
         let line = function_list.get_line();
@@ -517,7 +613,7 @@ fn check_function_list(
     }
 }
 
-fn check_group(group: &Group, name_map: &ModuleNameMap, log_msgs: &mut Vec<String>) {
+fn check_group(group: &Group, name_map: &ModuleNameMap, log_msgs: &mut Vec<A2lError>) {
     if let Some(ref_characteristic) = &group.ref_characteristic {
         let line = ref_characteristic.get_line();
         check_reference_list(
@@ -570,7 +666,7 @@ fn check_group(group: &Group, name_map: &ModuleNameMap, log_msgs: &mut Vec<Strin
 fn check_measurement(
     measurement: &Measurement,
     name_map: &ModuleNameMap,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) {
     let name = &measurement.name;
     let line = measurement.get_line();
@@ -578,21 +674,28 @@ fn check_measurement(
     if measurement.conversion != "NO_COMPU_METHOD"
         && !name_map.compu_method.contains_key(&measurement.conversion)
     {
-        log_msgs.push(format!(
-            "In MEASUREMENT {name} on line {line}: Referenced COMPU_METHOD {} does not exist.",
-            measurement.conversion
-        ));
+        log_msgs.push(A2lError::CrossReferenceError {
+            source_type: "MEASUREMENT".to_string(),
+            source_name: name.to_string(),
+            source_line: line,
+            target_type: "COMPU_METHOD".to_string(),
+            target_name: measurement.conversion.to_string(),
+        });
     }
 
     let opt_compu_method = name_map.compu_method.get(&measurement.conversion);
     let calculated_limits = calc_compu_method_limits(opt_compu_method, measurement.datatype);
     let existing_limits = (measurement.lower_limit, measurement.upper_limit);
     if !check_limits_valid(existing_limits, calculated_limits) {
-        log_msgs.push(format!(
-            "In MEASUREMENT {name} on line {line}: Limits [{}, {}] are outside of [{}, {}] calculated based on the data type and conversion",
-            measurement.lower_limit, measurement.upper_limit,
-            calculated_limits.0, calculated_limits.1,
-        ));
+        log_msgs.push(A2lError::LimitCheckError {
+            item_name: name.to_string(),
+            blockname: "MEASUREMENT".to_string(),
+            line,
+            lower_limit: measurement.lower_limit,
+            upper_limit: measurement.upper_limit,
+            calculated_lower_limit: calculated_limits.0,
+            calculated_upper_limit: calculated_limits.1,
+        });
     }
 
     check_ref_memory_segment(&measurement.ref_memory_segment, name_map, log_msgs);
@@ -602,7 +705,7 @@ fn check_measurement(
 fn check_typedef_measurement(
     t_measurement: &TypedefMeasurement,
     name_map: &ModuleNameMap,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) {
     let name = &t_measurement.name;
     let line = t_measurement.get_line();
@@ -612,27 +715,35 @@ fn check_typedef_measurement(
             .compu_method
             .contains_key(&t_measurement.conversion)
     {
-        log_msgs.push(format!(
-            "In TYPEDEF_MEASUREMENT {} on line {}: Referenced COMPU_METHOD {} does not exist.",
-            name, line, t_measurement.conversion
-        ));
+        log_msgs.push(A2lError::CrossReferenceError {
+            source_type: "TYPEDEF_MEASUREMENT".to_string(),
+            source_name: name.to_string(),
+            source_line: line,
+            target_type: "COMPU_METHOD".to_string(),
+            target_name: t_measurement.conversion.to_string(),
+        });
     }
 
     let opt_compu_method = name_map.compu_method.get(&t_measurement.conversion);
     let (lower_limit, upper_limit) =
         calc_compu_method_limits(opt_compu_method, t_measurement.datatype);
     if lower_limit > t_measurement.lower_limit || upper_limit < t_measurement.upper_limit {
-        log_msgs.push(format!(
-            "In TYPEDEF_MEASUREMENT {} on line {}: Limits [{}, {}] are outside of [{lower_limit}, {upper_limit}] calculated based on the data type and conversion",
-            name, line, t_measurement.lower_limit, t_measurement.upper_limit,
-        ));
+        log_msgs.push(A2lError::LimitCheckError {
+            item_name: name.to_string(),
+            blockname: "TYPEDEF_MEASUREMENT".to_string(),
+            line,
+            lower_limit: t_measurement.lower_limit,
+            upper_limit: t_measurement.upper_limit,
+            calculated_lower_limit: lower_limit,
+            calculated_upper_limit: upper_limit,
+        });
     }
 }
 
 fn check_transformer(
     transformer: &Transformer,
     name_map: &ModuleNameMap,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) {
     let name = &transformer.name;
     let line = transformer.get_line();
@@ -642,10 +753,13 @@ fn check_transformer(
             .transformer
             .contains_key(&transformer.inverse_transformer)
     {
-        log_msgs.push(format!(
-            "In TRANSFORMER {} on line {}: Referenced inverse TRANSFORMER {} does not exist.",
-            name, line, transformer.inverse_transformer
-        ));
+        log_msgs.push(A2lError::CrossReferenceError {
+            source_type: "TRANSFORMER".to_string(),
+            source_name: name.to_string(),
+            source_line: line,
+            target_type: "inverse TRANSFORMER".to_string(),
+            target_name: transformer.inverse_transformer.to_string(),
+        });
     }
 
     if let Some(transformer_in_objects) = &transformer.transformer_in_objects {
@@ -676,7 +790,7 @@ fn check_transformer(
 fn check_ref_memory_segment(
     opt_ref_memory_segment: &Option<RefMemorySegment>,
     name_map: &ModuleNameMap,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) {
     if let Some(ref_memory_segment) = opt_ref_memory_segment {
         let line = ref_memory_segment.get_line();
@@ -685,10 +799,13 @@ fn check_ref_memory_segment(
             .memory_segment
             .contains_key(&ref_memory_segment.name)
         {
-            log_msgs.push(format!(
-                "In REF_MEMORY_SEGMENT on line {}: reference to unknown memory segment {}",
-                line, ref_memory_segment.name
-            ));
+            log_msgs.push(A2lError::CrossReferenceError {
+                source_type: "REF_MEMORY_SEGMENT".to_string(),
+                source_name: ref_memory_segment.name.to_string(),
+                source_line: line,
+                target_type: "MEMORY_SEGMENT".to_string(),
+                target_name: ref_memory_segment.name.to_string(),
+            });
         }
     }
 }
@@ -699,13 +816,17 @@ fn check_reference_list<T>(
     line: u32,
     identifier_list: &[String],
     map: &HashMap<String, T>,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) {
     for ident in identifier_list {
         if map.get(ident).is_none() {
-            log_msgs.push(format!(
-                "In {container_type} on line {line}: Reference to nonexistent {ref_type} \"{ident}\""
-            ));
+            log_msgs.push(A2lError::CrossReferenceError {
+                source_type: container_type.to_string(),
+                source_name: ident.to_string(),
+                source_line: line,
+                target_type: ref_type.to_string(),
+                target_name: ident.to_string(),
+            });
         }
     }
 }
@@ -715,7 +836,7 @@ struct GroupInfo<'a> {
     parents: Vec<&'a str>,
 }
 
-fn check_group_structure(grouplist: &[Group], log_msgs: &mut Vec<String>) {
+fn check_group_structure(grouplist: &[Group], log_msgs: &mut Vec<A2lError>) {
     let mut groupinfo: HashMap<String, GroupInfo> = HashMap::new();
 
     for group in grouplist {
@@ -734,10 +855,14 @@ fn check_group_structure(grouplist: &[Group], log_msgs: &mut Vec<String>) {
                 if let Some(gi) = groupinfo.get_mut(sg) {
                     gi.parents.push(&group.name);
                 } else {
-                    log_msgs.push(format!(
-                        "GROUP {} references non-existent sub-group {}",
-                        group.name, sg
-                    ));
+                    // nonexistent sub-group
+                    log_msgs.push(A2lError::CrossReferenceError {
+                        source_type: "GROUP".to_string(),
+                        source_name: group.name.clone(),
+                        source_line: group.get_line(),
+                        target_type: "GROUP".to_string(),
+                        target_name: sg.clone(),
+                    });
                 }
             }
         }
@@ -748,47 +873,77 @@ fn check_group_structure(grouplist: &[Group], log_msgs: &mut Vec<String>) {
             .get(&group.name)
             .expect("all groups should be in the groupinfo map");
         if gi.is_root && gi.parents.len() > 1 {
-            log_msgs.push(format!("GROUP {} has the ROOT attribute, but is also referenced as a sub-group by GROUPs {}", group.name, gi.parents.join(", ")));
+            log_msgs.push(A2lError::GroupStructureError {
+                group_name: group.name.clone(),
+                line: group.get_line(),
+                description: format!(
+                    "has the ROOT attribute, but is also referenced as a sub-group by GROUPs {}",
+                    gi.parents.join(", ")
+                ),
+            });
         } else if gi.is_root && gi.parents.len() == 1 {
-            log_msgs.push(format!("GROUP {} has the ROOT attribute, but is also referenced as a sub-group by GROUP {}", group.name, gi.parents[0]));
+            log_msgs.push(A2lError::GroupStructureError {
+                group_name: group.name.clone(),
+                line: group.get_line(),
+                description: format!(
+                    "has the ROOT attribute, but is also referenced as a sub-group by GROUP {}",
+                    gi.parents[0]
+                ),
+            });
         } else if !gi.is_root && gi.parents.len() > 1 {
-            log_msgs.push(format!(
-                "GROUP {} is referenced as a sub-group by multiple groups: {}",
-                group.name,
-                gi.parents.join(", ")
-            ));
+            log_msgs.push(A2lError::GroupStructureError {
+                group_name: group.name.clone(),
+                line: group.get_line(),
+                description: format!(
+                    "is referenced as a sub-group by multiple groups: {}",
+                    gi.parents.join(", ")
+                ),
+            });
         } else if !gi.is_root && gi.parents.is_empty() {
-            log_msgs.push(format!("GROUP {} does not have the ROOT attribute, and is not referenced as a sub-group by any other group", group.name));
+            log_msgs.push(A2lError::GroupStructureError {
+                group_name: group.name.clone(),
+                line: group.get_line(),
+                description: "does not have the ROOT attribute, and is not referenced as a sub-group by any other group".to_string(),
+            });
         }
     }
 }
 
-fn check_instance(instance: &Instance, name_map: &ModuleNameMap, log_msgs: &mut Vec<String>) {
+fn check_instance(instance: &Instance, name_map: &ModuleNameMap, log_msgs: &mut Vec<A2lError>) {
     let name = &instance.name;
     let line = instance.get_line();
 
     if !name_map.typedef.contains_key(&instance.type_ref) {
-        log_msgs.push(format!(
-            "In INSTANCE {} on line {}: Referenced TYPEDEF_<x> {} does not exist.",
-            name, line, instance.type_ref
-        ));
+        log_msgs.push(A2lError::CrossReferenceError {
+            source_type: "INSTANCE".to_string(),
+            source_name: name.to_string(),
+            source_line: line,
+            target_type: "TYPEDEF_<x>".to_string(),
+            target_name: instance.type_ref.to_string(),
+        });
     }
 }
 
 fn check_typedef_structure(
     typedef_structure: &TypedefStructure,
     name_map: &ModuleNameMap,
-    log_msgs: &mut Vec<String>,
+    log_msgs: &mut Vec<A2lError>,
 ) {
     let name = &typedef_structure.name;
     let line = typedef_structure.get_line();
 
     for sc in &typedef_structure.structure_component {
         if !name_map.typedef.contains_key(&sc.component_type) {
-            log_msgs.push(format!(
-                "In STRUCTURE_COMPONENT {} of TYPEDEF_STRUCTURE {} on line {}: Referenced TYPEDEF_<x> {} does not exist.",
-                sc.component_name, name, line, sc.component_type
-            ));
+            log_msgs.push(A2lError::CrossReferenceError {
+                source_type: format!(
+                    "STRUCTURE_COMPONENT {} of TYPEDEF_STRUCTURE",
+                    sc.component_name
+                ),
+                source_name: name.to_string(),
+                source_line: line,
+                target_type: "TYPEDEF_<x>".to_string(),
+                target_name: sc.component_type.clone(),
+            });
         }
     }
 }
@@ -975,8 +1130,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
 
         // invalid input quantity, conversion, axis points ref, and curve axis ref
         assert_eq!(log_msgs.len(), 4);
@@ -993,8 +1147,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 1);
 
         // error: STD_AXIS should not have an AXIS_PTS_REF
@@ -1016,11 +1169,10 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT3, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
-        for msg in &log_msgs {
-            println!("{}", msg);
-        }
+        let log_msgs = super::check(&a2lfile);
+        // for msg in &log_msgs {
+        //     println!("{msg}");
+        // }
         assert_eq!(log_msgs.len(), 1);
 
         // valid input, no errors to report
@@ -1039,8 +1191,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT4, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
 
         // invalid input quantity
         assert_eq!(log_msgs.len(), 0);
@@ -1054,8 +1205,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
 
         // invalid input quantity, record layout and conversion
         assert_eq!(log_msgs.len(), 3);
@@ -1071,8 +1221,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
 
         assert_eq!(log_msgs.len(), 0);
     }
@@ -1085,8 +1234,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
 
         // invalid input quantity, record layout (aka deposit_record), and conversion
         assert_eq!(log_msgs.len(), 3);
@@ -1100,8 +1248,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 1);
 
         // valid input, no errors to report
@@ -1117,8 +1264,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT3, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 0);
     }
 
@@ -1146,8 +1292,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 8);
 
         // record layout exists, but lacks FNC_VALUES
@@ -1159,8 +1304,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 1);
 
         // invalid axis descr
@@ -1178,8 +1322,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT3, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
         // invalid axis descr for c, no axis descr for c2
         assert_eq!(log_msgs.len(), 2);
 
@@ -1194,8 +1337,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT4, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 0);
     }
 
@@ -1210,8 +1352,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 4);
 
         // missing axis descr
@@ -1225,8 +1366,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
         // invalid axis descr
         assert_eq!(log_msgs.len(), 1);
 
@@ -1241,8 +1381,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT3, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 0);
     }
 
@@ -1257,8 +1396,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
 
         // invalid compu tab ref, ref unit, and status string ref
         assert_eq!(log_msgs.len(), 3);
@@ -1270,8 +1408,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 0);
     }
 
@@ -1301,8 +1438,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
 
         // invalid in measurement, loc measurement, out measurement, def characteristic,
         // ref characteristic, and sub function
@@ -1315,8 +1451,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 0);
     }
 
@@ -1340,8 +1475,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
 
         // invalid ref characteristic, ref measurement, function list, and sub group
         // additionally the group consistency check reports that the group is not a root group, and refereces a non-existent sub-group
@@ -1362,8 +1496,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 1);
 
         // grp1 is a root group, but is also referenced as a sub-group by grp2 and grp3
@@ -1383,8 +1516,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 1);
 
         // grp1 (not a root group) is referenced as a sub-group by grp2 and grp3
@@ -1404,8 +1536,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT3, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 1);
     }
 
@@ -1421,8 +1552,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
 
         // invalid conversion, memory segment, and function list
         assert_eq!(log_msgs.len(), 3);
@@ -1436,8 +1566,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
 
         // invalid conversion
         assert_eq!(log_msgs.len(), 1);
@@ -1457,8 +1586,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
 
         // invalid inverse transformer, transformer in objects, and transformer out objects
         assert_eq!(log_msgs.len(), 3);
@@ -1470,8 +1598,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 0);
     }
 
@@ -1483,8 +1610,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
 
         // invalid type ref
         assert_eq!(log_msgs.len(), 1);
@@ -1500,8 +1626,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
 
         // invalid component type
         assert_eq!(log_msgs.len(), 1);
@@ -1630,8 +1755,7 @@ mod test {
         /end MODULE /end PROJECT"#;
         let mut load_errors = Vec::new();
         let mut a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
         // invalid limits for each of CHARACTERISTIC, AXIS_DESCR, AXIS_PTS, and MEASUREMENT
         assert_eq!(log_msgs.len(), 4);
 
@@ -1644,8 +1768,7 @@ mod test {
         a2lfile.project.module[0].axis_pts[0].lower_limit =
             ((i16::MIN as f64 * 2.222) - 4000.0) / 500.0;
         a2lfile.project.module[0].measurement[0].lower_limit = u32::MIN as f64;
-        let mut log_msgs = Vec::new();
-        super::check(&a2lfile, &mut log_msgs);
+        let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 0);
     }
 }

@@ -1,5 +1,5 @@
-use crate::namemap::*;
 use crate::specification::{A2lObject, Module};
+use crate::{namemap::*, A2lError};
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -105,7 +105,7 @@ fn merge_memory_layout(orig_module: &mut Module, merge_module: &mut Module) {
 // ------------------------ MEMORY_SEGMENT ------------------------
 
 fn merge_memory_segment(orig_module: &mut Module, merge_module: &mut Module) {
-    let mut log_msgs = Vec::<String>::new();
+    let mut log_msgs = Vec::<A2lError>::new();
     let orig_map = build_namemap_memory_segment(orig_module, &mut log_msgs);
     let merge_map = build_namemap_memory_segment(merge_module, &mut log_msgs);
     let (merge_action, rename_table) = calculate_item_actions(&orig_map, &merge_map);
@@ -200,7 +200,7 @@ fn merge_if_data(orig_module: &mut Module, merge_module: &mut Module) {
 // ------------------------ UNIT ------------------------
 
 fn merge_unit(orig_module: &mut Module, merge_module: &mut Module) {
-    let mut log_msgs = Vec::<String>::new();
+    let mut log_msgs = Vec::<A2lError>::new();
     let orig_map = build_namemap_unit(orig_module, &mut log_msgs);
     let merge_map = build_namemap_unit(merge_module, &mut log_msgs);
     let (merge_action, rename_table) = calculate_item_actions(&orig_map, &merge_map);
@@ -239,7 +239,7 @@ fn rename_units(merge_module: &mut Module, rename_table: &HashMap<String, String
 // ------------------------ COMPU_TAB / COMPU_VTAB / COMPU_VTAB_RANGE ------------------------
 
 fn merge_compu_tab(orig_module: &mut Module, merge_module: &mut Module) {
-    let mut log_msgs = Vec::<String>::new();
+    let mut log_msgs = Vec::<A2lError>::new();
     let orig_map = build_namemap_compu_tab(orig_module, &mut log_msgs);
     let merge_map = build_namemap_compu_tab(merge_module, &mut log_msgs);
     let (merge_action, rename_table) = calculate_item_actions(&orig_map, &merge_map);
@@ -308,7 +308,7 @@ fn rename_compu_tabs(merge_module: &mut Module, rename_table: &HashMap<String, S
 // ------------------------ COMPU_METHOD ------------------------
 
 fn merge_compu_method(orig_module: &mut Module, merge_module: &mut Module) {
-    let mut log_msgs = Vec::<String>::new();
+    let mut log_msgs = Vec::<A2lError>::new();
     let orig_map = build_namemap_compu_method(orig_module, &mut log_msgs);
     let merge_map = build_namemap_compu_method(merge_module, &mut log_msgs);
     let (merge_action, rename_table) = calculate_item_actions(&orig_map, &merge_map);
@@ -385,7 +385,7 @@ fn rename_compu_methods(merge_module: &mut Module, rename_table: &HashMap<String
 // ------------------------ RECORD_LAYOUT ------------------------
 
 fn merge_record_layout(orig_module: &mut Module, merge_module: &mut Module) {
-    let mut log_msgs = Vec::<String>::new();
+    let mut log_msgs = Vec::<A2lError>::new();
     let orig_map = build_namemap_record_layout(orig_module, &mut log_msgs);
     let merge_map = build_namemap_record_layout(merge_module, &mut log_msgs);
     let (merge_action, rename_table) = calculate_item_actions(&orig_map, &merge_map);
@@ -462,7 +462,7 @@ fn merge_objects(orig_module: &mut Module, merge_module: &mut Module) {
     // objects and typedefs depend on each other.
     // Specifically, the INSTANCE object may reference any TYPEDEF_*, while TYPDEFE_CHARACTERISTIC may reference any MEASUREMENT
     // As a result, all renaming needs to be done first, and then the items can be merged.
-    let mut log_msgs = Vec::<String>::new();
+    let mut log_msgs = Vec::<A2lError>::new();
     let orig_map = build_namemap_object(orig_module, &mut log_msgs);
     let merge_map = build_namemap_object(merge_module, &mut log_msgs);
     let (object_merge_action, object_rename_table) = calculate_item_actions(&orig_map, &merge_map);
@@ -928,7 +928,7 @@ fn merge_group(orig_module: &mut Module, merge_module: &mut Module) {
 // ------------------------ FRAME ------------------------
 
 fn merge_frame(orig_module: &mut Module, merge_module: &mut Module) {
-    let mut log_msgs = Vec::<String>::new();
+    let mut log_msgs = Vec::<A2lError>::new();
     let orig_map = build_namemap_frame(orig_module, &mut log_msgs);
     let merge_map = build_namemap_frame(merge_module, &mut log_msgs);
     let (merge_action, rename_table) = calculate_item_actions(&orig_map, &merge_map);
@@ -959,7 +959,7 @@ fn rename_frames(merge_module: &mut Module, rename_table: &HashMap<String, Strin
 // ------------------------ TRANSFORMER ------------------------
 
 fn merge_transformer(orig_module: &mut Module, merge_module: &mut Module) {
-    let mut log_msgs = Vec::<String>::new();
+    let mut log_msgs = Vec::<A2lError>::new();
     let orig_map = build_namemap_transformer(orig_module, &mut log_msgs);
     let merge_map = build_namemap_transformer(merge_module, &mut log_msgs);
     let (merge_action, rename_table) = calculate_item_actions(&orig_map, &merge_map);

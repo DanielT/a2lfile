@@ -795,8 +795,7 @@ ASAP2_VERSION 1 61
         assert!(a2l_file.project.module[0].measurement[0].get_layout().uid != 0);
 
         // the data above is not sane, there are multiple warnings reported in log_msgs
-        let mut log_msgs = Vec::<String>::new();
-        a2l_file.check(&mut log_msgs);
+        let log_msgs = a2l_file.check();
         assert_ne!(log_msgs.len(), 0);
 
         // the compu_methods in the a2l_file are not referenced by any other element, so they get removed by cleanup()
@@ -1880,13 +1879,12 @@ ASAP2_VERSION 1 61
         assert_eq!(a2l_file, a2l_file5);
 
         // check the data in a2l_file and a2l_file5
-        let mut check_msgs = Vec::new();
-        a2l_file.check(&mut check_msgs);
+        let check_msgs = a2l_file.check();
         for msg in &check_msgs {
             println!("{}", msg);
         }
         assert_eq!(check_msgs.len(), 0);
-        a2l_file5.check(&mut check_msgs);
+        let check_msgs = a2l_file5.check();
         assert_eq!(check_msgs.len(), 0);
 
         // verify store + load round trip of newly created data
