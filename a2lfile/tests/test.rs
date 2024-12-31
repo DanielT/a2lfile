@@ -68,8 +68,7 @@ ASAP2_VERSION 1 61
 
     #[test]
     fn round_trip() {
-        let mut log_msgs = Vec::<A2lError>::new();
-        let a2lfile = a2lfile::load_from_string(TEST_A2L, None, &mut log_msgs, false).unwrap();
+        let (a2lfile, _) = a2lfile::load_from_string(TEST_A2L, None, false).unwrap();
         let text = a2lfile.write_to_string();
         println!("input:\n{}\noutput:\n{}\n", TEST_A2L, text);
 
@@ -761,9 +760,7 @@ ASAP2_VERSION 1 61
         assert_eq!(a2l_file, unchanged_a2l_file);
         assert_eq!(a2l_file.project.module.len(), 1);
 
-        let mut log_msgs = Vec::<A2lError>::new();
-        let mut other_a2l_file =
-            a2lfile::load_from_string(TEST_A2L, None, &mut log_msgs, false).unwrap();
+        let (mut other_a2l_file, _) = a2lfile::load_from_string(TEST_A2L, None, false).unwrap();
         assert_eq!(a2l_file.project.module[0].measurement.len(), 1);
         a2l_file.merge_modules(&mut other_a2l_file);
         assert_eq!(a2l_file.project.module[0].measurement.len(), 2);
@@ -816,19 +813,13 @@ ASAP2_VERSION 1 61
         assert!(std::path::Path::new("test.a2l").exists());
 
         // verify that the loaded data structure is identical to the original data structure
-        let mut log_msgs = Vec::<A2lError>::new();
-        let a2l_file2 = a2lfile::load_from_string(&a2ldata, None, &mut log_msgs, false);
+        let a2l_file2 = a2lfile::load_from_string(&a2ldata, None, false);
         assert!(a2l_file2.is_ok());
-        let a2l_file2 = a2l_file2.unwrap();
+        let (a2l_file2, _) = a2l_file2.unwrap();
         assert_eq!(a2l_file, a2l_file2);
 
-        let mut a2l_file3 = a2lfile::load(
-            "test.a2l",
-            Some(A2MLTEST_TEXT.to_string()),
-            &mut log_msgs,
-            false,
-        )
-        .unwrap();
+        let (mut a2l_file3, _) =
+            a2lfile::load("test.a2l", Some(A2MLTEST_TEXT.to_string()), false).unwrap();
         assert_eq!(a2l_file2, a2l_file3);
 
         // set the incfile propery of one element. This would normally indicate that is was loaded from an /include file
@@ -864,56 +855,48 @@ ASAP2_VERSION 1 61
     #[test]
     fn parsing_weird_data() {
         let data_bad = r##"abcdef"##;
-        let mut log_msgs = Vec::<A2lError>::new();
-        let load_result = a2lfile::load_from_string(data_bad, None, &mut log_msgs, false);
+        let load_result = a2lfile::load_from_string(data_bad, None, false);
         assert!(load_result.is_err());
 
         let data_bad = r##"ASAP2_VERSION 1 71"##;
-        let mut log_msgs = Vec::<A2lError>::new();
-        let load_result = a2lfile::load_from_string(data_bad, None, &mut log_msgs, false);
+        let load_result = a2lfile::load_from_string(data_bad, None, false);
         assert!(load_result.is_err());
 
         let data_bad = r##"ASAP2_VERSION 1 71
         /begin PROJECT
         /end PROJECT"##;
-        let mut log_msgs = Vec::<A2lError>::new();
-        let load_result = a2lfile::load_from_string(data_bad, None, &mut log_msgs, false);
+        let load_result = a2lfile::load_from_string(data_bad, None, false);
         assert!(load_result.is_err());
 
         let data_bad = r##"ASAP2_VERSION 1 71
         /begin PROJECT //x ""
         /end PROJECT"##;
-        let mut log_msgs = Vec::<A2lError>::new();
-        let load_result = a2lfile::load_from_string(data_bad, None, &mut log_msgs, false);
+        let load_result = a2lfile::load_from_string(data_bad, None, false);
         assert!(load_result.is_err());
 
         let data_bad = r##"ASAP2_VERSION 1 71
         /beginPROJECT x ""
         /end PROJECT"##;
-        let mut log_msgs = Vec::<A2lError>::new();
-        let load_result = a2lfile::load_from_string(data_bad, None, &mut log_msgs, false);
+        let load_result = a2lfile::load_from_string(data_bad, None, false);
         assert!(load_result.is_err());
 
         let data_good = r##"ASAP2_VERSION 1 0x47
         /begin PROJECT x ""
         /end PROJECT"##;
-        let mut log_msgs = Vec::<A2lError>::new();
-        let load_result = a2lfile::load_from_string(data_good, None, &mut log_msgs, false);
+        let load_result = a2lfile::load_from_string(data_good, None, false);
         assert!(load_result.is_ok());
 
         let data_good = r##"ASAP2_VERSION 1 71
         /begin PROJECT x ""
         /end PROJECT"##;
-        let mut log_msgs = Vec::<A2lError>::new();
-        let load_result = a2lfile::load_from_string(data_good, None, &mut log_msgs, false);
+        let load_result = a2lfile::load_from_string(data_good, None, false);
         assert!(load_result.is_ok());
 
         let data_good = r##"//comment
         ASAP2_VERSION 1 71 //comment
         /begin PROJECT x "" /*/*////*
         /end PROJECT"##;
-        let mut log_msgs = Vec::<A2lError>::new();
-        let load_result = a2lfile::load_from_string(data_good, None, &mut log_msgs, false);
+        let load_result = a2lfile::load_from_string(data_good, None, false);
         assert!(load_result.is_ok());
     }
 
@@ -1261,14 +1244,13 @@ ASAP2_VERSION 1 61
     #[cfg(all(feature = "check", feature = "sort"))]
     #[test]
     fn specification_test() {
-        let mut log_msgs = Vec::new();
-        let mut a2l_file = load_from_string(TEST_A2L_2, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file, _) = load_from_string(TEST_A2L_2, None, false).unwrap();
         let mut a2l_file2 = a2l_file.clone();
         assert_eq!(a2l_file, a2l_file2);
 
         let serialized = a2l_file2.write_to_string();
         // unfortunately minor formatting differences (whitespace, floats) prevent comparison of the serialized text
-        let a2l_file3 = load_from_string(&serialized, None, &mut log_msgs, false).unwrap();
+        let (a2l_file3, _) = load_from_string(&serialized, None, false).unwrap();
         assert_eq!(a2l_file, a2l_file3);
 
         // reset the location, serialize & reload again
@@ -1277,7 +1259,7 @@ ASAP2_VERSION 1 61
         a2l_file2.project.module[0].reset_location();
         a2l_file2.project.module[0].characteristic[0].reset_location();
         let serialized2 = a2l_file2.write_to_string();
-        let a2l_file4 = load_from_string(&serialized2, None, &mut log_msgs, false).unwrap();
+        let (a2l_file4, _) = load_from_string(&serialized2, None, false).unwrap();
         // serialized text is not equal, because location info was reset with reset_location() and some elements were arranged differently
         assert_ne!(serialized, serialized2);
         // the files are still equal, because location info is not considered when comparing data
@@ -1896,7 +1878,7 @@ ASAP2_VERSION 1 61
 
         // verify store + load round trip of newly created data
         let serialized3 = a2l_file5.write_to_string();
-        let a2l_file6 = load_from_string(&serialized3, None, &mut log_msgs, false).unwrap();
+        let (a2l_file6, _) = load_from_string(&serialized3, None, false).unwrap();
         assert_eq!(a2l_file, a2l_file6);
 
         let mut a2l_file7 = a2l_file5.clone();
@@ -1941,8 +1923,7 @@ ASAP2_VERSION 1 61
             /end MODULE
         /end PROJECT
         "#;
-        let mut log_msgs = Vec::<A2lError>::new();
-        let a2lfile = a2lfile::load_from_string(a2l, None, &mut log_msgs, false).unwrap();
+        let (a2lfile, _) = a2lfile::load_from_string(a2l, None, false).unwrap();
 
         let measurement = &a2lfile.project.module[0].measurement[0];
         assert_eq!(

@@ -1378,8 +1378,7 @@ mod tests {
     #[test]
     fn error_missing_version() {
         static DATA: &str = r#"/begin PROJECT p "" /end PROJECT"#;
-        let mut log_msgs = vec![];
-        let a2l_file = load_from_string(DATA, None, &mut log_msgs, true);
+        let a2l_file = load_from_string(DATA, None, true);
         assert!(a2l_file.is_err());
         assert!(matches!(
             a2l_file,
@@ -1392,8 +1391,7 @@ mod tests {
     #[test]
     fn error_invalid_mult_not_present() {
         static DATA: &str = r#"ASAP2_VERSION 1 71"#;
-        let mut log_msgs = vec![];
-        let a2l_file = load_from_string(DATA, None, &mut log_msgs, true);
+        let a2l_file = load_from_string(DATA, None, true);
         assert!(matches!(
             a2l_file,
             Err(A2lError::ParserError {
@@ -1405,8 +1403,7 @@ mod tests {
     #[test]
     fn error_invalid_mult_too_many() {
         static DATA: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m "" /end MODULE /end PROJECT /begin PROJECT p2 "" /begin MODULE m "" /end MODULE /end PROJECT"#;
-        let mut log_msgs = vec![];
-        let a2l_file = load_from_string(DATA, None, &mut log_msgs, true);
+        let a2l_file = load_from_string(DATA, None, true);
         assert!(matches!(
             a2l_file,
             Err(A2lError::ParserError {
@@ -1418,8 +1415,7 @@ mod tests {
     #[test]
     fn error_unknown_subblock() {
         static DATA: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m "" ABCDEF /end MODULE /end PROJECT"#;
-        let mut log_msgs = vec![];
-        let a2l_file = load_from_string(DATA, None, &mut log_msgs, true);
+        let a2l_file = load_from_string(DATA, None, true);
         assert!(matches!(
             a2l_file,
             Err(A2lError::ParserError {
@@ -1432,8 +1428,7 @@ mod tests {
     fn error_incorrect_end_tag() {
         static DATA: &str =
             r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m "" /end MMMMM /end PROJECT"#;
-        let mut log_msgs = vec![];
-        let a2l_file = load_from_string(DATA, None, &mut log_msgs, true);
+        let a2l_file = load_from_string(DATA, None, true);
         assert!(matches!(
             a2l_file,
             Err(A2lError::ParserError {
@@ -1445,8 +1440,7 @@ mod tests {
     #[test]
     fn error_unexpected_eof() {
         static DATA: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT"#;
-        let mut log_msgs = vec![];
-        let a2l_file = load_from_string(DATA, None, &mut log_msgs, true);
+        let a2l_file = load_from_string(DATA, None, true);
         assert!(matches!(
             a2l_file,
             Err(A2lError::ParserError {
@@ -1461,8 +1455,7 @@ mod tests {
             r#"ASAP2_VERSION 1 71 /begin PROJECT {} "" /begin MODULE m "" /end MODULE /end PROJECT"#,
             ['a'; 1025].iter().collect::<String>()
         );
-        let mut log_msgs = vec![];
-        let a2l_file = load_from_string(&data, None, &mut log_msgs, true);
+        let a2l_file = load_from_string(&data, None, true);
         println!("a2l_file: {:#?}", a2l_file);
         assert!(a2l_file.is_err());
         assert!(matches!(
@@ -1479,18 +1472,16 @@ mod tests {
         static DATA: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
             /begin UNKNOWN_TAG abc def /begin ghi /end ghi /end UNKNOWN_TAG
         /end MODULE /end PROJECT"#;
-        let mut log_msgs = vec![];
-        let result = load_from_string(DATA, None, &mut log_msgs, false);
+        let result = load_from_string(DATA, None, false);
         assert!(result.is_ok());
-        let a2l_file = result.unwrap();
+        let (a2l_file, _) = result.unwrap();
         assert_eq!(a2l_file.project.module.len(), 1);
 
         // unbalanced unknown block
         static DATA2: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
             /begin UNKNOWN_TAG abc def
         /end MODULE /end PROJECT"#;
-        let mut log_msgs = vec![];
-        let result = load_from_string(DATA2, None, &mut log_msgs, false);
+        let result = load_from_string(DATA2, None, false);
         assert!(matches!(
             result,
             Err(A2lError::ParserError {
@@ -1504,10 +1495,9 @@ mod tests {
             /begin GROUP group_name "" ROOT
             /end GROUP
         /end MODULE /end PROJECT"#;
-        let mut log_msgs = vec![];
-        let result = load_from_string(DATA3, None, &mut log_msgs, false);
+        let result = load_from_string(DATA3, None, false);
         assert!(result.is_ok());
-        let a2l_file = result.unwrap();
+        let (a2l_file, _) = result.unwrap();
         assert_eq!(a2l_file.project.module.len(), 1);
         assert_eq!(a2l_file.project.module[0].group.len(), 1);
     }

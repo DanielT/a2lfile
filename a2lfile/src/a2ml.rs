@@ -1512,8 +1512,7 @@ mod test {
         /end MODULE
         /end PROJECT"#;
 
-        let mut log_msgs = vec![];
-        let a2l_file = crate::load_from_string(A2L_TEXT, None, &mut log_msgs, true).unwrap();
+        let (a2l_file, _) = crate::load_from_string(A2L_TEXT, None, true).unwrap();
         assert!(a2l_file.project.module[0].if_data[0].ifdata_valid);
 
         let if_data = &a2l_file.project.module[0].if_data[0];

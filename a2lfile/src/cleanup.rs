@@ -138,8 +138,7 @@ mod test {
         /end MODULE
         /end PROJECT"#;
 
-        let mut log_msgs = Vec::new();
-        let mut a2l_file = crate::load_from_string(a2l_text, None, &mut log_msgs, true).unwrap();
+        let (mut a2l_file, _) = crate::load_from_string(a2l_text, None, true).unwrap();
         cleanup(&mut a2l_file);
 
         let module = &a2l_file.project.module[0];

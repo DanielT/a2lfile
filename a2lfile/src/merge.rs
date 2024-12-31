@@ -1139,16 +1139,15 @@ mod test {
         static FILE_B: &str = r#"/begin PROJECT p "" /begin MODULE m "" /begin A2ML block "IF_DATA" struct { int; }; /end A2ML /end MODULE /end PROJECT"#;
         static FILE_C: &str = r#"/begin PROJECT p "" /begin MODULE m "" /begin A2ML block "IF_DATA" struct { float; }; /end A2ML /end MODULE /end PROJECT"#;
 
-        let mut log_msgs = vec![];
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
 
         // merging B into A: A2ML is copied
         a2l_file_a.merge_modules(&mut a2l_file_b);
         assert!(a2l_file_a.project.module[0].a2ml.is_some());
 
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
+        let (mut a2l_file_c, _) = load_from_string(FILE_C, None, false).unwrap();
         let orig_txt = a2l_file_b.project.module[0]
             .a2ml
             .as_ref()
@@ -1226,18 +1225,16 @@ mod test {
             /end MODULE
         /end PROJECT"#;
 
-        let mut log_msgs = vec![];
-
         // merging B into A -> A has no MEASUREMENT, so it is taken from B
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, true).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, true).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, true).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
         assert!(a2l_file_a.project.module[0].measurement.is_empty());
         a2l_file_a.merge_modules(&mut a2l_file_b);
         assert_eq!(a2l_file_a.project.module[0].measurement.len(), 1);
 
         // merging C into B
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, true).unwrap();
-        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, true).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
+        let (mut a2l_file_c, _) = load_from_string(FILE_C, None, true).unwrap();
         assert_eq!(a2l_file_b.project.module[0].measurement.len(), 1);
         assert_eq!(a2l_file_c.project.module[0].measurement.len(), 2);
         a2l_file_b.merge_modules(&mut a2l_file_c);
@@ -1318,18 +1315,16 @@ mod test {
             /end MODULE
         /end PROJECT"#;
 
-        let mut log_msgs = vec![];
-
         // merging B into A -> A has no MEASUREMENT, so it is taken from B
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
         assert!(a2l_file_a.project.module[0].measurement.is_empty());
         a2l_file_a.merge_modules(&mut a2l_file_b);
         assert_eq!(a2l_file_a.project.module[0].typedef_measurement.len(), 1);
 
         // merging C into B
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
+        let (mut a2l_file_c, _) = load_from_string(FILE_C, None, false).unwrap();
         assert_eq!(a2l_file_b.project.module[0].typedef_measurement.len(), 1);
         assert_eq!(a2l_file_c.project.module[0].typedef_measurement.len(), 2);
         a2l_file_b.merge_modules(&mut a2l_file_c);
@@ -1395,18 +1390,16 @@ mod test {
             /end MODULE
         /end PROJECT"#;
 
-        let mut log_msgs = vec![];
-
         // merging B into A -> A has no CHARACTERISTIC, so it is taken from B
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
         assert!(a2l_file_a.project.module[0].characteristic.is_empty());
         a2l_file_a.merge_modules(&mut a2l_file_b);
         assert_eq!(a2l_file_a.project.module[0].characteristic.len(), 1);
 
         // merging C into B
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, true).unwrap();
-        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, true).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
+        let (mut a2l_file_c, _) = load_from_string(FILE_C, None, true).unwrap();
         assert_eq!(a2l_file_b.project.module[0].characteristic.len(), 1);
         assert_eq!(a2l_file_c.project.module[0].characteristic.len(), 2);
         a2l_file_b.merge_modules(&mut a2l_file_c);
@@ -1497,11 +1490,9 @@ mod test {
             /end MODULE
         /end PROJECT"#;
 
-        let mut log_msgs = vec![];
-
         // merging B into A -> A has no CHARACTERISTIC, so it is taken from B
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
         assert!(a2l_file_a.project.module[0]
             .typedef_characteristic
             .is_empty());
@@ -1509,8 +1500,8 @@ mod test {
         assert_eq!(a2l_file_a.project.module[0].typedef_characteristic.len(), 1);
 
         // merging C into B
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
+        let (mut a2l_file_c, _) = load_from_string(FILE_C, None, false).unwrap();
         assert_eq!(a2l_file_b.project.module[0].typedef_characteristic.len(), 1);
         assert_eq!(a2l_file_c.project.module[0].typedef_characteristic.len(), 2);
         a2l_file_b.merge_modules(&mut a2l_file_c);
@@ -1565,18 +1556,16 @@ mod test {
             /end MODULE
         /end PROJECT"#;
 
-        let mut log_msgs = vec![];
-
         // merging B into A -> A has no AXIS_PTS, so it is taken from B
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
         assert!(a2l_file_a.project.module[0].axis_pts.is_empty());
         a2l_file_a.merge_modules(&mut a2l_file_b);
         assert_eq!(a2l_file_a.project.module[0].axis_pts.len(), 1);
 
         // merging C into B
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
+        let (mut a2l_file_c, _) = load_from_string(FILE_C, None, false).unwrap();
         assert_eq!(a2l_file_b.project.module[0].axis_pts.len(), 1);
         assert_eq!(a2l_file_c.project.module[0].axis_pts.len(), 2);
         a2l_file_b.merge_modules(&mut a2l_file_c);
@@ -1626,18 +1615,16 @@ mod test {
             /end MODULE
         /end PROJECT"#;
 
-        let mut log_msgs = vec![];
-
         // merging B into A -> A has no AXIS_PTS, so it is taken from B
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
         assert!(a2l_file_a.project.module[0].typedef_axis.is_empty());
         a2l_file_a.merge_modules(&mut a2l_file_b);
         assert_eq!(a2l_file_a.project.module[0].typedef_axis.len(), 1);
 
         // merging C into B
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
+        let (mut a2l_file_c, _) = load_from_string(FILE_C, None, false).unwrap();
         assert_eq!(a2l_file_b.project.module[0].typedef_axis.len(), 1);
         assert_eq!(a2l_file_c.project.module[0].typedef_axis.len(), 2);
         a2l_file_b.merge_modules(&mut a2l_file_c);
@@ -1669,18 +1656,16 @@ mod test {
             /end MODULE
         /end PROJECT"#;
 
-        let mut log_msgs = vec![];
-
         // merging B into A -> A has no BLOB, so it is taken from B
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
         assert!(a2l_file_a.project.module[0].blob.is_empty());
         a2l_file_a.merge_modules(&mut a2l_file_b);
         assert_eq!(a2l_file_a.project.module[0].blob.len(), 1);
 
         // merging C into B
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
+        let (mut a2l_file_c, _) = load_from_string(FILE_C, None, false).unwrap();
         assert_eq!(a2l_file_b.project.module[0].blob.len(), 1);
         assert_eq!(a2l_file_c.project.module[0].blob.len(), 2);
         a2l_file_b.merge_modules(&mut a2l_file_c);
@@ -1720,18 +1705,16 @@ mod test {
             /end MODULE
         /end PROJECT"#;
 
-        let mut log_msgs = vec![];
-
         // merging B into A -> A has no BLOB, so it is taken from B
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
         assert!(a2l_file_a.project.module[0].typedef_blob.is_empty());
         a2l_file_a.merge_modules(&mut a2l_file_b);
         assert_eq!(a2l_file_a.project.module[0].typedef_blob.len(), 1);
 
         // merging C into B
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
+        let (mut a2l_file_c, _) = load_from_string(FILE_C, None, false).unwrap();
         assert_eq!(a2l_file_b.project.module[0].typedef_blob.len(), 1);
         assert_eq!(a2l_file_c.project.module[0].typedef_blob.len(), 2);
         a2l_file_b.merge_modules(&mut a2l_file_c);
@@ -1761,18 +1744,16 @@ mod test {
             /end MODULE
         /end PROJECT"#;
 
-        let mut log_msgs = vec![];
-
         // merging B into A -> A has no BLOB, so it is taken from B
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
         assert!(a2l_file_a.project.module[0].typedef_structure.is_empty());
         a2l_file_a.merge_modules(&mut a2l_file_b);
         assert_eq!(a2l_file_a.project.module[0].typedef_structure.len(), 1);
 
         // merging C into B
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
+        let (mut a2l_file_c, _) = load_from_string(FILE_C, None, false).unwrap();
         assert_eq!(a2l_file_b.project.module[0].typedef_structure.len(), 1);
         assert_eq!(a2l_file_c.project.module[0].typedef_structure.len(), 2);
         a2l_file_b.merge_modules(&mut a2l_file_c);
@@ -1806,18 +1787,16 @@ mod test {
             /end MODULE
         /end PROJECT"#;
 
-        let mut log_msgs = vec![];
-
         // merging B into A -> A has no INSTANCE, so it is taken from B
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
         assert!(a2l_file_a.project.module[0].instance.is_empty());
         a2l_file_a.merge_modules(&mut a2l_file_b);
         assert_eq!(a2l_file_a.project.module[0].instance.len(), 1);
 
         // merging C into B
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
+        let (mut a2l_file_c, _) = load_from_string(FILE_C, None, false).unwrap();
         assert_eq!(a2l_file_b.project.module[0].instance.len(), 1);
         assert_eq!(a2l_file_c.project.module[0].instance.len(), 2);
         a2l_file_b.merge_modules(&mut a2l_file_c);
@@ -1868,18 +1847,16 @@ mod test {
             /end MODULE
         /end PROJECT"#;
 
-        let mut log_msgs = vec![];
-
         // merging B into A -> A has no MOD_PAR, so it is taken from B
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
         assert!(a2l_file_a.project.module[0].mod_par.is_none());
         a2l_file_a.merge_modules(&mut a2l_file_b);
         assert!(a2l_file_a.project.module[0].mod_par.is_some());
 
         // merging C into B
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
+        let (mut a2l_file_c, _) = load_from_string(FILE_C, None, false).unwrap();
         assert!(a2l_file_b.project.module[0].mod_par.is_some());
         assert!(a2l_file_c.project.module[0].mod_par.is_some());
         a2l_file_b.merge_modules(&mut a2l_file_c);
@@ -1900,7 +1877,6 @@ mod test {
 
     #[test]
     fn test_merge_compu_method() {
-        let mut log_msgs = vec![];
         static FILE_A: &str = r#"/begin PROJECT p "" /begin MODULE m "" /end MODULE /end PROJECT"#;
         static FILE_B: &str = r#"/begin PROJECT p ""
             /begin MODULE m ""
@@ -1954,15 +1930,15 @@ mod test {
         /end PROJECT"#;
 
         // merging B into A -> A has no COMPU_METHODs, so they are all taken from B
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
         assert!(a2l_file_a.project.module[0].compu_method.is_empty());
         a2l_file_a.merge_modules(&mut a2l_file_b);
         assert_eq!(a2l_file_a.project.module[0].compu_method.len(), 1);
 
         // merging C into B: m1 is present in both, but with different content -> m1 is renamed
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
+        let (mut a2l_file_c, _) = load_from_string(FILE_C, None, false).unwrap();
         assert_eq!(a2l_file_b.project.module[0].compu_method.len(), 1);
         a2l_file_b.merge_modules(&mut a2l_file_c);
         assert_eq!(a2l_file_b.project.module[0].compu_method.len(), 3);
@@ -2014,7 +1990,6 @@ mod test {
 
     #[test]
     fn test_merge_compu_tab() {
-        let mut log_msgs = vec![];
         static FILE_A: &str =
             r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m "" /end MODULE /end PROJECT"#;
         static FILE_B: &str = r#"ASAP2_VERSION 1 71
@@ -2080,8 +2055,8 @@ mod test {
         /end PROJECT"#;
 
         // merging B into A -> A has no COMPU_TABs, so they are all taken from B
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, true).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, true).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, true).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
         assert!(a2l_file_a.project.module[0].compu_tab.is_empty());
         assert!(a2l_file_a.project.module[0].compu_vtab.is_empty());
         assert!(a2l_file_a.project.module[0].compu_vtab_range.is_empty());
@@ -2091,8 +2066,8 @@ mod test {
         assert_eq!(a2l_file_a.project.module[0].compu_vtab_range.len(), 2);
 
         // merging C into B
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, true).unwrap();
-        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, true).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
+        let (mut a2l_file_c, _) = load_from_string(FILE_C, None, true).unwrap();
 
         a2l_file_b.merge_modules(&mut a2l_file_c);
         assert_eq!(a2l_file_b.project.module[0].compu_tab.len(), 3);
@@ -2102,7 +2077,6 @@ mod test {
 
     #[test]
     fn test_merge_unit() {
-        let mut log_msgs = vec![];
         static FILE_A: &str = r#"/begin PROJECT p "" /begin MODULE m "" /end MODULE /end PROJECT"#;
         static FILE_B: &str = r#"/begin PROJECT p ""
             /begin MODULE m ""
@@ -2129,15 +2103,15 @@ mod test {
         /end PROJECT"#;
 
         // merging B into A -> A has no UNIT, so it is taken from B
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
         assert!(a2l_file_a.project.module[0].unit.is_empty());
         a2l_file_a.merge_modules(&mut a2l_file_b);
         assert_eq!(a2l_file_a.project.module[0].unit.len(), 2);
 
         // merging C into B
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
+        let (mut a2l_file_c, _) = load_from_string(FILE_C, None, false).unwrap();
         assert_eq!(a2l_file_b.project.module[0].unit.len(), 2);
         assert_eq!(a2l_file_c.project.module[0].unit.len(), 3);
         a2l_file_b.merge_modules(&mut a2l_file_c);
@@ -2164,7 +2138,6 @@ mod test {
 
     #[test]
     fn test_merge_record_layout() {
-        let mut log_msgs = vec![];
         static FILE_A: &str = r#"/begin PROJECT p "" /begin MODULE m "" /end MODULE /end PROJECT"#;
         static FILE_B: &str = r#"/begin PROJECT p ""
             /begin MODULE m ""
@@ -2202,15 +2175,15 @@ mod test {
         /end PROJECT"#;
 
         // merging B into A -> A has no RECORD_LAYOUT, so it is taken from B
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
         assert!(a2l_file_a.project.module[0].record_layout.is_empty());
         a2l_file_a.merge_modules(&mut a2l_file_b);
         assert_eq!(a2l_file_a.project.module[0].record_layout.len(), 1);
 
         // merging C into B
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
+        let (mut a2l_file_c, _) = load_from_string(FILE_C, None, false).unwrap();
         assert_eq!(a2l_file_b.project.module[0].record_layout.len(), 1);
         a2l_file_b.merge_modules(&mut a2l_file_c);
         assert_eq!(a2l_file_b.project.module[0].record_layout.len(), 3);
@@ -2263,20 +2236,19 @@ mod test {
                 /end MOD_COMMON
             /end MODULE
         /end PROJECT"#;
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_d = load_from_string(FILE_D, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
+        let (mut a2l_file_d, _) = load_from_string(FILE_D, None, false).unwrap();
         a2l_file_b.merge_modules(&mut a2l_file_d);
         assert_eq!(a2l_file_b.project.module[0].record_layout.len(), 2);
 
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
-        let mut a2l_file_e = load_from_string(FILE_E, None, &mut log_msgs, false).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, false).unwrap();
+        let (mut a2l_file_e, _) = load_from_string(FILE_E, None, false).unwrap();
         a2l_file_b.merge_modules(&mut a2l_file_e);
         assert_eq!(a2l_file_b.project.module[0].record_layout.len(), 2);
     }
 
     #[test]
     fn merge_group() {
-        let mut log_msgs = vec![];
         static FILE_A: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
             /begin MEASUREMENT m1 "" FLOAT32_IEEE NO_COMPU_METHOD 1 1.0 0 100
             /end MEASUREMENT
@@ -2332,8 +2304,8 @@ mod test {
             /end GROUP
         /end MODULE /end PROJECT"#;
 
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, true).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, true).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, true).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
 
         a2l_file_a.merge_modules(&mut a2l_file_b);
 
@@ -2379,7 +2351,6 @@ mod test {
 
     #[test]
     fn merge_function() {
-        let mut log_msgs = vec![];
         static FILE_A: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
             /begin MEASUREMENT m1 "" FLOAT32_IEEE NO_COMPU_METHOD 1 1.0 0 100
             /end MEASUREMENT
@@ -2423,8 +2394,8 @@ mod test {
             /end FUNCTION
         /end MODULE /end PROJECT"#;
 
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, true).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, true).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, true).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
 
         a2l_file_a.merge_modules(&mut a2l_file_b);
 
@@ -2477,7 +2448,6 @@ mod test {
 
     #[test]
     fn test_merge_module_ifdata() {
-        let mut log_msgs = vec![];
         static FILE_A: &str =
             r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m "" /end MODULE /end PROJECT"#;
         static FILE_B: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
@@ -2491,14 +2461,14 @@ mod test {
             /end IF_DATA
         /end MODULE /end PROJECT"#;
 
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, true).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, true).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, true).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
         a2l_file_a.merge_modules(&mut a2l_file_b);
         // since file A has no IF_DATA, it is taken from B
         assert_eq!(a2l_file_a.project.module[0].if_data.len(), 1);
 
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, true).unwrap();
-        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, true).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
+        let (mut a2l_file_c, _) = load_from_string(FILE_C, None, true).unwrap();
         a2l_file_b.merge_modules(&mut a2l_file_c);
         // file B already has IF_DATA, so the ones from C are ignored
         assert_eq!(a2l_file_b.project.module[0].if_data.len(), 1);
@@ -2506,7 +2476,6 @@ mod test {
 
     #[test]
     fn test_merge_frame() {
-        let mut log_msgs = vec![];
         static FILE_A: &str =
             r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m "" /end MODULE /end PROJECT"#;
         static FILE_B: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
@@ -2520,14 +2489,14 @@ mod test {
             /end FRAME
         /end MODULE /end PROJECT"#;
 
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, true).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, true).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, true).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
         a2l_file_a.merge_modules(&mut a2l_file_b);
         // since file A has no FRAME, it is taken from B
         assert_eq!(a2l_file_a.project.module[0].frame.len(), 1);
 
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, true).unwrap();
-        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, true).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
+        let (mut a2l_file_c, _) = load_from_string(FILE_C, None, true).unwrap();
         a2l_file_b.merge_modules(&mut a2l_file_c);
         // frames from B and C are merged.
         // frame1 is present in both, but with different content -> frame1 is renamed
@@ -2537,7 +2506,6 @@ mod test {
 
     #[test]
     fn test_merge_transformer() {
-        let mut log_msgs = vec![];
         static FILE_A: &str =
             r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m "" /end MODULE /end PROJECT"#;
         static FILE_B: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
@@ -2551,14 +2519,14 @@ mod test {
             /end TRANSFORMER
         /end MODULE /end PROJECT"#;
 
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, true).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, true).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, true).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
         a2l_file_a.merge_modules(&mut a2l_file_b);
         // since file A has no TRANSFORMER, it is taken from B
         assert_eq!(a2l_file_a.project.module[0].transformer.len(), 1);
 
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, true).unwrap();
-        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, true).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
+        let (mut a2l_file_c, _) = load_from_string(FILE_C, None, true).unwrap();
         a2l_file_b.merge_modules(&mut a2l_file_c);
         // transformers from B and C are merged.
         // transformer1 is present in both, but with different content -> transformer1 is renamed
@@ -2577,7 +2545,6 @@ mod test {
 
     #[test]
     fn test_merge_user_rights() {
-        let mut log_msgs = vec![];
         static FILE_A: &str =
             r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m "" /end MODULE /end PROJECT"#;
         static FILE_B: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
@@ -2592,14 +2559,14 @@ mod test {
             /end USER_RIGHTS
         /end MODULE /end PROJECT"#;
 
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, true).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, true).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, true).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
         a2l_file_a.merge_modules(&mut a2l_file_b);
         // since file A has no USER_RIGHTS, it is taken from B
         assert_eq!(a2l_file_a.project.module[0].user_rights.len(), 1);
 
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, true).unwrap();
-        let mut a2l_file_c = load_from_string(FILE_C, None, &mut log_msgs, true).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
+        let (mut a2l_file_c, _) = load_from_string(FILE_C, None, true).unwrap();
         a2l_file_b.merge_modules(&mut a2l_file_c);
         // user_rights from B and C are merged.
         // user1 is already present in B, so the new copy from C is ignored
@@ -2615,7 +2582,6 @@ mod test {
 
     #[test]
     fn test_make_unique_name() {
-        let mut log_msgs = vec![];
         static FILE_A: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
             /begin MEASUREMENT m1 "" FLOAT32_IEEE NO_COMPU_METHOD 1 1.0 0 100
             /end MEASUREMENT
@@ -2627,8 +2593,8 @@ mod test {
             /end MEASUREMENT
         /end MODULE /end PROJECT"#;
 
-        let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, true).unwrap();
-        let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, true).unwrap();
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, true).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
         a2l_file_a.merge_modules(&mut a2l_file_b);
 
         // the MEASUREMENT m1 in B is renamed, because it is not identical to the one in A

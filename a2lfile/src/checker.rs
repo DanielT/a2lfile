@@ -1129,8 +1129,7 @@ mod test {
                 FNC_VALUES 0 FLOAT32_IEEE ROW_DIR DIRECT
             /end RECORD_LAYOUT
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
 
         // invalid input quantity, conversion, axis points ref, and curve axis ref
@@ -1146,8 +1145,7 @@ mod test {
                 FNC_VALUES 0 FLOAT32_IEEE ROW_DIR DIRECT
             /end RECORD_LAYOUT
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT2, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 1);
 
@@ -1168,8 +1166,7 @@ mod test {
             /begin MEASUREMENT meas "" FLOAT32_IEEE cm  1 1.0 0 100
             /end MEASUREMENT
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT3, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT3, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         // for msg in &log_msgs {
         //     println!("{msg}");
@@ -1190,8 +1187,7 @@ mod test {
             /begin MEASUREMENT meas "" FLOAT32_IEEE cm  1 1.0 0 100
             /end MEASUREMENT
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT4, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT4, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
 
         // invalid input quantity
@@ -1204,8 +1200,7 @@ mod test {
             /begin TYPEDEF_AXIS typedef_axis_name "" input_quantity record_layout 0 conversion 1 0 100
             /end TYPEDEF_AXIS
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
 
         // invalid input quantity, record layout and conversion
@@ -1220,8 +1215,7 @@ mod test {
             /begin RECORD_LAYOUT rl /end RECORD_LAYOUT
             /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit" /end COMPU_METHOD
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT2, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
 
         assert_eq!(log_msgs.len(), 0);
@@ -1233,8 +1227,7 @@ mod test {
             /begin AXIS_PTS axis_pts_name "" 0x1234 input_qty record_layout 0 conversion 3 0.0 10.0
             /end AXIS_PTS
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
 
         // invalid input quantity, record layout (aka deposit_record), and conversion
@@ -1247,8 +1240,7 @@ mod test {
             /begin RECORD_LAYOUT rl
             /end RECORD_LAYOUT
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT2, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 1);
 
@@ -1263,8 +1255,7 @@ mod test {
             /end RECORD_LAYOUT
             /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit" /end COMPU_METHOD
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT3, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT3, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 0);
     }
@@ -1291,8 +1282,7 @@ mod test {
                 /end VIRTUAL_CHARACTERISTIC
             /end CHARACTERISTIC
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 8);
 
@@ -1303,8 +1293,7 @@ mod test {
             /begin RECORD_LAYOUT rl
             /end RECORD_LAYOUT
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT2, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 1);
 
@@ -1321,8 +1310,7 @@ mod test {
                 AXIS_PTS_X 1 FLOAT32_IEEE INDEX_INCR DIRECT
             /end RECORD_LAYOUT
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT3, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT3, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         // invalid axis descr for c, no axis descr for c2
         assert_eq!(log_msgs.len(), 2);
@@ -1336,8 +1324,7 @@ mod test {
             /end RECORD_LAYOUT
             /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit" /end COMPU_METHOD
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT4, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT4, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 0);
     }
@@ -1351,8 +1338,7 @@ mod test {
                 /end AXIS_DESCR
             /end TYPEDEF_CHARACTERISTIC
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 4);
 
@@ -1365,8 +1351,7 @@ mod test {
             /end RECORD_LAYOUT
             /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit" /end COMPU_METHOD
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT2, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         // invalid axis descr
         assert_eq!(log_msgs.len(), 1);
@@ -1380,8 +1365,7 @@ mod test {
             /end RECORD_LAYOUT
             /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit" /end COMPU_METHOD
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT3, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT3, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 0);
     }
@@ -1395,8 +1379,7 @@ mod test {
                 STATUS_STRING_REF status_string_ref
             /end COMPU_METHOD
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
 
         // invalid compu tab ref, ref unit, and status string ref
@@ -1407,8 +1390,7 @@ mod test {
             /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit"
             /end COMPU_METHOD
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT2, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 0);
     }
@@ -1437,8 +1419,7 @@ mod test {
                 /end SUB_FUNCTION
             /end FUNCTION
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
 
         // invalid in measurement, loc measurement, out measurement, def characteristic,
@@ -1450,8 +1431,7 @@ mod test {
             /begin FUNCTION f ""
             /end FUNCTION
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT2, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 0);
     }
@@ -1474,8 +1454,7 @@ mod test {
                 /end SUB_GROUP
             /end GROUP
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
 
         // invalid ref characteristic, ref measurement, function list, and sub group
@@ -1495,8 +1474,7 @@ mod test {
                 /end SUB_GROUP
             /end GROUP
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 1);
 
@@ -1515,8 +1493,7 @@ mod test {
                 /end SUB_GROUP
             /end GROUP
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT2, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 1);
 
@@ -1535,8 +1512,7 @@ mod test {
                 /end SUB_GROUP
             /end GROUP
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT3, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT3, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 1);
     }
@@ -1551,8 +1527,7 @@ mod test {
                 /end FUNCTION_LIST
             /end MEASUREMENT
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
 
         // invalid conversion, memory segment, and function list
@@ -1565,8 +1540,7 @@ mod test {
             /begin TYPEDEF_MEASUREMENT tm "" UBYTE conversion 1 1 0 100
             /end TYPEDEF_MEASUREMENT
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
 
         // invalid conversion
@@ -1585,8 +1559,7 @@ mod test {
                 /end TRANSFORMER_OUT_OBJECTS
             /end TRANSFORMER
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
 
         // invalid inverse transformer, transformer in objects, and transformer out objects
@@ -1597,8 +1570,7 @@ mod test {
             /begin TRANSFORMER transformer_name "version string" "dll32" "dll64" 1 ON_CHANGE NO_INVERSE_TRANSFORMER
             /end TRANSFORMER
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT2, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 0);
     }
@@ -1609,8 +1581,7 @@ mod test {
             /begin INSTANCE i "" type_ref 0x1234
             /end INSTANCE
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
 
         // invalid type ref
@@ -1625,8 +1596,7 @@ mod test {
                 /end STRUCTURE_COMPONENT
             /end TYPEDEF_STRUCTURE
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let (a2lfile, _) = load_from_string(A2L_TEXT, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
 
         // invalid component type
@@ -1754,8 +1724,7 @@ mod test {
             /begin COMPU_METHOD cm3 "" IDENTICAL "%4.2" "unit"
             /end COMPU_METHOD
         /end MODULE /end PROJECT"#;
-        let mut load_errors = Vec::new();
-        let mut a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let (mut a2lfile, _) = load_from_string(A2L_TEXT, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         // invalid limits for each of CHARACTERISTIC, AXIS_DESCR, AXIS_PTS, and MEASUREMENT
         assert_eq!(log_msgs.len(), 4);

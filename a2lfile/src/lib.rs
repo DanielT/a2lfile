@@ -190,10 +190,9 @@ If a definition is provided here and there is also an A2ML block in the file, th
 # Example
 ```
 # use a2lfile::A2lError;
-let mut log_msgs = Vec::<A2lError>::new();
-match a2lfile::load("example.a2l", None, &mut log_msgs, true) {
-    Ok(a2l_file) => {/* do something with it*/},
-    Err(error_message) => println!("{}", error_message)
+match a2lfile::load("example.a2l", None, true) {
+    Ok((a2l_file, log_messages)) => {/* do something with it*/},
+    Err(error_message) => println!("{error_message}")
 }
 ```
 
@@ -204,12 +203,11 @@ An `A2lError` provides details information if loading the file fails.
 pub fn load<P: AsRef<Path>>(
     path: P,
     a2ml_spec: Option<String>,
-    log_msgs: &mut Vec<A2lError>,
     strict_parsing: bool,
-) -> Result<A2lFile, A2lError> {
+) -> Result<(A2lFile, Vec<A2lError>), A2lError> {
     let pathref = path.as_ref();
     let filedata = loader::load(pathref)?;
-    load_impl(pathref, &filedata, log_msgs, strict_parsing, a2ml_spec)
+    load_impl(pathref, &filedata, strict_parsing, a2ml_spec)
 }
 
 /**
@@ -228,6 +226,7 @@ If a definition is provided here and there is also an A2ML block in the file, th
 
 ```rust
 # use a2lfile::A2lError;
+# fn main() -> Result<(), A2lError> {
 let text = r#"
 ASAP2_VERSION 1 71
 /begin PROJECT new_project ""
@@ -235,10 +234,10 @@ ASAP2_VERSION 1 71
   /end MODULE
 /end PROJECT
 "#;
-
-let mut log_msgs = Vec::<A2lError>::new();
-let a2l = a2lfile::load_from_string(&text, None, &mut log_msgs, true).unwrap();
+let (a2l, log_msgs) = a2lfile::load_from_string(&text, None, true).unwrap();
 assert_eq!(a2l.project.module[0].name, "new_module");
+# Ok(())
+# }
 ```
 
 # Errors
@@ -248,20 +247,19 @@ An `A2lError` provides details information if loading the data fails.
 pub fn load_from_string(
     a2ldata: &str,
     a2ml_spec: Option<String>,
-    log_msgs: &mut Vec<A2lError>,
     strict_parsing: bool,
-) -> Result<A2lFile, A2lError> {
+) -> Result<(A2lFile, Vec<A2lError>), A2lError> {
     let pathref = Path::new("");
-    load_impl(pathref, a2ldata, log_msgs, strict_parsing, a2ml_spec)
+    load_impl(pathref, a2ldata, strict_parsing, a2ml_spec)
 }
 
 fn load_impl(
     path: &Path,
     filedata: &str,
-    log_msgs: &mut Vec<A2lError>,
     strict_parsing: bool,
     a2ml_spec: Option<String>,
-) -> Result<A2lFile, A2lError> {
+) -> Result<(A2lFile, Vec<A2lError>), A2lError> {
+    let mut log_msgs = Vec::<A2lError>::new();
     // tokenize the input data
     let tokenresult = tokenizer::tokenize(&Filename::from(path), 0, filedata)
         .map_err(|tokenizer_error| A2lError::TokenizerError { tokenizer_error })?;
@@ -273,7 +271,7 @@ fn load_impl(
     }
 
     // create the parser state object
-    let mut parser = ParserState::new(&tokenresult, log_msgs, strict_parsing);
+    let mut parser = ParserState::new(&tokenresult, &mut log_msgs, strict_parsing);
 
     // if a built-in A2ml specification was passed as a string, then it is parsed here
     if let Some(spec) = a2ml_spec {
@@ -289,7 +287,7 @@ fn load_impl(
         .parse_file()
         .map_err(|parser_error| A2lError::ParserError { parser_error })?;
 
-    Ok(a2l_file)
+    Ok((a2l_file, log_msgs))
 }
 
 /// load an a2l fragment
@@ -515,8 +513,7 @@ mod tests {
 
     #[test]
     fn load_empty_file() {
-        let mut log_msgs = Vec::new();
-        let result = load_from_string("", None, &mut log_msgs, false);
+        let result = load_from_string("", None, false);
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert!(matches!(error, A2lError::EmptyFileError { .. }));
@@ -539,24 +536,21 @@ mod tests {
         "#;
         std::fs::write(path, text).unwrap();
 
-        let mut log_msgs = Vec::<A2lError>::new();
-        let a2l = load(path, None, &mut log_msgs, false).unwrap();
+        let (a2l, _) = load(path, None, false).unwrap();
         assert_eq!(a2l.project.module[0].name, "new_module");
 
         // try to load a file that does not exist
         let nonexistent_path = dir.path().join("nonexistent.a2l");
         let nonexistent_path = nonexistent_path.to_str().unwrap();
-        let result = load(nonexistent_path, None, &mut log_msgs, false);
+        let result = load(nonexistent_path, None, false);
         assert!(matches!(result, Err(A2lError::FileOpenError { .. })));
     }
 
     #[test]
     fn bad_a2ml_data() {
-        let mut log_msgs = Vec::new();
         let result = load_from_string(
             r#"/begin PROJECT x "" /begin MODULE y "" /end MODULE /end PROJECT"#,
             Some("x".to_string()),
-            &mut log_msgs,
             false,
         );
         assert!(result.is_err());
@@ -567,11 +561,9 @@ mod tests {
     #[test]
     fn strict_parsing_version_error() {
         // version is missing completely
-        let mut log_msgs = Vec::new();
         let result = load_from_string(
             r#"/begin PROJECT x "" /begin MODULE y "" /end MODULE /end PROJECT"#,
             None,
-            &mut log_msgs,
             true,
         );
         assert!(result.is_err());
@@ -584,13 +576,7 @@ mod tests {
         ));
 
         // version is damaged
-        let mut log_msgs = Vec::new();
-        let result = load_from_string(
-            r#"ASAP2_VERSION 1 /begin PROJECT"#,
-            None,
-            &mut log_msgs,
-            true,
-        );
+        let result = load_from_string(r#"ASAP2_VERSION 1 /begin PROJECT"#, None, true);
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert!(matches!(
@@ -604,22 +590,19 @@ mod tests {
     #[test]
     fn additional_tokens() {
         // strict parsing off - no error
-        let mut log_msgs = Vec::new();
         let result = load_from_string(
             r#"ASAP2_VERSION 1 71 /begin PROJECT x "" /begin MODULE y "" /end MODULE /end PROJECT abcdef"#,
             None,
-            &mut log_msgs,
             false,
         );
         assert!(result.is_ok());
+        let (_a2l, log_msgs) = result.unwrap();
         assert_eq!(log_msgs.len(), 1);
 
         // strict parsing on - error
-        let mut log_msgs = Vec::new();
         let result = load_from_string(
             r#"ASAP2_VERSION 1 71 /begin PROJECT x "" /begin MODULE y "" /end MODULE /end PROJECT abcdef"#,
             None,
-            &mut log_msgs,
             true,
         );
         assert!(result.is_err());

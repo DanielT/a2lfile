@@ -477,8 +477,7 @@ mod test {
                 /end UNIT
             /end MODULE
         /end PROJECT"#;
-        let mut log_msgs = Vec::new();
-        let a2l_file = crate::load_from_string(DATA, None, &mut log_msgs, true).unwrap();
+        let (a2l_file, _) = crate::load_from_string(DATA, None, true).unwrap();
         let mut log_msgs = Vec::new();
         let namemap_unit = build_namemap_unit(&a2l_file.project.module[0], &mut log_msgs);
         assert_eq!(log_msgs.len(), 1);
@@ -514,8 +513,7 @@ mod test {
                 /end TYPEDEF_STRUCTURE
             /end MODULE
         /end PROJECT"#;
-        let mut log_msgs = Vec::new();
-        let a2l_file = crate::load_from_string(DATA, None, &mut log_msgs, true).unwrap();
+        let (a2l_file, _) = crate::load_from_string(DATA, None, true).unwrap();
         let mut log_msgs = Vec::new();
         let namemap_typedef = build_namemap_typedef(&a2l_file.project.module[0], &mut log_msgs);
         assert_eq!(log_msgs.len(), 5);
@@ -553,8 +551,7 @@ mod test {
                 /end RECORD_LAYOUT
             /end MODULE
         /end PROJECT"#;
-        let mut log_msgs = Vec::new();
-        let a2l_file = crate::load_from_string(DATA, None, &mut log_msgs, true).unwrap();
+        let (a2l_file, _) = crate::load_from_string(DATA, None, true).unwrap();
         let mut log_msgs = Vec::new();
         let namemap_record_layout =
             build_namemap_record_layout(&a2l_file.project.module[0], &mut log_msgs);
@@ -579,8 +576,7 @@ mod test {
                 /end MOD_PAR
             /end MODULE
         /end PROJECT"#;
-        let mut log_msgs = Vec::new();
-        let a2l_file = crate::load_from_string(DATA, None, &mut log_msgs, true).unwrap();
+        let (a2l_file, _) = crate::load_from_string(DATA, None, true).unwrap();
         let mut log_msgs = Vec::new();
         let namemap_memory_segment =
             build_namemap_memory_segment(&a2l_file.project.module[0], &mut log_msgs);
@@ -611,8 +607,7 @@ mod test {
                 /end COMPU_VTAB_RANGE
             /end MODULE
         /end PROJECT"#;
-        let mut log_msgs = Vec::new();
-        let a2l_file = crate::load_from_string(DATA, None, &mut log_msgs, true).unwrap();
+        let (a2l_file, _) = crate::load_from_string(DATA, None, true).unwrap();
         let mut log_msgs = Vec::new();
         let namemap_compu_tab = build_namemap_compu_tab(&a2l_file.project.module[0], &mut log_msgs);
         assert_eq!(log_msgs.len(), 3);
@@ -642,8 +637,7 @@ mod test {
                 /end COMPU_METHOD
             /end MODULE
         /end PROJECT"#;
-        let mut log_msgs = Vec::new();
-        let a2l_file = crate::load_from_string(DATA, None, &mut log_msgs, true).unwrap();
+        let (a2l_file, _) = crate::load_from_string(DATA, None, true).unwrap();
         let mut log_msgs = Vec::new();
         let namemap_compu_method =
             build_namemap_compu_method(&a2l_file.project.module[0], &mut log_msgs);
@@ -666,8 +660,7 @@ mod test {
                 /end TRANSFORMER
             /end MODULE
         /end PROJECT"#;
-        let mut log_msgs = Vec::new();
-        let a2l_file = crate::load_from_string(DATA, None, &mut log_msgs, true).unwrap();
+        let (a2l_file, _) = crate::load_from_string(DATA, None, true).unwrap();
         let mut log_msgs = Vec::new();
         let namemap_transformer =
             build_namemap_transformer(&a2l_file.project.module[0], &mut log_msgs);
@@ -706,8 +699,7 @@ mod test {
                 /end INSTANCE
             /end MODULE
         /end PROJECT"#;
-        let mut log_msgs = Vec::new();
-        let a2l_file = crate::load_from_string(DATA, None, &mut log_msgs, true).unwrap();
+        let (a2l_file, _) = crate::load_from_string(DATA, None, true).unwrap();
         let mut log_msgs = Vec::new();
         let namemap_object = build_namemap_object(&a2l_file.project.module[0], &mut log_msgs);
         assert_eq!(log_msgs.len(), 5);
@@ -749,8 +741,7 @@ mod test {
                 /end VARIANT_CODING
             /end MODULE
         /end PROJECT"#;
-        let mut log_msgs = Vec::new();
-        let a2l_file = crate::load_from_string(DATA, None, &mut log_msgs, true).unwrap();
+        let (a2l_file, _) = crate::load_from_string(DATA, None, true).unwrap();
         let mut log_msgs = Vec::new();
         let namemap_variant = build_namemap_variant(&a2l_file.project.module[0], &mut log_msgs);
         assert_eq!(log_msgs.len(), 1);
@@ -772,8 +763,7 @@ mod test {
                 /end GROUP
             /end MODULE
         /end PROJECT"#;
-        let mut log_msgs = Vec::new();
-        let a2l_file = crate::load_from_string(DATA, None, &mut log_msgs, true).unwrap();
+        let (a2l_file, _) = crate::load_from_string(DATA, None, true).unwrap();
         let mut log_msgs = Vec::new();
         let namemap_group = build_namemap_group(&a2l_file.project.module[0], &mut log_msgs);
         assert_eq!(log_msgs.len(), 1);
@@ -792,8 +782,7 @@ mod test {
                 /end FRAME
             /end MODULE
         /end PROJECT"#;
-        let mut log_msgs = Vec::new();
-        let a2l_file = crate::load_from_string(DATA, None, &mut log_msgs, true).unwrap();
+        let (a2l_file, _) = crate::load_from_string(DATA, None, true).unwrap();
         let mut log_msgs = Vec::new();
         let namemap_frame = build_namemap_frame(&a2l_file.project.module[0], &mut log_msgs);
         assert_eq!(log_msgs.len(), 1);
@@ -812,8 +801,7 @@ mod test {
                 /end FUNCTION
             /end MODULE
         /end PROJECT"#;
-        let mut log_msgs = Vec::new();
-        let a2l_file = crate::load_from_string(DATA, None, &mut log_msgs, true).unwrap();
+        let (a2l_file, _) = crate::load_from_string(DATA, None, true).unwrap();
         let mut log_msgs = Vec::new();
         let namemap_function = build_namemap_function(&a2l_file.project.module[0], &mut log_msgs);
         assert_eq!(log_msgs.len(), 1);
