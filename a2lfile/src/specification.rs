@@ -338,12 +338,12 @@ impl ParseableA2lObject for A2mlVersion {
         let __uid = parser.get_next_id();
         let (__version_no_location, version_no) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__upgrade_no_location, upgrade_no) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let __end_offset: u32 = 0;
@@ -448,7 +448,7 @@ impl ParseableA2lObject for AddrEpk {
         let __uid = parser.get_next_id();
         let (__address_location, address) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -698,7 +698,7 @@ impl ParseableA2lObject for AlignmentByte {
         let __uid = parser.get_next_id();
         let (__alignment_border_location, alignment_border) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -798,7 +798,7 @@ impl ParseableA2lObject for AlignmentFloat16Ieee {
         let __uid = parser.get_next_id();
         let (__alignment_border_location, alignment_border) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -898,7 +898,7 @@ impl ParseableA2lObject for AlignmentFloat32Ieee {
         let __uid = parser.get_next_id();
         let (__alignment_border_location, alignment_border) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -998,7 +998,7 @@ impl ParseableA2lObject for AlignmentFloat64Ieee {
         let __uid = parser.get_next_id();
         let (__alignment_border_location, alignment_border) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -1098,7 +1098,7 @@ impl ParseableA2lObject for AlignmentInt64 {
         let __uid = parser.get_next_id();
         let (__alignment_border_location, alignment_border) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -1198,7 +1198,7 @@ impl ParseableA2lObject for AlignmentLong {
         let __uid = parser.get_next_id();
         let (__alignment_border_location, alignment_border) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -1298,7 +1298,7 @@ impl ParseableA2lObject for AlignmentWord {
         let __uid = parser.get_next_id();
         let (__alignment_border_location, alignment_border) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -2158,7 +2158,7 @@ impl ParseableA2lObject for ArraySize {
         let __uid = parser.get_next_id();
         let (__number_location, number) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -2264,12 +2264,12 @@ impl ParseableA2lObject for Asap2Version {
         let __uid = parser.get_next_id();
         let (__version_no_location, version_no) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__upgrade_no_location, upgrade_no) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let __end_offset: u32 = 0;
@@ -2518,7 +2518,7 @@ impl ParseableA2lObject for AxisDescr {
         );
         let (__max_axis_points_location, max_axis_points) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__lower_limit_location, lower_limit) = (
@@ -3314,7 +3314,7 @@ impl ParseableA2lObject for AxisPts {
         );
         let (__address_location, address) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
         let (__input_quantity_location, input_quantity) = (
@@ -3335,7 +3335,7 @@ impl ParseableA2lObject for AxisPts {
         );
         let (__max_axis_points_location, max_axis_points) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__lower_limit_location, lower_limit) = (
@@ -3956,7 +3956,7 @@ impl ParseableA2lObject for AxisPtsDim {
         let __uid = parser.get_next_id();
         let (__position_location, position) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__datatype_location, datatype) = (
@@ -4207,7 +4207,7 @@ impl ParseableA2lObject for AxisRescaleDim {
         let __uid = parser.get_next_id();
         let (__position_location, position) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__datatype_location, datatype) = (
@@ -4216,7 +4216,7 @@ impl ParseableA2lObject for AxisRescaleDim {
         );
         let (__max_number_of_rescale_pairs_location, max_number_of_rescale_pairs) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__index_incr_location, index_incr) = (
@@ -4348,7 +4348,7 @@ impl ParseableA2lObject for BitMask {
         let __uid = parser.get_next_id();
         let (__mask_location, mask) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u64(context)?;
+            let (value, is_hex) = parser.get_integer::<u64>(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -4730,12 +4730,12 @@ impl ParseableA2lObject for Blob {
         );
         let (__start_address_location, start_address) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
         let (__size_location, size) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
         let mut address_type: Option<AddressType> = None;
@@ -5405,7 +5405,7 @@ impl ParseableA2lObject for CalibrationHandle {
                 |parser: &mut ParserState, context: &ParseContext| {
                     Ok({
                         let line = parser.get_current_line_offset();
-                        let (value, is_hex) = parser.get_integer_i32(context)?;
+                        let (value, is_hex) = parser.get_integer::<i32>(context)?;
                         ((line, is_hex), value)
                     })
                 }
@@ -5695,7 +5695,7 @@ impl ParseableA2lObject for CalibrationMethod {
         );
         let (__version_location, version) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
         let mut calibration_handle: Option<CalibrationHandle> = None;
@@ -6140,7 +6140,7 @@ impl ParseableA2lObject for Characteristic {
         );
         let (__address_location, address) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
         let (__deposit_location, deposit) = (
@@ -7887,7 +7887,7 @@ impl ParseableA2lObject for CompuTab {
         );
         let (__number_value_pairs_location, number_value_pairs) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let mut tab_entry = Vec::new();
@@ -8243,7 +8243,7 @@ impl ParseableA2lObject for CompuVtab {
         );
         let (__number_value_pairs_location, number_value_pairs) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let mut value_pairs = Vec::new();
@@ -8460,7 +8460,7 @@ impl ParseableA2lObject for CompuVtabRange {
         );
         let (__number_value_triples_location, number_value_triples) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let mut value_triples = Vec::new();
@@ -9260,7 +9260,7 @@ impl ParseableA2lObject for DataSize {
         let __uid = parser.get_next_id();
         let (__size_location, size) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -10240,7 +10240,7 @@ impl ParseableA2lObject for DistOpDim {
         let __uid = parser.get_next_id();
         let (__position_location, position) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__datatype_location, datatype) = (
@@ -10443,7 +10443,7 @@ impl ParseableA2lObject for EcuAddress {
         let __uid = parser.get_next_id();
         let (__address_location, address) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -10543,7 +10543,7 @@ impl ParseableA2lObject for EcuAddressExtension {
         let __uid = parser.get_next_id();
         let (__extension_location, extension) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_i16(context)?;
+            let (value, is_hex) = parser.get_integer::<i16>(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -10643,7 +10643,7 @@ impl ParseableA2lObject for EcuCalibrationOffset {
         let __uid = parser.get_next_id();
         let (__offset_location, offset) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_i32(context)?;
+            let (value, is_hex) = parser.get_integer::<i32>(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -10936,7 +10936,7 @@ impl ParseableA2lObject for ErrorMask {
         let __uid = parser.get_next_id();
         let (__mask_location, mask) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u64(context)?;
+            let (value, is_hex) = parser.get_integer::<u64>(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -11147,17 +11147,17 @@ impl ParseableA2lObject for FixAxisPar {
         let __uid = parser.get_next_id();
         let (__offset_location, offset) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_i16(context)?;
+            let (value, is_hex) = parser.get_integer::<i16>(context)?;
             ((line, is_hex), value)
         };
         let (__shift_location, shift) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_i16(context)?;
+            let (value, is_hex) = parser.get_integer::<i16>(context)?;
             ((line, is_hex), value)
         };
         let (__number_apo_location, number_apo) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let __end_offset: u32 = 0;
@@ -11276,17 +11276,17 @@ impl ParseableA2lObject for FixAxisParDist {
         let __uid = parser.get_next_id();
         let (__offset_location, offset) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_i16(context)?;
+            let (value, is_hex) = parser.get_integer::<i16>(context)?;
             ((line, is_hex), value)
         };
         let (__distance_location, distance) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_i16(context)?;
+            let (value, is_hex) = parser.get_integer::<i16>(context)?;
             ((line, is_hex), value)
         };
         let (__number_apo_location, number_apo) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let __end_offset: u32 = 0;
@@ -11526,7 +11526,7 @@ impl ParseableA2lObject for FixNoAxisPtsDim {
         let __uid = parser.get_next_id();
         let (__number_of_axis_points_location, number_of_axis_points) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -11643,7 +11643,7 @@ impl ParseableA2lObject for FncValues {
         let __uid = parser.get_next_id();
         let (__position_location, position) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__datatype_location, datatype) = (
@@ -12145,12 +12145,12 @@ impl ParseableA2lObject for Frame {
         );
         let (__scaling_unit_location, scaling_unit) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__rate_location, rate) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
         let mut frame_measurement: Option<FrameMeasurement> = None;
@@ -13702,7 +13702,7 @@ impl ParseableA2lObject for Identification {
         let __uid = parser.get_next_id();
         let (__position_location, position) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__datatype_location, datatype) = (
@@ -14250,7 +14250,7 @@ impl ParseableA2lObject for Instance {
         );
         let (__start_address_location, start_address) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
         let mut address_type: Option<AddressType> = None;
@@ -14784,7 +14784,7 @@ impl ParseableA2lObject for LeftShift {
         let __uid = parser.get_next_id();
         let (__bitcount_location, bitcount) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -15244,7 +15244,7 @@ impl ParseableA2lObject for MatrixDim {
                 |parser: &mut ParserState, context: &ParseContext| {
                     Ok({
                         let line = parser.get_current_line_offset();
-                        let (value, is_hex) = parser.get_integer_u16(context)?;
+                        let (value, is_hex) = parser.get_integer::<u16>(context)?;
                         ((line, is_hex), value)
                     })
                 }
@@ -15467,12 +15467,12 @@ impl ParseableA2lObject for MaxRefresh {
         let __uid = parser.get_next_id();
         let (__scaling_unit_location, scaling_unit) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__rate_location, rate) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
         let __end_offset: u32 = 0;
@@ -15799,7 +15799,7 @@ impl ParseableA2lObject for Measurement {
         );
         let (__resolution_location, resolution) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__accuracy_location, accuracy) = (
@@ -16573,38 +16573,38 @@ impl ParseableA2lObject for MemoryLayout {
         );
         let (__address_location, address) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
         let (__size_location, size) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
         let (__offset_location, offset) = {
             let __arrayitem_0 = {
                 let line = parser.get_current_line_offset();
-                let (value, is_hex) = parser.get_integer_i32(context)?;
+                let (value, is_hex) = parser.get_integer::<i32>(context)?;
                 ((line, is_hex), value)
             };
             let __arrayitem_1 = {
                 let line = parser.get_current_line_offset();
-                let (value, is_hex) = parser.get_integer_i32(context)?;
+                let (value, is_hex) = parser.get_integer::<i32>(context)?;
                 ((line, is_hex), value)
             };
             let __arrayitem_2 = {
                 let line = parser.get_current_line_offset();
-                let (value, is_hex) = parser.get_integer_i32(context)?;
+                let (value, is_hex) = parser.get_integer::<i32>(context)?;
                 ((line, is_hex), value)
             };
             let __arrayitem_3 = {
                 let line = parser.get_current_line_offset();
-                let (value, is_hex) = parser.get_integer_i32(context)?;
+                let (value, is_hex) = parser.get_integer::<i32>(context)?;
                 ((line, is_hex), value)
             };
             let __arrayitem_4 = {
                 let line = parser.get_current_line_offset();
-                let (value, is_hex) = parser.get_integer_i32(context)?;
+                let (value, is_hex) = parser.get_integer::<i32>(context)?;
                 ((line, is_hex), value)
             };
             (
@@ -16912,38 +16912,38 @@ impl ParseableA2lObject for MemorySegment {
         );
         let (__address_location, address) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
         let (__size_location, size) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
         let (__offset_location, offset) = {
             let __arrayitem_0 = {
                 let line = parser.get_current_line_offset();
-                let (value, is_hex) = parser.get_integer_i32(context)?;
+                let (value, is_hex) = parser.get_integer::<i32>(context)?;
                 ((line, is_hex), value)
             };
             let __arrayitem_1 = {
                 let line = parser.get_current_line_offset();
-                let (value, is_hex) = parser.get_integer_i32(context)?;
+                let (value, is_hex) = parser.get_integer::<i32>(context)?;
                 ((line, is_hex), value)
             };
             let __arrayitem_2 = {
                 let line = parser.get_current_line_offset();
-                let (value, is_hex) = parser.get_integer_i32(context)?;
+                let (value, is_hex) = parser.get_integer::<i32>(context)?;
                 ((line, is_hex), value)
             };
             let __arrayitem_3 = {
                 let line = parser.get_current_line_offset();
-                let (value, is_hex) = parser.get_integer_i32(context)?;
+                let (value, is_hex) = parser.get_integer::<i32>(context)?;
                 ((line, is_hex), value)
             };
             let __arrayitem_4 = {
                 let line = parser.get_current_line_offset();
-                let (value, is_hex) = parser.get_integer_i32(context)?;
+                let (value, is_hex) = parser.get_integer::<i32>(context)?;
                 ((line, is_hex), value)
             };
             (
@@ -19439,7 +19439,7 @@ impl ParseableA2lObject for NoAxisPtsDim {
         let __uid = parser.get_next_id();
         let (__position_location, position) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__datatype_location, datatype) = (
@@ -19547,7 +19547,7 @@ impl ParseableA2lObject for NoOfInterfaces {
         let __uid = parser.get_next_id();
         let (__num_location, num) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -19650,7 +19650,7 @@ impl ParseableA2lObject for NoRescaleDim {
         let __uid = parser.get_next_id();
         let (__position_location, position) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__datatype_location, datatype) = (
@@ -19758,7 +19758,7 @@ impl ParseableA2lObject for Number {
         let __uid = parser.get_next_id();
         let (__number_location, number) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -19861,7 +19861,7 @@ impl ParseableA2lObject for OffsetDim {
         let __uid = parser.get_next_id();
         let (__position_location, position) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__datatype_location, datatype) = (
@@ -20157,7 +20157,7 @@ impl ParseableA2lObject for Overwrite {
         );
         let (__axis_number_location, axis_number) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
         let mut conversion: Option<Conversion> = None;
@@ -23804,7 +23804,7 @@ impl ParseableA2lObject for Reserved {
         let __uid = parser.get_next_id();
         let (__position_location, position) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__data_size_location, data_size) = (
@@ -23912,7 +23912,7 @@ impl ParseableA2lObject for RightShift {
         let __uid = parser.get_next_id();
         let (__bitcount_location, bitcount) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
         let __dummy = ();
@@ -24015,7 +24015,7 @@ impl ParseableA2lObject for RipAddrDim {
         let __uid = parser.get_next_id();
         let (__position_location, position) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__datatype_location, datatype) = (
@@ -24311,7 +24311,7 @@ impl ParseableA2lObject for ShiftOpDim {
         let __uid = parser.get_next_id();
         let (__position_location, position) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__datatype_location, datatype) = (
@@ -24497,37 +24497,37 @@ impl ParseableA2lObject for SiExponents {
         let __uid = parser.get_next_id();
         let (__length_location, length) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_i16(context)?;
+            let (value, is_hex) = parser.get_integer::<i16>(context)?;
             ((line, is_hex), value)
         };
         let (__mass_location, mass) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_i16(context)?;
+            let (value, is_hex) = parser.get_integer::<i16>(context)?;
             ((line, is_hex), value)
         };
         let (__time_location, time) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_i16(context)?;
+            let (value, is_hex) = parser.get_integer::<i16>(context)?;
             ((line, is_hex), value)
         };
         let (__electric_current_location, electric_current) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_i16(context)?;
+            let (value, is_hex) = parser.get_integer::<i16>(context)?;
             ((line, is_hex), value)
         };
         let (__temperature_location, temperature) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_i16(context)?;
+            let (value, is_hex) = parser.get_integer::<i16>(context)?;
             ((line, is_hex), value)
         };
         let (__amount_of_substance_location, amount_of_substance) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_i16(context)?;
+            let (value, is_hex) = parser.get_integer::<i16>(context)?;
             ((line, is_hex), value)
         };
         let (__luminous_intensity_location, luminous_intensity) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_i16(context)?;
+            let (value, is_hex) = parser.get_integer::<i16>(context)?;
             ((line, is_hex), value)
         };
         let __end_offset: u32 = 0;
@@ -24757,7 +24757,7 @@ impl ParseableA2lObject for SrcAddrDim {
         let __uid = parser.get_next_id();
         let (__position_location, position) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__datatype_location, datatype) = (
@@ -25267,7 +25267,7 @@ impl ParseableA2lObject for StructureComponent {
         );
         let (__address_offset_location, address_offset) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
         let mut address_type: Option<AddressType> = None;
@@ -25840,7 +25840,7 @@ impl ParseableA2lObject for SymbolLink {
         );
         let (__offset_location, offset) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_i32(context)?;
+            let (value, is_hex) = parser.get_integer::<i32>(context)?;
             ((line, is_hex), value)
         };
         let __end_offset: u32 = 0;
@@ -26308,7 +26308,7 @@ impl ParseableA2lObject for Transformer {
         );
         let (__timeout_location, timeout) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__trigger_location, trigger) = (
@@ -26928,7 +26928,7 @@ impl ParseableA2lObject for TypedefAxis {
         );
         let (__max_axis_points_location, max_axis_points) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__lower_limit_location, lower_limit) = (
@@ -27272,7 +27272,7 @@ impl ParseableA2lObject for TypedefBlob {
         );
         let (__size_location, size) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
         let mut address_type: Option<AddressType> = None;
@@ -28094,7 +28094,7 @@ impl ParseableA2lObject for TypedefMeasurement {
         );
         let (__resolution_location, resolution) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u16(context)?;
+            let (value, is_hex) = parser.get_integer::<u16>(context)?;
             ((line, is_hex), value)
         };
         let (__accuracy_location, accuracy) = (
@@ -28532,7 +28532,7 @@ impl ParseableA2lObject for TypedefStructure {
         );
         let (__total_size_location, total_size) = {
             let line = parser.get_current_line_offset();
-            let (value, is_hex) = parser.get_integer_u32(context)?;
+            let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
         let mut address_type: Option<AddressType> = None;
@@ -29637,7 +29637,7 @@ impl ParseableA2lObject for VarAddress {
                 |parser: &mut ParserState, context: &ParseContext| {
                     Ok({
                         let line = parser.get_current_line_offset();
-                        let (value, is_hex) = parser.get_integer_u32(context)?;
+                        let (value, is_hex) = parser.get_integer::<u32>(context)?;
                         ((line, is_hex), value)
                     })
                 }

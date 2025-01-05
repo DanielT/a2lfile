@@ -289,28 +289,28 @@ fn generate_item_parser_call(typename: &Option<String>, item: &BaseType) -> Toke
 fn get_int_parser(item: &BaseType) -> TokenStream {
     match item {
         BaseType::Char => {
-            quote! {parser.get_integer_i8}
+            quote! {parser.get_integer::<i8>}
         }
         BaseType::Int => {
-            quote! {parser.get_integer_i16}
+            quote! {parser.get_integer::<i16>}
         }
         BaseType::Long => {
-            quote! {parser.get_integer_i32}
+            quote! {parser.get_integer::<i32>}
         }
         BaseType::Int64 => {
-            quote! {parser.get_integer_i64}
+            quote! {parser.get_integer::<i64>}
         }
         BaseType::Uchar => {
-            quote! {parser.get_integer_u8}
+            quote! {parser.get_integer::<u8>}
         }
         BaseType::Uint => {
-            quote! {parser.get_integer_u16}
+            quote! {parser.get_integer::<u16>}
         }
         BaseType::Ulong => {
-            quote! {parser.get_integer_u32}
+            quote! {parser.get_integer::<u32>}
         }
         BaseType::Uint64 => {
-            quote! {parser.get_integer_u64}
+            quote! {parser.get_integer::<u64>}
         }
         _ => panic!("call of get_int_parser only allowed for integer types"),
     }
