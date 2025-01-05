@@ -98,35 +98,35 @@ fn parse_ifdata_item(
         A2mlTypeSpec::None => GenericIfData::None,
         A2mlTypeSpec::Char => GenericIfData::Char(
             parser.get_current_line_offset(),
-            parser.get_integer_i8(context)?,
+            parser.get_integer::<i8>(context)?,
         ),
         A2mlTypeSpec::Int => GenericIfData::Int(
             parser.get_current_line_offset(),
-            parser.get_integer_i16(context)?,
+            parser.get_integer::<i16>(context)?,
         ),
         A2mlTypeSpec::Long => GenericIfData::Long(
             parser.get_current_line_offset(),
-            parser.get_integer_i32(context)?,
+            parser.get_integer::<i32>(context)?,
         ),
         A2mlTypeSpec::Int64 => GenericIfData::Int64(
             parser.get_current_line_offset(),
-            parser.get_integer_i64(context)?,
+            parser.get_integer::<i64>(context)?,
         ),
         A2mlTypeSpec::UChar => GenericIfData::UChar(
             parser.get_current_line_offset(),
-            parser.get_integer_u8(context)?,
+            parser.get_integer::<u8>(context)?,
         ),
         A2mlTypeSpec::UInt => GenericIfData::UInt(
             parser.get_current_line_offset(),
-            parser.get_integer_u16(context)?,
+            parser.get_integer::<u16>(context)?,
         ),
         A2mlTypeSpec::ULong => GenericIfData::ULong(
             parser.get_current_line_offset(),
-            parser.get_integer_u32(context)?,
+            parser.get_integer::<u32>(context)?,
         ),
         A2mlTypeSpec::UInt64 => GenericIfData::UInt64(
             parser.get_current_line_offset(),
-            parser.get_integer_u64(context)?,
+            parser.get_integer::<u64>(context)?,
         ),
         A2mlTypeSpec::Float => {
             GenericIfData::Float(parser.get_current_line_offset(), parser.get_float(context)?)
@@ -382,7 +382,7 @@ pub(crate) fn parse_unknown_ifdata(
             }
             A2lTokenType::Number => {
                 let line_offset = parser.get_current_line_offset();
-                if let Ok(num) = parser.get_integer_i32(context) {
+                if let Ok(num) = parser.get_integer::<i32>(context) {
                     items.push(GenericIfData::Long(line_offset, num));
                 } else {
                     // try again, looks like the number is a float instead

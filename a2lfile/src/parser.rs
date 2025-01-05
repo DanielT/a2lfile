@@ -1,3 +1,4 @@
+use num_traits::{AsPrimitive, Num};
 use std::fmt::Display;
 use thiserror::Error;
 
@@ -634,154 +635,19 @@ impl<'a> ParserState<'a> {
         }
     }
 
-    // All the following get_integer_<foo> functions were supposed to be one generic function.
-    // I was unable to make that work; the stumbling block is the possiblity for signed data
-    // that is represented as hex to have the high bit set.
-    // E.g. 0xffff is considered to be a valid signed int (i16); it is -1 in decimal notation.
-    // I did not manage to decode this in a generic manner.
-
-    pub(crate) fn get_integer_i8(
+    pub(crate) fn get_integer<T>(
         &mut self,
         context: &ParseContext,
-    ) -> Result<(i8, bool), ParserError> {
-        let token = self.expect_token(context, A2lTokenType::Number)?;
-        let text = self.get_token_text(token);
-        if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
-            match u8::from_str_radix(&text[2..], 16) {
-                Ok(num) => Ok((num as i8, true)),
-                Err(_) => Err(ParserError::malformed_number(self, context, text)),
-            }
-        } else {
-            match text.parse() {
-                Ok(num) => Ok((num, false)),
-                Err(_) => Err(ParserError::malformed_number(self, context, text)),
-            }
-        }
-    }
-
-    pub(crate) fn get_integer_u8(
-        &mut self,
-        context: &ParseContext,
-    ) -> Result<(u8, bool), ParserError> {
-        let token = self.expect_token(context, A2lTokenType::Number)?;
-        let text = self.get_token_text(token);
-        if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
-            match u8::from_str_radix(&text[2..], 16) {
-                Ok(num) => Ok((num, true)),
-                Err(_) => Err(ParserError::malformed_number(self, context, text)),
-            }
-        } else {
-            match text.parse() {
-                Ok(num) => Ok((num, false)),
-                Err(_) => Err(ParserError::malformed_number(self, context, text)),
-            }
-        }
-    }
-
-    pub(crate) fn get_integer_i16(
-        &mut self,
-        context: &ParseContext,
-    ) -> Result<(i16, bool), ParserError> {
-        let token = self.expect_token(context, A2lTokenType::Number)?;
-        let text = self.get_token_text(token);
-        if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
-            match u16::from_str_radix(&text[2..], 16) {
-                Ok(num) => Ok((num as i16, true)),
-                Err(_) => Err(ParserError::malformed_number(self, context, text)),
-            }
-        } else {
-            match text.parse() {
-                Ok(num) => Ok((num, false)),
-                Err(_) => Err(ParserError::malformed_number(self, context, text)),
-            }
-        }
-    }
-
-    pub(crate) fn get_integer_u16(
-        &mut self,
-        context: &ParseContext,
-    ) -> Result<(u16, bool), ParserError> {
-        let token = self.expect_token(context, A2lTokenType::Number)?;
-        let text = self.get_token_text(token);
-        if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
-            match u16::from_str_radix(&text[2..], 16) {
-                Ok(num) => Ok((num, true)),
-                Err(_) => Err(ParserError::malformed_number(self, context, text)),
-            }
-        } else {
-            match text.parse() {
-                Ok(num) => Ok((num, false)),
-                Err(_) => Err(ParserError::malformed_number(self, context, text)),
-            }
-        }
-    }
-
-    pub(crate) fn get_integer_i32(
-        &mut self,
-        context: &ParseContext,
-    ) -> Result<(i32, bool), ParserError> {
-        let token = self.expect_token(context, A2lTokenType::Number)?;
-        let text = self.get_token_text(token);
-        if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
-            match u32::from_str_radix(&text[2..], 16) {
-                Ok(num) => Ok((num as i32, true)),
-                Err(_) => Err(ParserError::malformed_number(self, context, text)),
-            }
-        } else {
-            match text.parse() {
-                Ok(num) => Ok((num, false)),
-                Err(_) => Err(ParserError::malformed_number(self, context, text)),
-            }
-        }
-    }
-
-    pub(crate) fn get_integer_u32(
-        &mut self,
-        context: &ParseContext,
-    ) -> Result<(u32, bool), ParserError> {
-        let token = self.expect_token(context, A2lTokenType::Number)?;
-        let text = self.get_token_text(token);
-        if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
-            match u32::from_str_radix(&text[2..], 16) {
-                Ok(num) => Ok((num, true)),
-                Err(_) => Err(ParserError::malformed_number(self, context, text)),
-            }
-        } else {
-            match text.parse() {
-                Ok(num) => Ok((num, false)),
-                Err(_) => Err(ParserError::malformed_number(self, context, text)),
-            }
-        }
-    }
-
-    pub(crate) fn get_integer_u64(
-        &mut self,
-        context: &ParseContext,
-    ) -> Result<(u64, bool), ParserError> {
+    ) -> Result<(T, bool), ParserError>
+    where
+        T: Num + std::str::FromStr + Copy + 'static,
+        u64: AsPrimitive<T>,
+    {
         let token = self.expect_token(context, A2lTokenType::Number)?;
         let text = self.get_token_text(token);
         if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
             match u64::from_str_radix(&text[2..], 16) {
-                Ok(num) => Ok((num, true)),
-                Err(_) => Err(ParserError::malformed_number(self, context, text)),
-            }
-        } else {
-            match text.parse() {
-                Ok(num) => Ok((num, false)),
-                Err(_) => Err(ParserError::malformed_number(self, context, text)),
-            }
-        }
-    }
-
-    pub(crate) fn get_integer_i64(
-        &mut self,
-        context: &ParseContext,
-    ) -> Result<(i64, bool), ParserError> {
-        let token = self.expect_token(context, A2lTokenType::Number)?;
-        let text = self.get_token_text(token);
-        if text.len() > 2 && (text.starts_with("0x") || text.starts_with("0X")) {
-            match u64::from_str_radix(&text[2..], 16) {
-                Ok(num) => Ok((num as i64, true)),
+                Ok(num_u64) => Ok((num_u64.as_(), true)),
                 Err(_) => Err(ParserError::malformed_number(self, context, text)),
             }
         } else {
@@ -1174,23 +1040,23 @@ mod tests {
         };
 
         // uint8: 0
-        let res = parser.get_integer_u8(&context);
+        let res = parser.get_integer::<u8>(&context);
         assert!(res.is_ok());
         let val = res.unwrap();
         assert_eq!(val, (0, false));
 
         // uint8: 0x1
-        let res = parser.get_integer_u8(&context);
+        let res = parser.get_integer::<u8>(&context);
         assert!(res.is_ok());
         let val = res.unwrap();
         assert_eq!(val, (1, true));
 
         // uint8: 1.0e+2
-        let res = parser.get_integer_u8(&context);
+        let res = parser.get_integer::<u8>(&context);
         assert!(res.is_err());
 
         // uint8: 257
-        let res = parser.get_integer_u8(&context);
+        let res = parser.get_integer::<u8>(&context);
         assert!(res.is_err());
 
         // float: 0
