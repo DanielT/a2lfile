@@ -26,7 +26,32 @@ pub fn check(a2l_file: &A2lFile, log_msgs: &mut Vec<String>) {
         }
 
         for t_characteristic in &module.typedef_characteristic {
-            check_typedef_characteristic(t_characteristic, &name_map, log_msgs);
+            // a TYPEDEF_CHARACTERISTIC is directly used if it is used in an INSTANCE
+            // indirect use is if it is used as a STRUCTURE_COMPONENT in a TYPEDEF_STRUCTURE
+            // directly used TYPEDEF_CHARACTERISTICs cannot use THIS
+            let is_directly_used = module
+                .instance
+                .iter()
+                .any(|instance| instance.type_ref == t_characteristic.name);
+            // build a list of TYPEDEF_STRUCTUREs that use this TYPEDEF_CHARACTERISTIC as a STRUCTURE_COMPONENT
+            // indirectly used TYPEDEF_CHARACTERISTICs can use THIS in their AXIS_DESCRs to refer to the
+            // containing structure
+            let containing_structures: Vec<&TypedefStructure> = module
+                .typedef_structure
+                .iter()
+                .filter(|ts| {
+                    ts.structure_component
+                        .iter()
+                        .any(|sc| sc.component_type == t_characteristic.name)
+                })
+                .collect();
+            check_typedef_characteristic(
+                t_characteristic,
+                &name_map,
+                log_msgs,
+                is_directly_used,
+                &containing_structures,
+            );
         }
 
         for compu_method in &module.compu_method {
@@ -69,6 +94,8 @@ fn check_axis_descr(
     axis_descr: &AxisDescr,
     name_map: &ModuleNameMap,
     log_msgs: &mut Vec<String>,
+    is_directly_used: bool,
+    containing_structures: &[&TypedefStructure],
 ) {
     let line = axis_descr.get_line();
     if axis_descr.input_quantity != "NO_INPUT_QUANTITY"
@@ -105,21 +132,57 @@ fn check_axis_descr(
 
     if let Some(axis_pts_ref) = &axis_descr.axis_pts_ref {
         let apr_line = axis_pts_ref.get_line();
-        if !name_map.object.contains_key(&axis_pts_ref.axis_points) {
+        if !is_directly_used
+            && !containing_structures.is_empty()
+            && axis_pts_ref.axis_points.starts_with("THIS.")
+        {
+            let structure_component = axis_pts_ref.axis_points.strip_prefix("THIS.").unwrap();
+            // is there any containing structure which does not have a component with the given name?
+            if !is_valid_structure_component(structure_component, containing_structures) {
+                // if so, the THIS reference is invalid
+                log_msgs.push(format!("In AXIS_DESCR of CHARACTERISTIC {} on line {}: Referenced STRUCTURE_COMPONENT {} does not exist",
+                    parent_name, apr_line, structure_component));
+            }
+        } else if !name_map.object.contains_key(&axis_pts_ref.axis_points) {
             log_msgs.push(format!("In AXIS_DESCR of CHARACTERISTIC {} on line {}: Referenced AXIS_PTS {} does not exist",
-            parent_name, apr_line, axis_pts_ref.axis_points));
+                parent_name, apr_line, axis_pts_ref.axis_points));
         }
     }
 
     if let Some(curve_axis_ref) = &axis_descr.curve_axis_ref {
         let car_line = curve_axis_ref.get_line();
-        if !name_map.object.contains_key(&curve_axis_ref.curve_axis) {
+        if !is_directly_used
+            && !containing_structures.is_empty()
+            && curve_axis_ref.curve_axis.starts_with("THIS.")
+        {
+            let structure_component = curve_axis_ref.curve_axis.strip_prefix("THIS.").unwrap();
+            // is there any containing structure which does not have a component with the given name?
+            if !is_valid_structure_component(structure_component, containing_structures) {
+                // if so, the THIS reference is invalid
+                log_msgs.push(format!(
+                    "In CURVE_AXIS_REF on line {car_line}: Referenced STRUCTURE_COMPONENT {structure_component} does not exist"
+                ));
+            }
+        } else if !name_map.object.contains_key(&curve_axis_ref.curve_axis) {
             log_msgs.push(format!(
                 "In CURVE_AXIS_REF on line {car_line}: Referenced CHARACTERISTIC {} does not exist",
                 curve_axis_ref.curve_axis
             ));
         }
     }
+}
+
+fn is_valid_structure_component(
+    structure_component: &str,
+    containing_structures: &[&TypedefStructure],
+) -> bool {
+    // all containing structures must have a structure_component with the given name
+    containing_structures.iter().all(|td_struct| {
+        td_struct
+            .structure_component
+            .iter()
+            .any(|sc| sc.component_name == structure_component)
+    })
 }
 
 fn check_typedef_axis(t_axis: &TypedefAxis, name_map: &ModuleNameMap, log_msgs: &mut Vec<String>) {
@@ -210,6 +273,8 @@ fn check_characteristic(
     check_characteristic_common(
         CharacteristicWrapper::Characteristic(characteristic),
         name_map,
+        true, // all CHARACTERISTICs are directly used, indirect use only exists for TYPEDEF_CHARACTERISTICs
+        &[],
         log_msgs,
     );
 
@@ -267,10 +332,14 @@ fn check_typedef_characteristic(
     t_characteristic: &TypedefCharacteristic,
     name_map: &ModuleNameMap,
     log_msgs: &mut Vec<String>,
+    is_directly_used: bool,
+    containing_structures: &[&TypedefStructure],
 ) {
     check_characteristic_common(
         CharacteristicWrapper::TypedefCharacteristic(t_characteristic),
         name_map,
+        is_directly_used,
+        containing_structures,
         log_msgs,
     );
 }
@@ -279,6 +348,8 @@ fn check_typedef_characteristic(
 fn check_characteristic_common(
     characteristic: CharacteristicWrapper,
     name_map: &ModuleNameMap,
+    is_directly_used: bool,
+    containing_structures: &[&TypedefStructure],
     log_msgs: &mut Vec<String>,
 ) {
     let kind = characteristic.kind();
@@ -297,7 +368,14 @@ fn check_characteristic_common(
     }
 
     for axis_descr in characteristic.axis_descr() {
-        check_axis_descr(name, axis_descr, name_map, log_msgs);
+        check_axis_descr(
+            name,
+            axis_descr,
+            name_map,
+            log_msgs,
+            is_directly_used,
+            containing_structures,
+        );
     }
 
     let expected_axis_count = match characteristic.characteristic_type() {
@@ -1647,5 +1725,56 @@ mod test {
         let mut log_msgs = Vec::new();
         super::check(&a2lfile, &mut log_msgs);
         assert_eq!(log_msgs.len(), 0);
+    }
+
+    #[test]
+    fn axis_pts_with_this() {
+        // if an AXIS is defined inside a TYPEDEF_STRUCTURE, then the AXIS_PTS_REF may refer to a structure component using THIS.component_name
+        // valid THIS reference
+        static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin TYPEDEF_AXIS lookup_axis_type "LookUpTable axis" NO_INPUT_QUANTITY F32 0 NO_COMPU_METHOD 16 -1E32 1E32
+            /end TYPEDEF_AXIS
+            /begin TYPEDEF_CHARACTERISTIC lookup_values_type "LookUpTable values" CURVE F32 0 NO_COMPU_METHOD -1E32 1E32
+                /begin AXIS_DESCR COM_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD 16 0.0 0.0
+                    AXIS_PTS_REF THIS.lookup_axis
+                    CURVE_AXIS_REF THIS.lookup_axis
+                /end AXIS_DESCR
+            /end TYPEDEF_CHARACTERISTIC
+            /begin TYPEDEF_STRUCTURE LookUpTable "" 128 CONSISTENT_EXCHANGE
+                /begin STRUCTURE_COMPONENT lookup_axis lookup_axis_type 0 /end STRUCTURE_COMPONENT
+                /begin STRUCTURE_COMPONENT lookup_values lookup_values_type 64 /end STRUCTURE_COMPONENT
+            /end TYPEDEF_STRUCTURE
+            /begin INSTANCE lockup_table "" LookUpTable 0x80010000 /end INSTANCE
+            /begin RECORD_LAYOUT F32
+                FNC_VALUES 0 FLOAT32_IEEE ROW_DIR DIRECT
+            /end RECORD_LAYOUT
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+        assert_eq!(log_msgs.len(), 0);
+
+        // invalid THIS reference
+        static A2L_TEXT2: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin TYPEDEF_CHARACTERISTIC lookup_values_type "LookUpTable values" CURVE F32 0 NO_COMPU_METHOD -1E32 1E32
+                /begin AXIS_DESCR COM_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD 16 0.0 0.0
+                    AXIS_PTS_REF THIS.lookup_axis
+                    CURVE_AXIS_REF THIS.lookup_axis
+                /end AXIS_DESCR
+            /end TYPEDEF_CHARACTERISTIC
+            /begin TYPEDEF_STRUCTURE LookUpTable "" 128 CONSISTENT_EXCHANGE
+                /begin STRUCTURE_COMPONENT lookup_values lookup_values_type 64 /end STRUCTURE_COMPONENT
+            /end TYPEDEF_STRUCTURE
+            /begin INSTANCE lockup_table "" LookUpTable 0x80010000 /end INSTANCE
+            /begin RECORD_LAYOUT F32
+                FNC_VALUES 0 FLOAT32_IEEE ROW_DIR DIRECT
+            /end RECORD_LAYOUT
+        /end MODULE /end PROJECT"#;
+        let mut load_errors = Vec::new();
+        let a2lfile = load_from_string(A2L_TEXT2, None, &mut load_errors, true).unwrap();
+        let mut log_msgs = Vec::new();
+        super::check(&a2lfile, &mut log_msgs);
+        assert_eq!(log_msgs.len(), 2);
     }
 }

@@ -1366,7 +1366,8 @@ ASAP2_VERSION 1 61
         axis_descr.read_only = Some(ReadOnly::new());
         axis_descr.step_size = Some(StepSize::new(1.0));
         characteristic.axis_descr.push(axis_descr);
-        characteristic.comparison_quantity = Some(ComparisonQuantity::new("measurement_name".to_string()));
+        characteristic.comparison_quantity =
+            Some(ComparisonQuantity::new("measurement_name".to_string()));
         let mut dependent_characteristic = DependentCharacteristic::new("formula".to_string());
         dependent_characteristic
             .characteristic_list
