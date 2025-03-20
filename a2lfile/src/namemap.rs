@@ -29,6 +29,43 @@ pub enum NameMapTypedef<'a> {
     TypedefStructure(&'a TypedefStructure),
 }
 
+impl<'a> NameMapTypedef<'a> {
+    pub fn blob(&self) -> Option<&'a TypedefBlob> {
+        match self {
+            Self::TypedefBlob(blob) => Some(blob),
+            _ => None,
+        }
+    }
+
+    pub fn axis(&self) -> Option<&'a TypedefAxis> {
+        match self {
+            Self::TypedefAxis(axis) => Some(axis),
+            _ => None,
+        }
+    }
+
+    pub fn measurement(&self) -> Option<&'a TypedefMeasurement> {
+        match self {
+            Self::TypedefMeasurement(measurement) => Some(measurement),
+            _ => None,
+        }
+    }
+
+    pub fn characteristic(&self) -> Option<&'a TypedefCharacteristic> {
+        match self {
+            Self::TypedefCharacteristic(characteristic) => Some(characteristic),
+            _ => None,
+        }
+    }
+
+    pub fn structure(&self) -> Option<&'a TypedefStructure> {
+        match self {
+            Self::TypedefStructure(structure) => Some(structure),
+            _ => None,
+        }
+    }
+}
+
 macro_rules! check_and_insert {
     ( $hash:expr, $key:expr, $item:expr, $log_msgs:expr, $blockname:expr ) => {
         if let Some(existing_val) = $hash.get(&$key) {
