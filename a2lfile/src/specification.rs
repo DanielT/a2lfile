@@ -367,13 +367,13 @@ impl A2mlVersion {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.version_no,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.add_integer(
             self.upgrade_no,
-            self.__block_info.item_location.1 .1,
-            self.__block_info.item_location.1 .0,
+            self.__block_info.item_location.1.1,
+            self.__block_info.item_location.1.0,
         );
         writer.finish()
     }
@@ -472,8 +472,8 @@ impl AddrEpk {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.address,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.finish()
     }
@@ -722,8 +722,8 @@ impl AlignmentByte {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.alignment_border,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.finish()
     }
@@ -822,8 +822,8 @@ impl AlignmentFloat16Ieee {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.alignment_border,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.finish()
     }
@@ -922,8 +922,8 @@ impl AlignmentFloat32Ieee {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.alignment_border,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.finish()
     }
@@ -1022,8 +1022,8 @@ impl AlignmentFloat64Ieee {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.alignment_border,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.finish()
     }
@@ -1122,8 +1122,8 @@ impl AlignmentInt64 {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.alignment_border,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.finish()
     }
@@ -1222,8 +1222,8 @@ impl AlignmentLong {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.alignment_border,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.finish()
     }
@@ -1322,8 +1322,8 @@ impl AlignmentWord {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.alignment_border,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.finish()
     }
@@ -2182,8 +2182,8 @@ impl ArraySize {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.number,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.finish()
     }
@@ -2293,13 +2293,13 @@ impl Asap2Version {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.version_no,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.add_integer(
             self.upgrade_no,
-            self.__block_info.item_location.1 .1,
-            self.__block_info.item_location.1 .0,
+            self.__block_info.item_location.1.1,
+            self.__block_info.item_location.1.0,
         );
         writer.finish()
     }
@@ -2722,8 +2722,8 @@ impl AxisDescr {
         writer.add_str(&self.conversion, self.__block_info.item_location.2);
         writer.add_integer(
             self.max_axis_points,
-            self.__block_info.item_location.3 .1,
-            self.__block_info.item_location.3 .0,
+            self.__block_info.item_location.3.1,
+            self.__block_info.item_location.3.0,
         );
         writer.add_float(self.lower_limit, self.__block_info.item_location.4);
         writer.add_float(self.upper_limit, self.__block_info.item_location.5);
@@ -3584,8 +3584,8 @@ impl AxisPts {
         writer.add_quoted_string(&self.long_identifier, self.__block_info.item_location.1);
         writer.add_integer(
             self.address,
-            self.__block_info.item_location.2 .1,
-            self.__block_info.item_location.2 .0,
+            self.__block_info.item_location.2.1,
+            self.__block_info.item_location.2.0,
         );
         writer.add_str(&self.input_quantity, self.__block_info.item_location.3);
         writer.add_str(&self.deposit_record, self.__block_info.item_location.4);
@@ -3593,8 +3593,8 @@ impl AxisPts {
         writer.add_str(&self.conversion, self.__block_info.item_location.6);
         writer.add_integer(
             self.max_axis_points,
-            self.__block_info.item_location.7 .1,
-            self.__block_info.item_location.7 .0,
+            self.__block_info.item_location.7.1,
+            self.__block_info.item_location.7.0,
         );
         writer.add_float(self.lower_limit, self.__block_info.item_location.8);
         writer.add_float(self.upper_limit, self.__block_info.item_location.9);
@@ -3999,8 +3999,8 @@ impl AxisPtsDim {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.position,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.add_str(
             &self.datatype.to_string(),
@@ -4257,8 +4257,8 @@ impl AxisRescaleDim {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.position,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.add_str(
             &self.datatype.to_string(),
@@ -4266,8 +4266,8 @@ impl AxisRescaleDim {
         );
         writer.add_integer(
             self.max_number_of_rescale_pairs,
-            self.__block_info.item_location.2 .1,
-            self.__block_info.item_location.2 .0,
+            self.__block_info.item_location.2.1,
+            self.__block_info.item_location.2.0,
         );
         writer.add_str(
             &self.index_incr.to_string(),
@@ -4372,8 +4372,8 @@ impl BitMask {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.mask,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.finish()
     }
@@ -4870,13 +4870,13 @@ impl Blob {
         writer.add_quoted_string(&self.long_identifier, self.__block_info.item_location.1);
         writer.add_integer(
             self.start_address,
-            self.__block_info.item_location.2 .1,
-            self.__block_info.item_location.2 .0,
+            self.__block_info.item_location.2.1,
+            self.__block_info.item_location.2.0,
         );
         writer.add_integer(
             self.size,
-            self.__block_info.item_location.3 .1,
-            self.__block_info.item_location.3 .0,
+            self.__block_info.item_location.3.1,
+            self.__block_info.item_location.3.0,
         );
         let mut tgroup = Vec::<writer::TaggedItemInfo>::new();
         if let Some(address_type) = &self.address_type {
@@ -5746,8 +5746,8 @@ impl CalibrationMethod {
         writer.add_quoted_string(&self.method, self.__block_info.item_location.0);
         writer.add_integer(
             self.version,
-            self.__block_info.item_location.1 .1,
-            self.__block_info.item_location.1 .0,
+            self.__block_info.item_location.1.1,
+            self.__block_info.item_location.1.0,
         );
         let mut tgroup = Vec::<writer::TaggedItemInfo>::new();
         if let Some(calibration_handle) = &self.calibration_handle {
@@ -6488,8 +6488,8 @@ impl Characteristic {
         );
         writer.add_integer(
             self.address,
-            self.__block_info.item_location.3 .1,
-            self.__block_info.item_location.3 .0,
+            self.__block_info.item_location.3.1,
+            self.__block_info.item_location.3.0,
         );
         writer.add_str(&self.deposit, self.__block_info.item_location.4);
         writer.add_float(self.max_diff, self.__block_info.item_location.5);
@@ -7993,8 +7993,8 @@ impl CompuTab {
         );
         writer.add_integer(
             self.number_value_pairs,
-            self.__block_info.item_location.3 .1,
-            self.__block_info.item_location.3 .0,
+            self.__block_info.item_location.3.1,
+            self.__block_info.item_location.3.0,
         );
         for seqitem0 in &self.tab_entry {
             seqitem0.stringify(&mut writer);
@@ -8332,8 +8332,8 @@ impl CompuVtab {
         );
         writer.add_integer(
             self.number_value_pairs,
-            self.__block_info.item_location.3 .1,
-            self.__block_info.item_location.3 .0,
+            self.__block_info.item_location.3.1,
+            self.__block_info.item_location.3.0,
         );
         for seqitem0 in &self.value_pairs {
             seqitem0.stringify(&mut writer);
@@ -8543,8 +8543,8 @@ impl CompuVtabRange {
         writer.add_quoted_string(&self.long_identifier, self.__block_info.item_location.1);
         writer.add_integer(
             self.number_value_triples,
-            self.__block_info.item_location.2 .1,
-            self.__block_info.item_location.2 .0,
+            self.__block_info.item_location.2.1,
+            self.__block_info.item_location.2.0,
         );
         for seqitem0 in &self.value_triples {
             seqitem0.stringify(&mut writer);
@@ -9284,8 +9284,8 @@ impl DataSize {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.size,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.finish()
     }
@@ -10268,8 +10268,8 @@ impl DistOpDim {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.position,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.add_str(
             &self.datatype.to_string(),
@@ -10467,8 +10467,8 @@ impl EcuAddress {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.address,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.finish()
     }
@@ -10567,8 +10567,8 @@ impl EcuAddressExtension {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.extension,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.finish()
     }
@@ -10667,8 +10667,8 @@ impl EcuCalibrationOffset {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.offset,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.finish()
     }
@@ -10960,8 +10960,8 @@ impl ErrorMask {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.mask,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.finish()
     }
@@ -11182,18 +11182,18 @@ impl FixAxisPar {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.offset,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.add_integer(
             self.shift,
-            self.__block_info.item_location.1 .1,
-            self.__block_info.item_location.1 .0,
+            self.__block_info.item_location.1.1,
+            self.__block_info.item_location.1.0,
         );
         writer.add_integer(
             self.number_apo,
-            self.__block_info.item_location.2 .1,
-            self.__block_info.item_location.2 .0,
+            self.__block_info.item_location.2.1,
+            self.__block_info.item_location.2.0,
         );
         writer.finish()
     }
@@ -11315,18 +11315,18 @@ impl FixAxisParDist {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.offset,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.add_integer(
             self.distance,
-            self.__block_info.item_location.1 .1,
-            self.__block_info.item_location.1 .0,
+            self.__block_info.item_location.1.1,
+            self.__block_info.item_location.1.0,
         );
         writer.add_integer(
             self.number_apo,
-            self.__block_info.item_location.2 .1,
-            self.__block_info.item_location.2 .0,
+            self.__block_info.item_location.2.1,
+            self.__block_info.item_location.2.0,
         );
         writer.finish()
     }
@@ -11550,8 +11550,8 @@ impl FixNoAxisPtsDim {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.number_of_axis_points,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.finish()
     }
@@ -11686,8 +11686,8 @@ impl FncValues {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.position,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.add_str(
             &self.datatype.to_string(),
@@ -12216,13 +12216,13 @@ impl Frame {
         writer.add_quoted_string(&self.long_identifier, self.__block_info.item_location.1);
         writer.add_integer(
             self.scaling_unit,
-            self.__block_info.item_location.2 .1,
-            self.__block_info.item_location.2 .0,
+            self.__block_info.item_location.2.1,
+            self.__block_info.item_location.2.0,
         );
         writer.add_integer(
             self.rate,
-            self.__block_info.item_location.3 .1,
-            self.__block_info.item_location.3 .0,
+            self.__block_info.item_location.3.1,
+            self.__block_info.item_location.3.0,
         );
         let mut tgroup = Vec::<writer::TaggedItemInfo>::new();
         if let Some(frame_measurement) = &self.frame_measurement {
@@ -13730,8 +13730,8 @@ impl Identification {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.position,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.add_str(
             &self.datatype.to_string(),
@@ -14426,8 +14426,8 @@ impl Instance {
         writer.add_str(&self.type_ref, self.__block_info.item_location.2);
         writer.add_integer(
             self.start_address,
-            self.__block_info.item_location.3 .1,
-            self.__block_info.item_location.3 .0,
+            self.__block_info.item_location.3.1,
+            self.__block_info.item_location.3.0,
         );
         let mut tgroup = Vec::<writer::TaggedItemInfo>::new();
         if let Some(address_type) = &self.address_type {
@@ -14808,8 +14808,8 @@ impl LeftShift {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.bitcount,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.finish()
     }
@@ -15496,13 +15496,13 @@ impl MaxRefresh {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.scaling_unit,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.add_integer(
             self.rate,
-            self.__block_info.item_location.1 .1,
-            self.__block_info.item_location.1 .0,
+            self.__block_info.item_location.1.1,
+            self.__block_info.item_location.1.0,
         );
         writer.finish()
     }
@@ -16096,8 +16096,8 @@ impl Measurement {
         writer.add_str(&self.conversion, self.__block_info.item_location.3);
         writer.add_integer(
             self.resolution,
-            self.__block_info.item_location.4 .1,
-            self.__block_info.item_location.4 .0,
+            self.__block_info.item_location.4.1,
+            self.__block_info.item_location.4.0,
         );
         writer.add_float(self.accuracy, self.__block_info.item_location.5);
         writer.add_float(self.lower_limit, self.__block_info.item_location.6);
@@ -16681,13 +16681,13 @@ impl MemoryLayout {
         );
         writer.add_integer(
             self.address,
-            self.__block_info.item_location.1 .1,
-            self.__block_info.item_location.1 .0,
+            self.__block_info.item_location.1.1,
+            self.__block_info.item_location.1.0,
         );
         writer.add_integer(
             self.size,
-            self.__block_info.item_location.2 .1,
-            self.__block_info.item_location.2 .0,
+            self.__block_info.item_location.2.1,
+            self.__block_info.item_location.2.0,
         );
         for idx0 in 0..5usize {
             writer.add_integer(
@@ -17038,13 +17038,13 @@ impl MemorySegment {
         );
         writer.add_integer(
             self.address,
-            self.__block_info.item_location.5 .1,
-            self.__block_info.item_location.5 .0,
+            self.__block_info.item_location.5.1,
+            self.__block_info.item_location.5.0,
         );
         writer.add_integer(
             self.size,
-            self.__block_info.item_location.6 .1,
-            self.__block_info.item_location.6 .0,
+            self.__block_info.item_location.6.1,
+            self.__block_info.item_location.6.0,
         );
         for idx0 in 0..5usize {
             writer.add_integer(
@@ -19467,8 +19467,8 @@ impl NoAxisPtsDim {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.position,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.add_str(
             &self.datatype.to_string(),
@@ -19571,8 +19571,8 @@ impl NoOfInterfaces {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.num,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.finish()
     }
@@ -19678,8 +19678,8 @@ impl NoRescaleDim {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.position,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.add_str(
             &self.datatype.to_string(),
@@ -19782,8 +19782,8 @@ impl Number {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.number,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.finish()
     }
@@ -19889,8 +19889,8 @@ impl OffsetDim {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.position,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.add_str(
             &self.datatype.to_string(),
@@ -20264,8 +20264,8 @@ impl Overwrite {
         writer.add_str(&self.name, self.__block_info.item_location.0);
         writer.add_integer(
             self.axis_number,
-            self.__block_info.item_location.1 .1,
-            self.__block_info.item_location.1 .0,
+            self.__block_info.item_location.1.1,
+            self.__block_info.item_location.1.0,
         );
         let mut tgroup = Vec::<writer::TaggedItemInfo>::new();
         if let Some(conversion) = &self.conversion {
@@ -23832,8 +23832,8 @@ impl Reserved {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.position,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.add_str(
             &self.data_size.to_string(),
@@ -23936,8 +23936,8 @@ impl RightShift {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.bitcount,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.finish()
     }
@@ -24043,8 +24043,8 @@ impl RipAddrDim {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.position,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.add_str(
             &self.datatype.to_string(),
@@ -24339,8 +24339,8 @@ impl ShiftOpDim {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.position,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.add_str(
             &self.datatype.to_string(),
@@ -24564,38 +24564,38 @@ impl SiExponents {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.length,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.add_integer(
             self.mass,
-            self.__block_info.item_location.1 .1,
-            self.__block_info.item_location.1 .0,
+            self.__block_info.item_location.1.1,
+            self.__block_info.item_location.1.0,
         );
         writer.add_integer(
             self.time,
-            self.__block_info.item_location.2 .1,
-            self.__block_info.item_location.2 .0,
+            self.__block_info.item_location.2.1,
+            self.__block_info.item_location.2.0,
         );
         writer.add_integer(
             self.electric_current,
-            self.__block_info.item_location.3 .1,
-            self.__block_info.item_location.3 .0,
+            self.__block_info.item_location.3.1,
+            self.__block_info.item_location.3.0,
         );
         writer.add_integer(
             self.temperature,
-            self.__block_info.item_location.4 .1,
-            self.__block_info.item_location.4 .0,
+            self.__block_info.item_location.4.1,
+            self.__block_info.item_location.4.0,
         );
         writer.add_integer(
             self.amount_of_substance,
-            self.__block_info.item_location.5 .1,
-            self.__block_info.item_location.5 .0,
+            self.__block_info.item_location.5.1,
+            self.__block_info.item_location.5.0,
         );
         writer.add_integer(
             self.luminous_intensity,
-            self.__block_info.item_location.6 .1,
-            self.__block_info.item_location.6 .0,
+            self.__block_info.item_location.6.1,
+            self.__block_info.item_location.6.0,
         );
         writer.finish()
     }
@@ -24785,8 +24785,8 @@ impl SrcAddrDim {
         let mut writer = writer::Writer::new(indent);
         writer.add_integer(
             self.position,
-            self.__block_info.item_location.0 .1,
-            self.__block_info.item_location.0 .0,
+            self.__block_info.item_location.0.1,
+            self.__block_info.item_location.0.0,
         );
         writer.add_str(
             &self.datatype.to_string(),
@@ -25354,8 +25354,8 @@ impl StructureComponent {
         writer.add_str(&self.component_type, self.__block_info.item_location.1);
         writer.add_integer(
             self.address_offset,
-            self.__block_info.item_location.2 .1,
-            self.__block_info.item_location.2 .0,
+            self.__block_info.item_location.2.1,
+            self.__block_info.item_location.2.0,
         );
         let mut tgroup = Vec::<writer::TaggedItemInfo>::new();
         if let Some(address_type) = &self.address_type {
@@ -25865,8 +25865,8 @@ impl SymbolLink {
         writer.add_quoted_string(&self.symbol_name, self.__block_info.item_location.0);
         writer.add_integer(
             self.offset,
-            self.__block_info.item_location.1 .1,
-            self.__block_info.item_location.1 .0,
+            self.__block_info.item_location.1.1,
+            self.__block_info.item_location.1.0,
         );
         writer.finish()
     }
@@ -26399,8 +26399,8 @@ impl Transformer {
         writer.add_quoted_string(&self.dllname_64bit, self.__block_info.item_location.3);
         writer.add_integer(
             self.timeout,
-            self.__block_info.item_location.4 .1,
-            self.__block_info.item_location.4 .0,
+            self.__block_info.item_location.4.1,
+            self.__block_info.item_location.4.0,
         );
         writer.add_str(&self.trigger.to_string(), self.__block_info.item_location.5);
         writer.add_str(&self.inverse_transformer, self.__block_info.item_location.6);
@@ -27065,8 +27065,8 @@ impl TypedefAxis {
         writer.add_str(&self.conversion, self.__block_info.item_location.5);
         writer.add_integer(
             self.max_axis_points,
-            self.__block_info.item_location.6 .1,
-            self.__block_info.item_location.6 .0,
+            self.__block_info.item_location.6.1,
+            self.__block_info.item_location.6.0,
         );
         writer.add_float(self.lower_limit, self.__block_info.item_location.7);
         writer.add_float(self.upper_limit, self.__block_info.item_location.8);
@@ -27330,8 +27330,8 @@ impl TypedefBlob {
         writer.add_quoted_string(&self.long_identifier, self.__block_info.item_location.1);
         writer.add_integer(
             self.size,
-            self.__block_info.item_location.2 .1,
-            self.__block_info.item_location.2 .0,
+            self.__block_info.item_location.2.1,
+            self.__block_info.item_location.2.0,
         );
         let mut tgroup = Vec::<writer::TaggedItemInfo>::new();
         if let Some(address_type) = &self.address_type {
@@ -28261,8 +28261,8 @@ impl TypedefMeasurement {
         writer.add_str(&self.conversion, self.__block_info.item_location.3);
         writer.add_integer(
             self.resolution,
-            self.__block_info.item_location.4 .1,
-            self.__block_info.item_location.4 .0,
+            self.__block_info.item_location.4.1,
+            self.__block_info.item_location.4.0,
         );
         writer.add_float(self.accuracy, self.__block_info.item_location.5);
         writer.add_float(self.lower_limit, self.__block_info.item_location.6);
@@ -28621,8 +28621,8 @@ impl TypedefStructure {
         writer.add_quoted_string(&self.long_identifier, self.__block_info.item_location.1);
         writer.add_integer(
             self.total_size,
-            self.__block_info.item_location.2 .1,
-            self.__block_info.item_location.2 .0,
+            self.__block_info.item_location.2.1,
+            self.__block_info.item_location.2.0,
         );
         let mut tgroup = Vec::<writer::TaggedItemInfo>::new();
         if let Some(address_type) = &self.address_type {

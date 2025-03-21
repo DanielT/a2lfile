@@ -1,5 +1,17 @@
 # Changelog
 
+## Version 2.5.0
+
+- fix parsing of VAR_CRITERION
+  VAR_CRITERION contains a list of identifiers as well as the optional keywords VAR_MEASUREMENT
+  and VAR_SELECTION_CHARACTERISTIC. These optional keywords were included in the list of identifiers if they were present
+- improvements for the merge function
+  - TYPEDEF_CHARACTERISTIC may reference a MEASUREMENT, but this reference was not updated during merges
+  - USER_RIGHTS can no longer get duplicate user entries as a result of the merge
+  - all items are merged in the order in which they appear in the merge file. Previously they were merged in reverse order
+- During checking, accept referneces from an AXIS_PRS_REF or CURVE_AXIS_REF of a TYPEDEF_CHARACTERISTIC
+  to a structure component of the containing structure using the notation THIS.component_name.
+
 ## Version 2.4.0
 
 - OS independen path separator handling in /include (Akhil T Thomas)

@@ -2,7 +2,7 @@ use crate::A2lError;
 use std::ffi::{OsStr, OsString};
 use std::fs::File;
 use std::io::Read;
-use std::path::{Path, MAIN_SEPARATOR};
+use std::path::{MAIN_SEPARATOR, Path};
 
 pub(crate) fn make_include_filename(incname: &str, base_filename: &OsStr) -> OsString {
     let normalized_incname: String = incname
@@ -59,7 +59,7 @@ fn read_data(file: &mut File, path: &Path) -> Result<Vec<u8>, A2lError> {
             return Err(A2lError::FileReadError {
                 filename: path.to_path_buf(),
                 ioerror: err,
-            })
+            });
         }
     };
     let bufsize = usize::try_from(filesize).unwrap_or(usize::MAX); // filesize > 4GB on 32bit systems - is it sane ?!?
@@ -221,7 +221,7 @@ mod tests {
 
     #[test]
     fn included_files() {
-        use std::path::{Path, MAIN_SEPARATOR};
+        use std::path::{MAIN_SEPARATOR, Path};
         let dir = tempdir().unwrap();
 
         // base file at <tempdir>/base

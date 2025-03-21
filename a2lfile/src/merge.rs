@@ -1502,9 +1502,11 @@ mod test {
         // merging B into A -> A has no CHARACTERISTIC, so it is taken from B
         let mut a2l_file_a = load_from_string(FILE_A, None, &mut log_msgs, false).unwrap();
         let mut a2l_file_b = load_from_string(FILE_B, None, &mut log_msgs, false).unwrap();
-        assert!(a2l_file_a.project.module[0]
-            .typedef_characteristic
-            .is_empty());
+        assert!(
+            a2l_file_a.project.module[0]
+                .typedef_characteristic
+                .is_empty()
+        );
         a2l_file_a.merge_modules(&mut a2l_file_b);
         assert_eq!(a2l_file_a.project.module[0].typedef_characteristic.len(), 1);
 

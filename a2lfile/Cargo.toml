@@ -1,8 +1,8 @@
 [package]
 name = "a2lfile"
-version = "2.4.0"
+version = "2.5.0"
 authors = ["Daniel Thaler <daniel@dthaler.de>"]
-edition = "2021"
+edition = "2024"
 description = "read, modify and write a2l files"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
@@ -11,11 +11,11 @@ categories = ["parser-implementations"]
 repository = "https://github.com/DanielT/a2lfile"
 
 [dependencies.a2lmacros]
-version = "2.2.0"
+version = "2.3.0"
 
 [dependencies]
 num-traits = "0.2.19"
 thiserror = "2.0"
 
 [dev-dependencies]
-tempfile = "3.8"
+tempfile = "3.15"
