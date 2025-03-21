@@ -52,7 +52,11 @@ pub(crate) trait PositionRestricted {
 }
 
 pub(crate) trait ParseableA2lObject: Sized {
-    fn parse(parser: &mut ParserState, context: &ParseContext, start_offset: u32) -> Result<Self, ParserError>;
+    fn parse(
+        parser: &mut ParserState,
+        context: &ParseContext,
+        start_offset: u32,
+    ) -> Result<Self, ParserError>;
 }
 
 a2l_specification! {
@@ -377,7 +381,7 @@ a2l_specification! {
     /// calibration method specific data
     block CALIBRATION_HANDLE {
         {long handle}* handle_list
-        [-> CALIBRATION_HANDLE_TEXT] (1.60 ..)
+        [-> CALIBRATION_HANDLE_TEXT]* (1.60 ..)
     }
 
     /// Additional text for a calibration handle
@@ -393,7 +397,7 @@ a2l_specification! {
     block CALIBRATION_METHOD {
         string method
         ulong version
-        [-> CALIBRATION_HANDLE]
+        [-> CALIBRATION_HANDLE]*
     }
 
     /// Specifies the type of an adjustable object
