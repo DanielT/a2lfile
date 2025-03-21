@@ -397,7 +397,7 @@ mod test {
         /// calibration method specific data
         block CALIBRATION_HANDLE {
             {long handle}* handle_list
-            [-> CALIBRATION_HANDLE_TEXT] (1.60 ..)
+            [-> CALIBRATION_HANDLE_TEXT]* (1.60 ..)
         }
 
         /// Additional text for a calibration handle
@@ -413,7 +413,7 @@ mod test {
         block CALIBRATION_METHOD {
             string method
             ulong version
-            [-> CALIBRATION_HANDLE]
+            [-> CALIBRATION_HANDLE]*
         }
 
         /// Specifies the type of an adjustable object

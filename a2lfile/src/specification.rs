@@ -5709,7 +5709,7 @@ impl ParseableA2lObject for CalibrationMethod {
                 "CALIBRATION_HANDLE" => {
                     parser.require_block(tag, is_block, context)?;
                     let newitem = CalibrationHandle::parse(parser, &newcontext, line_offset)?;
-                    parser.handle_multiplicity_error(context, tag, calibration_handle.is_some())?;
+                    //parser.handle_multiplicity_error(context, tag, calibration_handle.is_some())?;
                     calibration_handle = Some(newitem);
                 }
                 _ => {
