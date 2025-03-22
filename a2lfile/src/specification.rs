@@ -5616,7 +5616,7 @@ impl CalibrationHandleText {
 pub struct CalibrationMethod {
     pub method: String,
     pub version: u32,
-    pub calibration_handle: Option<CalibrationHandle>,
+    pub calibration_handle: Vec<CalibrationHandle>,
     pub(crate) __block_info: BlockInfo<(u32, (u32, bool))>,
 }
 
@@ -5637,7 +5637,7 @@ impl CalibrationMethod {
         Self {
             method,
             version,
-            calibration_handle: None,
+            calibration_handle: Vec::new(),
             __block_info: BlockInfo {
                 incfile: None,
                 line: 0,
@@ -5671,7 +5671,7 @@ impl A2lObject<(u32, (u32, bool))> for CalibrationMethod {
     }
     fn merge_includes(&mut self) {
         self.__block_info.incfile = None;
-        if let Some(calibration_handle) = &mut self.calibration_handle {
+        for calibration_handle in &mut self.calibration_handle {
             calibration_handle.merge_includes();
         }
     }
@@ -5698,7 +5698,7 @@ impl ParseableA2lObject for CalibrationMethod {
             let (value, is_hex) = parser.get_integer::<u32>(context)?;
             ((line, is_hex), value)
         };
-        let mut calibration_handle: Option<CalibrationHandle> = None;
+        let mut calibration_handle: Vec<CalibrationHandle> = Vec::new();
         let mut next_tag = parser.get_next_tag(context)?;
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
@@ -5709,8 +5709,7 @@ impl ParseableA2lObject for CalibrationMethod {
                 "CALIBRATION_HANDLE" => {
                     parser.require_block(tag, is_block, context)?;
                     let newitem = CalibrationHandle::parse(parser, &newcontext, line_offset)?;
-                    //parser.handle_multiplicity_error(context, tag, calibration_handle.is_some())?;
-                    calibration_handle = Some(newitem);
+                    calibration_handle.push(newitem);
                 }
                 _ => {
                     parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
@@ -5750,7 +5749,7 @@ impl CalibrationMethod {
             self.__block_info.item_location.1 .0,
         );
         let mut tgroup = Vec::<writer::TaggedItemInfo>::new();
-        if let Some(calibration_handle) = &self.calibration_handle {
+        for calibration_handle in &self.calibration_handle {
             let calibration_handle_out = calibration_handle.stringify(indent + 1);
             tgroup.push(writer::TaggedItemInfo {
                 tag: "CALIBRATION_HANDLE",

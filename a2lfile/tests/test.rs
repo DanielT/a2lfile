@@ -1580,7 +1580,7 @@ ASAP2_VERSION 1 61
         calibration_handle.handle_list = vec![1, 2, 3, 4, 5];
         calibration_handle.calibration_handle_text =
             Some(CalibrationHandleText::new("txt".to_string()));
-        calibration_method.calibration_handle = Some(calibration_handle);
+        calibration_method.calibration_handle = vec![calibration_handle];
         mod_par.calibration_method.push(calibration_method);
         mod_par.cpu_type = Some(CpuType::new("leg".to_string()));
         mod_par.customer = Some(Customer::new("c".to_string()));
