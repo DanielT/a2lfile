@@ -152,7 +152,9 @@ ASAP2_VERSION 1 61
         mod_par.ecu_calibration_offset = Some(EcuCalibrationOffset::new(0x12345678));
         mod_par.epk = Some(Epk::new("abcdef".to_string()));
         mod_par.memory_layout = vec![MemoryLayout::new(ProgType::PrgCode, 0, 0, [0, 0, 0, 0, 0])];
-        mod_par.memory_segment = vec![memory_segment];
+        mod_par.memory_segment = [(memory_segment.name.clone(), memory_segment)]
+            .into_iter()
+            .collect();
         mod_par.no_of_interfaces = Some(NoOfInterfaces::new(1));
         mod_par.phone_no = Some(PhoneNo::new("phone_no".to_string()));
         mod_par.supplier = Some(Supplier::new("supplier".to_string()));
@@ -420,7 +422,7 @@ ASAP2_VERSION 1 61
         instance.matrix_dim = Some(matrix_dim.clone());
         instance.max_refresh = Some(MaxRefresh::new(0u16, 0u32));
         instance.model_link = Some(ModelLink::new("model_link".to_string()));
-        instance.overwrite = vec![overwrite];
+        instance.overwrite = [(overwrite.name.clone(), overwrite)].into_iter().collect();
         instance.read_only = Some(ReadOnly::new());
         instance.symbol_link = Some(SymbolLink::new("symbol_link".to_string(), 0));
 
@@ -689,7 +691,10 @@ ASAP2_VERSION 1 61
             TypedefStructure::new("name".to_string(), "long_identifier".to_string(), 0);
         typedef_structure.address_type = Some(AddressType::new(AddrType::Direct));
         typedef_structure.consistent_exchange = Some(ConsistentExchange::new());
-        typedef_structure.structure_component = vec![structure_component];
+        typedef_structure.structure_component =
+            [(structure_component.name.clone(), structure_component)]
+                .into_iter()
+                .collect();
         typedef_structure.symbol_type_link = Some(SymbolTypeLink::new("symbol_type".to_string()));
 
         let mut unit = Unit::new(
@@ -721,32 +726,69 @@ ASAP2_VERSION 1 61
         var_characteristic.var_address = Some(var_address);
 
         let mut variant_coding = VariantCoding::new();
-        variant_coding.var_characteristic = vec![var_characteristic];
+        variant_coding.var_characteristic = [(var_characteristic.name.clone(), var_characteristic)]
+            .into_iter()
+            .collect();
 
         a2l_file.project.module[0].a2ml = Some(a2ml);
         a2l_file.project.module[0].mod_par = Some(mod_par);
         a2l_file.project.module[0].mod_common = Some(mod_common);
-        a2l_file.project.module[0].axis_pts = vec![axis_pts];
-        a2l_file.project.module[0].blob = vec![blob];
-        a2l_file.project.module[0].characteristic = vec![characteristic];
-        a2l_file.project.module[0].compu_method = vec![compu_method, compu_method_2];
-        a2l_file.project.module[0].compu_tab = vec![compu_tab];
-        a2l_file.project.module[0].compu_vtab = vec![compu_vtab];
-        a2l_file.project.module[0].compu_vtab_range = vec![compu_vtab_range];
-        a2l_file.project.module[0].frame = vec![frame];
-        a2l_file.project.module[0].function = vec![function];
-        a2l_file.project.module[0].group = vec![group];
+        a2l_file.project.module[0].axis_pts =
+            [(axis_pts.name.clone(), axis_pts)].into_iter().collect();
+        a2l_file.project.module[0].blob = [(blob.name.clone(), blob)].into_iter().collect();
+        a2l_file.project.module[0].characteristic = [(characteristic.name.clone(), characteristic)]
+            .into_iter()
+            .collect();
+        a2l_file.project.module[0].compu_method = [
+            (compu_method.name.clone(), compu_method),
+            (compu_method_2.name.clone(), compu_method_2),
+        ]
+        .into_iter()
+        .collect();
+        a2l_file.project.module[0].compu_tab =
+            [(compu_tab.name.clone(), compu_tab)].into_iter().collect();
+        a2l_file.project.module[0].compu_vtab = [(compu_vtab.name.clone(), compu_vtab)]
+            .into_iter()
+            .collect();
+        a2l_file.project.module[0].compu_vtab_range =
+            [(compu_vtab_range.name.clone(), compu_vtab_range)]
+                .into_iter()
+                .collect();
+        a2l_file.project.module[0].frame = [(frame.name.clone(), frame)].into_iter().collect();
+        a2l_file.project.module[0].function =
+            [(function.name.clone(), function)].into_iter().collect();
+        a2l_file.project.module[0].group = [(group.name.clone(), group)].into_iter().collect();
         a2l_file.project.module[0].if_data = vec![if_data_a];
-        a2l_file.project.module[0].instance = vec![instance];
-        a2l_file.project.module[0].measurement = vec![measurement];
-        a2l_file.project.module[0].record_layout = vec![record_layout];
-        a2l_file.project.module[0].transformer = vec![transformer];
-        a2l_file.project.module[0].typedef_axis = vec![typedef_axis];
-        a2l_file.project.module[0].typedef_blob = vec![typedef_blob];
-        a2l_file.project.module[0].typedef_characteristic = vec![typedef_characteristic];
-        a2l_file.project.module[0].typedef_measurement = vec![typedef_measurement];
-        a2l_file.project.module[0].typedef_structure = vec![typedef_structure];
-        a2l_file.project.module[0].unit = vec![unit];
+        a2l_file.project.module[0].instance =
+            [(instance.name.clone(), instance)].into_iter().collect();
+        a2l_file.project.module[0].measurement = [(measurement.name.clone(), measurement)]
+            .into_iter()
+            .collect();
+        a2l_file.project.module[0].record_layout = [(record_layout.name.clone(), record_layout)]
+            .into_iter()
+            .collect();
+        a2l_file.project.module[0].transformer = [(transformer.name.clone(), transformer)]
+            .into_iter()
+            .collect();
+        a2l_file.project.module[0].typedef_axis = [(typedef_axis.name.clone(), typedef_axis)]
+            .into_iter()
+            .collect();
+        a2l_file.project.module[0].typedef_blob = [(typedef_blob.name.clone(), typedef_blob)]
+            .into_iter()
+            .collect();
+        a2l_file.project.module[0].typedef_characteristic =
+            [(typedef_characteristic.name.clone(), typedef_characteristic)]
+                .into_iter()
+                .collect();
+        a2l_file.project.module[0].typedef_measurement =
+            [(typedef_measurement.name.clone(), typedef_measurement)]
+                .into_iter()
+                .collect();
+        a2l_file.project.module[0].typedef_structure =
+            [(typedef_structure.name.clone(), typedef_structure)]
+                .into_iter()
+                .collect();
+        a2l_file.project.module[0].unit = [(unit.name.clone(), unit)].into_iter().collect();
         a2l_file.project.module[0].user_rights = vec![user_rights];
         a2l_file.project.module[0].variant_coding = Some(variant_coding);
 
@@ -1274,9 +1316,8 @@ ASAP2_VERSION 1 61
         header.project_no = Some(ProjectNo::new("ident_12345".to_string()));
         header.version = Some(Version::new("version_string".to_string()));
         a2l_file5.project.header = Some(header);
-        let module = &mut a2l_file5.project.module[0];
-        module.name = "mod".to_string();
-        module.long_identifier = "long_identifier".to_string();
+        a2l_file5.project.module.clear();
+        let mut module = Module::new("mod".to_string(), "long_identifier".to_string());
         module.a2ml = Some(A2ml::new(
             r#"
                     block "IF_DATA" struct {
@@ -1311,7 +1352,7 @@ ASAP2_VERSION 1 61
             Some(CalibrationAccess::new(CalibrationAccessEnum::NoCalibration));
         axis_pts.function_list = Some(FunctionList::new());
         axis_pts.if_data.push(IfData::default());
-        module.axis_pts.push(axis_pts);
+        module.axis_pts.insert(axis_pts.name.clone(), axis_pts);
         let mut blob = Blob::new(
             "blob_name".to_string(),
             "long_identifier".to_string(),
@@ -1319,7 +1360,7 @@ ASAP2_VERSION 1 61
             100,
         );
         blob.if_data.push(IfData::default());
-        module.blob.push(blob);
+        module.blob.insert(blob.name.clone(), blob);
         let mut characteristic = Characteristic::new(
             "characteristic_name".to_string(),
             "long_identifier".to_string(),
@@ -1369,7 +1410,9 @@ ASAP2_VERSION 1 61
             .push("characteristic_name".to_string());
         characteristic.virtual_characteristic = Some(virtual_characteristic);
         characteristic.if_data.push(IfData::default());
-        module.characteristic.push(characteristic);
+        module
+            .characteristic
+            .insert(characteristic.name.clone(), characteristic);
         let mut compu_method = CompuMethod::new(
             "compu_method_name".to_string(),
             "".to_string(),
@@ -1385,7 +1428,9 @@ ASAP2_VERSION 1 61
         compu_method.formula = Some(formula);
         compu_method.ref_unit = Some(RefUnit::new("unit_name".to_string()));
         compu_method.status_string_ref = Some(StatusStringRef::new("compu_vtab_name".to_string()));
-        module.compu_method.push(compu_method);
+        module
+            .compu_method
+            .insert(compu_method.name.clone(), compu_method);
         let mut compu_tab = CompuTab::new(
             "compu_tab_name".to_string(),
             "long_identifier".to_string(),
@@ -1396,7 +1441,7 @@ ASAP2_VERSION 1 61
         compu_tab.tab_entry.push(TabEntryStruct::new(2.0, 33.0));
         compu_tab.default_value = Some(DefaultValue::new("abc".to_string()));
         compu_tab.default_value_numeric = Some(DefaultValueNumeric::new(44.0));
-        module.compu_tab.push(compu_tab);
+        module.compu_tab.insert(compu_tab.name.clone(), compu_tab);
         let mut compu_vtab = CompuVtab::new(
             "compu_vtab_name".to_string(),
             "long_identifier".to_string(),
@@ -1410,7 +1455,9 @@ ASAP2_VERSION 1 61
             .value_pairs
             .push(ValuePairsStruct::new(2.0, "def".to_string()));
         compu_vtab.default_value = Some(DefaultValue::new("abc".to_string()));
-        module.compu_vtab.push(compu_vtab);
+        module
+            .compu_vtab
+            .insert(compu_vtab.name.clone(), compu_vtab);
         let mut compu_vtab_range = CompuVtabRange::new(
             "compu_vtab_range_name".to_string(),
             "long_identifier".to_string(),
@@ -1420,7 +1467,9 @@ ASAP2_VERSION 1 61
             .value_triples
             .push(ValueTriplesStruct::new(1.0, 2.0, "abc".to_string()));
         compu_vtab_range.default_value = Some(DefaultValue::new("abc".to_string()));
-        module.compu_vtab_range.push(compu_vtab_range);
+        module
+            .compu_vtab_range
+            .insert(compu_vtab_range.name.clone(), compu_vtab_range);
         let mut frame = Frame::new(
             "frame_name".to_string(),
             "long_identifier".to_string(),
@@ -1433,7 +1482,7 @@ ASAP2_VERSION 1 61
             .push("measurement_name".to_string());
         frame.frame_measurement = Some(frame_measurement);
         frame.if_data.push(IfData::default());
-        module.frame.push(frame);
+        module.frame.insert(frame.name.clone(), frame);
         let mut function =
             Function::new("function_name".to_string(), "long_identifier".to_string());
         function.annotation.push(Annotation::new());
@@ -1472,7 +1521,7 @@ ASAP2_VERSION 1 61
             .push("function_name".to_string());
         function.sub_function = Some(sub_function);
         function.if_data.push(IfData::default());
-        module.function.push(function);
+        module.function.insert(function.name.clone(), function);
         let mut group = Group::new("group_name".to_string(), "long_identifier".to_string());
         group.function_list = Some(FunctionList::new());
         group.ref_characteristic = Some(RefCharacteristic::new());
@@ -1480,7 +1529,7 @@ ASAP2_VERSION 1 61
         group.root = Some(Root::new());
         group.sub_group = Some(SubGroup::new());
         group.if_data.push(IfData::default());
-        module.group.push(group);
+        module.group.insert(group.name.clone(), group);
         let mut if_data = IfData::new();
         if_data.ifdata_items = Some(GenericIfData::Block {
             incfile: None,
@@ -1515,11 +1564,11 @@ ASAP2_VERSION 1 61
         overwrite.limits = Some(Limits::new(0.0, 100.0));
         overwrite.monotony = Some(Monotony::new(MonotonyType::MonIncrease));
         overwrite.phys_unit = Some(PhysUnit::new("unit".to_string()));
-        instance.overwrite.push(overwrite);
+        instance.overwrite.insert(overwrite.name.clone(), overwrite);
         instance.read_only = Some(ReadOnly::new());
         instance.symbol_link = Some(SymbolLink::new("symbol name".to_string(), 0x1234));
         instance.if_data.push(IfData::default());
-        module.instance.push(instance);
+        module.instance.insert(instance.name.clone(), instance);
         let mut measurement = Measurement::new(
             "measurement_name".to_string(),
             "long_identifier".to_string(),
@@ -1559,7 +1608,9 @@ ASAP2_VERSION 1 61
         let mut var_virtual = Virtual::new();
         var_virtual.measuring_channel_list.push("ident".to_string());
         measurement.var_virtual = Some(var_virtual);
-        module.measurement.push(measurement);
+        module
+            .measurement
+            .insert(measurement.name.clone(), measurement);
         let mut mod_common = ModCommon::new("description".to_string());
         mod_common.alignment_byte = Some(AlignmentByte::new(1));
         mod_common.alignment_float16_ieee = Some(AlignmentFloat16Ieee::new(2));
@@ -1579,7 +1630,7 @@ ASAP2_VERSION 1 61
         let mut calibration_handle = CalibrationHandle::new();
         calibration_handle.handle_list = vec![1, 2, 3, 4, 5];
         calibration_handle.calibration_handle_text =
-            Some(CalibrationHandleText::new("txt".to_string()));
+            vec![CalibrationHandleText::new("txt".to_string())];
         calibration_method.calibration_handle = vec![calibration_handle];
         mod_par.calibration_method.push(calibration_method);
         mod_par.cpu_type = Some(CpuType::new("leg".to_string()));
@@ -1591,7 +1642,7 @@ ASAP2_VERSION 1 61
         let mut memory_layout = MemoryLayout::new(ProgType::PrgData, 0x1234, 1, [0; 5]);
         memory_layout.if_data.push(IfData::default());
         mod_par.memory_layout.push(memory_layout);
-        mod_par.memory_segment.push(MemorySegment::new(
+        let memory_segment = MemorySegment::new(
             "memory_segment".to_string(),
             "long_identifier".to_string(),
             PrgType::Data,
@@ -1600,7 +1651,10 @@ ASAP2_VERSION 1 61
             0,
             0,
             [0; 5],
-        ));
+        );
+        mod_par
+            .memory_segment
+            .insert(memory_segment.name.clone(), memory_segment);
         mod_par.no_of_interfaces = Some(NoOfInterfaces::new(1));
         mod_par.phone_no = Some(PhoneNo::new("1".to_string()));
         mod_par.supplier = Some(Supplier::new("s".to_string()));
@@ -1736,7 +1790,9 @@ ASAP2_VERSION 1 61
         record_layout.shift_op_5 = Some(ShiftOpDim::new(8, DataType::Sword));
         record_layout.static_address_offsets = Some(StaticAddressOffsets::new());
         record_layout.static_record_layout = Some(StaticRecordLayout::new());
-        module.record_layout.push(record_layout);
+        module
+            .record_layout
+            .insert(record_layout.name.clone(), record_layout);
         let mut transformer = Transformer::new(
             "transformer_name".to_string(),
             "version string".to_string(),
@@ -1748,7 +1804,9 @@ ASAP2_VERSION 1 61
         );
         transformer.transformer_in_objects = Some(TransformerInObjects::new());
         transformer.transformer_out_objects = Some(TransformerOutObjects::new());
-        module.transformer.push(transformer);
+        module
+            .transformer
+            .insert(transformer.name.clone(), transformer);
         let mut typedef_axis = TypedefAxis::new(
             "typedef_axis_name".to_string(),
             "long_identifier".to_string(),
@@ -1763,14 +1821,18 @@ ASAP2_VERSION 1 61
         typedef_axis.byte_order = Some(ByteOrder::new(ByteOrderEnum::MsbLast));
         typedef_axis.monotony = Some(Monotony::new(MonotonyType::MonDecrease));
         typedef_axis.step_size = Some(StepSize::new(3.0));
-        module.typedef_axis.push(typedef_axis);
+        module
+            .typedef_axis
+            .insert(typedef_axis.name.clone(), typedef_axis);
         let mut typedef_blob = TypedefBlob::new(
             "typedef_blob_name".to_string(),
             "long_identifier".to_string(),
             1,
         );
         typedef_blob.address_type = Some(AddressType::new(AddrType::Direct));
-        module.typedef_blob.push(typedef_blob);
+        module
+            .typedef_blob
+            .insert(typedef_blob.name.clone(), typedef_blob);
         let mut typedef_characteristic = TypedefCharacteristic::new(
             "typedef_characteristic_name".to_string(),
             "long_identifier".to_string(),
@@ -1784,7 +1846,9 @@ ASAP2_VERSION 1 61
         typedef_characteristic.bit_mask = Some(BitMask::new(0x22));
         typedef_characteristic.discrete = Some(Discrete::new());
         typedef_characteristic.encoding = Some(Encoding::new(CharacterEncoding::Utf8));
-        module.typedef_characteristic.push(typedef_characteristic);
+        module
+            .typedef_characteristic
+            .insert(typedef_characteristic.name.clone(), typedef_characteristic);
         let mut typedef_measurement = TypedefMeasurement::new(
             "typedef_measurement_name".to_string(),
             "long_identifier".to_string(),
@@ -1796,7 +1860,9 @@ ASAP2_VERSION 1 61
             100.0,
         );
         typedef_measurement.address_type = Some(AddressType::new(AddrType::Direct));
-        module.typedef_measurement.push(typedef_measurement);
+        module
+            .typedef_measurement
+            .insert(typedef_measurement.name.clone(), typedef_measurement);
         let mut typedef_structure = TypedefStructure::new(
             "typedef_structure_name".to_string(),
             "long_identifier".to_string(),
@@ -1816,9 +1882,11 @@ ASAP2_VERSION 1 61
         structure_component.symbol_type_link = Some(SymbolTypeLink::new("abc".to_string()));
         typedef_structure
             .structure_component
-            .push(structure_component);
+            .insert(structure_component.name.clone(), structure_component);
         typedef_structure.symbol_type_link = Some(SymbolTypeLink::new("abcdef".to_string()));
-        module.typedef_structure.push(typedef_structure);
+        module
+            .typedef_structure
+            .insert(typedef_structure.name.clone(), typedef_structure);
         let mut unit = Unit::new(
             "unit_name".to_string(),
             "long_identifier".to_string(),
@@ -1828,7 +1896,7 @@ ASAP2_VERSION 1 61
         unit.ref_unit = Some(RefUnit::new("ref_unit".to_string()));
         unit.si_exponents = Some(SiExponents::new(1, 2, 3, 4, 5, 6, 7));
         unit.unit_conversion = Some(UnitConversion::new(1.0, 1.0));
-        module.unit.push(unit);
+        module.unit.insert(unit.name.clone(), unit);
         let mut user_rights = UserRights::new("user".to_string());
         user_rights.read_only = Some(ReadOnly::new());
         let mut ref_group = RefGroup::new();
@@ -1859,12 +1927,18 @@ ASAP2_VERSION 1 61
         var_criterion.var_selection_characteristic = Some(VarSelectionCharacteristic::new(
             "characteristic_name".to_string(),
         ));
-        variant_coding.var_characteristic.push(var_characteristic);
+        variant_coding
+            .var_characteristic
+            .insert(var_characteristic.name.clone(), var_characteristic);
         variant_coding.var_naming = Some(VarNaming::new(VarNamingTag::Numeric));
         variant_coding.var_separator = Some(VarSeparator::new(".".to_string()));
         variant_coding.var_forbidden_comb.push(var_forbidden_comb);
-        variant_coding.var_criterion.push(var_criterion);
+        variant_coding
+            .var_criterion
+            .insert(var_criterion.name.clone(), var_criterion);
         module.variant_coding = Some(variant_coding);
+        a2l_file5.project.module.insert(module.name.clone(), module);
+
         assert_eq!(a2l_file, a2l_file5);
 
         // check the data in a2l_file and a2l_file5

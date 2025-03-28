@@ -441,10 +441,20 @@ fn generate_taggeditem_match_arms(
 
         if item.repeat {
             // repeated items are represented as Vec<TypeName>
-            var_definitions.extend(quote! {let mut #itemname: Vec<#typename> = Vec::new();});
-            store_item = quote! {
-                #itemname.push(newitem);
-            };
+            if item.is_named {
+                var_definitions.extend(quote! {let mut #itemname: FnvIndexMap<String, #typename> = FnvIndexMap::default();});
+                store_item = quote! {
+                    let olditem = #itemname.insert(newitem.name.clone(), newitem);
+                    if let Some(olditem) = olditem {
+                        ParserError::duplicate_tag_error(parser, context, &olditem.name)?;
+                    }
+                };
+            } else {
+                var_definitions.extend(quote! {let mut #itemname: Vec<#typename> = Vec::new();});
+                store_item = quote! {
+                    #itemname.push(newitem);
+                };
+            }
             if item.required {
                 multiplicity_check.extend(quote! {
                     if #itemname.len() == 0 {

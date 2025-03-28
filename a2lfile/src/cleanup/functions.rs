@@ -16,13 +16,13 @@ pub(crate) fn cleanup(module: &mut Module) {
     let used_functions = get_used_functions(module);
 
     let mut name2idx = HashMap::<String, usize>::new();
-    for (idx, func) in module.function.iter().enumerate() {
+    for (idx, func) in module.function.values().enumerate() {
         name2idx.insert(func.name.clone(), idx);
     }
 
     let mut user_of = vec![Vec::<usize>::new(); module.function.len()];
     let mut delete_queue: Vec<usize> = vec![];
-    for (idx, func) in module.function.iter_mut().enumerate() {
+    for (idx, (_, func)) in module.function.iter_mut().enumerate() {
         // build up a reverse reference list, i.e. for each function, which other functions list it as a sub-function
         if let Some(sub_function) = &func.sub_function {
             for name in &sub_function.identifier_list {
@@ -63,21 +63,21 @@ pub(crate) fn cleanup(module: &mut Module) {
 
     // retain only those items in module.function where the matching to_delete flag is false
     let mut del_iter = to_delete.iter();
-    module.function.retain(|_| !del_iter.next().unwrap());
+    module.function.retain(|_, _| !del_iter.next().unwrap());
 }
 
 fn get_used_functions(module: &Module) -> HashSet<String> {
     let mut used_funcs = HashSet::new();
-    for item in &module.axis_pts {
+    for item in module.axis_pts.values() {
         insert_func_names(&item.function_list, &mut used_funcs);
     }
-    for item in &module.characteristic {
+    for item in module.characteristic.values() {
         insert_func_names(&item.function_list, &mut used_funcs);
     }
-    for item in &module.measurement {
+    for item in module.measurement.values() {
         insert_func_names(&item.function_list, &mut used_funcs);
     }
-    for item in &module.group {
+    for item in module.group.values() {
         insert_func_names(&item.function_list, &mut used_funcs);
     }
 
@@ -135,14 +135,10 @@ fn is_function_empty(func: &Function) -> bool {
 // remove references to nonexistent functions from all places where function references are possible
 fn remove_broken_func_refs(module: &mut Module) {
     // get the set of all names of existing functions
-    let existing_functions: HashSet<String> = module
-        .function
-        .iter()
-        .map(|func| func.name.clone())
-        .collect();
+    let existing_functions: HashSet<String> = module.function.keys().cloned().collect();
 
     // keep only references to existing functions, dropping any that don't exist
-    for axispts in &mut module.axis_pts {
+    for axispts in module.axis_pts.values_mut() {
         if let Some(function_list) = &mut axispts.function_list {
             function_list
                 .name_list
@@ -150,7 +146,7 @@ fn remove_broken_func_refs(module: &mut Module) {
         }
     }
 
-    for chara in &mut module.characteristic {
+    for chara in module.characteristic.values_mut() {
         if let Some(function_list) = &mut chara.function_list {
             function_list
                 .name_list
@@ -158,7 +154,7 @@ fn remove_broken_func_refs(module: &mut Module) {
         }
     }
 
-    for meas in &mut module.measurement {
+    for meas in module.measurement.values_mut() {
         if let Some(function_list) = &mut meas.function_list {
             function_list
                 .name_list
@@ -166,7 +162,7 @@ fn remove_broken_func_refs(module: &mut Module) {
         }
     }
 
-    for group in &mut module.group {
+    for group in module.group.values_mut() {
         if let Some(function_list) = &mut group.function_list {
             function_list
                 .name_list
@@ -174,7 +170,7 @@ fn remove_broken_func_refs(module: &mut Module) {
         }
     }
 
-    for function in &mut module.function {
+    for function in module.function.values_mut() {
         if let Some(sub_functions) = &mut function.sub_function {
             sub_functions
                 .identifier_list
@@ -184,53 +180,36 @@ fn remove_broken_func_refs(module: &mut Module) {
 }
 
 fn remove_broken_object_refs(module: &mut Module) {
-    let mut object_names = HashSet::<String>::new();
-
-    // collect the names of all objects a function might refer to
-    for characteristic in &module.characteristic {
-        object_names.insert(characteristic.name.clone());
-    }
-    for measurement in &module.measurement {
-        object_names.insert(measurement.name.clone());
-    }
-    for instance in &module.instance {
-        object_names.insert(instance.name.clone());
-    }
-    // I've seen a file where a FUNCTION referred to an AXIS_PTS in its REF_CHARACTERISTIC, so AXIS_PTS is definitely needed
-    for axis_pts in &module.axis_pts {
-        object_names.insert(axis_pts.name.clone());
-    }
-    // Not sure if functions can refer to BLOBs, but it won't hurt to have these names in the set
-    for blob in &module.blob {
-        object_names.insert(blob.name.clone());
-    }
+    let mut function = std::mem::take(&mut module.function);
+    let objects = module.objects();
 
     // retain only references to existing objects
-    for func in &mut module.function {
+    for func in function.values_mut() {
         if let Some(ref_characteristic) = &mut func.ref_characteristic {
             ref_characteristic
                 .identifier_list
-                .retain(|ident| object_names.contains(ident));
+                .retain(|ident| objects.contains_key(ident));
         }
         if let Some(def_characteristic) = &mut func.def_characteristic {
             def_characteristic
                 .identifier_list
-                .retain(|ident| object_names.contains(ident));
+                .retain(|ident| objects.contains_key(ident));
         }
         if let Some(in_measurement) = &mut func.in_measurement {
             in_measurement
                 .identifier_list
-                .retain(|ident| object_names.contains(ident));
+                .retain(|ident| objects.contains_key(ident));
         }
         if let Some(loc_measurement) = &mut func.loc_measurement {
             loc_measurement
                 .identifier_list
-                .retain(|ident| object_names.contains(ident));
+                .retain(|ident| objects.contains_key(ident));
         }
         if let Some(out_measurement) = &mut func.out_measurement {
             out_measurement
                 .identifier_list
-                .retain(|ident| object_names.contains(ident));
+                .retain(|ident| objects.contains_key(ident));
         }
     }
+    module.function = function;
 }

@@ -68,14 +68,23 @@ fn generate_block_writer_generic(typename: &str, structitems: &[DataItem]) -> To
 
     let write_items = generate_block_item_writers(structitems);
 
-    quote! {
-        impl #typeident {
-            pub(crate) fn stringify(&self, indent: usize) -> String {
-                let mut writer = writer::Writer::new(indent);
-
-                #(#write_items)*
-
-                writer.finish()
+    if write_items.is_empty() {
+        quote! {
+            impl #typeident {
+                pub(crate) fn stringify(&self, indent: usize) -> String {
+                    let writer = writer::Writer::new(indent);
+                    writer.finish()
+                }
+            }
+        }
+    } else {
+        quote! {
+            impl #typeident {
+                pub(crate) fn stringify(&self, indent: usize) -> String {
+                    let mut writer = writer::Writer::new(indent);
+                    #(#write_items)*
+                    writer.finish()
+                }
             }
         }
     }
@@ -121,22 +130,41 @@ fn generate_block_item_writers(structitems: &[DataItem]) -> Vec<TokenStream> {
                     let tgname_out = format_ident!("{}_out", tgname);
                     let is_block = tgitem.is_block;
                     if tgitem.repeat {
-                        tgwriters.push(quote! {
-                            for #tgname in &self.#tgname {
-                                let #tgname_out = #tgname.stringify(indent + 1);
-                                tgroup.push(writer::TaggedItemInfo {
-                                    tag: #tag,
-                                    item_text: #tgname_out,
-                                    is_block: #is_block,
-                                    incfile: &#tgname.__block_info.incfile,
-                                    uid: #tgname.__block_info.uid,
-                                    line: #tgname.__block_info.line,
-                                    start_offset: #tgname.__block_info.start_offset,
-                                    end_offset: #tgname.__block_info.end_offset,
-                                    position_restriction: #tgname.pos_restrict(),
-                                });
-                            }
-                        });
+                        if tgitem.is_named {
+                            tgwriters.push(quote! {
+                                for #tgname in self.#tgname.values() {
+                                    let #tgname_out = #tgname.stringify(indent + 1);
+                                    tgroup.push(writer::TaggedItemInfo {
+                                        tag: #tag,
+                                        item_text: #tgname_out,
+                                        is_block: #is_block,
+                                        incfile: &#tgname.__block_info.incfile,
+                                        uid: #tgname.__block_info.uid,
+                                        line: #tgname.__block_info.line,
+                                        start_offset: #tgname.__block_info.start_offset,
+                                        end_offset: #tgname.__block_info.end_offset,
+                                        position_restriction: #tgname.pos_restrict(),
+                                    });
+                                }
+                            });
+                        } else {
+                            tgwriters.push(quote! {
+                                for #tgname in &self.#tgname {
+                                    let #tgname_out = #tgname.stringify(indent + 1);
+                                    tgroup.push(writer::TaggedItemInfo {
+                                        tag: #tag,
+                                        item_text: #tgname_out,
+                                        is_block: #is_block,
+                                        incfile: &#tgname.__block_info.incfile,
+                                        uid: #tgname.__block_info.uid,
+                                        line: #tgname.__block_info.line,
+                                        start_offset: #tgname.__block_info.start_offset,
+                                        end_offset: #tgname.__block_info.end_offset,
+                                        position_restriction: #tgname.pos_restrict(),
+                                    });
+                                }
+                            });
+                        }
                     } else if tgitem.required {
                         tgwriters.push(quote! {
                             let #tgname_out = self.#tgname.stringify(indent + 1);
@@ -263,8 +291,7 @@ fn generate_block_item_write_cmd(
             let seqitemident = format_ident!("seqitem{}", calldepth);
             let seqidxident = format_ident!("seqidx{}", calldepth);
             let default_location = generate_default_location(seqtype);
-            let seqlocation =
-                quote! {(*#location.get(#seqidxident).unwrap_or_else(|| &#default_location))};
+            let seqlocation = quote! {(*#location.get(#seqidxident).unwrap_or(&#default_location))};
 
             // in the write_cmd all the integer basetypes need an additional dereference, because .iter().enumerate() gives us references
             let write_cmd = match **seqtype {

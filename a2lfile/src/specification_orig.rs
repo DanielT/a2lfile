@@ -1,10 +1,14 @@
 use a2lmacros::a2l_specification;
+use fnv::FnvBuildHasher;
+use indexmap::IndexMap;
 
 use crate::a2ml;
 use crate::ifdata;
 use crate::parser::{A2lVersion, ParseContext, ParserError, ParserState};
 use crate::tokenizer::A2lTokenType;
 use crate::writer;
+
+pub type FnvIndexMap<K, V> = IndexMap<K, V, FnvBuildHasher>;
 
 /// Describes the location and formatting of an a2l block within a file
 #[derive(PartialEq, Eq, Clone)]
@@ -1253,7 +1257,7 @@ a2l_specification! {
 
     /// defines a single component of a TYPEDEF_STRUCTURE
     block STRUCTURE_COMPONENT {
-        ident component_name
+        ident name
         ident component_type
         ulong address_offset
         [-> ADDRESS_TYPE]  (1.71 ..)

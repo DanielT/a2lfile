@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use crate::specification::{A2lObjectName, Group, Module};
+use crate::specification::{Group, Module};
 
 pub(crate) fn cleanup(module: &mut Module) {
     // in all groups, remove references to non-existent CHARACTERISTICs, MEASUREMENTs, etc.
@@ -15,7 +15,7 @@ fn remove_invalid_object_references(module: &mut Module) {
     // a set of the names that a group could potentially refer to
     let refnames = build_refname_set(module);
 
-    for grp in &mut module.group {
+    for grp in module.group.values_mut() {
         if let Some(ref_characteristic) = &mut grp.ref_characteristic {
             // retain only references to existing characteristics
             ref_characteristic
@@ -39,17 +39,17 @@ fn remove_invalid_object_references(module: &mut Module) {
 
 fn build_refname_set(module: &Module) -> HashSet<String> {
     let mut refnames = HashSet::new();
-    for item in &module.characteristic {
-        refnames.insert(item.get_name().to_owned());
+    for name in module.characteristic.keys() {
+        refnames.insert(name.clone());
     }
-    for item in &module.measurement {
-        refnames.insert(item.get_name().to_owned());
+    for name in module.measurement.keys() {
+        refnames.insert(name.clone());
     }
-    for item in &module.blob {
-        refnames.insert(item.get_name().to_owned());
+    for name in module.blob.keys() {
+        refnames.insert(name.clone());
     }
-    for item in &module.instance {
-        refnames.insert(item.get_name().to_owned());
+    for name in module.instance.keys() {
+        refnames.insert(name.clone());
     }
 
     refnames
@@ -57,13 +57,13 @@ fn build_refname_set(module: &Module) -> HashSet<String> {
 
 fn delete_empty_groups(module: &mut Module) {
     let mut name2idx = HashMap::<String, usize>::new();
-    for (idx, grp) in module.group.iter().enumerate() {
-        name2idx.insert(grp.name.clone(), idx);
+    for (idx, grpname) in module.group.keys().enumerate() {
+        name2idx.insert(grpname.clone(), idx);
     }
     let used_groups = get_used_groups(module);
     let mut user_of = vec![Vec::<usize>::new(); module.group.len()];
     let mut delete_queue: Vec<usize> = vec![];
-    for (idx, grp) in module.group.iter_mut().enumerate() {
+    for (idx, grp) in module.group.values().enumerate() {
         // build up a reverse reference list, i.e. for each group, which other groups list it as a sub-group
         if let Some(sub_group) = &grp.sub_group {
             for name in &sub_group.identifier_list {
@@ -102,7 +102,7 @@ fn delete_empty_groups(module: &mut Module) {
         }
     }
     let mut del_iter = to_delete.iter();
-    module.group.retain(|_| !del_iter.next().unwrap());
+    module.group.retain(|_, _| !del_iter.next().unwrap());
 }
 
 fn get_used_groups(module: &Module) -> HashSet<String> {

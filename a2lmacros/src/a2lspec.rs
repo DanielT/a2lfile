@@ -305,6 +305,7 @@ fn parse_optitem(block_token_iter: &mut TokenStreamIter) -> Vec<TaggedItem> {
                 comment: None,
             },
             is_block: false, // don't know that yet, it will be fixed later
+            is_named: false, // likewise, this will be fixed later
             repeat,
             required,
             version_lower,
@@ -419,7 +420,7 @@ fn get_basetype(typename: &str) -> BaseType {
 
 fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<String, DataItem> {
     let mut typelist: HashMap<String, DataItem> = HashMap::new();
-    let mut tagmap: HashMap<String, bool> = HashMap::new();
+    let mut tagmap: HashMap<String, (bool, bool)> = HashMap::new();
 
     // enums can be copied directly to the output type list
     for e in enums {
@@ -434,11 +435,21 @@ fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<Str
 
     // for all tags of all structs: store if this tag refers to a block or not
     for StructInfo {
-        taglist, is_block, ..
+        taglist,
+        is_block,
+        dataitem,
     } in &structs
     {
+        let is_named = if let BaseType::Struct { structitems } = &dataitem.basetype {
+            structitems.len() > 1
+                && structitems[0].basetype == BaseType::Ident
+                && structitems[0].varname.as_ref().is_some_and(|name| name == "name")
+        } else {
+            false
+        };
+
         for tag in taglist {
-            tagmap.insert(tag.clone(), *is_block);
+            tagmap.insert(tag.clone(), (*is_block, is_named));
         }
     }
 
@@ -475,8 +486,9 @@ fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<Str
                 {
                     // The taggedstruct exists, loop over the taggeditems and update them
                     for tgitem in taggeditems {
-                        if let Some(is_block) = tagmap.get(&tgitem.tag) {
+                        if let Some((is_block, is_named)) = tagmap.get(&tgitem.tag) {
                             tgitem.is_block = *is_block;
+                            tgitem.is_named = *is_named;
                         } else {
                             panic!("referenced block {} is missing", tgitem.tag);
                         }

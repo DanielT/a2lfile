@@ -202,6 +202,15 @@ pub enum ParserError {
         block: String,
     },
 
+    #[error("{filename}:{error_line}: element {tag} in block {block} starting on line {block_line} re-uses a name that was already used")]
+    DuplicateNamedItem {
+        filename: String,
+        error_line: u32,
+        tag: String,
+        block: String,
+        block_line: u32,
+    },
+
     #[error("{filename}:{error_line}: A2ML parser reports {errmsg}")]
     A2mlError {
         filename: String,
@@ -944,6 +953,24 @@ impl ParserError {
             error_line: parser.last_token_position,
             block: context.element.clone(),
             block_line: context.line,
+        }
+    }
+
+    pub(crate) fn duplicate_tag_error(
+        parser: &ParserState,
+        context: &ParseContext,
+        tag: &str,
+    ) -> Result<(), ParserError> {
+        if parser.strict {
+            Err(Self::DuplicateNamedItem {
+                filename: parser.filenames[context.fileid].to_string(),
+                error_line: parser.last_token_position,
+                tag: tag.to_owned(),
+                block: context.element.clone(),
+                block_line: context.line,
+            })
+        } else {
+            Ok(())
         }
     }
 }

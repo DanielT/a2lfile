@@ -1,4 +1,7 @@
-use crate::specification::{A2lFile, A2lObject, A2lObjectName};
+use crate::{
+    specification::{A2lFile, A2lObject, A2lObjectName},
+    FnvIndexMap,
+};
 use std::cmp::Ordering;
 
 pub(crate) fn sort_new_items(a2l_file: &mut A2lFile) {
@@ -31,7 +34,7 @@ pub(crate) fn sort_new_items(a2l_file: &mut A2lFile) {
      * but now existing uids are all even, and odd uids can be used to insert items.
      * Then the max uid of each type of item is found, and new items of that type are assigned uid = max_uid + 1
      */
-    for module in &mut a2l_file.project.module {
+    for module in a2l_file.project.module.values_mut() {
         let next_uid = sort_optional_item(&mut module.a2ml, 1);
         let next_uid = sort_optional_item(&mut module.mod_common, next_uid);
         sort_optional_item(&mut module.mod_par, next_uid);
@@ -112,13 +115,13 @@ where
     next_uid
 }
 
-fn sort_objectlist_new<T, U>(a2lobject_list: &mut Vec<T>)
+fn sort_objectlist_new<T, U>(a2lobject_list: &mut FnvIndexMap<String, T>)
 where
     T: A2lObject<U> + A2lObjectName,
 {
     a2lobject_list.sort_by(cmp_named_a2lobject);
     let mut last_uid = 0;
-    for a2lobject in a2lobject_list {
+    for a2lobject in a2lobject_list.values_mut() {
         let layout = a2lobject.get_layout_mut();
         if layout.uid != 0 {
             layout.uid *= 2;
@@ -160,7 +163,7 @@ pub(crate) fn sort(a2l_file: &mut A2lFile) {
     sort_objectlist_full(&mut a2l_file.project.module, 2);
 
     // PROJECT.MODULE.*
-    for module in &mut a2l_file.project.module {
+    for module in a2l_file.project.module.values_mut() {
         // a2ml must come first in order to allow following IF_DATA to be parsed
         if let Some(a2ml) = &mut module.a2ml {
             a2ml.__block_info.uid = 1;
@@ -230,13 +233,13 @@ pub(crate) fn sort(a2l_file: &mut A2lFile) {
     }
 }
 
-fn sort_objectlist_full<T, U>(a2lobject_list: &mut Vec<T>, start_uid: u32) -> u32
+fn sort_objectlist_full<T, U>(a2lobject_list: &mut FnvIndexMap<String, T>, start_uid: u32) -> u32
 where
     T: A2lObject<U> + A2lObjectName,
 {
     let mut current_uid = start_uid;
-    a2lobject_list.sort_by(|a, b| a.get_name().cmp(b.get_name()));
-    for a2lobject in a2lobject_list {
+    a2lobject_list.sort_by(|_, a, _, b| a.get_name().cmp(b.get_name()));
+    for a2lobject in a2lobject_list.values_mut() {
         a2lobject.get_layout_mut().uid = current_uid;
         a2lobject.get_layout_mut().start_offset = 2;
         a2lobject.get_layout_mut().end_offset = 1;
@@ -245,7 +248,8 @@ where
     current_uid
 }
 
-fn cmp_named_a2lobject<T, U>(a: &T, b: &T) -> Ordering
+#[allow(clippy::ptr_arg)] // &String is needed for the sort
+fn cmp_named_a2lobject<T, U>(_key_a: &String, a: &T, _key_b: &String, b: &T) -> Ordering
 where
     T: A2lObject<U> + A2lObjectName,
 {

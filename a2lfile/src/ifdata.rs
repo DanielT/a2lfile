@@ -483,7 +483,7 @@ fn parse_unknown_taggedstruct(
 
 #[cfg(feature = "ifdata_cleanup")]
 pub(crate) fn remove_unknown_ifdata(a2l_file: &mut A2lFile) {
-    for module in &mut a2l_file.project.module {
+    for module in a2l_file.project.module.values_mut() {
         remove_unknown_ifdata_from_list(&mut module.if_data);
 
         if let Some(mod_par) = &mut module.mod_par {
@@ -491,40 +491,40 @@ pub(crate) fn remove_unknown_ifdata(a2l_file: &mut A2lFile) {
                 remove_unknown_ifdata_from_list(&mut memory_layout.if_data);
             }
 
-            for memory_segment in &mut mod_par.memory_segment {
+            for memory_segment in mod_par.memory_segment.values_mut() {
                 remove_unknown_ifdata_from_list(&mut memory_segment.if_data);
             }
         }
 
-        for axis_pts in &mut module.axis_pts {
+        for axis_pts in module.axis_pts.values_mut() {
             remove_unknown_ifdata_from_list(&mut axis_pts.if_data);
         }
 
-        for blob in &mut module.blob {
+        for blob in module.blob.values_mut() {
             remove_unknown_ifdata_from_list(&mut blob.if_data);
         }
 
-        for characteristic in &mut module.characteristic {
+        for characteristic in module.characteristic.values_mut() {
             remove_unknown_ifdata_from_list(&mut characteristic.if_data);
         }
 
-        for frame in &mut module.frame {
+        for frame in module.frame.values_mut() {
             remove_unknown_ifdata_from_list(&mut frame.if_data);
         }
 
-        for function in &mut module.function {
+        for function in module.function.values_mut() {
             remove_unknown_ifdata_from_list(&mut function.if_data);
         }
 
-        for group in &mut module.group {
+        for group in module.group.values_mut() {
             remove_unknown_ifdata_from_list(&mut group.if_data);
         }
 
-        for instance in &mut module.instance {
+        for instance in module.instance.values_mut() {
             remove_unknown_ifdata_from_list(&mut instance.if_data);
         }
 
-        for measurement in &mut module.measurement {
+        for measurement in module.measurement.values_mut() {
             remove_unknown_ifdata_from_list(&mut measurement.if_data);
         }
     }

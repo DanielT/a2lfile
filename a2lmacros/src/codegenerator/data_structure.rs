@@ -169,15 +169,21 @@ fn generate_struct_item_definition(item: &DataItem) -> TokenStream {
             // output each TaggedItem
             for tgitem in tgitems {
                 let mut curr_def = quote! {};
+
                 // documentation comments are also possible on individual TaggedItems and are also output per item
                 if let Some(comment) = &tgitem.item.comment {
                     curr_def.extend(quote! {#[doc=#comment]});
                 }
                 let tgitemname = format_ident!("{}", make_varname(&tgitem.tag));
                 let typename = generate_bare_typename(&tgitem.item.typename, &tgitem.item.basetype);
+
                 // The container type for the TaggedItems varies depending on the options
                 if tgitem.repeat {
-                    curr_def.extend(quote! {pub #tgitemname: Vec<#typename>});
+                    if tgitem.is_named {
+                        curr_def.extend(quote! {pub #tgitemname: FnvIndexMap<String, #typename>});
+                    } else {
+                        curr_def.extend(quote! {pub #tgitemname: Vec<#typename>});
+                    }
                 } else if tgitem.required {
                     curr_def.extend(quote! {pub #tgitemname: #typename});
                 } else {
@@ -378,7 +384,13 @@ fn generate_block_data_structure_constructor(
                     let typename =
                         generate_bare_typename(&tgitem.item.typename, &tgitem.item.basetype);
                     if tgitem.repeat {
-                        fieldinit.push(quote! {#tgitemname: Vec::new()});
+                        // repeating items are either a Vec for unnamed blocks or a FnvIndexMap for named blocks
+                        // this allows the named blocks to be indexed by their position and their name
+                        if tgitem.is_named {
+                            fieldinit.push(quote! {#tgitemname: FnvIndexMap::default()});
+                        } else {
+                            fieldinit.push(quote! {#tgitemname: Vec::new()});
+                        }
                     } else if tgitem.required {
                         newargs.push(quote! {#tgitemname: #typename});
                         fieldinit.push(quote! {#tgitemname});
@@ -498,14 +510,14 @@ fn generate_block_data_structure_partialeq(
                 for tgitem in taggeditems {
                     let tgitemname = format_ident!("{}", make_varname(&tgitem.tag));
                     comparisons.push(quote! {
-                        (self.#tgitemname == other.#tgitemname)
+                        self.#tgitemname == other.#tgitemname
                     });
                 }
             }
             _ => {
                 let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
                 comparisons.push(quote! {
-                    (self.#itemname == other.#itemname)
+                    self.#itemname == other.#itemname
                 });
             }
         }
@@ -513,13 +525,19 @@ fn generate_block_data_structure_partialeq(
 
     // some structs, e.g. DISCRETE and READ_ONLY have no content. They are always equal.
     if comparisons.is_empty() {
-        comparisons.push(quote! {true});
-    }
-
-    quote! {
-        impl PartialEq for #typeident {
-            fn eq(&self, other: &Self) -> bool {
-                #(#comparisons)&&*
+        quote! {
+            impl PartialEq for #typeident {
+                fn eq(&self, _other: &Self) -> bool {
+                    true
+                }
+            }
+        }
+    } else {
+        quote! {
+            impl PartialEq for #typeident {
+                fn eq(&self, other: &Self) -> bool {
+                    #(#comparisons)&&*
+                }
             }
         }
     }
@@ -542,11 +560,19 @@ fn make_merge_commands(name_prefix: &TokenStream, structitems: &[DataItem]) -> V
                 for tgitem in taggeditems {
                     let tgitemname = format_ident!("{}", make_varname(&tgitem.tag));
                     if tgitem.repeat {
-                        merge_commands.push(quote! {
-                            for #tgitemname in &mut #name_prefix.#tgitemname {
-                                #tgitemname.merge_includes();
-                            }
-                        });
+                        if tgitem.is_named {
+                            merge_commands.push(quote! {
+                                for #tgitemname in #name_prefix.#tgitemname.values_mut() {
+                                    #tgitemname.merge_includes();
+                                }
+                            });
+                        } else {
+                            merge_commands.push(quote! {
+                                for #tgitemname in &mut #name_prefix.#tgitemname {
+                                    #tgitemname.merge_includes();
+                                }
+                            });
+                        }
                     } else if tgitem.required {
                         merge_commands.push(quote! {
                             #name_prefix.#tgitemname.merge_includes();

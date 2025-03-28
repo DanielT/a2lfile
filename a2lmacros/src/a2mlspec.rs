@@ -439,6 +439,7 @@ fn parse_a2ml_taggeditem(
                 tag,
                 item: dataitem,
                 is_block,
+                is_named: false,
                 repeat: multi,
                 required: false,
                 version_lower: None,
@@ -1205,6 +1206,7 @@ fn fixup_taggeditems(
                 comment: None,
             },
             is_block: tgitem.is_block,
+            is_named: tgitem.is_named,
             repeat: tgitem.repeat,
             required: false,
             version_lower: None,
@@ -1361,7 +1363,7 @@ fn generate_interface(spec: &A2mlSpec) -> TokenStream {
             }
 
             pub(crate) fn update_a2ml(file: &mut a2lfile::A2lFile) {
-                for module in &mut file.project.module {
+                for module in file.project.module.values_mut() {
                     if module.a2ml.is_none() {
                         module.a2ml = Some(a2lfile::A2ml::new("".to_string()));
                     }
