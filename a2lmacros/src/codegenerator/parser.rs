@@ -23,6 +23,7 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
         BaseType::Block {
             blockitems,
             is_block,
+            ..
         } => {
             result.extend(generate_block_parser(typename, blockitems, *is_block));
         }
@@ -441,10 +442,18 @@ fn generate_taggeditem_match_arms(
 
         if item.repeat {
             // repeated items are represented as Vec<TypeName>
-            var_definitions.extend(quote! {let mut #itemname: Vec<#typename> = Vec::new();});
-            store_item = quote! {
-                #itemname.push(newitem);
-            };
+            if item.is_named {
+                var_definitions
+                    .extend(quote! {let mut #itemname: ItemList<#typename> = ItemList::default();});
+                store_item = quote! {
+                    #itemname.push(newitem);
+                };
+            } else {
+                var_definitions.extend(quote! {let mut #itemname: Vec<#typename> = Vec::new();});
+                store_item = quote! {
+                    #itemname.push(newitem);
+                };
+            }
             if item.required {
                 multiplicity_check.extend(quote! {
                     if #itemname.len() == 0 {

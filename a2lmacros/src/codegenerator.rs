@@ -45,6 +45,7 @@ pub(crate) struct TaggedItem {
     pub(crate) is_block: bool,
     pub(crate) repeat: bool,
     pub(crate) required: bool,
+    pub(crate) is_named: bool,
     pub(crate) version_upper: Option<A2lVersion>,
     pub(crate) version_lower: Option<A2lVersion>,
 }
@@ -90,6 +91,7 @@ pub(crate) enum BaseType {
     Block {
         blockitems: Vec<DataItem>,
         is_block: bool,
+        used_in_list: bool,
     },
 }
 

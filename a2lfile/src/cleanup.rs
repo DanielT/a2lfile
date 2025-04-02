@@ -46,7 +46,7 @@ mod test {
                     function1 nonexistent_function
                 /end FUNCTION_LIST
             /end AXIS_PTS
-            /begin AXIS_PTS axispts1 "" 0x1234 measurement1 record_layout 0 nonexistent_compu_method 3 0.0 10.0
+            /begin AXIS_PTS axispts2 "" 0x1234 measurement1 record_layout 0 nonexistent_compu_method 3 0.0 10.0
             /end AXIS_PTS
 
             /begin USER_RIGHTS user1
@@ -142,25 +142,24 @@ mod test {
         cleanup(&mut a2l_file);
 
         let module = &a2l_file.project.module[0];
-        let (namemap, _) = module.build_namemap();
 
         // MEASUREMENTs are not removed during cleanup, so measurement_1 should still be present
-        assert!(namemap.object.contains_key("measurement1"));
+        assert!(module.measurement.contains_key("measurement1"));
         let measurement1 = &module.measurement[0];
         let measurement2 = &module.measurement[1];
         // CHARACTERISTICs are not removed during cleanup, so characteristic1 should still be present
-        assert!(namemap.object.contains_key("characteristic1"));
+        assert!(module.characteristic.contains_key("characteristic1"));
         let characteristic1 = &module.characteristic[0];
         let characteristic2 = &module.characteristic[1];
         // AXIS_PTS are not removed during cleanup, so axispts1 should still be present
-        assert!(namemap.object.contains_key("axispts1"));
+        assert!(module.axis_pts.contains_key("axispts1"));
         let axispts1 = &module.axis_pts[0];
         let axispts2 = &module.axis_pts[1];
 
         // ====== Groups ======
 
         // valid_group references measurement_1, so it is not empty and should still be present
-        let valid_group = namemap.group.get("valid_group").unwrap();
+        let valid_group = module.group.get("valid_group").unwrap();
         // valid_group also references invalid measurement and characteristic, which should both be removed
         let ref_measurement = valid_group.ref_measurement.as_ref().unwrap();
         assert_eq!(ref_measurement.identifier_list, vec!["measurement1"]);
@@ -169,23 +168,23 @@ mod test {
 
         // invalid_group references an invalid measurement. This invalid reference is deleted during cleanup
         // since invalid_group would be empty, it should be removed
-        assert!(!namemap.group.contains_key("invalid_group"));
+        assert!(!module.group.contains_key("invalid_group"));
 
         // user_rights_group is empty, but it is used by USER_RIGHTS for user1, so it should not be removed
-        assert!(namemap.group.contains_key("user_rights_group"));
+        assert!(module.group.contains_key("user_rights_group"));
 
         // valid_group references the empty group empty_sub_group. The empty group should be removed, and valid_group should be updated
         assert_eq!(valid_group.sub_group, None);
-        assert!(!namemap.group.contains_key("empty_sub_group"));
+        assert!(!module.group.contains_key("empty_sub_group"));
 
         // ====== Functions ======
 
         // function1 is used by measurement1, characteristic1, axispts1, and valid_group
-        assert!(namemap.function.contains_key("function1"));
+        assert!(module.function.contains_key("function1"));
         // unused_function is not used and should be removed
-        assert!(!namemap.function.contains_key("unused_function"));
+        assert!(!module.function.contains_key("unused_function"));
         // unused_sub_function is not used after the removal of unused_function and should be removed
-        assert!(!namemap.function.contains_key("unused_sub_function"));
+        assert!(!module.function.contains_key("unused_sub_function"));
 
         // the FUNCTION_LIST for measurement1, characteristic1, and axispts1 all reference function1
         // which is valid, so function1 should not be removed. nonexistent_function is not used and should be removed
@@ -201,19 +200,19 @@ mod test {
         // ====== Compu Methods ======
 
         // compu_method_used1 is used by measurement1
-        assert!(namemap.compu_method.contains_key("compu_method_used1"));
+        assert!(module.compu_method.contains_key("compu_method_used1"));
         // compu_method_used2 is used by characteristic1
-        assert!(namemap.compu_method.contains_key("compu_method_used2"));
+        assert!(module.compu_method.contains_key("compu_method_used2"));
         // compu_method_used3 is used by axispts1
-        assert!(namemap.compu_method.contains_key("compu_method_used3"));
+        assert!(module.compu_method.contains_key("compu_method_used3"));
         // compu_method_used4 is used by the AXIS_DESCR in characteristic2
-        assert!(namemap.compu_method.contains_key("compu_method_used4"));
+        assert!(module.compu_method.contains_key("compu_method_used4"));
         // compu_method_unused1 is not used and should be removed
-        assert!(!namemap.compu_method.contains_key("compu_method_unused1"));
+        assert!(!module.compu_method.contains_key("compu_method_unused1"));
         // compu_method_unused2 is not used and should be removed
-        assert!(!namemap.compu_method.contains_key("compu_method_unused2"));
+        assert!(!module.compu_method.contains_key("compu_method_unused2"));
         // compu_method_unused3 is not used and should be removed
-        assert!(!namemap.compu_method.contains_key("compu_method_unused3"));
+        assert!(!module.compu_method.contains_key("compu_method_unused3"));
 
         // the references to compu_method_used are retained in the MEASUREMENT, CHARACTERISTIC, and AXIS_PTS
         assert_eq!(measurement1.conversion, "compu_method_used1");
@@ -226,22 +225,26 @@ mod test {
         assert_eq!(axispts2.conversion, "NO_COMPU_METHOD");
 
         // compu_tab_used is used by compu_method_used1
-        assert!(namemap.compu_tab.contains_key("compu_tab_used"));
+        assert!(module.compu_tab.contains_key("compu_tab_used"));
         // compu_tab_unused is not used and should be removed
-        assert!(!namemap.compu_tab.contains_key("compu_tab_unused"));
+        assert!(!module.compu_tab.contains_key("compu_tab_unused"));
         // compu_vtab_used is used by compu_method_used2
-        assert!(namemap.compu_tab.contains_key("compu_vtab_used"));
+        assert!(module.compu_vtab.contains_key("compu_vtab_used"));
         // compu_vtab_unused is not used and should be removed
-        assert!(!namemap.compu_tab.contains_key("compu_vtab_unused"));
+        assert!(!module.compu_vtab.contains_key("compu_vtab_unused"));
         // compu_vtab_range_used is used by compu_method_used3
-        assert!(namemap.compu_tab.contains_key("compu_vtab_range_used"));
+        assert!(module
+            .compu_vtab_range
+            .contains_key("compu_vtab_range_used"));
         // compu_vtab_range_unused is not used and should be removed
-        assert!(!namemap.compu_tab.contains_key("compu_vtab_range_unused"));
+        assert!(!module
+            .compu_vtab_range
+            .contains_key("compu_vtab_range_unused"));
 
         // used_unit is used by compu_method_used1
-        assert!(namemap.unit.contains_key("used_unit"));
+        assert!(module.unit.contains_key("used_unit"));
         // unused_unit is not used and should be removed
-        assert!(!namemap.unit.contains_key("unused_unit"));
+        assert!(!module.unit.contains_key("unused_unit"));
 
         let compu_method_used4 = &module.compu_method[3];
         // invalid_compu_tab does not exist, and references to it should be removed

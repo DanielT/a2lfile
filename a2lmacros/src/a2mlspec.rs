@@ -439,6 +439,7 @@ fn parse_a2ml_taggeditem(
                 tag,
                 item: dataitem,
                 is_block,
+                is_named: false,
                 repeat: multi,
                 required: false,
                 version_lower: None,
@@ -947,6 +948,7 @@ fn fixup_output_block(
     let newstruct = BaseType::Block {
         blockitems: structitems,
         is_block,
+        used_in_list: false,
     };
     fixup_add_type(&structname, newstruct, defined_types)
 }
@@ -1205,6 +1207,7 @@ fn fixup_taggeditems(
                 comment: None,
             },
             is_block: tgitem.is_block,
+            is_named: tgitem.is_named,
             repeat: tgitem.repeat,
             required: false,
             version_lower: None,

@@ -1,5 +1,5 @@
 use crate::specification::{A2lObject, Module};
-use crate::{namemap::*, A2lError};
+use crate::{A2lObjectName, ItemList};
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -105,12 +105,12 @@ fn merge_memory_layout(orig_module: &mut Module, merge_module: &mut Module) {
 // ------------------------ MEMORY_SEGMENT ------------------------
 
 fn merge_memory_segment(orig_module: &mut Module, merge_module: &mut Module) {
-    let mut log_msgs = Vec::<A2lError>::new();
-    let orig_map = build_namemap_memory_segment(orig_module, &mut log_msgs);
-    let merge_map = build_namemap_memory_segment(merge_module, &mut log_msgs);
-    let (merge_action, rename_table) = calculate_item_actions(&orig_map, &merge_map);
+    let orig_mod_par = orig_module.mod_par.as_ref().unwrap();
+    let merge_mod_par = merge_module.mod_par.as_ref().unwrap();
+    let (merge_action, mut rename_table) =
+        calculate_item_actions(&orig_mod_par.memory_segment, &merge_mod_par.memory_segment);
 
-    rename_memory_segments(merge_module, &rename_table);
+    rename_memory_segment_refs(merge_module, &rename_table);
 
     let orig_mod_par = orig_module.mod_par.as_mut().unwrap();
     let merge_mod_par = merge_module.mod_par.as_mut().unwrap();
@@ -118,22 +118,17 @@ fn merge_memory_segment(orig_module: &mut Module, merge_module: &mut Module) {
     for mut memory_segment in memory_segment_list {
         if let Some(true) = merge_action.get(&memory_segment.name) {
             memory_segment.reset_location();
+            if let Some(newname) = rename_table.remove(&memory_segment.name) {
+                memory_segment.name = newname.clone();
+            }
             orig_mod_par.memory_segment.push(memory_segment);
         }
     }
 }
 
-fn rename_memory_segments(merge_module: &mut Module, rename_table: &HashMap<String, String>) {
+fn rename_memory_segment_refs(merge_module: &mut Module, rename_table: &HashMap<String, String>) {
     if rename_table.is_empty() {
         return;
-    }
-
-    let mod_par = merge_module.mod_par.as_mut().unwrap();
-
-    for memory_segment in &mut mod_par.memory_segment {
-        if let Some(newname) = rename_table.get(&memory_segment.name) {
-            memory_segment.name = newname.to_owned();
-        }
     }
 
     for axis_pts in &mut merge_module.axis_pts {
@@ -200,31 +195,26 @@ fn merge_if_data(orig_module: &mut Module, merge_module: &mut Module) {
 // ------------------------ UNIT ------------------------
 
 fn merge_unit(orig_module: &mut Module, merge_module: &mut Module) {
-    let mut log_msgs = Vec::<A2lError>::new();
-    let orig_map = build_namemap_unit(orig_module, &mut log_msgs);
-    let merge_map = build_namemap_unit(merge_module, &mut log_msgs);
-    let (merge_action, rename_table) = calculate_item_actions(&orig_map, &merge_map);
+    let (merge_action, mut rename_table) =
+        calculate_item_actions(&orig_module.unit, &merge_module.unit);
 
-    rename_units(merge_module, &rename_table);
+    rename_unit_refs(merge_module, &rename_table);
 
     let merge_unit_list = std::mem::take(&mut merge_module.unit);
     for mut unit in merge_unit_list {
         if let Some(true) = merge_action.get(&unit.name) {
             unit.reset_location();
+            if let Some(newname) = rename_table.remove(&unit.name) {
+                unit.name = newname.clone();
+            }
             orig_module.unit.push(unit);
         }
     }
 }
 
-fn rename_units(merge_module: &mut Module, rename_table: &HashMap<String, String>) {
+fn rename_unit_refs(merge_module: &mut Module, rename_table: &HashMap<String, String>) {
     if rename_table.is_empty() {
         return;
-    }
-
-    for unit in &mut merge_module.unit {
-        if let Some(newname) = rename_table.get(&unit.name) {
-            unit.name = newname.to_owned();
-        }
     }
 
     for compu_method in &mut merge_module.compu_method {
@@ -239,10 +229,10 @@ fn rename_units(merge_module: &mut Module, rename_table: &HashMap<String, String
 // ------------------------ COMPU_TAB / COMPU_VTAB / COMPU_VTAB_RANGE ------------------------
 
 fn merge_compu_tab(orig_module: &mut Module, merge_module: &mut Module) {
-    let mut log_msgs = Vec::<A2lError>::new();
-    let orig_map = build_namemap_compu_tab(orig_module, &mut log_msgs);
-    let merge_map = build_namemap_compu_tab(merge_module, &mut log_msgs);
-    let (merge_action, rename_table) = calculate_item_actions(&orig_map, &merge_map);
+    let orig_compu_tab = orig_module.compu_tabs();
+    let merge_compu_tab = merge_module.compu_tabs();
+    let (merge_action, mut rename_table) =
+        calculate_item_actions(&orig_compu_tab, &merge_compu_tab);
 
     rename_compu_tabs(merge_module, &rename_table);
 
@@ -250,6 +240,9 @@ fn merge_compu_tab(orig_module: &mut Module, merge_module: &mut Module) {
     for mut compu_tab in merge_compu_tab_list {
         if let Some(true) = merge_action.get(&compu_tab.name) {
             compu_tab.reset_location();
+            if let Some(newname) = rename_table.remove(&compu_tab.name) {
+                compu_tab.name = newname.clone();
+            }
             orig_module.compu_tab.push(compu_tab);
         }
     }
@@ -257,6 +250,9 @@ fn merge_compu_tab(orig_module: &mut Module, merge_module: &mut Module) {
     for mut compu_vtab in merge_compu_vtab_list {
         if let Some(true) = merge_action.get(&compu_vtab.name) {
             compu_vtab.reset_location();
+            if let Some(newname) = rename_table.remove(&compu_vtab.name) {
+                compu_vtab.name = newname.clone();
+            }
             orig_module.compu_vtab.push(compu_vtab);
         }
     }
@@ -264,6 +260,9 @@ fn merge_compu_tab(orig_module: &mut Module, merge_module: &mut Module) {
     for mut compu_vtab_range in merge_compu_vtab_range_list {
         if let Some(true) = merge_action.get(&compu_vtab_range.name) {
             compu_vtab_range.reset_location();
+            if let Some(newname) = rename_table.remove(&compu_vtab_range.name) {
+                compu_vtab_range.name = newname.clone();
+            }
             orig_module.compu_vtab_range.push(compu_vtab_range);
         }
     }
@@ -272,22 +271,6 @@ fn merge_compu_tab(orig_module: &mut Module, merge_module: &mut Module) {
 fn rename_compu_tabs(merge_module: &mut Module, rename_table: &HashMap<String, String>) {
     if rename_table.is_empty() {
         return;
-    }
-
-    for compu_tab in &mut merge_module.compu_tab {
-        if let Some(newname) = rename_table.get(&compu_tab.name) {
-            compu_tab.name = newname.to_owned();
-        }
-    }
-    for compu_vtab in &mut merge_module.compu_vtab {
-        if let Some(newname) = rename_table.get(&compu_vtab.name) {
-            compu_vtab.name = newname.to_owned();
-        }
-    }
-    for compu_vtab_range in &mut merge_module.compu_vtab_range {
-        if let Some(newname) = rename_table.get(&compu_vtab_range.name) {
-            compu_vtab_range.name = newname.to_owned();
-        }
     }
 
     // COMPU_METHODs can refer to any of COMPU_TAB / COMPU_VTAB / COMPU_VTAB_RANGE via a COMPU_TAB_REF
@@ -308,31 +291,26 @@ fn rename_compu_tabs(merge_module: &mut Module, rename_table: &HashMap<String, S
 // ------------------------ COMPU_METHOD ------------------------
 
 fn merge_compu_method(orig_module: &mut Module, merge_module: &mut Module) {
-    let mut log_msgs = Vec::<A2lError>::new();
-    let orig_map = build_namemap_compu_method(orig_module, &mut log_msgs);
-    let merge_map = build_namemap_compu_method(merge_module, &mut log_msgs);
-    let (merge_action, rename_table) = calculate_item_actions(&orig_map, &merge_map);
+    let (merge_action, mut rename_table) =
+        calculate_item_actions(&orig_module.compu_method, &merge_module.compu_method);
 
-    rename_compu_methods(merge_module, &rename_table);
+    rename_compu_method_refs(merge_module, &rename_table);
 
     let merge_compu_method_list = std::mem::take(&mut merge_module.compu_method);
     for mut compu_method in merge_compu_method_list {
         if let Some(true) = merge_action.get(&compu_method.name) {
             compu_method.reset_location();
+            if let Some(newname) = rename_table.remove(&compu_method.name) {
+                compu_method.name = newname.clone();
+            }
             orig_module.compu_method.push(compu_method);
         }
     }
 }
 
-fn rename_compu_methods(merge_module: &mut Module, rename_table: &HashMap<String, String>) {
+fn rename_compu_method_refs(merge_module: &mut Module, rename_table: &HashMap<String, String>) {
     if rename_table.is_empty() {
         return;
-    }
-
-    for compu_method in &mut merge_module.compu_method {
-        if let Some(newname) = rename_table.get(&compu_method.name) {
-            compu_method.name = newname.to_owned();
-        }
     }
 
     for axis_pts in &mut merge_module.axis_pts {
@@ -385,10 +363,8 @@ fn rename_compu_methods(merge_module: &mut Module, rename_table: &HashMap<String
 // ------------------------ RECORD_LAYOUT ------------------------
 
 fn merge_record_layout(orig_module: &mut Module, merge_module: &mut Module) {
-    let mut log_msgs = Vec::<A2lError>::new();
-    let orig_map = build_namemap_record_layout(orig_module, &mut log_msgs);
-    let merge_map = build_namemap_record_layout(merge_module, &mut log_msgs);
-    let (merge_action, rename_table) = calculate_item_actions(&orig_map, &merge_map);
+    let (merge_action, mut rename_table) =
+        calculate_item_actions(&orig_module.record_layout, &merge_module.record_layout);
 
     rename_record_layouts(merge_module, &rename_table);
 
@@ -396,6 +372,9 @@ fn merge_record_layout(orig_module: &mut Module, merge_module: &mut Module) {
     for mut record_layout in merge_record_layout_list {
         if let Some(true) = merge_action.get(&record_layout.name) {
             record_layout.reset_location();
+            if let Some(newname) = rename_table.remove(&record_layout.name) {
+                record_layout.name = newname.clone();
+            }
             orig_module.record_layout.push(record_layout);
         }
     }
@@ -404,12 +383,6 @@ fn merge_record_layout(orig_module: &mut Module, merge_module: &mut Module) {
 fn rename_record_layouts(merge_module: &mut Module, rename_table: &HashMap<String, String>) {
     if rename_table.is_empty() {
         return;
-    }
-
-    for record_layout in &mut merge_module.record_layout {
-        if let Some(newname) = rename_table.get(&record_layout.name) {
-            record_layout.name = newname.to_owned();
-        }
     }
 
     for axis_pts in &mut merge_module.axis_pts {
@@ -462,24 +435,28 @@ fn merge_objects(orig_module: &mut Module, merge_module: &mut Module) {
     // objects and typedefs depend on each other.
     // Specifically, the INSTANCE object may reference any TYPEDEF_*, while TYPDEFE_CHARACTERISTIC may reference any MEASUREMENT
     // As a result, all renaming needs to be done first, and then the items can be merged.
-    let mut log_msgs = Vec::<A2lError>::new();
-    let orig_map = build_namemap_object(orig_module, &mut log_msgs);
-    let merge_map = build_namemap_object(merge_module, &mut log_msgs);
-    let (object_merge_action, object_rename_table) = calculate_item_actions(&orig_map, &merge_map);
+    let orig_objects = orig_module.objects();
+    let merge_objects = merge_module.objects();
+    let (object_merge_action, mut object_rename_table) =
+        calculate_item_actions(&orig_objects, &merge_objects);
 
     rename_objects(merge_module, &object_rename_table);
 
-    let orig_map = build_namemap_typedef(orig_module, &mut log_msgs);
-    let merge_map = build_namemap_typedef(merge_module, &mut log_msgs);
-    let (merge_action, rename_table) = calculate_item_actions(&orig_map, &merge_map);
+    let orig_typedefs = orig_module.typedefs();
+    let merge_typedefs = merge_module.typedefs();
+    let (typedef_merge_action, mut typedef_rename_table) =
+        calculate_item_actions(&orig_typedefs, &merge_typedefs);
 
-    rename_typedefs(merge_module, &rename_table);
+    rename_typedef_refs(merge_module, &typedef_rename_table);
 
     // merge all objects
     let merge_axis_pts_list = std::mem::take(&mut merge_module.axis_pts);
     for mut axis_pts in merge_axis_pts_list {
         if let Some(true) = object_merge_action.get(&axis_pts.name) {
             axis_pts.reset_location();
+            if let Some(newname) = object_rename_table.remove(&axis_pts.name) {
+                axis_pts.name = newname.clone();
+            }
             orig_module.axis_pts.push(axis_pts);
         }
     }
@@ -487,6 +464,9 @@ fn merge_objects(orig_module: &mut Module, merge_module: &mut Module) {
     for mut blob in merge_blob_list {
         if let Some(true) = object_merge_action.get(&blob.name) {
             blob.reset_location();
+            if let Some(newname) = object_rename_table.remove(&blob.name) {
+                blob.name = newname.clone();
+            }
             orig_module.blob.push(blob);
         }
     }
@@ -494,6 +474,9 @@ fn merge_objects(orig_module: &mut Module, merge_module: &mut Module) {
     for mut characteristic in merge_characteristic_list {
         if let Some(true) = object_merge_action.get(&characteristic.name) {
             characteristic.reset_location();
+            if let Some(newname) = object_rename_table.remove(&characteristic.name) {
+                characteristic.name = newname.clone();
+            }
             orig_module.characteristic.push(characteristic);
         }
     }
@@ -501,6 +484,9 @@ fn merge_objects(orig_module: &mut Module, merge_module: &mut Module) {
     for mut instance in merge_instance_list {
         if let Some(true) = object_merge_action.get(&instance.name) {
             instance.reset_location();
+            if let Some(newname) = object_rename_table.remove(&instance.name) {
+                instance.name = newname.clone();
+            }
             orig_module.instance.push(instance);
         }
     }
@@ -508,6 +494,9 @@ fn merge_objects(orig_module: &mut Module, merge_module: &mut Module) {
     for mut measurement in merge_measurement_list {
         if let Some(true) = object_merge_action.get(&measurement.name) {
             measurement.reset_location();
+            if let Some(newname) = object_rename_table.remove(&measurement.name) {
+                measurement.name = newname.clone();
+            }
             orig_module.measurement.push(measurement);
         }
     }
@@ -515,23 +504,32 @@ fn merge_objects(orig_module: &mut Module, merge_module: &mut Module) {
     // merge all TYPEDEF_*
     let merge_typedef_axis_list = std::mem::take(&mut merge_module.typedef_axis);
     for mut typedef_axis in merge_typedef_axis_list {
-        if let Some(true) = merge_action.get(&typedef_axis.name) {
+        if let Some(true) = typedef_merge_action.get(&typedef_axis.name) {
             typedef_axis.reset_location();
+            if let Some(newname) = typedef_rename_table.remove(&typedef_axis.name) {
+                typedef_axis.name = newname.clone();
+            }
             orig_module.typedef_axis.push(typedef_axis);
         }
     }
     let merge_typedef_blob_list = std::mem::take(&mut merge_module.typedef_blob);
     for mut typedef_blob in merge_typedef_blob_list {
-        if let Some(true) = merge_action.get(&typedef_blob.name) {
+        if let Some(true) = typedef_merge_action.get(&typedef_blob.name) {
             typedef_blob.reset_location();
+            if let Some(newname) = typedef_rename_table.remove(&typedef_blob.name) {
+                typedef_blob.name = newname.clone();
+            }
             orig_module.typedef_blob.push(typedef_blob);
         }
     }
     let merge_typedef_characteristic_list =
         std::mem::take(&mut merge_module.typedef_characteristic);
     for mut typedef_characteristic in merge_typedef_characteristic_list {
-        if let Some(true) = merge_action.get(&typedef_characteristic.name) {
+        if let Some(true) = typedef_merge_action.get(&typedef_characteristic.name) {
             typedef_characteristic.reset_location();
+            if let Some(newname) = typedef_rename_table.remove(&typedef_characteristic.name) {
+                typedef_characteristic.name = newname.clone();
+            }
             orig_module
                 .typedef_characteristic
                 .push(typedef_characteristic);
@@ -539,15 +537,21 @@ fn merge_objects(orig_module: &mut Module, merge_module: &mut Module) {
     }
     let merge_typedef_measurement_list = std::mem::take(&mut merge_module.typedef_measurement);
     for mut typedef_measurement in merge_typedef_measurement_list {
-        if let Some(true) = merge_action.get(&typedef_measurement.name) {
+        if let Some(true) = typedef_merge_action.get(&typedef_measurement.name) {
             typedef_measurement.reset_location();
+            if let Some(newname) = typedef_rename_table.remove(&typedef_measurement.name) {
+                typedef_measurement.name = newname.clone();
+            }
             orig_module.typedef_measurement.push(typedef_measurement);
         }
     }
     let merge_typedef_struct_list = std::mem::take(&mut merge_module.typedef_structure);
     for mut typedef_structure in merge_typedef_struct_list {
-        if let Some(true) = merge_action.get(&typedef_structure.name) {
+        if let Some(true) = typedef_merge_action.get(&typedef_structure.name) {
             typedef_structure.reset_location();
+            if let Some(newname) = typedef_rename_table.remove(&typedef_structure.name) {
+                typedef_structure.name = newname.clone();
+            }
             orig_module.typedef_structure.push(typedef_structure);
         }
     }
@@ -560,28 +564,13 @@ fn rename_objects(merge_module: &mut Module, rename_table: &HashMap<String, Stri
 
     // MODULE.AXIS_PTS
     for axis_pts in &mut merge_module.axis_pts {
-        // MODULE.AXIS_PTS.name
-        if let Some(newname) = rename_table.get(&axis_pts.name) {
-            axis_pts.name = newname.to_owned();
-        }
         // MODULE.AXIS_PTS.input_quantity
         if let Some(newname) = rename_table.get(&axis_pts.input_quantity) {
             axis_pts.input_quantity = newname.to_owned();
         }
     }
-    // MODULE.BLOB
-    for blob in &mut merge_module.blob {
-        // MODULE.BLOB.name
-        if let Some(newname) = rename_table.get(&blob.name) {
-            blob.name = newname.to_owned();
-        }
-    }
     // MODULE.CHARACTERISTIC
     for characteristic in &mut merge_module.characteristic {
-        // MODULE.CHARACTERISTIC.name
-        if let Some(newname) = rename_table.get(&characteristic.name) {
-            characteristic.name = newname.to_owned();
-        }
         // MODULE.CHARACTERISTIC.AXIS_DESCR
         for axis_descr in &mut characteristic.axis_descr {
             // MODULE.CHARACTERISTIC.AXIS_DESCR.input_quantity
@@ -629,18 +618,6 @@ fn rename_objects(merge_module: &mut Module, rename_table: &HashMap<String, Stri
                     curve_axis_ref.curve_axis = newname.to_owned();
                 }
             }
-        }
-    }
-    // MODULE.INSTANCE
-    for instance in &mut merge_module.instance {
-        if let Some(newname) = rename_table.get(&instance.name) {
-            instance.name = newname.to_owned();
-        }
-    }
-    // MODULE.MEASUREMENT
-    for measurement in &mut merge_module.measurement {
-        if let Some(newname) = rename_table.get(&measurement.name) {
-            measurement.name = newname.to_owned();
         }
     }
 
@@ -729,18 +706,11 @@ fn rename_objects(merge_module: &mut Module, rename_table: &HashMap<String, Stri
 // ------------------------ FUNCTION ------------------------
 fn merge_function(orig_module: &mut Module, merge_module: &mut Module) {
     // special handling for FUNCTIONs: merge these based only on the name, not the content
-    let mut orig_map: HashMap<_, _> = orig_module
-        .function
-        .iter()
-        .enumerate()
-        .map(|(i, f)| (f.name.clone(), i))
-        .collect();
-
     let merge_function_list = std::mem::take(&mut merge_module.function);
     for mut function in merge_function_list {
-        if let Some(idx) = orig_map.get(&function.name) {
+        if let Some(orig_function) = orig_module.function.get_mut(&function.name) {
             // a function with this name already exists in the original module
-            let orig_function = &mut orig_module.function[*idx];
+            //let orig_function = &mut orig_module.function[*idx];
             if *orig_function == function {
                 // the function in the original module is identical to the one in the merge module
                 // so we can just skip this one
@@ -816,8 +786,6 @@ fn merge_function(orig_module: &mut Module, merge_module: &mut Module) {
             }
         } else {
             // no function with this name exists in the original module
-            let idx = orig_module.function.len();
-            orig_map.insert(function.name.clone(), idx);
             function.reset_location();
             orig_module.function.push(function);
         }
@@ -828,18 +796,10 @@ fn merge_function(orig_module: &mut Module, merge_module: &mut Module) {
 
 fn merge_group(orig_module: &mut Module, merge_module: &mut Module) {
     // special handling for GROUPs: merge these based only on the name, not the content
-    let mut orig_map: HashMap<_, _> = orig_module
-        .group
-        .iter()
-        .enumerate()
-        .map(|(i, g)| (g.name.clone(), i))
-        .collect();
-
     let merge_group_list = std::mem::take(&mut merge_module.group);
     for mut group in merge_group_list {
-        if let Some(idx) = orig_map.get(&group.name) {
+        if let Some(orig_group) = orig_module.group.get_mut(&group.name) {
             // a group with this name already exists in the original module
-            let orig_group = &mut orig_module.group[*idx];
             if *orig_group == group {
                 // the group in the original module is identical to the one in the merge module
                 // so we can just skip this one
@@ -917,8 +877,6 @@ fn merge_group(orig_module: &mut Module, merge_module: &mut Module) {
             }
         } else {
             // no group with this name exists in the original module
-            let idx = orig_module.group.len();
-            orig_map.insert(group.name.clone(), idx);
             group.reset_location();
             orig_module.group.push(group);
         }
@@ -928,30 +886,17 @@ fn merge_group(orig_module: &mut Module, merge_module: &mut Module) {
 // ------------------------ FRAME ------------------------
 
 fn merge_frame(orig_module: &mut Module, merge_module: &mut Module) {
-    let mut log_msgs = Vec::<A2lError>::new();
-    let orig_map = build_namemap_frame(orig_module, &mut log_msgs);
-    let merge_map = build_namemap_frame(merge_module, &mut log_msgs);
-    let (merge_action, rename_table) = calculate_item_actions(&orig_map, &merge_map);
-
-    rename_frames(merge_module, &rename_table);
+    let (merge_action, mut rename_table) =
+        calculate_item_actions(&orig_module.frame, &merge_module.frame);
 
     let merge_frame_list = std::mem::take(&mut merge_module.frame);
     for mut frame in merge_frame_list {
         if let Some(true) = merge_action.get(&frame.name) {
             frame.reset_location();
+            if let Some(newname) = rename_table.remove(&frame.name) {
+                frame.name = newname.clone();
+            }
             orig_module.frame.push(frame);
-        }
-    }
-}
-
-fn rename_frames(merge_module: &mut Module, rename_table: &HashMap<String, String>) {
-    if rename_table.is_empty() {
-        return;
-    }
-
-    for frame in &mut merge_module.frame {
-        if let Some(newname) = rename_table.get(&frame.name) {
-            frame.name = newname.to_owned();
         }
     }
 }
@@ -959,31 +904,29 @@ fn rename_frames(merge_module: &mut Module, rename_table: &HashMap<String, Strin
 // ------------------------ TRANSFORMER ------------------------
 
 fn merge_transformer(orig_module: &mut Module, merge_module: &mut Module) {
-    let mut log_msgs = Vec::<A2lError>::new();
-    let orig_map = build_namemap_transformer(orig_module, &mut log_msgs);
-    let merge_map = build_namemap_transformer(merge_module, &mut log_msgs);
-    let (merge_action, rename_table) = calculate_item_actions(&orig_map, &merge_map);
+    let (merge_action, mut rename_table) =
+        calculate_item_actions(&orig_module.transformer, &merge_module.transformer);
 
-    rename_transformers(merge_module, &rename_table);
+    rename_transformer_refs(merge_module, &rename_table);
 
     let merge_transformer_list = std::mem::take(&mut merge_module.transformer);
     for mut transformer in merge_transformer_list {
         if let Some(true) = merge_action.get(&transformer.name) {
             transformer.reset_location();
+            if let Some(newname) = rename_table.remove(&transformer.name) {
+                transformer.name = newname.clone();
+            }
             orig_module.transformer.push(transformer);
         }
     }
 }
 
-fn rename_transformers(merge_module: &mut Module, rename_table: &HashMap<String, String>) {
+fn rename_transformer_refs(merge_module: &mut Module, rename_table: &HashMap<String, String>) {
     if rename_table.is_empty() {
         return;
     }
 
     for transformer in &mut merge_module.transformer {
-        if let Some(newname) = rename_table.get(&transformer.name) {
-            transformer.name = newname.to_owned();
-        }
         if let Some(newname) = rename_table.get(&transformer.inverse_transformer) {
             transformer.inverse_transformer = newname.to_owned();
         }
@@ -992,52 +935,18 @@ fn rename_transformers(merge_module: &mut Module, rename_table: &HashMap<String,
 
 // ------------------------ TYPEDEF_* ------------------------
 
-fn rename_typedefs(merge_module: &mut Module, rename_table: &HashMap<String, String>) {
+fn rename_typedef_refs(merge_module: &mut Module, rename_table: &HashMap<String, String>) {
     if rename_table.is_empty() {
         return;
     }
 
-    // MODULE.TYPEDEF_AXIS
-    for typedef_axis in &mut merge_module.typedef_axis {
-        if let Some(newname) = rename_table.get(&typedef_axis.name) {
-            typedef_axis.name = newname.to_owned();
-        }
-    }
-    // MODULE.TYPEDEF_BLOB
-    for typedef_blob in &mut merge_module.typedef_blob {
-        if let Some(newname) = rename_table.get(&typedef_blob.name) {
-            typedef_blob.name = newname.to_owned();
-        }
-    }
-    // MODULE.TYPEDEF_CHARACTERISTIC
-    for typedef_characteristic in &mut merge_module.typedef_characteristic {
-        if let Some(newname) = rename_table.get(&typedef_characteristic.name) {
-            typedef_characteristic.name = newname.to_owned();
-        }
-    }
-    // MODULE.TYPEDEF_MEASUREMENT
-    for typedef_measurement in &mut merge_module.typedef_measurement {
-        if let Some(newname) = rename_table.get(&typedef_measurement.name) {
-            typedef_measurement.name = newname.to_owned();
-        }
-    }
     // MODULE.TYPEDEF_STRUCTURE
     for typedef_structure in &mut merge_module.typedef_structure {
-        if let Some(newname) = rename_table.get(&typedef_structure.name) {
-            typedef_structure.name = newname.to_owned();
-        }
         // MODULE.TYPEDEF_STRUCTURE.STRUCTURE_COMPONENT
         for structure_component in &mut typedef_structure.structure_component {
             if let Some(newname) = rename_table.get(&structure_component.component_type) {
                 structure_component.component_type = newname.to_owned();
             }
-        }
-    }
-
-    // MODULE.INSTANCE
-    for instance in &mut merge_module.instance {
-        if let Some(newname) = rename_table.get(&instance.type_ref) {
-            instance.type_ref = newname.to_owned();
         }
     }
 }
@@ -1076,16 +985,17 @@ fn merge_variant_coding(orig_module: &mut Module, merge_module: &mut Module) {
 // ------------------------------------------------
 
 fn calculate_item_actions<T>(
-    orig_map: &HashMap<String, T>,
-    merge_map: &HashMap<String, T>,
+    orig_map: &ItemList<T>,
+    merge_map: &ItemList<T>,
 ) -> (HashMap<String, bool>, HashMap<String, String>)
 where
-    T: PartialEq,
+    T: PartialEq + A2lObjectName,
 {
     let mut rename_table = HashMap::<String, String>::new();
     let mut merge_action = HashMap::<String, bool>::new();
 
-    for (name, merge_object) in merge_map {
+    for merge_object in merge_map {
+        let name = merge_object.get_name();
         if let Some(orig_object) = orig_map.get(name) {
             if *orig_object == *merge_object {
                 // identical items exists on both sides, no need to merge
@@ -1093,8 +1003,8 @@ where
             } else {
                 // items with the same name but with different content exist on both sides. Rename the new ones before merging
                 let newname = make_unique_name(name, orig_map, merge_map);
-                rename_table.insert(name.to_owned(), newname.clone());
-                merge_action.insert(newname, true);
+                rename_table.insert(name.to_string(), newname);
+                merge_action.insert(name.to_string(), true);
             }
         } else {
             // no item with this name exists on the orig side
@@ -1113,10 +1023,10 @@ fn rename_item_list(items: &mut Vec<String>, rename_table: &HashMap<String, Stri
     }
 }
 
-fn make_unique_name<T>(
+fn make_unique_name<T: A2lObjectName>(
     current_name: &str,
-    orig_map: &HashMap<String, T>,
-    merge_map: &HashMap<String, T>,
+    orig_map: &ItemList<T>,
+    merge_map: &ItemList<T>,
 ) -> String {
     let mut newname = format!("{current_name}.MERGE");
     let mut idx = 1;
@@ -2048,7 +1958,7 @@ mod test {
                 /begin COMPU_METHOD m4 "" TAB_NOINTP "%6.3" ""
                     STATUS_STRING_REF ct1
                 /end COMPU_METHOD
-                /begin COMPU_METHOD m4 "" TAB_NOINTP "%6.3" ""
+                /begin COMPU_METHOD m5 "" TAB_NOINTP "%6.3" ""
                     STATUS_STRING_REF cvtr2
                 /end COMPU_METHOD
             /end MODULE

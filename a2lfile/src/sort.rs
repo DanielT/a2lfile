@@ -1,4 +1,7 @@
-use crate::specification::{A2lFile, A2lObject, A2lObjectName};
+use crate::{
+    specification::{A2lFile, A2lObject, A2lObjectName},
+    ItemList,
+};
 use std::cmp::Ordering;
 
 pub(crate) fn sort_new_items(a2l_file: &mut A2lFile) {
@@ -112,7 +115,7 @@ where
     next_uid
 }
 
-fn sort_objectlist_new<T, U>(a2lobject_list: &mut Vec<T>)
+fn sort_objectlist_new<T, U>(a2lobject_list: &mut ItemList<T>)
 where
     T: A2lObject<U> + A2lObjectName,
 {
@@ -230,7 +233,7 @@ pub(crate) fn sort(a2l_file: &mut A2lFile) {
     }
 }
 
-fn sort_objectlist_full<T, U>(a2lobject_list: &mut Vec<T>, start_uid: u32) -> u32
+fn sort_objectlist_full<T, U>(a2lobject_list: &mut ItemList<T>, start_uid: u32) -> u32
 where
     T: A2lObject<U> + A2lObjectName,
 {

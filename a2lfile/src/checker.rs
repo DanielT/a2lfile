@@ -1,5 +1,8 @@
-use crate::namemap::ModuleNameMap;
-use crate::{specification::*, A2lError};
+use crate::{
+    module::{AnyCompuTab, AnyObject, AnyTypedef},
+    specification::*,
+    A2lError, ItemList,
+};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -14,19 +17,20 @@ pub fn check(a2l_file: &A2lFile) -> Vec<A2lError> {
     let mut results = Vec::new();
 
     for module in &a2l_file.project.module {
-        let (name_map, errors) = ModuleNameMap::build(&a2l_file.project.module[0]);
-        results.extend(errors);
+        let compu_tabs = module.compu_tabs();
+        let objects = module.objects();
+        let typedefs = module.typedefs();
 
         for axis_pts in &module.axis_pts {
-            check_axis_pts(axis_pts, &name_map, &mut results);
+            check_axis_pts(axis_pts, module, &objects, &mut results);
         }
 
         for t_axis in &module.typedef_axis {
-            check_typedef_axis(t_axis, &name_map, &mut results);
+            check_typedef_axis(t_axis, module, &objects, &mut results);
         }
 
         for characteristic in &module.characteristic {
-            check_characteristic(characteristic, &name_map, &mut results);
+            check_characteristic(characteristic, module, &objects, &mut results);
         }
 
         for t_characteristic in &module.typedef_characteristic {
@@ -51,44 +55,45 @@ pub fn check(a2l_file: &A2lFile) -> Vec<A2lError> {
                 .collect();
             check_typedef_characteristic(
                 t_characteristic,
-                &name_map,
-                &mut results,
+                module,
+                &objects,
                 is_directly_used,
                 &containing_structures,
+                &mut results,
             );
         }
 
         for compu_method in &module.compu_method {
-            check_compu_method(compu_method, &name_map, &mut results);
+            check_compu_method(compu_method, module, &compu_tabs, &mut results);
         }
 
         for function in &module.function {
-            check_function(function, &name_map, &mut results);
+            check_function(function, module, &objects, &mut results);
         }
 
         for group in &module.group {
-            check_group(group, &name_map, &mut results);
+            check_group(group, module, &objects, &mut results);
         }
         check_group_structure(&module.group, &mut results);
 
         for measurement in &module.measurement {
-            check_measurement(measurement, &name_map, &mut results);
+            check_measurement(measurement, module, &mut results);
         }
 
         for t_measurement in &module.typedef_measurement {
-            check_typedef_measurement(t_measurement, &name_map, &mut results);
+            check_typedef_measurement(t_measurement, module, &mut results);
         }
 
         for transformer in &module.transformer {
-            check_transformer(transformer, &name_map, &mut results);
+            check_transformer(transformer, module, &objects, &mut results);
         }
 
         for instance in &module.instance {
-            check_instance(instance, &name_map, &mut results);
+            check_instance(instance, &typedefs, &mut results);
         }
 
         for typedef_structure in &module.typedef_structure {
-            check_typedef_structure(typedef_structure, &name_map, &mut results);
+            check_typedef_structure(typedef_structure, &typedefs, &mut results);
         }
     }
 
@@ -99,14 +104,13 @@ fn check_axis_descr(
     idx: usize,
     parent_name: &str,
     axis_descr: &AxisDescr,
-    name_map: &ModuleNameMap,
+    module: &Module,
+    objects: &ItemList<AnyObject>,
     log_msgs: &mut Vec<A2lError>,
-    is_directly_used: bool,
-    containing_structures: &[&TypedefStructure],
 ) {
     let line = axis_descr.get_line();
     if axis_descr.input_quantity != "NO_INPUT_QUANTITY"
-        && !name_map.object.contains_key(&axis_descr.input_quantity)
+        && !objects.contains_key(&axis_descr.input_quantity)
     {
         log_msgs.push(A2lError::CrossReferenceError {
             source_type: format!("AXIS_DESCR[{idx}] of CHARACTERISTIC"),
@@ -118,7 +122,7 @@ fn check_axis_descr(
     }
 
     if axis_descr.conversion != "NO_COMPU_METHOD"
-        && !name_map.compu_method.contains_key(&axis_descr.conversion)
+        && !module.compu_method.contains_key(&axis_descr.conversion)
     {
         log_msgs.push(A2lError::CrossReferenceError {
             source_type: format!("AXIS_DESCR[{idx}] of CHARACTERISTIC"),
@@ -150,7 +154,20 @@ fn check_axis_descr(
         // other combinations are valid
         _ => {}
     }
+}
 
+// check axis_pts_ref and curve_axis_ref, which both have the special feature
+// of potentially referencing structure components using THIS.
+fn check_axis_descr_refs(
+    idx: usize,
+    parent_name: &str,
+    axis_descr: &AxisDescr,
+    objects: &ItemList<AnyObject>,
+    is_directly_used: bool,
+    containing_structures: &[&TypedefStructure],
+    log_msgs: &mut Vec<A2lError>,
+) {
+    // AXIS_DESCR.AXIS_PTS_REF
     if let Some(axis_pts_ref) = &axis_descr.axis_pts_ref {
         let apr_line = axis_pts_ref.get_line();
         if !is_directly_used
@@ -169,7 +186,7 @@ fn check_axis_descr(
                     target_name: structure_component.to_string(),
                 });
             }
-        } else if !name_map.object.contains_key(&axis_pts_ref.axis_points) {
+        } else if !objects.contains_key(&axis_pts_ref.axis_points) {
             log_msgs.push(A2lError::CrossReferenceError {
                 source_type: format!("AXIS_DESCR[{idx}] of CHARACTERISTIC"),
                 source_name: parent_name.to_string(),
@@ -180,6 +197,7 @@ fn check_axis_descr(
         }
     }
 
+    // AXIS_DESCR.CURVE_AXIS_REF
     if let Some(curve_axis_ref) = &axis_descr.curve_axis_ref {
         let car_line = curve_axis_ref.get_line();
         if !is_directly_used
@@ -198,7 +216,7 @@ fn check_axis_descr(
                     target_name: structure_component.to_string(),
                 });
             }
-        } else if !name_map.object.contains_key(&curve_axis_ref.curve_axis) {
+        } else if !objects.contains_key(&curve_axis_ref.curve_axis) {
             log_msgs.push(A2lError::CrossReferenceError {
                 source_type: format!("AXIS_DESCR[{idx}] of CHARACTERISTIC"),
                 source_name: parent_name.to_string(),
@@ -219,20 +237,20 @@ fn is_valid_structure_component(
         td_struct
             .structure_component
             .iter()
-            .any(|sc| sc.component_name == structure_component)
+            .any(|sc| sc.name == structure_component)
     })
 }
 
 fn check_typedef_axis(
     t_axis: &TypedefAxis,
-    name_map: &ModuleNameMap,
+    module: &Module,
+    objects: &ItemList<AnyObject>,
     log_msgs: &mut Vec<A2lError>,
 ) {
     let name = t_axis.get_name();
     let line = t_axis.get_line();
 
-    if t_axis.input_quantity != "NO_INPUT_QUANTITY"
-        && !name_map.object.contains_key(&t_axis.input_quantity)
+    if t_axis.input_quantity != "NO_INPUT_QUANTITY" && !objects.contains_key(&t_axis.input_quantity)
     {
         log_msgs.push(A2lError::CrossReferenceError {
             source_type: "TYPEDEF_AXIS".to_string(),
@@ -243,7 +261,7 @@ fn check_typedef_axis(
         });
     }
 
-    if !name_map.record_layout.contains_key(&t_axis.record_layout) {
+    if !module.record_layout.contains_key(&t_axis.record_layout) {
         log_msgs.push(A2lError::CrossReferenceError {
             source_type: "TYPEDEF_AXIS".to_string(),
             source_name: name.to_string(),
@@ -254,7 +272,7 @@ fn check_typedef_axis(
     }
 
     if t_axis.conversion != "NO_COMPU_METHOD"
-        && !name_map.compu_method.contains_key(&t_axis.conversion)
+        && !module.compu_method.contains_key(&t_axis.conversion)
     {
         log_msgs.push(A2lError::CrossReferenceError {
             source_type: "TYPEDEF_AXIS".to_string(),
@@ -266,12 +284,17 @@ fn check_typedef_axis(
     }
 }
 
-fn check_axis_pts(axis_pts: &AxisPts, name_map: &ModuleNameMap, log_msgs: &mut Vec<A2lError>) {
+fn check_axis_pts(
+    axis_pts: &AxisPts,
+    module: &Module,
+    objects: &ItemList<AnyObject>,
+    log_msgs: &mut Vec<A2lError>,
+) {
     let name = &axis_pts.name;
     let line = axis_pts.get_line();
 
     if axis_pts.conversion != "NO_COMPU_METHOD"
-        && !name_map.compu_method.contains_key(&axis_pts.conversion)
+        && !module.compu_method.contains_key(&axis_pts.conversion)
     {
         log_msgs.push(A2lError::CrossReferenceError {
             source_type: "AXIS_PTS".to_string(),
@@ -283,7 +306,7 @@ fn check_axis_pts(axis_pts: &AxisPts, name_map: &ModuleNameMap, log_msgs: &mut V
     }
 
     if axis_pts.input_quantity != "NO_INPUT_QUANTITY"
-        && !name_map.object.contains_key(&axis_pts.input_quantity)
+        && !objects.contains_key(&axis_pts.input_quantity)
     {
         log_msgs.push(A2lError::CrossReferenceError {
             source_type: "AXIS_PTS".to_string(),
@@ -294,9 +317,9 @@ fn check_axis_pts(axis_pts: &AxisPts, name_map: &ModuleNameMap, log_msgs: &mut V
         });
     }
 
-    if let Some(rl) = name_map.record_layout.get(&axis_pts.deposit_record) {
+    if let Some(rl) = module.record_layout.get(&axis_pts.deposit_record) {
         if let Some(axis_pts_x) = &rl.axis_pts_x {
-            let opt_compu_method = name_map.compu_method.get(&axis_pts.conversion);
+            let opt_compu_method = module.compu_method.get(&axis_pts.conversion);
             let calculated_limits = calc_compu_method_limits(opt_compu_method, axis_pts_x.datatype);
             let existing_limits = (axis_pts.lower_limit, axis_pts.upper_limit);
             if !check_limits_valid(existing_limits, calculated_limits) {
@@ -331,27 +354,29 @@ fn check_axis_pts(axis_pts: &AxisPts, name_map: &ModuleNameMap, log_msgs: &mut V
         });
     }
 
-    check_function_list(&axis_pts.function_list, name_map, log_msgs);
-    check_ref_memory_segment(&axis_pts.ref_memory_segment, name_map, log_msgs);
+    check_function_list(&axis_pts.function_list, module, log_msgs);
+    check_ref_memory_segment(&axis_pts.ref_memory_segment, module, log_msgs);
 }
 
 fn check_characteristic(
     characteristic: &Characteristic,
-    name_map: &ModuleNameMap,
-    log_msgs: &mut Vec<A2lError>,
+    module: &Module,
+    objects: &ItemList<AnyObject>,
+    results: &mut Vec<A2lError>,
 ) {
     check_characteristic_common(
         CharacteristicWrapper::Characteristic(characteristic),
-        name_map,
+        module,
+        objects,
         true, // all CHARACTERISTICs are directly used, indirect use only exists for TYPEDEF_CHARACTERISTICs
         &[],
-        log_msgs,
+        results,
     );
 
     if let Some(comparison_quantity) = &characteristic.comparison_quantity {
         let cqline = comparison_quantity.get_line();
-        if !name_map.object.contains_key(&comparison_quantity.name) {
-            log_msgs.push(A2lError::CrossReferenceError {
+        if !objects.contains_key(&comparison_quantity.name) {
+            results.push(A2lError::CrossReferenceError {
                 source_type: "CHARACTERISTIC".to_string(),
                 source_name: characteristic.name.to_string(),
                 source_line: cqline,
@@ -368,8 +393,8 @@ fn check_characteristic(
             "CHARACTERISTIC",
             depline,
             &dependent_characteristic.characteristic_list,
-            &name_map.object,
-            log_msgs,
+            objects,
+            results,
         );
     }
 
@@ -380,8 +405,8 @@ fn check_characteristic(
             "CHARACTERISTIC",
             ml_line,
             &map_list.name_list,
-            &name_map.object,
-            log_msgs,
+            objects,
+            results,
         );
     }
 
@@ -392,25 +417,27 @@ fn check_characteristic(
             "CHARACTERISTIC",
             vc_line,
             &virtual_characteristic.characteristic_list,
-            &name_map.object,
-            log_msgs,
+            objects,
+            results,
         );
     }
 
-    check_function_list(&characteristic.function_list, name_map, log_msgs);
-    check_ref_memory_segment(&characteristic.ref_memory_segment, name_map, log_msgs);
+    check_function_list(&characteristic.function_list, module, results);
+    check_ref_memory_segment(&characteristic.ref_memory_segment, module, results);
 }
 
 fn check_typedef_characteristic(
     t_characteristic: &TypedefCharacteristic,
-    name_map: &ModuleNameMap,
-    log_msgs: &mut Vec<A2lError>,
+    module: &Module,
+    objects: &ItemList<AnyObject>,
     is_directly_used: bool,
     containing_structures: &[&TypedefStructure],
+    log_msgs: &mut Vec<A2lError>,
 ) {
     check_characteristic_common(
         CharacteristicWrapper::TypedefCharacteristic(t_characteristic),
-        name_map,
+        module,
+        objects,
         is_directly_used,
         containing_structures,
         log_msgs,
@@ -420,7 +447,8 @@ fn check_typedef_characteristic(
 // check the items that are shared between CHARACTERISTIC and TYPEDEF_CHARACTERISTIC
 fn check_characteristic_common(
     characteristic: CharacteristicWrapper,
-    name_map: &ModuleNameMap,
+    module: &Module,
+    objects: &ItemList<AnyObject>,
     is_directly_used: bool,
     containing_structures: &[&TypedefStructure],
     log_msgs: &mut Vec<A2lError>,
@@ -430,7 +458,7 @@ fn check_characteristic_common(
     let line = characteristic.line();
 
     if characteristic.conversion() != "NO_COMPU_METHOD"
-        && !name_map
+        && !module
             .compu_method
             .contains_key(characteristic.conversion())
     {
@@ -444,14 +472,15 @@ fn check_characteristic_common(
     }
 
     for (idx, axis_descr) in characteristic.axis_descr().iter().enumerate() {
-        check_axis_descr(
+        check_axis_descr(idx, name, axis_descr, module, objects, log_msgs);
+        check_axis_descr_refs(
             idx,
             name,
             axis_descr,
-            name_map,
-            log_msgs,
+            objects,
             is_directly_used,
             containing_structures,
+            log_msgs,
         );
     }
 
@@ -477,11 +506,11 @@ fn check_characteristic_common(
     }
 
     let rl_name = characteristic.record_layout();
-    if let Some(record_layout) = name_map.record_layout.get(rl_name) {
+    if let Some(record_layout) = module.record_layout.get(rl_name) {
         if let Some(fnc_values) = &record_layout.fnc_values {
             // check the limits of the characteristic based on the compu method
             // Not all characteristics have a compu method, since it can be NO_COMPU_METHOD
-            let opt_compu_method = name_map.compu_method.get(characteristic.conversion());
+            let opt_compu_method = module.compu_method.get(characteristic.conversion());
             let calculated_limits = calc_compu_method_limits(opt_compu_method, fnc_values.datatype);
             let existing_limits = (characteristic.lower_limit(), characteristic.upper_limit());
             if !check_limits_valid(existing_limits, calculated_limits) {
@@ -520,7 +549,7 @@ fn check_characteristic_common(
                 // an STD_AXIS must be described by the record layout - should this also apply to CURVE_AXIS?
                 if let Some(axis_pts_dim) = axis_refs[idx] {
                     // the compu method is optional, it could be set to NO_COMPU_METHOD
-                    let opt_compu_method = name_map.compu_method.get(&axis_descr.conversion);
+                    let opt_compu_method = module.compu_method.get(&axis_descr.conversion);
                     let calculated_limits =
                         calc_compu_method_limits(opt_compu_method, axis_pts_dim.datatype);
                     let existing_limits = (axis_descr.lower_limit, axis_descr.upper_limit);
@@ -562,16 +591,14 @@ fn check_characteristic_common(
 
 fn check_compu_method(
     compu_method: &CompuMethod,
-    name_map: &ModuleNameMap,
+    module: &Module,
+    compu_tabs: &ItemList<AnyCompuTab>,
     log_msgs: &mut Vec<A2lError>,
 ) {
     let line = compu_method.get_line();
 
     if let Some(compu_tab_ref) = &compu_method.compu_tab_ref {
-        if !name_map
-            .compu_tab
-            .contains_key(&compu_tab_ref.conversion_table)
-        {
+        if !compu_tabs.contains_key(&compu_tab_ref.conversion_table) {
             log_msgs.push(A2lError::CrossReferenceError {
                 source_type: "COMPU_METHOD".to_string(),
                 source_name: compu_method.name.to_string(),
@@ -583,7 +610,7 @@ fn check_compu_method(
     }
 
     if let Some(ref_unit) = &compu_method.ref_unit {
-        if !name_map.unit.contains_key(&ref_unit.unit) {
+        if !module.unit.contains_key(&ref_unit.unit) {
             log_msgs.push(A2lError::CrossReferenceError {
                 source_type: "COMPU_METHOD".to_string(),
                 source_name: compu_method.name.to_string(),
@@ -595,10 +622,7 @@ fn check_compu_method(
     }
 
     if let Some(status_string_ref) = &compu_method.status_string_ref {
-        if !name_map
-            .compu_tab
-            .contains_key(&status_string_ref.conversion_table)
-        {
+        if !compu_tabs.contains_key(&status_string_ref.conversion_table) {
             log_msgs.push(A2lError::CrossReferenceError {
                 source_type: "COMPU_METHOD".to_string(),
                 source_name: compu_method.name.to_string(),
@@ -610,7 +634,12 @@ fn check_compu_method(
     }
 }
 
-fn check_function(function: &Function, name_map: &ModuleNameMap, log_msgs: &mut Vec<A2lError>) {
+fn check_function(
+    function: &Function,
+    module: &Module,
+    objects: &ItemList<AnyObject>,
+    log_msgs: &mut Vec<A2lError>,
+) {
     if let Some(in_measurement) = &function.in_measurement {
         let line = in_measurement.get_line();
         check_reference_list(
@@ -618,7 +647,7 @@ fn check_function(function: &Function, name_map: &ModuleNameMap, log_msgs: &mut 
             "MEASUREMENT",
             line,
             &in_measurement.identifier_list,
-            &name_map.object,
+            objects,
             log_msgs,
         );
     }
@@ -630,7 +659,7 @@ fn check_function(function: &Function, name_map: &ModuleNameMap, log_msgs: &mut 
             "MEASUREMENT",
             line,
             &loc_measurement.identifier_list,
-            &name_map.object,
+            objects,
             log_msgs,
         );
     }
@@ -642,7 +671,7 @@ fn check_function(function: &Function, name_map: &ModuleNameMap, log_msgs: &mut 
             "MEASUREMENT",
             line,
             &out_measurement.identifier_list,
-            &name_map.object,
+            objects,
             log_msgs,
         );
     }
@@ -654,7 +683,7 @@ fn check_function(function: &Function, name_map: &ModuleNameMap, log_msgs: &mut 
             "CHARACTERISTIC",
             line,
             &def_characteristic.identifier_list,
-            &name_map.object,
+            objects,
             log_msgs,
         );
     }
@@ -666,7 +695,7 @@ fn check_function(function: &Function, name_map: &ModuleNameMap, log_msgs: &mut 
             "CHARACTERISTIC",
             line,
             &ref_characteristic.identifier_list,
-            &name_map.object,
+            objects,
             log_msgs,
         );
     }
@@ -678,7 +707,7 @@ fn check_function(function: &Function, name_map: &ModuleNameMap, log_msgs: &mut 
             "FUNCTION",
             line,
             &sub_function.identifier_list,
-            &name_map.function,
+            &module.function,
             log_msgs,
         );
     }
@@ -686,7 +715,7 @@ fn check_function(function: &Function, name_map: &ModuleNameMap, log_msgs: &mut 
 
 fn check_function_list(
     opt_function_list: &Option<FunctionList>,
-    name_map: &ModuleNameMap,
+    module: &Module,
     log_msgs: &mut Vec<A2lError>,
 ) {
     if let Some(function_list) = opt_function_list {
@@ -696,13 +725,18 @@ fn check_function_list(
             "FUNCTION",
             line,
             &function_list.name_list,
-            &name_map.function,
+            &module.function,
             log_msgs,
         );
     }
 }
 
-fn check_group(group: &Group, name_map: &ModuleNameMap, log_msgs: &mut Vec<A2lError>) {
+fn check_group(
+    group: &Group,
+    module: &Module,
+    objects: &ItemList<AnyObject>,
+    log_msgs: &mut Vec<A2lError>,
+) {
     if let Some(ref_characteristic) = &group.ref_characteristic {
         let line = ref_characteristic.get_line();
         check_reference_list(
@@ -710,7 +744,7 @@ fn check_group(group: &Group, name_map: &ModuleNameMap, log_msgs: &mut Vec<A2lEr
             "CHARACTERISTIC",
             line,
             &ref_characteristic.identifier_list,
-            &name_map.object,
+            objects,
             log_msgs,
         );
     }
@@ -722,7 +756,7 @@ fn check_group(group: &Group, name_map: &ModuleNameMap, log_msgs: &mut Vec<A2lEr
             "MEASUREMENT",
             line,
             &ref_measurement.identifier_list,
-            &name_map.object,
+            objects,
             log_msgs,
         );
     }
@@ -734,7 +768,7 @@ fn check_group(group: &Group, name_map: &ModuleNameMap, log_msgs: &mut Vec<A2lEr
             "FUNCTION",
             line,
             &function_list.name_list,
-            &name_map.function,
+            &module.function,
             log_msgs,
         );
     }
@@ -746,22 +780,18 @@ fn check_group(group: &Group, name_map: &ModuleNameMap, log_msgs: &mut Vec<A2lEr
             "GROUP",
             line,
             &sub_group.identifier_list,
-            &name_map.group,
+            &module.group,
             log_msgs,
         );
     }
 }
 
-fn check_measurement(
-    measurement: &Measurement,
-    name_map: &ModuleNameMap,
-    log_msgs: &mut Vec<A2lError>,
-) {
+fn check_measurement(measurement: &Measurement, module: &Module, log_msgs: &mut Vec<A2lError>) {
     let name = &measurement.name;
     let line = measurement.get_line();
 
     if measurement.conversion != "NO_COMPU_METHOD"
-        && !name_map.compu_method.contains_key(&measurement.conversion)
+        && !module.compu_method.contains_key(&measurement.conversion)
     {
         log_msgs.push(A2lError::CrossReferenceError {
             source_type: "MEASUREMENT".to_string(),
@@ -772,7 +802,7 @@ fn check_measurement(
         });
     }
 
-    let opt_compu_method = name_map.compu_method.get(&measurement.conversion);
+    let opt_compu_method = module.compu_method.get(&measurement.conversion);
     let calculated_limits = calc_compu_method_limits(opt_compu_method, measurement.datatype);
     let existing_limits = (measurement.lower_limit, measurement.upper_limit);
     if !check_limits_valid(existing_limits, calculated_limits) {
@@ -787,22 +817,20 @@ fn check_measurement(
         });
     }
 
-    check_ref_memory_segment(&measurement.ref_memory_segment, name_map, log_msgs);
-    check_function_list(&measurement.function_list, name_map, log_msgs);
+    check_ref_memory_segment(&measurement.ref_memory_segment, module, log_msgs);
+    check_function_list(&measurement.function_list, module, log_msgs);
 }
 
 fn check_typedef_measurement(
     t_measurement: &TypedefMeasurement,
-    name_map: &ModuleNameMap,
+    module: &Module,
     log_msgs: &mut Vec<A2lError>,
 ) {
     let name = &t_measurement.name;
     let line = t_measurement.get_line();
 
     if t_measurement.conversion != "NO_COMPU_METHOD"
-        && !name_map
-            .compu_method
-            .contains_key(&t_measurement.conversion)
+        && !module.compu_method.contains_key(&t_measurement.conversion)
     {
         log_msgs.push(A2lError::CrossReferenceError {
             source_type: "TYPEDEF_MEASUREMENT".to_string(),
@@ -813,7 +841,7 @@ fn check_typedef_measurement(
         });
     }
 
-    let opt_compu_method = name_map.compu_method.get(&t_measurement.conversion);
+    let opt_compu_method = module.compu_method.get(&t_measurement.conversion);
     let (lower_limit, upper_limit) =
         calc_compu_method_limits(opt_compu_method, t_measurement.datatype);
     if lower_limit > t_measurement.lower_limit || upper_limit < t_measurement.upper_limit {
@@ -831,14 +859,15 @@ fn check_typedef_measurement(
 
 fn check_transformer(
     transformer: &Transformer,
-    name_map: &ModuleNameMap,
+    module: &Module,
+    objects: &ItemList<AnyObject>,
     log_msgs: &mut Vec<A2lError>,
 ) {
     let name = &transformer.name;
     let line = transformer.get_line();
 
     if transformer.inverse_transformer != "NO_INVERSE_TRANSFORMER"
-        && !name_map
+        && !module
             .transformer
             .contains_key(&transformer.inverse_transformer)
     {
@@ -858,7 +887,7 @@ fn check_transformer(
             "CHARACTERISTIC",
             line,
             &transformer_in_objects.identifier_list,
-            &name_map.object,
+            objects,
             log_msgs,
         );
     }
@@ -870,7 +899,7 @@ fn check_transformer(
             "CHARACTERISTIC",
             line,
             &transformer_out_objects.identifier_list,
-            &name_map.object,
+            objects,
             log_msgs,
         );
     }
@@ -878,16 +907,23 @@ fn check_transformer(
 
 fn check_ref_memory_segment(
     opt_ref_memory_segment: &Option<RefMemorySegment>,
-    name_map: &ModuleNameMap,
+    module: &Module,
     log_msgs: &mut Vec<A2lError>,
 ) {
     if let Some(ref_memory_segment) = opt_ref_memory_segment {
         let line = ref_memory_segment.get_line();
 
-        if !name_map
-            .memory_segment
-            .contains_key(&ref_memory_segment.name)
-        {
+        let valid_ref = module
+            .mod_par
+            .as_ref()
+            .map(|mod_par| {
+                mod_par
+                    .memory_segment
+                    .contains_key(&ref_memory_segment.name)
+            })
+            .unwrap_or(false);
+
+        if !valid_ref {
             log_msgs.push(A2lError::CrossReferenceError {
                 source_type: "REF_MEMORY_SEGMENT".to_string(),
                 source_name: ref_memory_segment.name.to_string(),
@@ -899,12 +935,12 @@ fn check_ref_memory_segment(
     }
 }
 
-fn check_reference_list<T>(
+fn check_reference_list<T: A2lObjectName>(
     container_type: &str,
     ref_type: &str,
     line: u32,
     identifier_list: &[String],
-    map: &HashMap<String, T>,
+    map: &ItemList<T>,
     log_msgs: &mut Vec<A2lError>,
 ) {
     for ident in identifier_list {
@@ -925,7 +961,7 @@ struct GroupInfo<'a> {
     parents: Vec<&'a str>,
 }
 
-fn check_group_structure(grouplist: &[Group], log_msgs: &mut Vec<A2lError>) {
+fn check_group_structure(grouplist: &ItemList<Group>, log_msgs: &mut Vec<A2lError>) {
     let mut groupinfo: HashMap<String, GroupInfo> = HashMap::new();
 
     for group in grouplist {
@@ -998,11 +1034,15 @@ fn check_group_structure(grouplist: &[Group], log_msgs: &mut Vec<A2lError>) {
     }
 }
 
-fn check_instance(instance: &Instance, name_map: &ModuleNameMap, log_msgs: &mut Vec<A2lError>) {
+fn check_instance(
+    instance: &Instance,
+    typedefs: &ItemList<AnyTypedef>,
+    log_msgs: &mut Vec<A2lError>,
+) {
     let name = &instance.name;
     let line = instance.get_line();
 
-    if !name_map.typedef.contains_key(&instance.type_ref) {
+    if !typedefs.contains_key(&instance.type_ref) {
         log_msgs.push(A2lError::CrossReferenceError {
             source_type: "INSTANCE".to_string(),
             source_name: name.to_string(),
@@ -1015,19 +1055,16 @@ fn check_instance(instance: &Instance, name_map: &ModuleNameMap, log_msgs: &mut 
 
 fn check_typedef_structure(
     typedef_structure: &TypedefStructure,
-    name_map: &ModuleNameMap,
+    typedefs: &ItemList<AnyTypedef>,
     log_msgs: &mut Vec<A2lError>,
 ) {
     let name = &typedef_structure.name;
     let line = typedef_structure.get_line();
 
     for sc in &typedef_structure.structure_component {
-        if !name_map.typedef.contains_key(&sc.component_type) {
+        if !typedefs.contains_key(&sc.component_type) {
             log_msgs.push(A2lError::CrossReferenceError {
-                source_type: format!(
-                    "STRUCTURE_COMPONENT {} of TYPEDEF_STRUCTURE",
-                    sc.component_name
-                ),
+                source_type: format!("STRUCTURE_COMPONENT {} of TYPEDEF_STRUCTURE", sc.name),
                 source_name: name.to_string(),
                 source_line: line,
                 target_type: "TYPEDEF_<x>".to_string(),
@@ -1039,7 +1076,7 @@ fn check_typedef_structure(
 
 // calculate the limits of a characteristic based on the compu method
 fn calc_compu_method_limits(
-    opt_compu_method: Option<&&CompuMethod>,
+    opt_compu_method: Option<&CompuMethod>,
     datatype: DataType,
 ) -> (f64, f64) {
     let (mut lower_limit, mut upper_limit) = get_datatype_limits(datatype);

@@ -5,6 +5,7 @@ use crate::ifdata;
 use crate::parser::{A2lVersion, ParseContext, ParserError, ParserState};
 use crate::tokenizer::A2lTokenType;
 use crate::writer;
+use crate::ItemList;
 
 /// Describes the location and formatting of an a2l block within a file
 #[derive(PartialEq, Eq, Clone)]
@@ -43,6 +44,16 @@ pub trait A2lObjectName {
     /// get the name of an a2l object.
     /// this trait is only implemented for those objects that have names, which is a subset of all objects
     fn get_name(&self) -> &str;
+}
+
+/// The trait `A2lObjectName` is automatically implemented for named a2l objects
+pub trait A2lObjectNameSetter {
+    /// set the name of an a2l object.
+    /// this trait is only implemented for those objects that have names, which is a subset of all objects
+    ///
+    /// Setting the name directly should only be done when the object is not part of a list.
+    /// If the object is part of a list, the name should be set through the list, so that the map is updated correctly.
+    fn set_name(&mut self, name: String);
 }
 
 pub(crate) trait PositionRestricted {
@@ -1253,7 +1264,7 @@ a2l_specification! {
 
     /// defines a single component of a TYPEDEF_STRUCTURE
     block STRUCTURE_COMPONENT {
-        ident component_name
+        ident name
         ident component_type
         ulong address_offset
         [-> ADDRESS_TYPE]  (1.71 ..)

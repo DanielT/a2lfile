@@ -57,7 +57,7 @@ ASAP2_VERSION 1 61
       COEFFS 0 1 0 0 0 1
       REF_UNIT abc
     /end COMPU_METHOD
-    /begin MEASUREMENT measurement ""
+    /begin MEASUREMENT aaaa ""
       UBYTE CM.IDENTICAL 0 0 0 255
       /begin IF_DATA ETK
         KP_BLOB 0x13A30 INTERN 0x1 RASTER 0x4
@@ -152,7 +152,7 @@ ASAP2_VERSION 1 61
         mod_par.ecu_calibration_offset = Some(EcuCalibrationOffset::new(0x12345678));
         mod_par.epk = Some(Epk::new("abcdef".to_string()));
         mod_par.memory_layout = vec![MemoryLayout::new(ProgType::PrgCode, 0, 0, [0, 0, 0, 0, 0])];
-        mod_par.memory_segment = vec![memory_segment];
+        mod_par.memory_segment = itemlist![memory_segment];
         mod_par.no_of_interfaces = Some(NoOfInterfaces::new(1));
         mod_par.phone_no = Some(PhoneNo::new("phone_no".to_string()));
         mod_par.supplier = Some(Supplier::new("supplier".to_string()));
@@ -234,7 +234,7 @@ ASAP2_VERSION 1 61
         axis_pts.step_size = Some(StepSize::new(1f64));
         axis_pts.symbol_link = Some(SymbolLink::new("symbol_link".to_string(), 0));
 
-        let mut blob = Blob::new("name".to_string(), "long_identifier".to_string(), 0, 0);
+        let mut blob = Blob::new("blob".to_string(), "long_identifier".to_string(), 0, 0);
         blob.annotation = vec![Annotation::new()];
         blob.address_type = Some(AddressType::new(AddrType::Direct));
         blob.calibration_access = Some(CalibrationAccess::new(CalibrationAccessEnum::Calibration));
@@ -301,7 +301,7 @@ ASAP2_VERSION 1 61
         ));
 
         let mut compu_method = CompuMethod::new(
-            "name".to_string(),
+            "compu_method".to_string(),
             "display_identifier".to_string(),
             ConversionType::TabVerb,
             "format".to_string(),
@@ -316,7 +316,7 @@ ASAP2_VERSION 1 61
             Some(StatusStringRef::new("status_string_ref".to_string()));
 
         let compu_method_2 = CompuMethod::new(
-            "compu_method_2".to_string(),
+            "a_compu_method_2".to_string(),
             "display_identifier".to_string(),
             ConversionType::TabVerb,
             "format".to_string(),
@@ -324,7 +324,7 @@ ASAP2_VERSION 1 61
         );
 
         let mut compu_tab = CompuTab::new(
-            "name".to_string(),
+            "compu_tab".to_string(),
             "long_identifier".to_string(),
             ConversionType::TabVerb,
             1,
@@ -334,7 +334,7 @@ ASAP2_VERSION 1 61
         compu_tab.tab_entry = vec![TabEntryStruct::new(0f64, 1f64)];
 
         let mut compu_vtab = CompuVtab::new(
-            "name".to_string(),
+            "compu_vtab".to_string(),
             "long_identifier".to_string(),
             ConversionType::TabVerb,
             1,
@@ -342,8 +342,11 @@ ASAP2_VERSION 1 61
         compu_vtab.default_value = Some(DefaultValue::new("default_value".to_string()));
         compu_vtab.value_pairs = vec![ValuePairsStruct::new(0f64, "value".to_string())];
 
-        let mut compu_vtab_range =
-            CompuVtabRange::new("name".to_string(), "long_identifier".to_string(), 1);
+        let mut compu_vtab_range = CompuVtabRange::new(
+            "compu_vtab_range".to_string(),
+            "long_identifier".to_string(),
+            1,
+        );
         compu_vtab_range.default_value = Some(DefaultValue::new("default_value".to_string()));
         compu_vtab_range.value_triples =
             vec![ValueTriplesStruct::new(0f64, 1f64, "value".to_string())];
@@ -351,7 +354,7 @@ ASAP2_VERSION 1 61
         let mut frame_measurement = FrameMeasurement::new();
         frame_measurement.identifier_list = vec!["identifier".to_string()];
 
-        let mut frame = Frame::new("name".to_string(), "long_identifier".to_string(), 0, 0);
+        let mut frame = Frame::new("frame".to_string(), "long_identifier".to_string(), 0, 0);
         frame.frame_measurement = Some(frame_measurement);
 
         let mut def_characteristic = DefCharacteristic::new();
@@ -367,9 +370,9 @@ ASAP2_VERSION 1 61
         let mut sub_function = SubFunction::new();
         sub_function.identifier_list = vec!["identifier".to_string()];
 
-        let mut function = Function::new("name".to_string(), "long_identifier".to_string());
+        let mut function = Function::new("function".to_string(), "long_identifier".to_string());
         function.annotation = vec![Annotation::new()];
-        let mut ar_component = ArComponent::new("name".to_string());
+        let mut ar_component = ArComponent::new("ar_component".to_string());
         ar_component.ar_prototype_of = Some(ArPrototypeOf::new("function".to_string()));
         function.ar_component = Some(ar_component);
         function.def_characteristic = Some(def_characteristic);
@@ -386,7 +389,7 @@ ASAP2_VERSION 1 61
         let mut sub_group = SubGroup::new();
         sub_group.identifier_list = vec!["identifier".to_string()];
 
-        let mut group = Group::new("name".to_string(), "long_identifier".to_string());
+        let mut group = Group::new("group".to_string(), "long_identifier".to_string());
         group.annotation = vec![Annotation::new()];
         group.function_list = Some(function_list.clone());
         group.ref_characteristic = Some(ref_characteristic);
@@ -394,7 +397,7 @@ ASAP2_VERSION 1 61
         group.root = Some(Root::new());
         group.sub_group = Some(sub_group);
 
-        let mut overwrite = Overwrite::new("name".to_string(), 0);
+        let mut overwrite = Overwrite::new("overwrite".to_string(), 0);
         overwrite.conversion = Some(Conversion::new("conversion".to_string()));
         overwrite.extended_limits = Some(ExtendedLimits::new(0f64, 0f64));
         overwrite.format = Some(Format::new("format".to_string()));
@@ -404,7 +407,7 @@ ASAP2_VERSION 1 61
         overwrite.phys_unit = Some(PhysUnit::new("phys_unit".to_string()));
 
         let mut instance = Instance::new(
-            "name".to_string(),
+            "instance".to_string(),
             "long_identifier".to_string(),
             "type_ref".to_string(),
             0,
@@ -420,7 +423,7 @@ ASAP2_VERSION 1 61
         instance.matrix_dim = Some(matrix_dim.clone());
         instance.max_refresh = Some(MaxRefresh::new(0u16, 0u32));
         instance.model_link = Some(ModelLink::new("model_link".to_string()));
-        instance.overwrite = vec![overwrite];
+        instance.overwrite = itemlist![overwrite];
         instance.read_only = Some(ReadOnly::new());
         instance.symbol_link = Some(SymbolLink::new("symbol_link".to_string(), 0));
 
@@ -433,7 +436,7 @@ ASAP2_VERSION 1 61
         var_virtual.measuring_channel_list = vec!["x".to_string()];
 
         let mut measurement = Measurement::new(
-            "name".to_string(),
+            "measurement".to_string(),
             "long_identifier".to_string(),
             DataType::Ulong,
             "conversion".to_string(),
@@ -599,7 +602,7 @@ ASAP2_VERSION 1 61
         transformer_out_objects.identifier_list = vec!["name1".to_string(), "name2".to_string()];
 
         let mut transformer = Transformer::new(
-            "name".to_string(),
+            "transformer".to_string(),
             "version".to_string(),
             "dllname_32bit".to_string(),
             "dllname_64bit".to_string(),
@@ -611,7 +614,7 @@ ASAP2_VERSION 1 61
         transformer.transformer_out_objects = Some(transformer_out_objects);
 
         let mut typedef_axis = TypedefAxis::new(
-            "name".to_string(),
+            "typedef_axis".to_string(),
             "long_identifier".to_string(),
             "input_quantity".to_string(),
             "record_layout".to_string(),
@@ -629,11 +632,11 @@ ASAP2_VERSION 1 61
         typedef_axis.step_size = Some(StepSize::new(0f64));
 
         let mut typedef_blob =
-            TypedefBlob::new("name".to_string(), "long_identifier".to_string(), 0);
+            TypedefBlob::new("typedef_blob".to_string(), "long_identifier".to_string(), 0);
         typedef_blob.address_type = Some(AddressType::new(AddrType::Pbyte));
 
         let mut typedef_characteristic = TypedefCharacteristic::new(
-            "name".to_string(),
+            "typedef_characteristic".to_string(),
             "long_identifier".to_string(),
             CharacteristicType::Value,
             "record_layout".to_string(),
@@ -655,7 +658,7 @@ ASAP2_VERSION 1 61
         typedef_characteristic.step_size = Some(StepSize::new(1f64));
 
         let mut typedef_measurement = TypedefMeasurement::new(
-            "name".to_string(),
+            "typedef_measurement".to_string(),
             "long_identifier".to_string(),
             DataType::Sword,
             "conversion".to_string(),
@@ -685,15 +688,18 @@ ASAP2_VERSION 1 61
         structure_component.matrix_dim = Some(matrix_dim);
         structure_component.symbol_type_link = Some(SymbolTypeLink::new("symbol_type".to_string()));
 
-        let mut typedef_structure =
-            TypedefStructure::new("name".to_string(), "long_identifier".to_string(), 0);
+        let mut typedef_structure = TypedefStructure::new(
+            "typedef_structure".to_string(),
+            "long_identifier".to_string(),
+            0,
+        );
         typedef_structure.address_type = Some(AddressType::new(AddrType::Direct));
         typedef_structure.consistent_exchange = Some(ConsistentExchange::new());
-        typedef_structure.structure_component = vec![structure_component];
+        typedef_structure.structure_component = itemlist![structure_component];
         typedef_structure.symbol_type_link = Some(SymbolTypeLink::new("symbol_type".to_string()));
 
         let mut unit = Unit::new(
-            "name".to_string(),
+            "unit".to_string(),
             "long_identifier".to_string(),
             "display".to_string(),
             UnitType::Derived,
@@ -721,32 +727,32 @@ ASAP2_VERSION 1 61
         var_characteristic.var_address = Some(var_address);
 
         let mut variant_coding = VariantCoding::new();
-        variant_coding.var_characteristic = vec![var_characteristic];
+        variant_coding.var_characteristic = itemlist![var_characteristic];
 
         a2l_file.project.module[0].a2ml = Some(a2ml);
         a2l_file.project.module[0].mod_par = Some(mod_par);
         a2l_file.project.module[0].mod_common = Some(mod_common);
-        a2l_file.project.module[0].axis_pts = vec![axis_pts];
-        a2l_file.project.module[0].blob = vec![blob];
-        a2l_file.project.module[0].characteristic = vec![characteristic];
-        a2l_file.project.module[0].compu_method = vec![compu_method, compu_method_2];
-        a2l_file.project.module[0].compu_tab = vec![compu_tab];
-        a2l_file.project.module[0].compu_vtab = vec![compu_vtab];
-        a2l_file.project.module[0].compu_vtab_range = vec![compu_vtab_range];
-        a2l_file.project.module[0].frame = vec![frame];
-        a2l_file.project.module[0].function = vec![function];
-        a2l_file.project.module[0].group = vec![group];
+        a2l_file.project.module[0].axis_pts = itemlist![axis_pts];
+        a2l_file.project.module[0].blob = itemlist![blob];
+        a2l_file.project.module[0].characteristic = itemlist![characteristic];
+        a2l_file.project.module[0].compu_method = itemlist![compu_method, compu_method_2];
+        a2l_file.project.module[0].compu_tab = itemlist![compu_tab];
+        a2l_file.project.module[0].compu_vtab = itemlist![compu_vtab];
+        a2l_file.project.module[0].compu_vtab_range = itemlist![compu_vtab_range];
+        a2l_file.project.module[0].frame = itemlist![frame];
+        a2l_file.project.module[0].function = itemlist![function];
+        a2l_file.project.module[0].group = itemlist![group];
         a2l_file.project.module[0].if_data = vec![if_data_a];
-        a2l_file.project.module[0].instance = vec![instance];
-        a2l_file.project.module[0].measurement = vec![measurement];
-        a2l_file.project.module[0].record_layout = vec![record_layout];
-        a2l_file.project.module[0].transformer = vec![transformer];
-        a2l_file.project.module[0].typedef_axis = vec![typedef_axis];
-        a2l_file.project.module[0].typedef_blob = vec![typedef_blob];
-        a2l_file.project.module[0].typedef_characteristic = vec![typedef_characteristic];
-        a2l_file.project.module[0].typedef_measurement = vec![typedef_measurement];
-        a2l_file.project.module[0].typedef_structure = vec![typedef_structure];
-        a2l_file.project.module[0].unit = vec![unit];
+        a2l_file.project.module[0].instance = itemlist![instance];
+        a2l_file.project.module[0].measurement = itemlist![measurement];
+        a2l_file.project.module[0].record_layout = itemlist![record_layout];
+        a2l_file.project.module[0].transformer = itemlist![transformer];
+        a2l_file.project.module[0].typedef_axis = itemlist![typedef_axis];
+        a2l_file.project.module[0].typedef_blob = itemlist![typedef_blob];
+        a2l_file.project.module[0].typedef_characteristic = itemlist![typedef_characteristic];
+        a2l_file.project.module[0].typedef_measurement = itemlist![typedef_measurement];
+        a2l_file.project.module[0].typedef_structure = itemlist![typedef_structure];
+        a2l_file.project.module[0].unit = itemlist![unit];
         a2l_file.project.module[0].user_rights = vec![user_rights];
         a2l_file.project.module[0].variant_coding = Some(variant_coding);
 
@@ -755,6 +761,10 @@ ASAP2_VERSION 1 61
         assert_eq!(a2l_file.project.module.len(), 1);
         // merge_modules should be a no-op in this case, because the content of the merged file is the same as the original
         a2l_file.merge_modules(&mut cloned_a2l_file);
+        assert_eq!(
+            a2l_file.project.module[0].blob, unchanged_a2l_file.project.module[0].blob,
+            "merge error"
+        );
         a2l_file.write("merged.a2l", None).unwrap();
         unchanged_a2l_file.write("orig.a2l", None).unwrap();
         assert_eq!(a2l_file, unchanged_a2l_file);
@@ -767,18 +777,24 @@ ASAP2_VERSION 1 61
 
         a2l_file.project.module[0].measurement[0].reset_location();
         // initially the compu_methods are not sorted alphabetically
-        assert_eq!(a2l_file.project.module[0].compu_method[0].name, "name");
         assert_eq!(
-            a2l_file.project.module[0].compu_method[1].name,
-            "compu_method_2"
+            a2l_file.project.module[0].compu_method[0].get_name(),
+            "compu_method"
+        );
+        assert_eq!(
+            a2l_file.project.module[0].compu_method[1].get_name(),
+            "a_compu_method_2"
         );
         a2l_file.sort_new_items();
         // now they are sorted alphabetically
         assert_eq!(
-            a2l_file.project.module[0].compu_method[0].name,
-            "compu_method_2"
+            a2l_file.project.module[0].compu_method[0].get_name(),
+            "a_compu_method_2"
         );
-        assert_eq!(a2l_file.project.module[0].compu_method[1].name, "name");
+        assert_eq!(
+            a2l_file.project.module[0].compu_method[1].get_name(),
+            "compu_method"
+        );
 
         // the newly created elements do not have a uid, even after sort_new_items()
         assert!(
@@ -1274,9 +1290,8 @@ ASAP2_VERSION 1 61
         header.project_no = Some(ProjectNo::new("ident_12345".to_string()));
         header.version = Some(Version::new("version_string".to_string()));
         a2l_file5.project.header = Some(header);
-        let module = &mut a2l_file5.project.module[0];
-        module.name = "mod".to_string();
-        module.long_identifier = "long_identifier".to_string();
+        a2l_file5.project.module.clear();
+        let mut module = Module::new("mod".to_string(), "long_identifier".to_string());
         module.a2ml = Some(A2ml::new(
             r#"
                     block "IF_DATA" struct {
@@ -1579,7 +1594,7 @@ ASAP2_VERSION 1 61
         let mut calibration_handle = CalibrationHandle::new();
         calibration_handle.handle_list = vec![1, 2, 3, 4, 5];
         calibration_handle.calibration_handle_text =
-            Some(CalibrationHandleText::new("txt".to_string()));
+            vec![CalibrationHandleText::new("txt".to_string())];
         calibration_method.calibration_handle = vec![calibration_handle];
         mod_par.calibration_method.push(calibration_method);
         mod_par.cpu_type = Some(CpuType::new("leg".to_string()));
@@ -1865,6 +1880,7 @@ ASAP2_VERSION 1 61
         variant_coding.var_forbidden_comb.push(var_forbidden_comb);
         variant_coding.var_criterion.push(var_criterion);
         module.variant_coding = Some(variant_coding);
+        a2l_file5.project.module.push(module);
         assert_eq!(a2l_file, a2l_file5);
 
         // check the data in a2l_file and a2l_file5

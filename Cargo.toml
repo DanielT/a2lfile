@@ -6,5 +6,5 @@ members = [
 resolver = "2"
 
 [patch.crates-io]
-a2lfile = { path = "./a2lfile" }
-a2lmacros = { path = "./a2lmacros" }
+a2lfile = { path = "a2lfile" }
+a2lmacros = { path = "a2lmacros" }

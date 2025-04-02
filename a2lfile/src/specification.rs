@@ -11,6 +11,7 @@ use crate::ifdata;
 use crate::parser::{A2lVersion, ParseContext, ParserError, ParserState};
 use crate::tokenizer::A2lTokenType;
 use crate::writer;
+use crate::ItemList;
 
 /// Describes the location and formatting of an a2l block within a file
 #[derive(Clone, PartialEq, Eq)]
@@ -45,6 +46,16 @@ pub trait A2lObjectName {
     /// get the name of an a2l object.
     /// this trait is only implemented for those objects that have names, which is a subset of all objects
     fn get_name(&self) -> &str;
+}
+
+/// The trait `A2lObjectName` is automatically implemented for named a2l objects
+pub trait A2lObjectNameSetter {
+    /// set the name of an a2l object.
+    /// this trait is only implemented for those objects that have names, which is a subset of all objects
+    ///
+    /// Setting the name directly should only be done when the object is not part of a list.
+    /// If the object is part of a list, the name should be set through the list, so that the map is updated correctly.
+    fn set_name(&mut self, name: String);
 }
 
 pub(crate) trait PositionRestricted {
@@ -104,9 +115,9 @@ impl A2lFile {
 
 impl PartialEq for A2lFile {
     fn eq(&self, other: &Self) -> bool {
-        (self.asap2_version == other.asap2_version)
-            && (self.a2ml_version == other.a2ml_version)
-            && (self.project == other.project)
+        self.asap2_version == other.asap2_version
+            && self.a2ml_version == other.a2ml_version
+            && self.project == other.project
     }
 }
 
@@ -304,7 +315,7 @@ impl A2mlVersion {
 
 impl PartialEq for A2mlVersion {
     fn eq(&self, other: &Self) -> bool {
-        (self.version_no == other.version_no) && (self.upgrade_no == other.upgrade_no)
+        self.version_no == other.version_no && self.upgrade_no == other.upgrade_no
     }
 }
 
@@ -1374,9 +1385,9 @@ impl Annotation {
 
 impl PartialEq for Annotation {
     fn eq(&self, other: &Self) -> bool {
-        (self.annotation_label == other.annotation_label)
-            && (self.annotation_origin == other.annotation_origin)
-            && (self.annotation_text == other.annotation_text)
+        self.annotation_label == other.annotation_label
+            && self.annotation_origin == other.annotation_origin
+            && self.annotation_text == other.annotation_text
     }
 }
 
@@ -1880,8 +1891,7 @@ impl ArComponent {
 
 impl PartialEq for ArComponent {
     fn eq(&self, other: &Self) -> bool {
-        (self.component_type == other.component_type)
-            && (self.ar_prototype_of == other.ar_prototype_of)
+        self.component_type == other.component_type && self.ar_prototype_of == other.ar_prototype_of
     }
 }
 
@@ -2050,6 +2060,12 @@ impl A2lObjectName for ArPrototypeOf {
     }
 }
 
+impl A2lObjectNameSetter for ArPrototypeOf {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+}
+
 impl ParseableA2lObject for ArPrototypeOf {
     fn parse(
         parser: &mut ParserState,
@@ -2192,7 +2208,7 @@ impl ArraySize {
 /// Version of the ASAM MCD-2MC standard used by this file
 ///
 /// This keyword is mandatory. Example:
-///     `ASAP2_VERSION` 1 61
+///     ASAP2_VERSION 1 61
 #[derive(Clone)]
 pub struct Asap2Version {
     pub version_no: u16,
@@ -2230,7 +2246,7 @@ impl Asap2Version {
 
 impl PartialEq for Asap2Version {
     fn eq(&self, other: &Self) -> bool {
-        (self.version_no == other.version_no) && (self.upgrade_no == other.upgrade_no)
+        self.version_no == other.version_no && self.upgrade_no == other.upgrade_no
     }
 }
 
@@ -2407,27 +2423,27 @@ impl AxisDescr {
 
 impl PartialEq for AxisDescr {
     fn eq(&self, other: &Self) -> bool {
-        (self.attribute == other.attribute)
-            && (self.input_quantity == other.input_quantity)
-            && (self.conversion == other.conversion)
-            && (self.max_axis_points == other.max_axis_points)
-            && (self.lower_limit == other.lower_limit)
-            && (self.upper_limit == other.upper_limit)
-            && (self.annotation == other.annotation)
-            && (self.axis_pts_ref == other.axis_pts_ref)
-            && (self.byte_order == other.byte_order)
-            && (self.curve_axis_ref == other.curve_axis_ref)
-            && (self.deposit == other.deposit)
-            && (self.extended_limits == other.extended_limits)
-            && (self.fix_axis_par == other.fix_axis_par)
-            && (self.fix_axis_par_dist == other.fix_axis_par_dist)
-            && (self.fix_axis_par_list == other.fix_axis_par_list)
-            && (self.format == other.format)
-            && (self.max_grad == other.max_grad)
-            && (self.monotony == other.monotony)
-            && (self.phys_unit == other.phys_unit)
-            && (self.read_only == other.read_only)
-            && (self.step_size == other.step_size)
+        self.attribute == other.attribute
+            && self.input_quantity == other.input_quantity
+            && self.conversion == other.conversion
+            && self.max_axis_points == other.max_axis_points
+            && self.lower_limit == other.lower_limit
+            && self.upper_limit == other.upper_limit
+            && self.annotation == other.annotation
+            && self.axis_pts_ref == other.axis_pts_ref
+            && self.byte_order == other.byte_order
+            && self.curve_axis_ref == other.curve_axis_ref
+            && self.deposit == other.deposit
+            && self.extended_limits == other.extended_limits
+            && self.fix_axis_par == other.fix_axis_par
+            && self.fix_axis_par_dist == other.fix_axis_par_dist
+            && self.fix_axis_par_list == other.fix_axis_par_list
+            && self.format == other.format
+            && self.max_grad == other.max_grad
+            && self.monotony == other.monotony
+            && self.phys_unit == other.phys_unit
+            && self.read_only == other.read_only
+            && self.step_size == other.step_size
     }
 }
 
@@ -2993,7 +3009,7 @@ impl std::fmt::Display for AxisDescrAttribute {
 /// Parameters for the handling of an axis points distribution
 #[derive(Clone)]
 pub struct AxisPts {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub address: u32,
     pub input_quantity: String,
@@ -3142,35 +3158,35 @@ impl AxisPts {
 
 impl PartialEq for AxisPts {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.address == other.address)
-            && (self.input_quantity == other.input_quantity)
-            && (self.deposit_record == other.deposit_record)
-            && (self.max_diff == other.max_diff)
-            && (self.conversion == other.conversion)
-            && (self.max_axis_points == other.max_axis_points)
-            && (self.lower_limit == other.lower_limit)
-            && (self.upper_limit == other.upper_limit)
-            && (self.annotation == other.annotation)
-            && (self.byte_order == other.byte_order)
-            && (self.calibration_access == other.calibration_access)
-            && (self.deposit == other.deposit)
-            && (self.display_identifier == other.display_identifier)
-            && (self.ecu_address_extension == other.ecu_address_extension)
-            && (self.extended_limits == other.extended_limits)
-            && (self.format == other.format)
-            && (self.function_list == other.function_list)
-            && (self.guard_rails == other.guard_rails)
-            && (self.if_data == other.if_data)
-            && (self.max_refresh == other.max_refresh)
-            && (self.model_link == other.model_link)
-            && (self.monotony == other.monotony)
-            && (self.phys_unit == other.phys_unit)
-            && (self.read_only == other.read_only)
-            && (self.ref_memory_segment == other.ref_memory_segment)
-            && (self.step_size == other.step_size)
-            && (self.symbol_link == other.symbol_link)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.address == other.address
+            && self.input_quantity == other.input_quantity
+            && self.deposit_record == other.deposit_record
+            && self.max_diff == other.max_diff
+            && self.conversion == other.conversion
+            && self.max_axis_points == other.max_axis_points
+            && self.lower_limit == other.lower_limit
+            && self.upper_limit == other.upper_limit
+            && self.annotation == other.annotation
+            && self.byte_order == other.byte_order
+            && self.calibration_access == other.calibration_access
+            && self.deposit == other.deposit
+            && self.display_identifier == other.display_identifier
+            && self.ecu_address_extension == other.ecu_address_extension
+            && self.extended_limits == other.extended_limits
+            && self.format == other.format
+            && self.function_list == other.function_list
+            && self.guard_rails == other.guard_rails
+            && self.if_data == other.if_data
+            && self.max_refresh == other.max_refresh
+            && self.model_link == other.model_link
+            && self.monotony == other.monotony
+            && self.phys_unit == other.phys_unit
+            && self.read_only == other.read_only
+            && self.ref_memory_segment == other.ref_memory_segment
+            && self.step_size == other.step_size
+            && self.symbol_link == other.symbol_link
     }
 }
 
@@ -3292,6 +3308,12 @@ impl
 impl A2lObjectName for AxisPts {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for AxisPts {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -3919,10 +3941,10 @@ impl AxisPtsDim {
 
 impl PartialEq for AxisPtsDim {
     fn eq(&self, other: &Self) -> bool {
-        (self.position == other.position)
-            && (self.datatype == other.datatype)
-            && (self.index_incr == other.index_incr)
-            && (self.addressing == other.addressing)
+        self.position == other.position
+            && self.datatype == other.datatype
+            && self.index_incr == other.index_incr
+            && self.addressing == other.addressing
     }
 }
 
@@ -4169,11 +4191,11 @@ impl AxisRescaleDim {
 
 impl PartialEq for AxisRescaleDim {
     fn eq(&self, other: &Self) -> bool {
-        (self.position == other.position)
-            && (self.datatype == other.datatype)
-            && (self.max_number_of_rescale_pairs == other.max_number_of_rescale_pairs)
-            && (self.index_incr == other.index_incr)
-            && (self.addressing == other.addressing)
+        self.position == other.position
+            && self.datatype == other.datatype
+            && self.max_number_of_rescale_pairs == other.max_number_of_rescale_pairs
+            && self.index_incr == other.index_incr
+            && self.addressing == other.addressing
     }
 }
 
@@ -4420,9 +4442,9 @@ impl BitOperation {
 
 impl PartialEq for BitOperation {
     fn eq(&self, other: &Self) -> bool {
-        (self.left_shift == other.left_shift)
-            && (self.right_shift == other.right_shift)
-            && (self.sign_extend == other.sign_extend)
+        self.left_shift == other.left_shift
+            && self.right_shift == other.right_shift
+            && self.sign_extend == other.sign_extend
     }
 }
 
@@ -4575,7 +4597,7 @@ impl BitOperation {
 /// To the MCD system a blob is just an array of bytes without any interpretation
 #[derive(Clone)]
 pub struct Blob {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub start_address: u32,
     pub size: u32,
@@ -4643,19 +4665,19 @@ impl Blob {
 
 impl PartialEq for Blob {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.start_address == other.start_address)
-            && (self.size == other.size)
-            && (self.address_type == other.address_type)
-            && (self.annotation == other.annotation)
-            && (self.calibration_access == other.calibration_access)
-            && (self.display_identifier == other.display_identifier)
-            && (self.ecu_address_extension == other.ecu_address_extension)
-            && (self.if_data == other.if_data)
-            && (self.max_refresh == other.max_refresh)
-            && (self.model_link == other.model_link)
-            && (self.symbol_link == other.symbol_link)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.start_address == other.start_address
+            && self.size == other.size
+            && self.address_type == other.address_type
+            && self.annotation == other.annotation
+            && self.calibration_access == other.calibration_access
+            && self.display_identifier == other.display_identifier
+            && self.ecu_address_extension == other.ecu_address_extension
+            && self.if_data == other.if_data
+            && self.max_refresh == other.max_refresh
+            && self.model_link == other.model_link
+            && self.symbol_link == other.symbol_link
     }
 }
 
@@ -4708,6 +4730,12 @@ impl A2lObject<(u32, u32, (u32, bool), (u32, bool))> for Blob {
 impl A2lObjectName for Blob {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for Blob {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -5326,7 +5354,7 @@ impl std::fmt::Display for CalibrationAccessEnum {
 #[derive(Clone)]
 pub struct CalibrationHandle {
     pub handle_list: Vec<i32>,
-    pub calibration_handle_text: Option<CalibrationHandleText>,
+    pub calibration_handle_text: Vec<CalibrationHandleText>,
     pub(crate) __block_info: BlockInfo<(Vec<(u32, bool)>, ())>,
 }
 
@@ -5345,7 +5373,7 @@ impl CalibrationHandle {
     pub fn new() -> Self {
         Self {
             handle_list: Vec::new(),
-            calibration_handle_text: None,
+            calibration_handle_text: Vec::new(),
             __block_info: BlockInfo {
                 incfile: None,
                 line: 0,
@@ -5360,8 +5388,8 @@ impl CalibrationHandle {
 
 impl PartialEq for CalibrationHandle {
     fn eq(&self, other: &Self) -> bool {
-        (self.handle_list == other.handle_list)
-            && (self.calibration_handle_text == other.calibration_handle_text)
+        self.handle_list == other.handle_list
+            && self.calibration_handle_text == other.calibration_handle_text
     }
 }
 
@@ -5378,7 +5406,7 @@ impl A2lObject<(Vec<(u32, bool)>, ())> for CalibrationHandle {
     }
     fn merge_includes(&mut self) {
         self.__block_info.incfile = None;
-        if let Some(calibration_handle_text) = &mut self.calibration_handle_text {
+        for calibration_handle_text in &mut self.calibration_handle_text {
             calibration_handle_text.merge_includes();
         }
     }
@@ -5421,7 +5449,7 @@ impl ParseableA2lObject for CalibrationHandle {
                 }
             }
         }
-        let mut calibration_handle_text: Option<CalibrationHandleText> = None;
+        let mut calibration_handle_text: Vec<CalibrationHandleText> = Vec::new();
         let mut next_tag = parser.get_next_tag(context)?;
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
@@ -5437,12 +5465,7 @@ impl ParseableA2lObject for CalibrationHandle {
                         A2lVersion::V1_6_0,
                     )?;
                     let newitem = CalibrationHandleText::parse(parser, &newcontext, line_offset)?;
-                    parser.handle_multiplicity_error(
-                        context,
-                        tag,
-                        calibration_handle_text.is_some(),
-                    )?;
-                    calibration_handle_text = Some(newitem);
+                    calibration_handle_text.push(newitem);
                 }
                 _ => {
                     parser.handle_unknown_taggedstruct_tag(context, tag, is_block, &TAG_LIST)?;
@@ -5493,7 +5516,7 @@ impl CalibrationHandle {
             );
         }
         let mut tgroup = Vec::<writer::TaggedItemInfo>::new();
-        if let Some(calibration_handle_text) = &self.calibration_handle_text {
+        for calibration_handle_text in &self.calibration_handle_text {
             let calibration_handle_text_out = calibration_handle_text.stringify(indent + 1);
             tgroup.push(writer::TaggedItemInfo {
                 tag: "CALIBRATION_HANDLE_TEXT",
@@ -5611,7 +5634,7 @@ impl CalibrationHandleText {
 
 /// Indicates the different methods of access that are implemented in the ECU
 ///
-/// Valid method strings are: \"`InCircuit`\", \"SERAM\", \"DSERAP\", \"BSERAP\"
+/// Valid method strings are: \"InCircuit\", \"SERAM\", \"DSERAP\", \"BSERAP\"
 #[derive(Clone)]
 pub struct CalibrationMethod {
     pub method: String,
@@ -5652,9 +5675,9 @@ impl CalibrationMethod {
 
 impl PartialEq for CalibrationMethod {
     fn eq(&self, other: &Self) -> bool {
-        (self.method == other.method)
-            && (self.version == other.version)
-            && (self.calibration_handle == other.calibration_handle)
+        self.method == other.method
+            && self.version == other.version
+            && self.calibration_handle == other.calibration_handle
     }
 }
 
@@ -5812,7 +5835,7 @@ impl std::fmt::Display for CharacterEncoding {
 /// Specifies all the parameters of an adjustable object
 #[derive(Clone)]
 pub struct Characteristic {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub characteristic_type: CharacteristicType,
     pub address: u32,
@@ -5969,42 +5992,42 @@ impl Characteristic {
 
 impl PartialEq for Characteristic {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.characteristic_type == other.characteristic_type)
-            && (self.address == other.address)
-            && (self.deposit == other.deposit)
-            && (self.max_diff == other.max_diff)
-            && (self.conversion == other.conversion)
-            && (self.lower_limit == other.lower_limit)
-            && (self.upper_limit == other.upper_limit)
-            && (self.annotation == other.annotation)
-            && (self.axis_descr == other.axis_descr)
-            && (self.bit_mask == other.bit_mask)
-            && (self.byte_order == other.byte_order)
-            && (self.calibration_access == other.calibration_access)
-            && (self.comparison_quantity == other.comparison_quantity)
-            && (self.dependent_characteristic == other.dependent_characteristic)
-            && (self.discrete == other.discrete)
-            && (self.display_identifier == other.display_identifier)
-            && (self.ecu_address_extension == other.ecu_address_extension)
-            && (self.encoding == other.encoding)
-            && (self.extended_limits == other.extended_limits)
-            && (self.format == other.format)
-            && (self.function_list == other.function_list)
-            && (self.guard_rails == other.guard_rails)
-            && (self.if_data == other.if_data)
-            && (self.map_list == other.map_list)
-            && (self.matrix_dim == other.matrix_dim)
-            && (self.max_refresh == other.max_refresh)
-            && (self.model_link == other.model_link)
-            && (self.number == other.number)
-            && (self.phys_unit == other.phys_unit)
-            && (self.read_only == other.read_only)
-            && (self.ref_memory_segment == other.ref_memory_segment)
-            && (self.step_size == other.step_size)
-            && (self.symbol_link == other.symbol_link)
-            && (self.virtual_characteristic == other.virtual_characteristic)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.characteristic_type == other.characteristic_type
+            && self.address == other.address
+            && self.deposit == other.deposit
+            && self.max_diff == other.max_diff
+            && self.conversion == other.conversion
+            && self.lower_limit == other.lower_limit
+            && self.upper_limit == other.upper_limit
+            && self.annotation == other.annotation
+            && self.axis_descr == other.axis_descr
+            && self.bit_mask == other.bit_mask
+            && self.byte_order == other.byte_order
+            && self.calibration_access == other.calibration_access
+            && self.comparison_quantity == other.comparison_quantity
+            && self.dependent_characteristic == other.dependent_characteristic
+            && self.discrete == other.discrete
+            && self.display_identifier == other.display_identifier
+            && self.ecu_address_extension == other.ecu_address_extension
+            && self.encoding == other.encoding
+            && self.extended_limits == other.extended_limits
+            && self.format == other.format
+            && self.function_list == other.function_list
+            && self.guard_rails == other.guard_rails
+            && self.if_data == other.if_data
+            && self.map_list == other.map_list
+            && self.matrix_dim == other.matrix_dim
+            && self.max_refresh == other.max_refresh
+            && self.model_link == other.model_link
+            && self.number == other.number
+            && self.phys_unit == other.phys_unit
+            && self.read_only == other.read_only
+            && self.ref_memory_segment == other.ref_memory_segment
+            && self.step_size == other.step_size
+            && self.symbol_link == other.symbol_link
+            && self.virtual_characteristic == other.virtual_characteristic
     }
 }
 
@@ -6113,6 +6136,12 @@ impl A2lObject<(u32, u32, u32, (u32, bool), u32, u32, u32, u32, u32)> for Charac
 impl A2lObjectName for Characteristic {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for Characteristic {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -6991,12 +7020,12 @@ impl Coeffs {
 
 impl PartialEq for Coeffs {
     fn eq(&self, other: &Self) -> bool {
-        (self.a == other.a)
-            && (self.b == other.b)
-            && (self.c == other.c)
-            && (self.d == other.d)
-            && (self.e == other.e)
-            && (self.f == other.f)
+        self.a == other.a
+            && self.b == other.b
+            && self.c == other.c
+            && self.d == other.d
+            && self.e == other.e
+            && self.f == other.f
     }
 }
 
@@ -7130,7 +7159,7 @@ impl CoeffsLinear {
 
 impl PartialEq for CoeffsLinear {
     fn eq(&self, other: &Self) -> bool {
-        (self.a == other.a) && (self.b == other.b)
+        self.a == other.a && self.b == other.b
     }
 }
 
@@ -7233,8 +7262,7 @@ impl CombinationStruct {
 
 impl PartialEq for CombinationStruct {
     fn eq(&self, other: &Self) -> bool {
-        (self.criterion_name == other.criterion_name)
-            && (self.criterion_value == other.criterion_value)
+        self.criterion_name == other.criterion_name && self.criterion_value == other.criterion_value
     }
 }
 
@@ -7361,6 +7389,12 @@ impl A2lObjectName for ComparisonQuantity {
     }
 }
 
+impl A2lObjectNameSetter for ComparisonQuantity {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+}
+
 impl ParseableA2lObject for ComparisonQuantity {
     fn parse(
         parser: &mut ParserState,
@@ -7401,7 +7435,7 @@ impl ComparisonQuantity {
 /// Specification of a conversion method from internal values to physical values
 #[derive(Clone)]
 pub struct CompuMethod {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub conversion_type: ConversionType,
     pub format: String,
@@ -7469,17 +7503,17 @@ impl CompuMethod {
 
 impl PartialEq for CompuMethod {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.conversion_type == other.conversion_type)
-            && (self.format == other.format)
-            && (self.unit == other.unit)
-            && (self.coeffs == other.coeffs)
-            && (self.coeffs_linear == other.coeffs_linear)
-            && (self.compu_tab_ref == other.compu_tab_ref)
-            && (self.formula == other.formula)
-            && (self.ref_unit == other.ref_unit)
-            && (self.status_string_ref == other.status_string_ref)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.conversion_type == other.conversion_type
+            && self.format == other.format
+            && self.unit == other.unit
+            && self.coeffs == other.coeffs
+            && self.coeffs_linear == other.coeffs_linear
+            && self.compu_tab_ref == other.compu_tab_ref
+            && self.formula == other.formula
+            && self.ref_unit == other.ref_unit
+            && self.status_string_ref == other.status_string_ref
     }
 }
 
@@ -7523,6 +7557,12 @@ impl A2lObject<(u32, u32, u32, u32, u32)> for CompuMethod {
 impl A2lObjectName for CompuMethod {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for CompuMethod {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -7767,7 +7807,7 @@ impl CompuMethod {
 /// Conversion table for conversions that cannot be represented as a function
 #[derive(Clone)]
 pub struct CompuTab {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub conversion_type: ConversionType,
     pub number_value_pairs: u16,
@@ -7822,13 +7862,13 @@ impl CompuTab {
 
 impl PartialEq for CompuTab {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.conversion_type == other.conversion_type)
-            && (self.number_value_pairs == other.number_value_pairs)
-            && (self.tab_entry == other.tab_entry)
-            && (self.default_value == other.default_value)
-            && (self.default_value_numeric == other.default_value_numeric)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.conversion_type == other.conversion_type
+            && self.number_value_pairs == other.number_value_pairs
+            && self.tab_entry == other.tab_entry
+            && self.default_value == other.default_value
+            && self.default_value_numeric == other.default_value_numeric
     }
 }
 
@@ -7860,6 +7900,12 @@ impl A2lObject<(u32, u32, u32, (u32, bool), Vec<u32>)> for CompuTab {
 impl A2lObjectName for CompuTab {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for CompuTab {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -8130,7 +8176,7 @@ impl CompuTabRef {
 /// Conversion table for the assignment of display strings to values. Typically used for enums.
 #[derive(Clone)]
 pub struct CompuVtab {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub conversion_type: ConversionType,
     pub number_value_pairs: u16,
@@ -8182,12 +8228,12 @@ impl CompuVtab {
 
 impl PartialEq for CompuVtab {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.conversion_type == other.conversion_type)
-            && (self.number_value_pairs == other.number_value_pairs)
-            && (self.value_pairs == other.value_pairs)
-            && (self.default_value == other.default_value)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.conversion_type == other.conversion_type
+            && self.number_value_pairs == other.number_value_pairs
+            && self.value_pairs == other.value_pairs
+            && self.default_value == other.default_value
     }
 }
 
@@ -8216,6 +8262,12 @@ impl A2lObject<(u32, u32, u32, (u32, bool), Vec<u32>)> for CompuVtab {
 impl A2lObjectName for CompuVtab {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for CompuVtab {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -8360,7 +8412,7 @@ impl CompuVtab {
 /// Conversion table for the assignment of display strings to a value range
 #[derive(Clone)]
 pub struct CompuVtabRange {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub number_value_triples: u16,
     pub value_triples: Vec<ValueTriplesStruct>,
@@ -8404,11 +8456,11 @@ impl CompuVtabRange {
 
 impl PartialEq for CompuVtabRange {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.number_value_triples == other.number_value_triples)
-            && (self.value_triples == other.value_triples)
-            && (self.default_value == other.default_value)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.number_value_triples == other.number_value_triples
+            && self.value_triples == other.value_triples
+            && self.default_value == other.default_value
     }
 }
 
@@ -8437,6 +8489,12 @@ impl A2lObject<(u32, u32, (u32, bool), Vec<u32>)> for CompuVtabRange {
 impl A2lObjectName for CompuVtabRange {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for CompuVtabRange {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -8713,6 +8771,12 @@ impl A2lObject<(u32, ())> for Conversion {
 impl A2lObjectName for Conversion {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for Conversion {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -9762,7 +9826,7 @@ impl DependentCharacteristic {
 
 impl PartialEq for DependentCharacteristic {
     fn eq(&self, other: &Self) -> bool {
-        (self.formula == other.formula) && (self.characteristic_list == other.characteristic_list)
+        self.formula == other.formula && self.characteristic_list == other.characteristic_list
     }
 }
 
@@ -10205,7 +10269,7 @@ impl DistOpDim {
 
 impl PartialEq for DistOpDim {
     fn eq(&self, other: &Self) -> bool {
-        (self.position == other.position) && (self.datatype == other.datatype)
+        self.position == other.position && self.datatype == other.datatype
     }
 }
 
@@ -11004,7 +11068,7 @@ impl ExtendedLimits {
 
 impl PartialEq for ExtendedLimits {
     fn eq(&self, other: &Self) -> bool {
-        (self.lower_limit == other.lower_limit) && (self.upper_limit == other.upper_limit)
+        self.lower_limit == other.lower_limit && self.upper_limit == other.upper_limit
     }
 }
 
@@ -11069,7 +11133,7 @@ impl ExtendedLimits {
     }
 }
 
-/// Parameters for the calculation of fixed axis points: `X_i` = Offset + (i - 1)*2^shift
+/// Parameters for the calculation of fixed axis points: X_i = Offset + (i - 1)*2^shift
 #[derive(Clone)]
 pub struct FixAxisPar {
     pub offset: i16,
@@ -11110,9 +11174,9 @@ impl FixAxisPar {
 
 impl PartialEq for FixAxisPar {
     fn eq(&self, other: &Self) -> bool {
-        (self.offset == other.offset)
-            && (self.shift == other.shift)
-            && (self.number_apo == other.number_apo)
+        self.offset == other.offset
+            && self.shift == other.shift
+            && self.number_apo == other.number_apo
     }
 }
 
@@ -11239,9 +11303,9 @@ impl FixAxisParDist {
 
 impl PartialEq for FixAxisParDist {
     fn eq(&self, other: &Self) -> bool {
-        (self.offset == other.offset)
-            && (self.distance == other.distance)
-            && (self.number_apo == other.number_apo)
+        self.offset == other.offset
+            && self.distance == other.distance
+            && self.number_apo == other.number_apo
     }
 }
 
@@ -11605,10 +11669,10 @@ impl FncValues {
 
 impl PartialEq for FncValues {
     fn eq(&self, other: &Self) -> bool {
-        (self.position == other.position)
-            && (self.datatype == other.datatype)
-            && (self.index_mode == other.index_mode)
-            && (self.address_type == other.address_type)
+        self.position == other.position
+            && self.datatype == other.datatype
+            && self.index_mode == other.index_mode
+            && self.address_type == other.address_type
     }
 }
 
@@ -11837,7 +11901,7 @@ impl Formula {
 
 impl PartialEq for Formula {
     fn eq(&self, other: &Self) -> bool {
-        (self.fx == other.fx) && (self.formula_inv == other.formula_inv)
+        self.fx == other.fx && self.formula_inv == other.formula_inv
     }
 }
 
@@ -12038,7 +12102,7 @@ impl FormulaInv {
 /// Defines a function frame to structure large amounts of measurement objects
 #[derive(Clone)]
 pub struct Frame {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub scaling_unit: u16,
     pub rate: u32,
@@ -12085,12 +12149,12 @@ impl Frame {
 
 impl PartialEq for Frame {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.scaling_unit == other.scaling_unit)
-            && (self.rate == other.rate)
-            && (self.frame_measurement == other.frame_measurement)
-            && (self.if_data == other.if_data)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.scaling_unit == other.scaling_unit
+            && self.rate == other.rate
+            && self.frame_measurement == other.frame_measurement
+            && self.if_data == other.if_data
     }
 }
 
@@ -12122,6 +12186,12 @@ impl A2lObject<(u32, u32, (u32, bool), (u32, bool))> for Frame {
 impl A2lObjectName for Frame {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for Frame {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -12380,7 +12450,7 @@ impl FrameMeasurement {
 /// Describes the input, local, and output variables of a function on the ECU
 #[derive(Clone)]
 pub struct Function {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub annotation: Vec<Annotation>,
     pub ar_component: Option<ArComponent>,
@@ -12445,18 +12515,18 @@ impl Function {
 
 impl PartialEq for Function {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.annotation == other.annotation)
-            && (self.ar_component == other.ar_component)
-            && (self.def_characteristic == other.def_characteristic)
-            && (self.function_version == other.function_version)
-            && (self.if_data == other.if_data)
-            && (self.in_measurement == other.in_measurement)
-            && (self.loc_measurement == other.loc_measurement)
-            && (self.out_measurement == other.out_measurement)
-            && (self.ref_characteristic == other.ref_characteristic)
-            && (self.sub_function == other.sub_function)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.annotation == other.annotation
+            && self.ar_component == other.ar_component
+            && self.def_characteristic == other.def_characteristic
+            && self.function_version == other.function_version
+            && self.if_data == other.if_data
+            && self.in_measurement == other.in_measurement
+            && self.loc_measurement == other.loc_measurement
+            && self.out_measurement == other.out_measurement
+            && self.ref_characteristic == other.ref_characteristic
+            && self.sub_function == other.sub_function
     }
 }
 
@@ -12512,6 +12582,12 @@ impl A2lObject<(u32, u32)> for Function {
 impl A2lObjectName for Function {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for Function {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -13035,7 +13111,7 @@ impl FunctionVersion {
 /// Defines a group of releated CHARACTERISTIC and MEASUREMENT objects
 #[derive(Clone)]
 pub struct Group {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub annotation: Vec<Annotation>,
     pub function_list: Option<FunctionList>,
@@ -13091,15 +13167,15 @@ impl Group {
 
 impl PartialEq for Group {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.annotation == other.annotation)
-            && (self.function_list == other.function_list)
-            && (self.if_data == other.if_data)
-            && (self.ref_characteristic == other.ref_characteristic)
-            && (self.ref_measurement == other.ref_measurement)
-            && (self.root == other.root)
-            && (self.sub_group == other.sub_group)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.annotation == other.annotation
+            && self.function_list == other.function_list
+            && self.if_data == other.if_data
+            && self.ref_characteristic == other.ref_characteristic
+            && self.ref_measurement == other.ref_measurement
+            && self.root == other.root
+            && self.sub_group == other.sub_group
     }
 }
 
@@ -13146,6 +13222,12 @@ impl A2lObject<(u32, u32)> for Group {
 impl A2lObjectName for Group {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for Group {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -13497,9 +13579,9 @@ impl Header {
 
 impl PartialEq for Header {
     fn eq(&self, other: &Self) -> bool {
-        (self.comment == other.comment)
-            && (self.project_no == other.project_no)
-            && (self.version == other.version)
+        self.comment == other.comment
+            && self.project_no == other.project_no
+            && self.version == other.version
     }
 }
 
@@ -13667,7 +13749,7 @@ impl Identification {
 
 impl PartialEq for Identification {
     fn eq(&self, other: &Self) -> bool {
-        (self.position == other.position) && (self.datatype == other.datatype)
+        self.position == other.position && self.datatype == other.datatype
     }
 }
 
@@ -13953,7 +14035,7 @@ impl std::fmt::Display for IndexOrder {
     }
 }
 
-///`INPUT_QUANTITY` is used inside OVERWRITE to override the `input_quantity` of an INSTANCE
+///INPUT_QUANTITY is used inside OVERWRITE to override the input_quantity of an INSTANCE
 #[derive(Clone)]
 pub struct InputQuantity {
     pub name: String,
@@ -14017,6 +14099,12 @@ impl A2lObjectName for InputQuantity {
     }
 }
 
+impl A2lObjectNameSetter for InputQuantity {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+}
+
 impl ParseableA2lObject for InputQuantity {
     fn parse(
         parser: &mut ParserState,
@@ -14054,10 +14142,10 @@ impl InputQuantity {
     }
 }
 
-/// Creates an instance of a type defined using `TYPEDEF_STRUCTURE`, `TYPEDEF_MEASUREMENT` or `TYPEDEF_CHARACTERISTIC`
+/// Creates an instance of a type defined using TYPEDEF_STRUCTURE, TYPEDEF_MEASUREMENT or TYPEDEF_CHARACTERISTIC
 #[derive(Clone)]
 pub struct Instance {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub type_ref: String,
     pub start_address: u32,
@@ -14071,7 +14159,7 @@ pub struct Instance {
     pub matrix_dim: Option<MatrixDim>,
     pub max_refresh: Option<MaxRefresh>,
     pub model_link: Option<ModelLink>,
-    pub overwrite: Vec<Overwrite>,
+    pub overwrite: ItemList<Overwrite>,
     pub read_only: Option<ReadOnly>,
     pub symbol_link: Option<SymbolLink>,
     pub(crate) __block_info: BlockInfo<(u32, u32, u32, (u32, bool))>,
@@ -14125,7 +14213,7 @@ impl Instance {
             matrix_dim: None,
             max_refresh: None,
             model_link: None,
-            overwrite: Vec::new(),
+            overwrite: ItemList::default(),
             read_only: None,
             symbol_link: None,
             __block_info: BlockInfo {
@@ -14142,23 +14230,23 @@ impl Instance {
 
 impl PartialEq for Instance {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.type_ref == other.type_ref)
-            && (self.start_address == other.start_address)
-            && (self.address_type == other.address_type)
-            && (self.annotation == other.annotation)
-            && (self.calibration_access == other.calibration_access)
-            && (self.display_identifier == other.display_identifier)
-            && (self.ecu_address_extension == other.ecu_address_extension)
-            && (self.if_data == other.if_data)
-            && (self.layout == other.layout)
-            && (self.matrix_dim == other.matrix_dim)
-            && (self.max_refresh == other.max_refresh)
-            && (self.model_link == other.model_link)
-            && (self.overwrite == other.overwrite)
-            && (self.read_only == other.read_only)
-            && (self.symbol_link == other.symbol_link)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.type_ref == other.type_ref
+            && self.start_address == other.start_address
+            && self.address_type == other.address_type
+            && self.annotation == other.annotation
+            && self.calibration_access == other.calibration_access
+            && self.display_identifier == other.display_identifier
+            && self.ecu_address_extension == other.ecu_address_extension
+            && self.if_data == other.if_data
+            && self.layout == other.layout
+            && self.matrix_dim == other.matrix_dim
+            && self.max_refresh == other.max_refresh
+            && self.model_link == other.model_link
+            && self.overwrite == other.overwrite
+            && self.read_only == other.read_only
+            && self.symbol_link == other.symbol_link
     }
 }
 
@@ -14226,6 +14314,12 @@ impl A2lObjectName for Instance {
     }
 }
 
+impl A2lObjectNameSetter for Instance {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+}
+
 impl ParseableA2lObject for Instance {
     fn parse(
         parser: &mut ParserState,
@@ -14262,7 +14356,7 @@ impl ParseableA2lObject for Instance {
         let mut matrix_dim: Option<MatrixDim> = None;
         let mut max_refresh: Option<MaxRefresh> = None;
         let mut model_link: Option<ModelLink> = None;
-        let mut overwrite: Vec<Overwrite> = Vec::new();
+        let mut overwrite: ItemList<Overwrite> = ItemList::default();
         let mut read_only: Option<ReadOnly> = None;
         let mut symbol_link: Option<SymbolLink> = None;
         let mut next_tag = parser.get_next_tag(context)?;
@@ -14714,7 +14808,7 @@ impl Layout {
     }
 }
 
-/// Used within `BIT_OPERATION` to left-shift the bits of a value
+/// Used within BIT_OPERATION to left-shift the bits of a value
 #[derive(Clone)]
 pub struct LeftShift {
     pub bitcount: u32,
@@ -14852,7 +14946,7 @@ impl Limits {
 
 impl PartialEq for Limits {
     fn eq(&self, other: &Self) -> bool {
-        (self.lower_limit == other.lower_limit) && (self.upper_limit == other.upper_limit)
+        self.lower_limit == other.lower_limit && self.upper_limit == other.upper_limit
     }
 }
 
@@ -15432,7 +15526,7 @@ impl MaxRefresh {
 
 impl PartialEq for MaxRefresh {
     fn eq(&self, other: &Self) -> bool {
-        (self.scaling_unit == other.scaling_unit) && (self.rate == other.rate)
+        self.scaling_unit == other.scaling_unit && self.rate == other.rate
     }
 }
 
@@ -15510,7 +15604,7 @@ impl MaxRefresh {
 /// describes the parameters for a measurement object
 #[derive(Clone)]
 pub struct Measurement {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub datatype: DataType,
     pub conversion: String,
@@ -15641,37 +15735,37 @@ impl Measurement {
 
 impl PartialEq for Measurement {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.datatype == other.datatype)
-            && (self.conversion == other.conversion)
-            && (self.resolution == other.resolution)
-            && (self.accuracy == other.accuracy)
-            && (self.lower_limit == other.lower_limit)
-            && (self.upper_limit == other.upper_limit)
-            && (self.address_type == other.address_type)
-            && (self.annotation == other.annotation)
-            && (self.array_size == other.array_size)
-            && (self.bit_mask == other.bit_mask)
-            && (self.bit_operation == other.bit_operation)
-            && (self.byte_order == other.byte_order)
-            && (self.discrete == other.discrete)
-            && (self.display_identifier == other.display_identifier)
-            && (self.ecu_address == other.ecu_address)
-            && (self.ecu_address_extension == other.ecu_address_extension)
-            && (self.error_mask == other.error_mask)
-            && (self.format == other.format)
-            && (self.function_list == other.function_list)
-            && (self.if_data == other.if_data)
-            && (self.layout == other.layout)
-            && (self.matrix_dim == other.matrix_dim)
-            && (self.max_refresh == other.max_refresh)
-            && (self.model_link == other.model_link)
-            && (self.phys_unit == other.phys_unit)
-            && (self.read_write == other.read_write)
-            && (self.ref_memory_segment == other.ref_memory_segment)
-            && (self.symbol_link == other.symbol_link)
-            && (self.var_virtual == other.var_virtual)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.datatype == other.datatype
+            && self.conversion == other.conversion
+            && self.resolution == other.resolution
+            && self.accuracy == other.accuracy
+            && self.lower_limit == other.lower_limit
+            && self.upper_limit == other.upper_limit
+            && self.address_type == other.address_type
+            && self.annotation == other.annotation
+            && self.array_size == other.array_size
+            && self.bit_mask == other.bit_mask
+            && self.bit_operation == other.bit_operation
+            && self.byte_order == other.byte_order
+            && self.discrete == other.discrete
+            && self.display_identifier == other.display_identifier
+            && self.ecu_address == other.ecu_address
+            && self.ecu_address_extension == other.ecu_address_extension
+            && self.error_mask == other.error_mask
+            && self.format == other.format
+            && self.function_list == other.function_list
+            && self.if_data == other.if_data
+            && self.layout == other.layout
+            && self.matrix_dim == other.matrix_dim
+            && self.max_refresh == other.max_refresh
+            && self.model_link == other.model_link
+            && self.phys_unit == other.phys_unit
+            && self.read_write == other.read_write
+            && self.ref_memory_segment == other.ref_memory_segment
+            && self.symbol_link == other.symbol_link
+            && self.var_virtual == other.var_virtual
     }
 }
 
@@ -15768,6 +15862,12 @@ impl A2lObject<(u32, u32, u32, u32, (u32, bool), u32, u32, u32)> for Measurement
 impl A2lObjectName for Measurement {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for Measurement {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -16525,11 +16625,11 @@ impl MemoryLayout {
 
 impl PartialEq for MemoryLayout {
     fn eq(&self, other: &Self) -> bool {
-        (self.prog_type == other.prog_type)
-            && (self.address == other.address)
-            && (self.size == other.size)
-            && (self.offset == other.offset)
-            && (self.if_data == other.if_data)
+        self.prog_type == other.prog_type
+            && self.address == other.address
+            && self.size == other.size
+            && self.offset == other.offset
+            && self.if_data == other.if_data
     }
 }
 
@@ -16718,7 +16818,7 @@ impl MemoryLayout {
 /// describes a memory segment of the ECU program
 #[derive(Clone)]
 pub struct MemorySegment {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub prg_type: PrgType,
     pub memory_type: MemoryType,
@@ -16807,15 +16907,15 @@ impl MemorySegment {
 
 impl PartialEq for MemorySegment {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.prg_type == other.prg_type)
-            && (self.memory_type == other.memory_type)
-            && (self.attribute == other.attribute)
-            && (self.address == other.address)
-            && (self.size == other.size)
-            && (self.offset == other.offset)
-            && (self.if_data == other.if_data)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.prg_type == other.prg_type
+            && self.memory_type == other.memory_type
+            && self.attribute == other.attribute
+            && self.address == other.address
+            && self.size == other.size
+            && self.offset == other.offset
+            && self.if_data == other.if_data
     }
 }
 
@@ -16877,6 +16977,12 @@ impl
 impl A2lObjectName for MemorySegment {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for MemorySegment {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -17196,18 +17302,18 @@ impl ModCommon {
 
 impl PartialEq for ModCommon {
     fn eq(&self, other: &Self) -> bool {
-        (self.comment == other.comment)
-            && (self.alignment_byte == other.alignment_byte)
-            && (self.alignment_float16_ieee == other.alignment_float16_ieee)
-            && (self.alignment_float32_ieee == other.alignment_float32_ieee)
-            && (self.alignment_float64_ieee == other.alignment_float64_ieee)
-            && (self.alignment_int64 == other.alignment_int64)
-            && (self.alignment_long == other.alignment_long)
-            && (self.alignment_word == other.alignment_word)
-            && (self.byte_order == other.byte_order)
-            && (self.data_size == other.data_size)
-            && (self.deposit == other.deposit)
-            && (self.s_rec_layout == other.s_rec_layout)
+        self.comment == other.comment
+            && self.alignment_byte == other.alignment_byte
+            && self.alignment_float16_ieee == other.alignment_float16_ieee
+            && self.alignment_float32_ieee == other.alignment_float32_ieee
+            && self.alignment_float64_ieee == other.alignment_float64_ieee
+            && self.alignment_int64 == other.alignment_int64
+            && self.alignment_long == other.alignment_long
+            && self.alignment_word == other.alignment_word
+            && self.byte_order == other.byte_order
+            && self.data_size == other.data_size
+            && self.deposit == other.deposit
+            && self.s_rec_layout == other.s_rec_layout
     }
 }
 
@@ -17610,7 +17716,7 @@ pub struct ModPar {
     pub ecu_calibration_offset: Option<EcuCalibrationOffset>,
     pub epk: Option<Epk>,
     pub memory_layout: Vec<MemoryLayout>,
-    pub memory_segment: Vec<MemorySegment>,
+    pub memory_segment: ItemList<MemorySegment>,
     pub no_of_interfaces: Option<NoOfInterfaces>,
     pub phone_no: Option<PhoneNo>,
     pub supplier: Option<Supplier>,
@@ -17659,7 +17765,7 @@ impl ModPar {
             ecu_calibration_offset: None,
             epk: None,
             memory_layout: Vec::new(),
-            memory_segment: Vec::new(),
+            memory_segment: ItemList::default(),
             no_of_interfaces: None,
             phone_no: None,
             supplier: None,
@@ -17680,23 +17786,23 @@ impl ModPar {
 
 impl PartialEq for ModPar {
     fn eq(&self, other: &Self) -> bool {
-        (self.comment == other.comment)
-            && (self.addr_epk == other.addr_epk)
-            && (self.calibration_method == other.calibration_method)
-            && (self.cpu_type == other.cpu_type)
-            && (self.customer == other.customer)
-            && (self.customer_no == other.customer_no)
-            && (self.ecu == other.ecu)
-            && (self.ecu_calibration_offset == other.ecu_calibration_offset)
-            && (self.epk == other.epk)
-            && (self.memory_layout == other.memory_layout)
-            && (self.memory_segment == other.memory_segment)
-            && (self.no_of_interfaces == other.no_of_interfaces)
-            && (self.phone_no == other.phone_no)
-            && (self.supplier == other.supplier)
-            && (self.system_constant == other.system_constant)
-            && (self.user == other.user)
-            && (self.version == other.version)
+        self.comment == other.comment
+            && self.addr_epk == other.addr_epk
+            && self.calibration_method == other.calibration_method
+            && self.cpu_type == other.cpu_type
+            && self.customer == other.customer
+            && self.customer_no == other.customer_no
+            && self.ecu == other.ecu
+            && self.ecu_calibration_offset == other.ecu_calibration_offset
+            && self.epk == other.epk
+            && self.memory_layout == other.memory_layout
+            && self.memory_segment == other.memory_segment
+            && self.no_of_interfaces == other.no_of_interfaces
+            && self.phone_no == other.phone_no
+            && self.supplier == other.supplier
+            && self.system_constant == other.system_constant
+            && self.user == other.user
+            && self.version == other.version
     }
 }
 
@@ -17789,7 +17895,7 @@ impl ParseableA2lObject for ModPar {
         let mut ecu_calibration_offset: Option<EcuCalibrationOffset> = None;
         let mut epk: Option<Epk> = None;
         let mut memory_layout: Vec<MemoryLayout> = Vec::new();
-        let mut memory_segment: Vec<MemorySegment> = Vec::new();
+        let mut memory_segment: ItemList<MemorySegment> = ItemList::default();
         let mut no_of_interfaces: Option<NoOfInterfaces> = None;
         let mut phone_no: Option<PhoneNo> = None;
         let mut supplier: Option<Supplier> = None;
@@ -18292,32 +18398,32 @@ impl ModelLink {
 /// At least one module must be defined within the PROJECT
 #[derive(Clone)]
 pub struct Module {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub a2ml: Option<A2ml>,
-    pub axis_pts: Vec<AxisPts>,
-    pub blob: Vec<Blob>,
-    pub characteristic: Vec<Characteristic>,
-    pub compu_method: Vec<CompuMethod>,
-    pub compu_tab: Vec<CompuTab>,
-    pub compu_vtab: Vec<CompuVtab>,
-    pub compu_vtab_range: Vec<CompuVtabRange>,
-    pub frame: Vec<Frame>,
-    pub function: Vec<Function>,
-    pub group: Vec<Group>,
+    pub axis_pts: ItemList<AxisPts>,
+    pub blob: ItemList<Blob>,
+    pub characteristic: ItemList<Characteristic>,
+    pub compu_method: ItemList<CompuMethod>,
+    pub compu_tab: ItemList<CompuTab>,
+    pub compu_vtab: ItemList<CompuVtab>,
+    pub compu_vtab_range: ItemList<CompuVtabRange>,
+    pub frame: ItemList<Frame>,
+    pub function: ItemList<Function>,
+    pub group: ItemList<Group>,
     pub if_data: Vec<IfData>,
-    pub instance: Vec<Instance>,
-    pub measurement: Vec<Measurement>,
+    pub instance: ItemList<Instance>,
+    pub measurement: ItemList<Measurement>,
     pub mod_common: Option<ModCommon>,
     pub mod_par: Option<ModPar>,
-    pub record_layout: Vec<RecordLayout>,
-    pub transformer: Vec<Transformer>,
-    pub typedef_axis: Vec<TypedefAxis>,
-    pub typedef_blob: Vec<TypedefBlob>,
-    pub typedef_characteristic: Vec<TypedefCharacteristic>,
-    pub typedef_measurement: Vec<TypedefMeasurement>,
-    pub typedef_structure: Vec<TypedefStructure>,
-    pub unit: Vec<Unit>,
+    pub record_layout: ItemList<RecordLayout>,
+    pub transformer: ItemList<Transformer>,
+    pub typedef_axis: ItemList<TypedefAxis>,
+    pub typedef_blob: ItemList<TypedefBlob>,
+    pub typedef_characteristic: ItemList<TypedefCharacteristic>,
+    pub typedef_measurement: ItemList<TypedefMeasurement>,
+    pub typedef_structure: ItemList<TypedefStructure>,
+    pub unit: ItemList<Unit>,
     pub user_rights: Vec<UserRights>,
     pub variant_coding: Option<VariantCoding>,
     pub(crate) __block_info: BlockInfo<(u32, u32)>,
@@ -18366,29 +18472,29 @@ impl Module {
             name,
             long_identifier,
             a2ml: None,
-            axis_pts: Vec::new(),
-            blob: Vec::new(),
-            characteristic: Vec::new(),
-            compu_method: Vec::new(),
-            compu_tab: Vec::new(),
-            compu_vtab: Vec::new(),
-            compu_vtab_range: Vec::new(),
-            frame: Vec::new(),
-            function: Vec::new(),
-            group: Vec::new(),
+            axis_pts: ItemList::default(),
+            blob: ItemList::default(),
+            characteristic: ItemList::default(),
+            compu_method: ItemList::default(),
+            compu_tab: ItemList::default(),
+            compu_vtab: ItemList::default(),
+            compu_vtab_range: ItemList::default(),
+            frame: ItemList::default(),
+            function: ItemList::default(),
+            group: ItemList::default(),
             if_data: Vec::new(),
-            instance: Vec::new(),
-            measurement: Vec::new(),
+            instance: ItemList::default(),
+            measurement: ItemList::default(),
             mod_common: None,
             mod_par: None,
-            record_layout: Vec::new(),
-            transformer: Vec::new(),
-            typedef_axis: Vec::new(),
-            typedef_blob: Vec::new(),
-            typedef_characteristic: Vec::new(),
-            typedef_measurement: Vec::new(),
-            typedef_structure: Vec::new(),
-            unit: Vec::new(),
+            record_layout: ItemList::default(),
+            transformer: ItemList::default(),
+            typedef_axis: ItemList::default(),
+            typedef_blob: ItemList::default(),
+            typedef_characteristic: ItemList::default(),
+            typedef_measurement: ItemList::default(),
+            typedef_structure: ItemList::default(),
+            unit: ItemList::default(),
             user_rights: Vec::new(),
             variant_coding: None,
             __block_info: BlockInfo {
@@ -18405,34 +18511,34 @@ impl Module {
 
 impl PartialEq for Module {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.a2ml == other.a2ml)
-            && (self.axis_pts == other.axis_pts)
-            && (self.blob == other.blob)
-            && (self.characteristic == other.characteristic)
-            && (self.compu_method == other.compu_method)
-            && (self.compu_tab == other.compu_tab)
-            && (self.compu_vtab == other.compu_vtab)
-            && (self.compu_vtab_range == other.compu_vtab_range)
-            && (self.frame == other.frame)
-            && (self.function == other.function)
-            && (self.group == other.group)
-            && (self.if_data == other.if_data)
-            && (self.instance == other.instance)
-            && (self.measurement == other.measurement)
-            && (self.mod_common == other.mod_common)
-            && (self.mod_par == other.mod_par)
-            && (self.record_layout == other.record_layout)
-            && (self.transformer == other.transformer)
-            && (self.typedef_axis == other.typedef_axis)
-            && (self.typedef_blob == other.typedef_blob)
-            && (self.typedef_characteristic == other.typedef_characteristic)
-            && (self.typedef_measurement == other.typedef_measurement)
-            && (self.typedef_structure == other.typedef_structure)
-            && (self.unit == other.unit)
-            && (self.user_rights == other.user_rights)
-            && (self.variant_coding == other.variant_coding)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.a2ml == other.a2ml
+            && self.axis_pts == other.axis_pts
+            && self.blob == other.blob
+            && self.characteristic == other.characteristic
+            && self.compu_method == other.compu_method
+            && self.compu_tab == other.compu_tab
+            && self.compu_vtab == other.compu_vtab
+            && self.compu_vtab_range == other.compu_vtab_range
+            && self.frame == other.frame
+            && self.function == other.function
+            && self.group == other.group
+            && self.if_data == other.if_data
+            && self.instance == other.instance
+            && self.measurement == other.measurement
+            && self.mod_common == other.mod_common
+            && self.mod_par == other.mod_par
+            && self.record_layout == other.record_layout
+            && self.transformer == other.transformer
+            && self.typedef_axis == other.typedef_axis
+            && self.typedef_blob == other.typedef_blob
+            && self.typedef_characteristic == other.typedef_characteristic
+            && self.typedef_measurement == other.typedef_measurement
+            && self.typedef_structure == other.typedef_structure
+            && self.unit == other.unit
+            && self.user_rights == other.user_rights
+            && self.variant_coding == other.variant_coding
     }
 }
 
@@ -18539,6 +18645,12 @@ impl A2lObjectName for Module {
     }
 }
 
+impl A2lObjectNameSetter for Module {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+}
+
 impl ParseableA2lObject for Module {
     fn parse(
         parser: &mut ParserState,
@@ -18557,29 +18669,29 @@ impl ParseableA2lObject for Module {
             parser.get_string(context)?,
         );
         let mut a2ml: Option<A2ml> = None;
-        let mut axis_pts: Vec<AxisPts> = Vec::new();
-        let mut blob: Vec<Blob> = Vec::new();
-        let mut characteristic: Vec<Characteristic> = Vec::new();
-        let mut compu_method: Vec<CompuMethod> = Vec::new();
-        let mut compu_tab: Vec<CompuTab> = Vec::new();
-        let mut compu_vtab: Vec<CompuVtab> = Vec::new();
-        let mut compu_vtab_range: Vec<CompuVtabRange> = Vec::new();
-        let mut frame: Vec<Frame> = Vec::new();
-        let mut function: Vec<Function> = Vec::new();
-        let mut group: Vec<Group> = Vec::new();
+        let mut axis_pts: ItemList<AxisPts> = ItemList::default();
+        let mut blob: ItemList<Blob> = ItemList::default();
+        let mut characteristic: ItemList<Characteristic> = ItemList::default();
+        let mut compu_method: ItemList<CompuMethod> = ItemList::default();
+        let mut compu_tab: ItemList<CompuTab> = ItemList::default();
+        let mut compu_vtab: ItemList<CompuVtab> = ItemList::default();
+        let mut compu_vtab_range: ItemList<CompuVtabRange> = ItemList::default();
+        let mut frame: ItemList<Frame> = ItemList::default();
+        let mut function: ItemList<Function> = ItemList::default();
+        let mut group: ItemList<Group> = ItemList::default();
         let mut if_data: Vec<IfData> = Vec::new();
-        let mut instance: Vec<Instance> = Vec::new();
-        let mut measurement: Vec<Measurement> = Vec::new();
+        let mut instance: ItemList<Instance> = ItemList::default();
+        let mut measurement: ItemList<Measurement> = ItemList::default();
         let mut mod_common: Option<ModCommon> = None;
         let mut mod_par: Option<ModPar> = None;
-        let mut record_layout: Vec<RecordLayout> = Vec::new();
-        let mut transformer: Vec<Transformer> = Vec::new();
-        let mut typedef_axis: Vec<TypedefAxis> = Vec::new();
-        let mut typedef_blob: Vec<TypedefBlob> = Vec::new();
-        let mut typedef_characteristic: Vec<TypedefCharacteristic> = Vec::new();
-        let mut typedef_measurement: Vec<TypedefMeasurement> = Vec::new();
-        let mut typedef_structure: Vec<TypedefStructure> = Vec::new();
-        let mut unit: Vec<Unit> = Vec::new();
+        let mut record_layout: ItemList<RecordLayout> = ItemList::default();
+        let mut transformer: ItemList<Transformer> = ItemList::default();
+        let mut typedef_axis: ItemList<TypedefAxis> = ItemList::default();
+        let mut typedef_blob: ItemList<TypedefBlob> = ItemList::default();
+        let mut typedef_characteristic: ItemList<TypedefCharacteristic> = ItemList::default();
+        let mut typedef_measurement: ItemList<TypedefMeasurement> = ItemList::default();
+        let mut typedef_structure: ItemList<TypedefStructure> = ItemList::default();
+        let mut unit: ItemList<Unit> = ItemList::default();
         let mut user_rights: Vec<UserRights> = Vec::new();
         let mut variant_coding: Option<VariantCoding> = None;
         let mut next_tag = parser.get_next_tag(context)?;
@@ -19404,7 +19516,7 @@ impl NoAxisPtsDim {
 
 impl PartialEq for NoAxisPtsDim {
     fn eq(&self, other: &Self) -> bool {
-        (self.position == other.position) && (self.datatype == other.datatype)
+        self.position == other.position && self.datatype == other.datatype
     }
 }
 
@@ -19615,7 +19727,7 @@ impl NoRescaleDim {
 
 impl PartialEq for NoRescaleDim {
     fn eq(&self, other: &Self) -> bool {
-        (self.position == other.position) && (self.datatype == other.datatype)
+        self.position == other.position && self.datatype == other.datatype
     }
 }
 
@@ -19826,7 +19938,7 @@ impl OffsetDim {
 
 impl PartialEq for OffsetDim {
     fn eq(&self, other: &Self) -> bool {
-        (self.position == other.position) && (self.datatype == other.datatype)
+        self.position == other.position && self.datatype == other.datatype
     }
 }
 
@@ -20027,7 +20139,7 @@ impl OutMeasurement {
 /// override some default attributes of a type definition in a specific INSTANCE.
 #[derive(Clone)]
 pub struct Overwrite {
-    pub name: String,
+    pub(crate) name: String,
     pub axis_number: u32,
     pub conversion: Option<Conversion>,
     pub extended_limits: Option<ExtendedLimits>,
@@ -20083,15 +20195,15 @@ impl Overwrite {
 
 impl PartialEq for Overwrite {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.axis_number == other.axis_number)
-            && (self.conversion == other.conversion)
-            && (self.extended_limits == other.extended_limits)
-            && (self.format == other.format)
-            && (self.input_quantity == other.input_quantity)
-            && (self.limits == other.limits)
-            && (self.monotony == other.monotony)
-            && (self.phys_unit == other.phys_unit)
+        self.name == other.name
+            && self.axis_number == other.axis_number
+            && self.conversion == other.conversion
+            && self.extended_limits == other.extended_limits
+            && self.format == other.format
+            && self.input_quantity == other.input_quantity
+            && self.limits == other.limits
+            && self.monotony == other.monotony
+            && self.phys_unit == other.phys_unit
     }
 }
 
@@ -20138,6 +20250,12 @@ impl A2lObject<(u32, (u32, bool))> for Overwrite {
 impl A2lObjectName for Overwrite {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for Overwrite {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -20663,7 +20781,7 @@ pub struct Project {
     pub name: String,
     pub long_identifier: String,
     pub header: Option<Header>,
-    pub module: Vec<Module>,
+    pub module: ItemList<Module>,
     pub(crate) __block_info: BlockInfo<(u32, u32)>,
 }
 
@@ -20686,7 +20804,7 @@ impl Project {
             name,
             long_identifier,
             header: None,
-            module: Vec::new(),
+            module: ItemList::default(),
             __block_info: BlockInfo {
                 incfile: None,
                 line: 0,
@@ -20701,10 +20819,10 @@ impl Project {
 
 impl PartialEq for Project {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.header == other.header)
-            && (self.module == other.module)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.header == other.header
+            && self.module == other.module
     }
 }
 
@@ -20739,6 +20857,12 @@ impl A2lObjectName for Project {
     }
 }
 
+impl A2lObjectNameSetter for Project {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+}
+
 impl ParseableA2lObject for Project {
     fn parse(
         parser: &mut ParserState,
@@ -20757,7 +20881,7 @@ impl ParseableA2lObject for Project {
             parser.get_string(context)?,
         );
         let mut header: Option<Header> = None;
-        let mut module: Vec<Module> = Vec::new();
+        let mut module: ItemList<Module> = ItemList::default();
         let mut next_tag = parser.get_next_tag(context)?;
         while next_tag.is_some() {
             let (token, is_block, line_offset) = next_tag.unwrap();
@@ -21119,7 +21243,7 @@ impl ReadWrite {
 /// specifies the various data structures of an adjustable objects in memory
 #[derive(Clone)]
 pub struct RecordLayout {
-    pub name: String,
+    pub(crate) name: String,
     pub alignment_byte: Option<AlignmentByte>,
     pub alignment_float16_ieee: Option<AlignmentFloat16Ieee>,
     pub alignment_float32_ieee: Option<AlignmentFloat32Ieee>,
@@ -21340,70 +21464,70 @@ impl RecordLayout {
 
 impl PartialEq for RecordLayout {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.alignment_byte == other.alignment_byte)
-            && (self.alignment_float16_ieee == other.alignment_float16_ieee)
-            && (self.alignment_float32_ieee == other.alignment_float32_ieee)
-            && (self.alignment_float64_ieee == other.alignment_float64_ieee)
-            && (self.alignment_int64 == other.alignment_int64)
-            && (self.alignment_long == other.alignment_long)
-            && (self.alignment_word == other.alignment_word)
-            && (self.axis_pts_x == other.axis_pts_x)
-            && (self.axis_pts_y == other.axis_pts_y)
-            && (self.axis_pts_z == other.axis_pts_z)
-            && (self.axis_pts_4 == other.axis_pts_4)
-            && (self.axis_pts_5 == other.axis_pts_5)
-            && (self.axis_rescale_x == other.axis_rescale_x)
-            && (self.axis_rescale_y == other.axis_rescale_y)
-            && (self.axis_rescale_z == other.axis_rescale_z)
-            && (self.axis_rescale_4 == other.axis_rescale_4)
-            && (self.axis_rescale_5 == other.axis_rescale_5)
-            && (self.dist_op_x == other.dist_op_x)
-            && (self.dist_op_y == other.dist_op_y)
-            && (self.dist_op_z == other.dist_op_z)
-            && (self.dist_op_4 == other.dist_op_4)
-            && (self.dist_op_5 == other.dist_op_5)
-            && (self.fix_no_axis_pts_x == other.fix_no_axis_pts_x)
-            && (self.fix_no_axis_pts_y == other.fix_no_axis_pts_y)
-            && (self.fix_no_axis_pts_z == other.fix_no_axis_pts_z)
-            && (self.fix_no_axis_pts_4 == other.fix_no_axis_pts_4)
-            && (self.fix_no_axis_pts_5 == other.fix_no_axis_pts_5)
-            && (self.fnc_values == other.fnc_values)
-            && (self.identification == other.identification)
-            && (self.no_axis_pts_x == other.no_axis_pts_x)
-            && (self.no_axis_pts_y == other.no_axis_pts_y)
-            && (self.no_axis_pts_z == other.no_axis_pts_z)
-            && (self.no_axis_pts_4 == other.no_axis_pts_4)
-            && (self.no_axis_pts_5 == other.no_axis_pts_5)
-            && (self.no_rescale_x == other.no_rescale_x)
-            && (self.no_rescale_y == other.no_rescale_y)
-            && (self.no_rescale_z == other.no_rescale_z)
-            && (self.no_rescale_4 == other.no_rescale_4)
-            && (self.no_rescale_5 == other.no_rescale_5)
-            && (self.offset_x == other.offset_x)
-            && (self.offset_y == other.offset_y)
-            && (self.offset_z == other.offset_z)
-            && (self.offset_4 == other.offset_4)
-            && (self.offset_5 == other.offset_5)
-            && (self.reserved == other.reserved)
-            && (self.rip_addr_w == other.rip_addr_w)
-            && (self.rip_addr_x == other.rip_addr_x)
-            && (self.rip_addr_y == other.rip_addr_y)
-            && (self.rip_addr_z == other.rip_addr_z)
-            && (self.rip_addr_4 == other.rip_addr_4)
-            && (self.rip_addr_5 == other.rip_addr_5)
-            && (self.src_addr_x == other.src_addr_x)
-            && (self.src_addr_y == other.src_addr_y)
-            && (self.src_addr_z == other.src_addr_z)
-            && (self.src_addr_4 == other.src_addr_4)
-            && (self.src_addr_5 == other.src_addr_5)
-            && (self.shift_op_x == other.shift_op_x)
-            && (self.shift_op_y == other.shift_op_y)
-            && (self.shift_op_z == other.shift_op_z)
-            && (self.shift_op_4 == other.shift_op_4)
-            && (self.shift_op_5 == other.shift_op_5)
-            && (self.static_record_layout == other.static_record_layout)
-            && (self.static_address_offsets == other.static_address_offsets)
+        self.name == other.name
+            && self.alignment_byte == other.alignment_byte
+            && self.alignment_float16_ieee == other.alignment_float16_ieee
+            && self.alignment_float32_ieee == other.alignment_float32_ieee
+            && self.alignment_float64_ieee == other.alignment_float64_ieee
+            && self.alignment_int64 == other.alignment_int64
+            && self.alignment_long == other.alignment_long
+            && self.alignment_word == other.alignment_word
+            && self.axis_pts_x == other.axis_pts_x
+            && self.axis_pts_y == other.axis_pts_y
+            && self.axis_pts_z == other.axis_pts_z
+            && self.axis_pts_4 == other.axis_pts_4
+            && self.axis_pts_5 == other.axis_pts_5
+            && self.axis_rescale_x == other.axis_rescale_x
+            && self.axis_rescale_y == other.axis_rescale_y
+            && self.axis_rescale_z == other.axis_rescale_z
+            && self.axis_rescale_4 == other.axis_rescale_4
+            && self.axis_rescale_5 == other.axis_rescale_5
+            && self.dist_op_x == other.dist_op_x
+            && self.dist_op_y == other.dist_op_y
+            && self.dist_op_z == other.dist_op_z
+            && self.dist_op_4 == other.dist_op_4
+            && self.dist_op_5 == other.dist_op_5
+            && self.fix_no_axis_pts_x == other.fix_no_axis_pts_x
+            && self.fix_no_axis_pts_y == other.fix_no_axis_pts_y
+            && self.fix_no_axis_pts_z == other.fix_no_axis_pts_z
+            && self.fix_no_axis_pts_4 == other.fix_no_axis_pts_4
+            && self.fix_no_axis_pts_5 == other.fix_no_axis_pts_5
+            && self.fnc_values == other.fnc_values
+            && self.identification == other.identification
+            && self.no_axis_pts_x == other.no_axis_pts_x
+            && self.no_axis_pts_y == other.no_axis_pts_y
+            && self.no_axis_pts_z == other.no_axis_pts_z
+            && self.no_axis_pts_4 == other.no_axis_pts_4
+            && self.no_axis_pts_5 == other.no_axis_pts_5
+            && self.no_rescale_x == other.no_rescale_x
+            && self.no_rescale_y == other.no_rescale_y
+            && self.no_rescale_z == other.no_rescale_z
+            && self.no_rescale_4 == other.no_rescale_4
+            && self.no_rescale_5 == other.no_rescale_5
+            && self.offset_x == other.offset_x
+            && self.offset_y == other.offset_y
+            && self.offset_z == other.offset_z
+            && self.offset_4 == other.offset_4
+            && self.offset_5 == other.offset_5
+            && self.reserved == other.reserved
+            && self.rip_addr_w == other.rip_addr_w
+            && self.rip_addr_x == other.rip_addr_x
+            && self.rip_addr_y == other.rip_addr_y
+            && self.rip_addr_z == other.rip_addr_z
+            && self.rip_addr_4 == other.rip_addr_4
+            && self.rip_addr_5 == other.rip_addr_5
+            && self.src_addr_x == other.src_addr_x
+            && self.src_addr_y == other.src_addr_y
+            && self.src_addr_z == other.src_addr_z
+            && self.src_addr_4 == other.src_addr_4
+            && self.src_addr_5 == other.src_addr_5
+            && self.shift_op_x == other.shift_op_x
+            && self.shift_op_y == other.shift_op_y
+            && self.shift_op_z == other.shift_op_z
+            && self.shift_op_4 == other.shift_op_4
+            && self.shift_op_5 == other.shift_op_5
+            && self.static_record_layout == other.static_record_layout
+            && self.static_address_offsets == other.static_address_offsets
     }
 }
 
@@ -21618,6 +21742,12 @@ impl A2lObject<(u32, ())> for RecordLayout {
 impl A2lObjectName for RecordLayout {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for RecordLayout {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -23287,7 +23417,7 @@ impl RefCharacteristic {
     }
 }
 
-/// defines a list of groups for use by `USER_RIGHTS`
+/// defines a list of groups for use by USER_RIGHTS
 #[derive(Clone)]
 pub struct RefGroup {
     pub identifier_list: Vec<String>,
@@ -23601,6 +23731,12 @@ impl A2lObjectName for RefMemorySegment {
     }
 }
 
+impl A2lObjectNameSetter for RefMemorySegment {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+}
+
 impl ParseableA2lObject for RefMemorySegment {
     fn parse(
         parser: &mut ParserState,
@@ -23769,7 +23905,7 @@ impl Reserved {
 
 impl PartialEq for Reserved {
     fn eq(&self, other: &Self) -> bool {
-        (self.position == other.position) && (self.data_size == other.data_size)
+        self.position == other.position && self.data_size == other.data_size
     }
 }
 
@@ -23842,7 +23978,7 @@ impl Reserved {
     }
 }
 
-/// Used within `BIT_OPERATION` to right-shift the bits of a value
+/// Used within BIT_OPERATION to right-shift the bits of a value
 #[derive(Clone)]
 pub struct RightShift {
     pub bitcount: u32,
@@ -23980,7 +24116,7 @@ impl RipAddrDim {
 
 impl PartialEq for RipAddrDim {
     fn eq(&self, other: &Self) -> bool {
-        (self.position == other.position) && (self.datatype == other.datatype)
+        self.position == other.position && self.datatype == other.datatype
     }
 }
 
@@ -24201,6 +24337,12 @@ impl A2lObjectName for SRecLayout {
     }
 }
 
+impl A2lObjectNameSetter for SRecLayout {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+}
+
 impl ParseableA2lObject for SRecLayout {
     fn parse(
         parser: &mut ParserState,
@@ -24276,7 +24418,7 @@ impl ShiftOpDim {
 
 impl PartialEq for ShiftOpDim {
     fn eq(&self, other: &Self) -> bool {
-        (self.position == other.position) && (self.datatype == other.datatype)
+        self.position == other.position && self.datatype == other.datatype
     }
 }
 
@@ -24426,13 +24568,13 @@ impl SiExponents {
 
 impl PartialEq for SiExponents {
     fn eq(&self, other: &Self) -> bool {
-        (self.length == other.length)
-            && (self.mass == other.mass)
-            && (self.time == other.time)
-            && (self.electric_current == other.electric_current)
-            && (self.temperature == other.temperature)
-            && (self.amount_of_substance == other.amount_of_substance)
-            && (self.luminous_intensity == other.luminous_intensity)
+        self.length == other.length
+            && self.mass == other.mass
+            && self.time == other.time
+            && self.electric_current == other.electric_current
+            && self.temperature == other.temperature
+            && self.amount_of_substance == other.amount_of_substance
+            && self.luminous_intensity == other.luminous_intensity
     }
 }
 
@@ -24722,7 +24864,7 @@ impl SrcAddrDim {
 
 impl PartialEq for SrcAddrDim {
     fn eq(&self, other: &Self) -> bool {
-        (self.position == other.position) && (self.datatype == other.datatype)
+        self.position == other.position && self.datatype == other.datatype
     }
 }
 
@@ -25058,7 +25200,7 @@ impl StatusStringRef {
     }
 }
 
-/// step size when adjusting the value of a CHARACTERISTIC, `AXIS_PTS` or `AXIS_DESCR`
+/// step size when adjusting the value of a CHARACTERISTIC, AXIS_PTS or AXIS_DESCR
 #[derive(Clone)]
 pub struct StepSize {
     pub step_size: f64,
@@ -25153,10 +25295,10 @@ impl StepSize {
     }
 }
 
-/// defines a single component of a `TYPEDEF_STRUCTURE`
+/// defines a single component of a TYPEDEF_STRUCTURE
 #[derive(Clone)]
 pub struct StructureComponent {
-    pub component_name: String,
+    pub(crate) name: String,
     pub component_type: String,
     pub address_offset: u32,
     pub address_type: Option<AddressType>,
@@ -25169,7 +25311,7 @@ pub struct StructureComponent {
 impl std::fmt::Debug for StructureComponent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("StructureComponent")
-            .field("component_name", &self.component_name)
+            .field("name", &self.name)
             .field("component_type", &self.component_type)
             .field("address_offset", &self.address_offset)
             .field("address_type", &self.address_type)
@@ -25183,9 +25325,9 @@ impl std::fmt::Debug for StructureComponent {
 impl StructureComponent {
     #[allow(clippy::too_many_arguments)]
     #[must_use]
-    pub fn new(component_name: String, component_type: String, address_offset: u32) -> Self {
+    pub fn new(name: String, component_type: String, address_offset: u32) -> Self {
         Self {
-            component_name,
+            name,
             component_type,
             address_offset,
             address_type: None,
@@ -25206,13 +25348,13 @@ impl StructureComponent {
 
 impl PartialEq for StructureComponent {
     fn eq(&self, other: &Self) -> bool {
-        (self.component_name == other.component_name)
-            && (self.component_type == other.component_type)
-            && (self.address_offset == other.address_offset)
-            && (self.address_type == other.address_type)
-            && (self.layout == other.layout)
-            && (self.matrix_dim == other.matrix_dim)
-            && (self.symbol_type_link == other.symbol_type_link)
+        self.name == other.name
+            && self.component_type == other.component_type
+            && self.address_offset == other.address_offset
+            && self.address_type == other.address_type
+            && self.layout == other.layout
+            && self.matrix_dim == other.matrix_dim
+            && self.symbol_type_link == other.symbol_type_link
     }
 }
 
@@ -25247,6 +25389,18 @@ impl A2lObject<(u32, u32, (u32, bool))> for StructureComponent {
     }
 }
 
+impl A2lObjectName for StructureComponent {
+    fn get_name(&self) -> &str {
+        &self.name
+    }
+}
+
+impl A2lObjectNameSetter for StructureComponent {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+}
+
 impl ParseableA2lObject for StructureComponent {
     fn parse(
         parser: &mut ParserState,
@@ -25256,7 +25410,7 @@ impl ParseableA2lObject for StructureComponent {
         let __location_incfile = parser.get_incfilename(context.fileid);
         let __location_line = context.line;
         let __uid = parser.get_next_id();
-        let (__component_name_location, component_name) = (
+        let (__name_location, name) = (
             parser.get_current_line_offset(),
             parser.get_identifier(context)?,
         );
@@ -25330,12 +25484,12 @@ impl ParseableA2lObject for StructureComponent {
                 start_offset: __start_offset,
                 end_offset: __end_offset,
                 item_location: (
-                    __component_name_location,
+                    __name_location,
                     __component_type_location,
                     __address_offset_location,
                 ),
             },
-            component_name,
+            name,
             component_type,
             address_offset,
             address_type,
@@ -25349,7 +25503,7 @@ impl ParseableA2lObject for StructureComponent {
 impl StructureComponent {
     pub(crate) fn stringify(&self, indent: usize) -> String {
         let mut writer = writer::Writer::new(indent);
-        writer.add_str(&self.component_name, self.__block_info.item_location.0);
+        writer.add_str(&self.name, self.__block_info.item_location.0);
         writer.add_str(&self.component_type, self.__block_info.item_location.1);
         writer.add_integer(
             self.address_offset,
@@ -25801,7 +25955,7 @@ impl SymbolLink {
 
 impl PartialEq for SymbolLink {
     fn eq(&self, other: &Self) -> bool {
-        (self.symbol_name == other.symbol_name) && (self.offset == other.offset)
+        self.symbol_name == other.symbol_name && self.offset == other.offset
     }
 }
 
@@ -25969,7 +26123,7 @@ impl SymbolTypeLink {
 /// defines a system constant that can be used in conversion formulas
 #[derive(Clone)]
 pub struct SystemConstant {
-    pub name: String,
+    pub(crate) name: String,
     pub value: String,
     pub(crate) __block_info: BlockInfo<(u32, u32)>,
 }
@@ -26004,7 +26158,7 @@ impl SystemConstant {
 
 impl PartialEq for SystemConstant {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name) && (self.value == other.value)
+        self.name == other.name && self.value == other.value
     }
 }
 
@@ -26069,7 +26223,7 @@ impl SystemConstant {
     }
 }
 
-///Auto generated for repeating sequence `tab_entry` in block `COMPU_TAB`
+///Auto generated for repeating sequence tab_entry in block COMPU_TAB
 #[derive(Clone)]
 pub struct TabEntryStruct {
     pub in_val: f64,
@@ -26107,7 +26261,7 @@ impl TabEntryStruct {
 
 impl PartialEq for TabEntryStruct {
     fn eq(&self, other: &Self) -> bool {
-        (self.in_val == other.in_val) && (self.out_val == other.out_val)
+        self.in_val == other.in_val && self.out_val == other.out_val
     }
 }
 
@@ -26173,7 +26327,7 @@ impl TabEntryStruct {
 /// Definition of call to an external function (32-bit or 64-bit DLL) for converting calibration object values between their implementation format and physical format
 #[derive(Clone)]
 pub struct Transformer {
-    pub name: String,
+    pub(crate) name: String,
     pub version: String,
     pub dllname_32bit: String,
     pub dllname_64bit: String,
@@ -26237,15 +26391,15 @@ impl Transformer {
 
 impl PartialEq for Transformer {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.version == other.version)
-            && (self.dllname_32bit == other.dllname_32bit)
-            && (self.dllname_64bit == other.dllname_64bit)
-            && (self.timeout == other.timeout)
-            && (self.trigger == other.trigger)
-            && (self.inverse_transformer == other.inverse_transformer)
-            && (self.transformer_in_objects == other.transformer_in_objects)
-            && (self.transformer_out_objects == other.transformer_out_objects)
+        self.name == other.name
+            && self.version == other.version
+            && self.dllname_32bit == other.dllname_32bit
+            && self.dllname_64bit == other.dllname_64bit
+            && self.timeout == other.timeout
+            && self.trigger == other.trigger
+            && self.inverse_transformer == other.inverse_transformer
+            && self.transformer_in_objects == other.transformer_in_objects
+            && self.transformer_out_objects == other.transformer_out_objects
     }
 }
 
@@ -26277,6 +26431,12 @@ impl A2lObject<(u32, u32, u32, u32, (u32, bool), u32, u32)> for Transformer {
 impl A2lObjectName for Transformer {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for Transformer {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -26728,7 +26888,7 @@ impl std::fmt::Display for TransformerTrigger {
 /// Type definition of an axis object
 #[derive(Clone)]
 pub struct TypedefAxis {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub input_quantity: String,
     pub record_layout: String,
@@ -26825,22 +26985,22 @@ impl TypedefAxis {
 
 impl PartialEq for TypedefAxis {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.input_quantity == other.input_quantity)
-            && (self.record_layout == other.record_layout)
-            && (self.max_diff == other.max_diff)
-            && (self.conversion == other.conversion)
-            && (self.max_axis_points == other.max_axis_points)
-            && (self.lower_limit == other.lower_limit)
-            && (self.upper_limit == other.upper_limit)
-            && (self.byte_order == other.byte_order)
-            && (self.deposit == other.deposit)
-            && (self.extended_limits == other.extended_limits)
-            && (self.format == other.format)
-            && (self.monotony == other.monotony)
-            && (self.phys_unit == other.phys_unit)
-            && (self.step_size == other.step_size)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.input_quantity == other.input_quantity
+            && self.record_layout == other.record_layout
+            && self.max_diff == other.max_diff
+            && self.conversion == other.conversion
+            && self.max_axis_points == other.max_axis_points
+            && self.lower_limit == other.lower_limit
+            && self.upper_limit == other.upper_limit
+            && self.byte_order == other.byte_order
+            && self.deposit == other.deposit
+            && self.extended_limits == other.extended_limits
+            && self.format == other.format
+            && self.monotony == other.monotony
+            && self.phys_unit == other.phys_unit
+            && self.step_size == other.step_size
     }
 }
 
@@ -26889,6 +27049,12 @@ impl A2lObject<(u32, u32, u32, u32, u32, u32, (u32, bool), u32, u32)> for Typede
 impl A2lObjectName for TypedefAxis {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for TypedefAxis {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -27176,7 +27342,7 @@ impl TypedefAxis {
 /// Type definition of a BLOB
 #[derive(Clone)]
 pub struct TypedefBlob {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub size: u32,
     pub address_type: Option<AddressType>,
@@ -27217,10 +27383,10 @@ impl TypedefBlob {
 
 impl PartialEq for TypedefBlob {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.size == other.size)
-            && (self.address_type == other.address_type)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.size == other.size
+            && self.address_type == other.address_type
     }
 }
 
@@ -27249,6 +27415,12 @@ impl A2lObject<(u32, u32, (u32, bool))> for TypedefBlob {
 impl A2lObjectName for TypedefBlob {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for TypedefBlob {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -27355,7 +27527,7 @@ impl TypedefBlob {
 /// Type definition of a calibration object
 #[derive(Clone)]
 pub struct TypedefCharacteristic {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub characteristic_type: CharacteristicType,
     pub record_layout: String,
@@ -27450,25 +27622,25 @@ impl TypedefCharacteristic {
 
 impl PartialEq for TypedefCharacteristic {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.characteristic_type == other.characteristic_type)
-            && (self.record_layout == other.record_layout)
-            && (self.max_diff == other.max_diff)
-            && (self.conversion == other.conversion)
-            && (self.lower_limit == other.lower_limit)
-            && (self.upper_limit == other.upper_limit)
-            && (self.axis_descr == other.axis_descr)
-            && (self.bit_mask == other.bit_mask)
-            && (self.byte_order == other.byte_order)
-            && (self.discrete == other.discrete)
-            && (self.encoding == other.encoding)
-            && (self.extended_limits == other.extended_limits)
-            && (self.format == other.format)
-            && (self.matrix_dim == other.matrix_dim)
-            && (self.number == other.number)
-            && (self.phys_unit == other.phys_unit)
-            && (self.step_size == other.step_size)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.characteristic_type == other.characteristic_type
+            && self.record_layout == other.record_layout
+            && self.max_diff == other.max_diff
+            && self.conversion == other.conversion
+            && self.lower_limit == other.lower_limit
+            && self.upper_limit == other.upper_limit
+            && self.axis_descr == other.axis_descr
+            && self.bit_mask == other.bit_mask
+            && self.byte_order == other.byte_order
+            && self.discrete == other.discrete
+            && self.encoding == other.encoding
+            && self.extended_limits == other.extended_limits
+            && self.format == other.format
+            && self.matrix_dim == other.matrix_dim
+            && self.number == other.number
+            && self.phys_unit == other.phys_unit
+            && self.step_size == other.step_size
     }
 }
 
@@ -27527,6 +27699,12 @@ impl A2lObject<(u32, u32, u32, u32, u32, u32, u32, u32)> for TypedefCharacterist
 impl A2lObjectName for TypedefCharacteristic {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for TypedefCharacteristic {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -27896,7 +28074,7 @@ impl TypedefCharacteristic {
 /// Type definition of a measurement object
 #[derive(Clone)]
 pub struct TypedefMeasurement {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub datatype: DataType,
     pub conversion: String,
@@ -27988,24 +28166,24 @@ impl TypedefMeasurement {
 
 impl PartialEq for TypedefMeasurement {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.datatype == other.datatype)
-            && (self.conversion == other.conversion)
-            && (self.resolution == other.resolution)
-            && (self.accuracy == other.accuracy)
-            && (self.lower_limit == other.lower_limit)
-            && (self.upper_limit == other.upper_limit)
-            && (self.address_type == other.address_type)
-            && (self.bit_mask == other.bit_mask)
-            && (self.bit_operation == other.bit_operation)
-            && (self.byte_order == other.byte_order)
-            && (self.discrete == other.discrete)
-            && (self.error_mask == other.error_mask)
-            && (self.format == other.format)
-            && (self.layout == other.layout)
-            && (self.matrix_dim == other.matrix_dim)
-            && (self.phys_unit == other.phys_unit)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.datatype == other.datatype
+            && self.conversion == other.conversion
+            && self.resolution == other.resolution
+            && self.accuracy == other.accuracy
+            && self.lower_limit == other.lower_limit
+            && self.upper_limit == other.upper_limit
+            && self.address_type == other.address_type
+            && self.bit_mask == other.bit_mask
+            && self.bit_operation == other.bit_operation
+            && self.byte_order == other.byte_order
+            && self.discrete == other.discrete
+            && self.error_mask == other.error_mask
+            && self.format == other.format
+            && self.layout == other.layout
+            && self.matrix_dim == other.matrix_dim
+            && self.phys_unit == other.phys_unit
     }
 }
 
@@ -28063,6 +28241,12 @@ impl A2lObject<(u32, u32, u32, u32, (u32, bool), u32, u32, u32)> for TypedefMeas
 impl A2lObjectName for TypedefMeasurement {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for TypedefMeasurement {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -28415,12 +28599,12 @@ impl TypedefMeasurement {
 /// Definition of structured data types similar to the \"typedef\" command in C
 #[derive(Clone)]
 pub struct TypedefStructure {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub total_size: u32,
     pub address_type: Option<AddressType>,
     pub consistent_exchange: Option<ConsistentExchange>,
-    pub structure_component: Vec<StructureComponent>,
+    pub structure_component: ItemList<StructureComponent>,
     pub symbol_type_link: Option<SymbolTypeLink>,
     pub(crate) __block_info: BlockInfo<(u32, u32, (u32, bool))>,
 }
@@ -28449,7 +28633,7 @@ impl TypedefStructure {
             total_size,
             address_type: None,
             consistent_exchange: None,
-            structure_component: Vec::new(),
+            structure_component: ItemList::default(),
             symbol_type_link: None,
             __block_info: BlockInfo {
                 incfile: None,
@@ -28465,13 +28649,13 @@ impl TypedefStructure {
 
 impl PartialEq for TypedefStructure {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.total_size == other.total_size)
-            && (self.address_type == other.address_type)
-            && (self.consistent_exchange == other.consistent_exchange)
-            && (self.structure_component == other.structure_component)
-            && (self.symbol_type_link == other.symbol_type_link)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.total_size == other.total_size
+            && self.address_type == other.address_type
+            && self.consistent_exchange == other.consistent_exchange
+            && self.structure_component == other.structure_component
+            && self.symbol_type_link == other.symbol_type_link
     }
 }
 
@@ -28512,6 +28696,12 @@ impl A2lObjectName for TypedefStructure {
     }
 }
 
+impl A2lObjectNameSetter for TypedefStructure {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+}
+
 impl ParseableA2lObject for TypedefStructure {
     fn parse(
         parser: &mut ParserState,
@@ -28536,7 +28726,7 @@ impl ParseableA2lObject for TypedefStructure {
         };
         let mut address_type: Option<AddressType> = None;
         let mut consistent_exchange: Option<ConsistentExchange> = None;
-        let mut structure_component: Vec<StructureComponent> = Vec::new();
+        let mut structure_component: ItemList<StructureComponent> = ItemList::default();
         let mut symbol_type_link: Option<SymbolTypeLink> = None;
         let mut next_tag = parser.get_next_tag(context)?;
         while next_tag.is_some() {
@@ -28688,7 +28878,7 @@ impl TypedefStructure {
 /// Specification of a measurement unit
 #[derive(Clone)]
 pub struct Unit {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub display: String,
     pub unit_type: UnitType,
@@ -28743,13 +28933,13 @@ impl Unit {
 
 impl PartialEq for Unit {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.display == other.display)
-            && (self.unit_type == other.unit_type)
-            && (self.ref_unit == other.ref_unit)
-            && (self.si_exponents == other.si_exponents)
-            && (self.unit_conversion == other.unit_conversion)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.display == other.display
+            && self.unit_type == other.unit_type
+            && self.ref_unit == other.ref_unit
+            && self.si_exponents == other.si_exponents
+            && self.unit_conversion == other.unit_conversion
     }
 }
 
@@ -28784,6 +28974,12 @@ impl A2lObject<(u32, u32, u32, u32)> for Unit {
 impl A2lObjectName for Unit {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for Unit {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -28973,7 +29169,7 @@ impl UnitConversion {
 
 impl PartialEq for UnitConversion {
     fn eq(&self, other: &Self) -> bool {
-        (self.gradient == other.gradient) && (self.offset == other.offset)
+        self.gradient == other.gradient && self.offset == other.offset
     }
 }
 
@@ -29212,9 +29408,9 @@ impl UserRights {
 
 impl PartialEq for UserRights {
     fn eq(&self, other: &Self) -> bool {
-        (self.user_level_id == other.user_level_id)
-            && (self.read_only == other.read_only)
-            && (self.ref_group == other.ref_group)
+        self.user_level_id == other.user_level_id
+            && self.read_only == other.read_only
+            && self.ref_group == other.ref_group
     }
 }
 
@@ -29343,7 +29539,7 @@ impl UserRights {
     }
 }
 
-///Auto generated for repeating sequence `value_pairs` in block `COMPU_VTAB`
+///Auto generated for repeating sequence value_pairs in block COMPU_VTAB
 #[derive(Clone)]
 pub struct ValuePairsStruct {
     pub in_val: f64,
@@ -29381,7 +29577,7 @@ impl ValuePairsStruct {
 
 impl PartialEq for ValuePairsStruct {
     fn eq(&self, other: &Self) -> bool {
-        (self.in_val == other.in_val) && (self.out_val == other.out_val)
+        self.in_val == other.in_val && self.out_val == other.out_val
     }
 }
 
@@ -29444,7 +29640,7 @@ impl ValuePairsStruct {
     }
 }
 
-///Auto generated for repeating sequence `value_triples` in block `COMPU_VTAB_RANGE`
+///Auto generated for repeating sequence value_triples in block COMPU_VTAB_RANGE
 #[derive(Clone)]
 pub struct ValueTriplesStruct {
     pub in_val_min: f64,
@@ -29485,9 +29681,9 @@ impl ValueTriplesStruct {
 
 impl PartialEq for ValueTriplesStruct {
     fn eq(&self, other: &Self) -> bool {
-        (self.in_val_min == other.in_val_min)
-            && (self.in_val_max == other.in_val_max)
-            && (self.out_val == other.out_val)
+        self.in_val_min == other.in_val_min
+            && self.in_val_max == other.in_val_max
+            && self.out_val == other.out_val
     }
 }
 
@@ -29700,7 +29896,7 @@ impl VarAddress {
 /// defines one adjustable object to be variant coded
 #[derive(Clone)]
 pub struct VarCharacteristic {
-    pub name: String,
+    pub(crate) name: String,
     pub criterion_name_list: Vec<String>,
     pub var_address: Option<VarAddress>,
     pub(crate) __block_info: BlockInfo<(u32, Vec<u32>)>,
@@ -29738,9 +29934,9 @@ impl VarCharacteristic {
 
 impl PartialEq for VarCharacteristic {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.criterion_name_list == other.criterion_name_list)
-            && (self.var_address == other.var_address)
+        self.name == other.name
+            && self.criterion_name_list == other.criterion_name_list
+            && self.var_address == other.var_address
     }
 }
 
@@ -29769,6 +29965,12 @@ impl A2lObject<(u32, Vec<u32>)> for VarCharacteristic {
 impl A2lObjectName for VarCharacteristic {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for VarCharacteristic {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -29884,7 +30086,7 @@ impl VarCharacteristic {
 /// describes a variant criterion
 #[derive(Clone)]
 pub struct VarCriterion {
-    pub name: String,
+    pub(crate) name: String,
     pub long_identifier: String,
     pub value_list: Vec<String>,
     pub var_measurement: Option<VarMeasurement>,
@@ -29931,11 +30133,11 @@ impl VarCriterion {
 
 impl PartialEq for VarCriterion {
     fn eq(&self, other: &Self) -> bool {
-        (self.name == other.name)
-            && (self.long_identifier == other.long_identifier)
-            && (self.value_list == other.value_list)
-            && (self.var_measurement == other.var_measurement)
-            && (self.var_selection_characteristic == other.var_selection_characteristic)
+        self.name == other.name
+            && self.long_identifier == other.long_identifier
+            && self.value_list == other.value_list
+            && self.var_measurement == other.var_measurement
+            && self.var_selection_characteristic == other.var_selection_characteristic
     }
 }
 
@@ -29967,6 +30169,12 @@ impl A2lObject<(u32, u32, Vec<u32>)> for VarCriterion {
 impl A2lObjectName for VarCriterion {
     fn get_name(&self) -> &str {
         &self.name
+    }
+}
+
+impl A2lObjectNameSetter for VarCriterion {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -30307,6 +30515,12 @@ impl A2lObjectName for VarMeasurement {
     }
 }
 
+impl A2lObjectNameSetter for VarMeasurement {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+}
+
 impl ParseableA2lObject for VarMeasurement {
     fn parse(
         parser: &mut ParserState,
@@ -30536,6 +30750,12 @@ impl A2lObjectName for VarSelectionCharacteristic {
     }
 }
 
+impl A2lObjectNameSetter for VarSelectionCharacteristic {
+    fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+}
+
 impl ParseableA2lObject for VarSelectionCharacteristic {
     fn parse(
         parser: &mut ParserState,
@@ -30671,8 +30891,8 @@ impl VarSeparator {
 /// All information related to variant coding is grouped in this structure
 #[derive(Clone)]
 pub struct VariantCoding {
-    pub var_characteristic: Vec<VarCharacteristic>,
-    pub var_criterion: Vec<VarCriterion>,
+    pub var_characteristic: ItemList<VarCharacteristic>,
+    pub var_criterion: ItemList<VarCriterion>,
     pub var_forbidden_comb: Vec<VarForbiddenComb>,
     pub var_naming: Option<VarNaming>,
     pub var_separator: Option<VarSeparator>,
@@ -30696,8 +30916,8 @@ impl VariantCoding {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            var_characteristic: Vec::new(),
-            var_criterion: Vec::new(),
+            var_characteristic: ItemList::default(),
+            var_criterion: ItemList::default(),
             var_forbidden_comb: Vec::new(),
             var_naming: None,
             var_separator: None,
@@ -30715,11 +30935,11 @@ impl VariantCoding {
 
 impl PartialEq for VariantCoding {
     fn eq(&self, other: &Self) -> bool {
-        (self.var_characteristic == other.var_characteristic)
-            && (self.var_criterion == other.var_criterion)
-            && (self.var_forbidden_comb == other.var_forbidden_comb)
-            && (self.var_naming == other.var_naming)
-            && (self.var_separator == other.var_separator)
+        self.var_characteristic == other.var_characteristic
+            && self.var_criterion == other.var_criterion
+            && self.var_forbidden_comb == other.var_forbidden_comb
+            && self.var_naming == other.var_naming
+            && self.var_separator == other.var_separator
     }
 }
 
@@ -30766,8 +30986,8 @@ impl ParseableA2lObject for VariantCoding {
         let __location_incfile = parser.get_incfilename(context.fileid);
         let __location_line = context.line;
         let __uid = parser.get_next_id();
-        let mut var_characteristic: Vec<VarCharacteristic> = Vec::new();
-        let mut var_criterion: Vec<VarCriterion> = Vec::new();
+        let mut var_characteristic: ItemList<VarCharacteristic> = ItemList::default();
+        let mut var_criterion: ItemList<VarCriterion> = ItemList::default();
         let mut var_forbidden_comb: Vec<VarForbiddenComb> = Vec::new();
         let mut var_naming: Option<VarNaming> = None;
         let mut var_separator: Option<VarSeparator> = None;
@@ -31178,7 +31398,7 @@ impl VirtualCharacteristic {
 
 impl PartialEq for VirtualCharacteristic {
     fn eq(&self, other: &Self) -> bool {
-        (self.formula == other.formula) && (self.characteristic_list == other.characteristic_list)
+        self.formula == other.formula && self.characteristic_list == other.characteristic_list
     }
 }
 
@@ -31400,7 +31620,7 @@ impl PartialEq for A2ml {
 /// Instead the content description is provided at runtime through the A2ML block.
 #[derive(Clone)]
 pub struct IfData {
-    /// contains the content of the `IF_DATA` in generic form
+    /// contains the content of the IF_DATA in generic form
     pub ifdata_items: Option<a2ml::GenericIfData>,
     /// `ifdata_valid` indicates if the data matched an A2ML specification during parsing or not
     pub ifdata_valid: bool,
