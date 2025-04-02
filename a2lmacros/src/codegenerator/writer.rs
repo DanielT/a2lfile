@@ -68,14 +68,23 @@ fn generate_block_writer_generic(typename: &str, structitems: &[DataItem]) -> To
 
     let write_items = generate_block_item_writers(structitems);
 
-    quote! {
-        impl #typeident {
-            pub(crate) fn stringify(&self, indent: usize) -> String {
-                let mut writer = writer::Writer::new(indent);
-
-                #(#write_items)*
-
-                writer.finish()
+    if write_items.is_empty() {
+        quote! {
+            impl #typeident {
+                pub(crate) fn stringify(&self, indent: usize) -> String {
+                    let writer = writer::Writer::new(indent);
+                    writer.finish()
+                }
+            }
+        }
+    } else {
+        quote! {
+            impl #typeident {
+                pub(crate) fn stringify(&self, indent: usize) -> String {
+                    let mut writer = writer::Writer::new(indent);
+                    #(#write_items)*
+                    writer.finish()
+                }
             }
         }
     }
@@ -263,8 +272,7 @@ fn generate_block_item_write_cmd(
             let seqitemident = format_ident!("seqitem{}", calldepth);
             let seqidxident = format_ident!("seqidx{}", calldepth);
             let default_location = generate_default_location(seqtype);
-            let seqlocation =
-                quote! {(*#location.get(#seqidxident).unwrap_or_else(|| &#default_location))};
+            let seqlocation = quote! {(*#location.get(#seqidxident).unwrap_or(&#default_location))};
 
             // in the write_cmd all the integer basetypes need an additional dereference, because .iter().enumerate() gives us references
             let write_cmd = match **seqtype {

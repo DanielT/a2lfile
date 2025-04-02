@@ -1,7 +1,6 @@
-use std::collections::HashMap;
 use std::collections::HashSet;
 
-use crate::specification::{A2lObjectName, Group, Module};
+use crate::specification::{Group, Module};
 
 pub(crate) fn cleanup(module: &mut Module) {
     // in all groups, remove references to non-existent CHARACTERISTICs, MEASUREMENTs, etc.
@@ -39,36 +38,32 @@ fn remove_invalid_object_references(module: &mut Module) {
 
 fn build_refname_set(module: &Module) -> HashSet<String> {
     let mut refnames = HashSet::new();
-    for item in &module.characteristic {
-        refnames.insert(item.get_name().to_owned());
+    for name in module.characteristic.keys() {
+        refnames.insert(name.clone());
     }
-    for item in &module.measurement {
-        refnames.insert(item.get_name().to_owned());
+    for name in module.measurement.keys() {
+        refnames.insert(name.clone());
     }
-    for item in &module.blob {
-        refnames.insert(item.get_name().to_owned());
+    for name in module.blob.keys() {
+        refnames.insert(name.clone());
     }
-    for item in &module.instance {
-        refnames.insert(item.get_name().to_owned());
+    for name in module.instance.keys() {
+        refnames.insert(name.clone());
     }
 
     refnames
 }
 
 fn delete_empty_groups(module: &mut Module) {
-    let mut name2idx = HashMap::<String, usize>::new();
-    for (idx, grp) in module.group.iter().enumerate() {
-        name2idx.insert(grp.name.clone(), idx);
-    }
     let used_groups = get_used_groups(module);
     let mut user_of = vec![Vec::<usize>::new(); module.group.len()];
     let mut delete_queue: Vec<usize> = vec![];
-    for (idx, grp) in module.group.iter_mut().enumerate() {
+    for (idx, grp) in module.group.iter().enumerate() {
         // build up a reverse reference list, i.e. for each group, which other groups list it as a sub-group
         if let Some(sub_group) = &grp.sub_group {
             for name in &sub_group.identifier_list {
-                if let Some(subidx) = name2idx.get(name) {
-                    user_of[*subidx].push(idx);
+                if let Some(subidx) = module.group.index(name) {
+                    user_of[subidx].push(idx);
                 }
             }
         }
@@ -79,6 +74,7 @@ fn delete_empty_groups(module: &mut Module) {
         }
     }
     let mut to_delete = vec![false; module.group.len()];
+    // for each group that is queued for deletion, remove all references to it
     while let Some(del_idx) = delete_queue.pop() {
         let name = module.group[del_idx].name.clone();
         to_delete[del_idx] = true;
@@ -101,6 +97,7 @@ fn delete_empty_groups(module: &mut Module) {
             }
         }
     }
+
     let mut del_iter = to_delete.iter();
     module.group.retain(|_| !del_iter.next().unwrap());
 }

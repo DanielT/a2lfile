@@ -16,10 +16,11 @@ mod checker;
 #[cfg(feature = "cleanup")]
 mod cleanup;
 mod ifdata;
+mod itemlist;
 mod loader;
 #[cfg(feature = "merge")]
 mod merge;
-mod namemap;
+mod module;
 mod parser;
 #[cfg(feature = "sort")]
 mod sort;
@@ -27,7 +28,7 @@ mod specification;
 mod tokenizer;
 mod writer;
 
-pub use namemap::{ModuleNameMap, NameMapCompuTab, NameMapObject, NameMapTypedef};
+pub use itemlist::ItemList;
 pub use parser::ParserError;
 use std::convert::AsRef;
 use std::ffi::OsString;
@@ -165,7 +166,10 @@ ASAP2_VERSION 1 71
 pub fn new() -> A2lFile {
     // a minimal a2l file needs only a PROJECT containing a MODULE
     let mut project = Project::new("new_project".to_string(), String::new());
-    project.module = vec![Module::new("new_module".to_string(), String::new())];
+    project.module = ItemList::default();
+    project
+        .module
+        .push(Module::new("new_module".to_string(), String::new()));
     let mut a2l_file = A2lFile::new(project);
     // only one line break for PROJECT (after ASAP2_VERSION) instead of the default 2
     a2l_file.project.get_layout_mut().start_offset = 1;
@@ -226,6 +230,7 @@ If a definition is provided here and there is also an A2ML block in the file, th
 
 ```rust
 # use a2lfile::A2lError;
+# use crate::a2lfile::A2lObjectName;
 # fn main() -> Result<(), A2lError> {
 let text = r#"
 ASAP2_VERSION 1 71
@@ -235,7 +240,7 @@ ASAP2_VERSION 1 71
 /end PROJECT
 "#;
 let (a2l, log_msgs) = a2lfile::load_from_string(&text, None, true).unwrap();
-assert_eq!(a2l.project.module[0].name, "new_module");
+assert_eq!(a2l.project.module[0].get_name(), "new_module");
 # Ok(())
 # }
 ```
@@ -350,7 +355,7 @@ impl A2lFile {
     }
 
     /// write this `A2lFile` object to the given file
-    /// the banner will be placed inside a comment at the beginning of the file; "/*" an "*/" should not be part of the banner string
+    /// the banner will be placed inside a comment at the beginning of the file; `/*` and `*/` should not be part of the banner string
     ///
     /// # Errors
     ///
@@ -437,22 +442,6 @@ impl A2lFile {
     /// specification provided during load or the specification in the A2ML block in the file
     pub fn ifdata_cleanup(&mut self) {
         ifdata::remove_unknown_ifdata(self);
-    }
-}
-
-impl Module {
-    /// build a map of all named elements inside the module
-    #[must_use]
-    pub fn build_namemap(&self) -> (ModuleNameMap, Vec<A2lError>) {
-        ModuleNameMap::build(self)
-    }
-
-    #[cfg(feature = "merge")]
-    /// merge another module with this module
-    ///
-    /// Any elements in other that are not present in this module will be moved over. The other module will typically be empty at the end of the merge.
-    pub fn merge(&mut self, other: &mut Module) {
-        merge::merge_modules(self, other);
     }
 }
 
@@ -775,21 +764,6 @@ mod tests {
         let nonexistent_path = nonexistent_path.to_str().unwrap();
         let result = load_fragment_file(nonexistent_path, None);
         assert!(matches!(result, Err(A2lError::FileOpenError { .. })));
-    }
-
-    #[test]
-    fn test_module_namemap() {
-        let data = r#"
-            /begin MEASUREMENT measurement1 "" UBYTE NO_COMPU_METHOD 0 0 0 255
-            /end MEASUREMENT
-            /begin MEASUREMENT measurement2 "" UBYTE NO_COMPU_METHOD 0 0 0 255
-            /end MEASUREMENT"#;
-
-        let module = load_fragment(data, None).unwrap();
-        let (namemap, _) = module.build_namemap();
-        assert_eq!(namemap.object.len(), 2);
-        assert!(namemap.object.contains_key("measurement1"));
-        assert!(namemap.object.contains_key("measurement2"));
     }
 
     #[test]

@@ -24,14 +24,19 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
                 structitems,
                 true,
                 false,
+                false,
             ));
         }
         BaseType::Block {
             blockitems,
             is_block,
+            used_in_list,
         } => {
             result.extend(generate_block_data_structure(
-                typename, blockitems, *is_block,
+                typename,
+                blockitems,
+                *is_block,
+                *used_in_list,
             ));
         }
         _ => {
@@ -85,12 +90,19 @@ fn generate_block_data_structure(
     typename: &str,
     structitems: &[DataItem],
     is_block: bool,
+    used_in_list: bool,
 ) -> TokenStream {
     match typename {
         "A2ml" | "IfData" => {
             quote! {}
         }
-        _ => generate_block_data_structure_generic(typename, structitems, false, is_block),
+        _ => generate_block_data_structure_generic(
+            typename,
+            structitems,
+            false,
+            is_block,
+            used_in_list,
+        ),
     }
 }
 
@@ -101,12 +113,17 @@ fn generate_block_data_structure_generic(
     structitems: &[DataItem],
     is_struct: bool,
     is_block: bool,
+    used_in_list: bool,
 ) -> TokenStream {
     let typeident = format_ident!("{}", typename);
     let mut definitions = Vec::new();
 
-    for item in structitems {
-        definitions.push(generate_struct_item_definition(item));
+    for (idx, item) in structitems.iter().enumerate() {
+        definitions.push(generate_struct_item_definition(
+            item,
+            idx == 0,
+            used_in_list,
+        ));
     }
     let location_spec = generate_struct_block_location(structitems);
     definitions.push(quote! {pub(crate) __block_info: BlockInfo<#location_spec>});
@@ -139,7 +156,11 @@ fn generate_block_data_structure_generic(
 // Generate the full definition of an input struct item, e.g. "pub foo: u32"
 // In the case of TaggedStructs/TaggedUnions, the output TokenStream consists
 // of several definitions - one for each TaggedItem
-fn generate_struct_item_definition(item: &DataItem) -> TokenStream {
+fn generate_struct_item_definition(
+    item: &DataItem,
+    is_first: bool,
+    used_in_list: bool,
+) -> TokenStream {
     let mut def = quote! {};
 
     // preserve documentation comments from the specification into the output
@@ -169,15 +190,21 @@ fn generate_struct_item_definition(item: &DataItem) -> TokenStream {
             // output each TaggedItem
             for tgitem in tgitems {
                 let mut curr_def = quote! {};
+
                 // documentation comments are also possible on individual TaggedItems and are also output per item
                 if let Some(comment) = &tgitem.item.comment {
                     curr_def.extend(quote! {#[doc=#comment]});
                 }
                 let tgitemname = format_ident!("{}", make_varname(&tgitem.tag));
                 let typename = generate_bare_typename(&tgitem.item.typename, &tgitem.item.basetype);
+
                 // The container type for the TaggedItems varies depending on the options
                 if tgitem.repeat {
-                    curr_def.extend(quote! {pub #tgitemname: Vec<#typename>});
+                    if tgitem.is_named {
+                        curr_def.extend(quote! {pub #tgitemname: ItemList<#typename>});
+                    } else {
+                        curr_def.extend(quote! {pub #tgitemname: Vec<#typename>});
+                    }
                 } else if tgitem.required {
                     curr_def.extend(quote! {pub #tgitemname: #typename});
                 } else {
@@ -196,7 +223,15 @@ fn generate_struct_item_definition(item: &DataItem) -> TokenStream {
 
             let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
             let typename = generate_bare_typename(&item.typename, &item.basetype);
-            def.extend(quote! {pub #itemname: #typename});
+
+            // if the first item is an ident called "name", then it is the name of a named block, and should not be pub
+            // The name should be accessed though get_name() and set_name()
+            if is_first && used_in_list && itemname == "name" {
+                def.extend(quote! {pub(crate) #itemname: #typename});
+            } else {
+                // all other items are public
+                def.extend(quote! {pub #itemname: #typename});
+            }
         }
     }
     def
@@ -378,7 +413,13 @@ fn generate_block_data_structure_constructor(
                     let typename =
                         generate_bare_typename(&tgitem.item.typename, &tgitem.item.basetype);
                     if tgitem.repeat {
-                        fieldinit.push(quote! {#tgitemname: Vec::new()});
+                        // repeating items are either a Vec for unnamed blocks or a ItemList for named blocks
+                        // this allows the named blocks to be indexed by their position and their name
+                        if tgitem.is_named {
+                            fieldinit.push(quote! {#tgitemname: ItemList::default()});
+                        } else {
+                            fieldinit.push(quote! {#tgitemname: Vec::new()});
+                        }
                     } else if tgitem.required {
                         newargs.push(quote! {#tgitemname: #typename});
                         fieldinit.push(quote! {#tgitemname});
@@ -498,14 +539,14 @@ fn generate_block_data_structure_partialeq(
                 for tgitem in taggeditems {
                     let tgitemname = format_ident!("{}", make_varname(&tgitem.tag));
                     comparisons.push(quote! {
-                        (self.#tgitemname == other.#tgitemname)
+                        self.#tgitemname == other.#tgitemname
                     });
                 }
             }
             _ => {
                 let itemname = format_ident!("{}", item.varname.as_ref().unwrap());
                 comparisons.push(quote! {
-                    (self.#itemname == other.#itemname)
+                    self.#itemname == other.#itemname
                 });
             }
         }
@@ -513,13 +554,19 @@ fn generate_block_data_structure_partialeq(
 
     // some structs, e.g. DISCRETE and READ_ONLY have no content. They are always equal.
     if comparisons.is_empty() {
-        comparisons.push(quote! {true});
-    }
-
-    quote! {
-        impl PartialEq for #typeident {
-            fn eq(&self, other: &Self) -> bool {
-                #(#comparisons)&&*
+        quote! {
+            impl PartialEq for #typeident {
+                fn eq(&self, _other: &Self) -> bool {
+                    true
+                }
+            }
+        }
+    } else {
+        quote! {
+            impl PartialEq for #typeident {
+                fn eq(&self, other: &Self) -> bool {
+                    #(#comparisons)&&*
+                }
             }
         }
     }
@@ -629,6 +676,12 @@ fn generate_block_data_structure_trait_name(
             impl A2lObjectName for #typeident {
                 fn get_name(&self) -> &str {
                     &self.name
+                }
+            }
+
+            impl A2lObjectNameSetter for #typeident {
+                fn set_name(&mut self, name: String) {
+                    self.name = name;
                 }
             }
         }

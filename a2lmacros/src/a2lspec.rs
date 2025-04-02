@@ -305,6 +305,7 @@ fn parse_optitem(block_token_iter: &mut TokenStreamIter) -> Vec<TaggedItem> {
                 comment: None,
             },
             is_block: false, // don't know that yet, it will be fixed later
+            is_named: false, // likewise, this will be fixed later
             repeat,
             required,
             version_lower,
@@ -419,7 +420,8 @@ fn get_basetype(typename: &str) -> BaseType {
 
 fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<String, DataItem> {
     let mut typelist: HashMap<String, DataItem> = HashMap::new();
-    let mut tagmap: HashMap<String, bool> = HashMap::new();
+    let mut tagmap: HashMap<String, (bool, bool)> = HashMap::new();
+    let mut used_in_list: HashMap<String, bool> = HashMap::new();
 
     // enums can be copied directly to the output type list
     for e in enums {
@@ -434,11 +436,43 @@ fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<Str
 
     // for all tags of all structs: store if this tag refers to a block or not
     for StructInfo {
-        taglist, is_block, ..
+        taglist,
+        is_block,
+        dataitem,
     } in &structs
     {
+        let is_named = if let BaseType::Struct { structitems } = &dataitem.basetype {
+            structitems.len() > 1
+                && structitems[0].basetype == BaseType::Ident
+                && structitems[0]
+                    .varname
+                    .as_ref()
+                    .is_some_and(|name| name == "name")
+        } else {
+            false
+        };
+
         for tag in taglist {
-            tagmap.insert(tag.clone(), *is_block);
+            tagmap.insert(tag.clone(), (*is_block, is_named));
+        }
+    }
+
+    // find out which blocks are used in lists before processing structs into the typelist
+    // this makes it possible to set the used_in_list flag for all blocks
+    for StructInfo { dataitem, .. } in &structs {
+        let BaseType::Struct { structitems } = &dataitem.basetype else {
+            unreachable!();
+        };
+
+        if let Some(lastitem) = structitems.last() {
+            if let BaseType::TaggedStruct { tsitems } = &lastitem.basetype {
+                for tgitem in tsitems {
+                    if tgitem.repeat {
+                        let name = ucname_to_typename(&tgitem.tag);
+                        used_in_list.insert(name, true);
+                    }
+                }
+            }
         }
     }
 
@@ -457,54 +491,57 @@ fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<Str
         // need to be moved to the typelist, and are replaced by StructRefs at their original locations
 
         let mut output_structitems = Vec::new();
-        // everything in the structs array is a Struct, so the condition is always true. It's just a convenient way to unwrap the structitems
-        if let BaseType::Struct { structitems } = dataitem.basetype {
-            for si in structitems {
-                output_structitems.push(unwrap_nested_structs(&taglist[0], si, &mut typelist));
-            }
+        let BaseType::Struct { structitems } = dataitem.basetype else {
+            unreachable!();
+        };
 
-            // If the struct contains a TaggedStruct with optional elements, these need to updatd with the info if the referent is a block or not
-            // Check if there are any elements in the struct at all. Some structs are empty.
-            let si_count = output_structitems.len();
-            if si_count > 0 {
-                // the struct is not empty, so it is safe to get the last item (the TaggedStruct is always last if it exists)
-                let lastitem = &mut output_structitems[si_count - 1];
-                if let BaseType::TaggedStruct {
-                    tsitems: taggeditems,
-                } = &mut lastitem.basetype
-                {
-                    // The taggedstruct exists, loop over the taggeditems and update them
-                    for tgitem in taggeditems {
-                        if let Some(is_block) = tagmap.get(&tgitem.tag) {
-                            tgitem.is_block = *is_block;
-                        } else {
-                            panic!("referenced block {} is missing", tgitem.tag);
-                        }
+        for si in structitems {
+            output_structitems.push(unwrap_nested_structs(&taglist[0], si, &mut typelist));
+        }
+
+        // If the struct contains a TaggedStruct with optional elements, these need to updatd with the info if the referent is a block or not
+        // Check if there are any elements in the struct at all. Some structs are empty.
+        let si_count = output_structitems.len();
+        if si_count > 0 {
+            // the struct is not empty, so it is safe to get the last item (the TaggedStruct is always last if it exists)
+            let lastitem = &mut output_structitems[si_count - 1];
+            if let BaseType::TaggedStruct {
+                tsitems: taggeditems,
+            } = &mut lastitem.basetype
+            {
+                // The taggedstruct exists, loop over the taggeditems and update them
+                for tgitem in taggeditems {
+                    if let Some((is_block, is_named)) = tagmap.get(&tgitem.tag) {
+                        tgitem.is_block = *is_block;
+                        tgitem.is_named = *is_named;
+                    } else {
+                        panic!("referenced block {} is missing", tgitem.tag);
                     }
                 }
             }
-
-            // a struct always has a type name in the a2l spec, so unwrap() is safe here
-            let typename = dataitem.typename.unwrap();
-            let oldval = typelist.insert(
-                typename.clone(),
-                DataItem {
-                    typename: Some(typename.clone()),
-                    basetype: BaseType::Block {
-                        blockitems: output_structitems,
-                        is_block,
-                    },
-                    varname: None,
-                    comment: dataitem.comment,
-                },
-            );
-            assert!(
-                oldval.is_none(),
-                "type {} for block {} altready exists",
-                typename,
-                taglist[0]
-            );
         }
+
+        // a struct always has a type name in the a2l spec, so unwrap() is safe here
+        let typename: String = dataitem.typename.unwrap();
+        let used_in_list = used_in_list.remove(&typename).unwrap_or(false); // if the typename is not in the list, it is not used in a list
+        let oldval = typelist.insert(
+            typename.clone(),
+            DataItem {
+                typename: Some(typename.clone()),
+                basetype: BaseType::Block {
+                    blockitems: output_structitems,
+                    is_block,
+                    used_in_list,
+                },
+                varname: None,
+                comment: dataitem.comment,
+            },
+        );
+        assert!(
+            oldval.is_none(),
+            "type {typename} for block {} altready exists",
+            taglist[0]
+        );
     }
 
     typelist

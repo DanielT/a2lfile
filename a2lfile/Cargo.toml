@@ -22,6 +22,7 @@ sort = []
 version = "2.2.0"
 
 [dependencies]
+fnv = "1.0.7"
 num-traits = "0.2.19"
 thiserror = "2.0"
 
