@@ -22,27 +22,15 @@ pub(crate) fn parse_ifdata(
     if let Some(token) = parser.peek_token() {
         if token.ttype != A2lTokenType::End {
             // try parsing according to the spec provided by the user of the crate in the a2ml_specification! macro
-            let spec = std::mem::take(&mut parser.builtin_a2mlspec);
-            if let Some(a2mlspec) = &spec {
+            let spec_list = std::mem::take(&mut parser.a2mlspec);
+            for a2mlspec in &spec_list {
                 if let Some(ifdata_items) = parse_ifdata_from_spec(parser, context, a2mlspec) {
                     result = Some(ifdata_items);
                     valid = true;
+                    break;
                 }
             }
-            parser.builtin_a2mlspec = spec;
-
-            // no built in spec, or parsing using that spec failed
-            if result.is_none() {
-                // try parsing according to the spec inside the file
-                let spec = std::mem::take(&mut parser.file_a2mlspec);
-                if let Some(a2mlspec) = &spec {
-                    if let Some(ifdata_items) = parse_ifdata_from_spec(parser, context, a2mlspec) {
-                        result = Some(ifdata_items);
-                        valid = true;
-                    }
-                }
-                parser.file_a2mlspec = spec;
-            }
+            parser.a2mlspec = spec_list;
 
             if result.is_none() {
                 // this will succeed if the data format follows the basic a2l rules (e.g. matching /begin and /end)
@@ -757,7 +745,7 @@ mod ifdata_test {
             &mut log_msgs,
             false,
         );
-        parser.builtin_a2mlspec = Some(
+        parser.a2mlspec.push(
             a2lfile::a2ml::parse_a2ml(&Filename::from("test"), A2MLTEST_TEXT)
                 .unwrap()
                 .0,

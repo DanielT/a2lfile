@@ -31535,15 +31535,16 @@ impl A2ml {
         let fileid = parser.get_incfilename(context.fileid);
         let line = context.line;
         let uid = parser.get_next_id();
+
         let __a2ml_text_location = parser.get_current_line_offset();
         let token = parser.expect_token(context, A2lTokenType::String)?;
         let a2ml_text = parser.get_token_text(token).to_string();
+
         let filename = &parser.filenames[context.fileid];
-        let merged_a2ml_text;
-        match a2ml::parse_a2ml(filename, &a2ml_text) {
+        let merged_a2ml_text = match a2ml::parse_a2ml(filename, &a2ml_text) {
             Ok((a2mlspec, computed_merged_a2ml_text)) => {
-                parser.file_a2mlspec = Some(a2mlspec);
-                merged_a2ml_text = computed_merged_a2ml_text;
+                parser.a2mlspec.push(a2mlspec);
+                computed_merged_a2ml_text
             }
             Err(errmsg) => {
                 parser.error_or_log(ParserError::A2mlError {
@@ -31551,9 +31552,10 @@ impl A2ml {
                     error_line: parser.last_token_position,
                     errmsg,
                 })?;
-                merged_a2ml_text = String::new();
+                String::new()
             }
-        }
+        };
+
         parser.expect_token(context, A2lTokenType::End)?;
         let ident = parser.get_identifier(context)?;
         if ident != "A2ML" {

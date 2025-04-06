@@ -32,8 +32,7 @@ pub struct ParserState<'a> {
     pub(crate) log_msgs: &'a mut Vec<A2lError>,
     strict: bool,
     file_ver: A2lVersion,
-    pub(crate) builtin_a2mlspec: Option<A2mlTypeSpec>,
-    pub(crate) file_a2mlspec: Option<A2mlTypeSpec>,
+    pub(crate) a2mlspec: Vec<A2mlTypeSpec>,
 }
 
 /// describes the current parser context, giving the name of the current element and its file and line number
@@ -283,8 +282,7 @@ impl<'a> ParserState<'a> {
             log_msgs,
             strict,
             file_ver: A2lVersion::V1_7_1,
-            file_a2mlspec: None,
-            builtin_a2mlspec: None,
+            a2mlspec: Vec::new(),
         }
     }
 
