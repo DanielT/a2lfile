@@ -7,7 +7,7 @@ use super::*;
 // generate_data_structures()
 // generate the struct and enum definitions for all inputs in types
 // Also generate a new() for each type as well as functions for impl Debug and impl PartialEq
-pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
+pub(crate) fn generate(typename: &str, dataitem: &DataItem, is_a2l: bool) -> TokenStream {
     let mut result = quote! {};
 
     if let Some(comment) = &dataitem.comment {
@@ -25,6 +25,7 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
                 true,
                 false,
                 false,
+                false,
             ));
         }
         BaseType::Block {
@@ -37,6 +38,7 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
                 blockitems,
                 *is_block,
                 *used_in_list,
+                is_a2l,
             ));
         }
         _ => {
@@ -91,6 +93,7 @@ fn generate_block_data_structure(
     structitems: &[DataItem],
     is_block: bool,
     used_in_list: bool,
+    allow_comments: bool,
 ) -> TokenStream {
     match typename {
         "A2ml" | "IfData" => {
@@ -102,6 +105,7 @@ fn generate_block_data_structure(
             false,
             is_block,
             used_in_list,
+            allow_comments,
         ),
     }
 }
@@ -114,6 +118,7 @@ fn generate_block_data_structure_generic(
     is_struct: bool,
     is_block: bool,
     used_in_list: bool,
+    allow_comments: bool,
 ) -> TokenStream {
     let typeident = format_ident!("{}", typename);
     let mut definitions = Vec::new();
@@ -125,6 +130,9 @@ fn generate_block_data_structure_generic(
             used_in_list,
         ));
     }
+    if allow_comments && is_block && contains_taggedstruct(structitems) {
+        definitions.push(quote! {pub(crate) a2lcomment: Vec<Comment>});
+    }
     let location_spec = generate_struct_block_location(structitems);
     definitions.push(quote! {pub(crate) __block_info: BlockInfo<#location_spec>});
 
@@ -132,7 +140,7 @@ fn generate_block_data_structure_generic(
     // only write and parse are excluded here, because they are not shared between A2l and A2ml
     let debug = generate_block_data_structure_debug(typename, structitems);
     let constructor =
-        generate_block_data_structure_constructor(typename, structitems, is_struct, is_block);
+        generate_block_data_structure_constructor(typename, structitems, is_struct, is_block, allow_comments);
     let partialeq = generate_block_data_structure_partialeq(typename, structitems);
     let trait_location =
         generate_block_data_structure_trait_location(typename, structitems, &location_spec);
@@ -373,6 +381,7 @@ fn generate_block_data_structure_constructor(
     structitems: &[DataItem],
     is_struct: bool,
     is_block: bool,
+    allow_comments: bool,
 ) -> TokenStream {
     let typeident = format_ident!("{}", typename);
     let mut newargs = Vec::<TokenStream>::new();
@@ -440,6 +449,11 @@ fn generate_block_data_structure_constructor(
                 locationinfo.push(generate_item_locationinfo_init(&item.basetype, initline));
             }
         }
+    }
+
+    if allow_comments && is_block && contains_taggedstruct(structitems) {
+        // a block that contains a taggedstruct can also contain comments
+        fieldinit.push(quote! {a2lcomment: Vec::new()});
     }
 
     // if there is only one item in the location info tuple, an extra () is added
@@ -688,4 +702,15 @@ fn generate_block_data_structure_trait_name(
     } else {
         quote! {}
     }
+}
+
+fn contains_taggedstruct(structitems: &[DataItem]) -> bool {
+    for item in structitems {
+        match &item.basetype {
+            BaseType::TaggedStruct { .. } => return true,
+            BaseType::TaggedStructRef => return true,
+            _ => {}
+        }
+    }
+    false
 }

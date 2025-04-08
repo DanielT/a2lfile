@@ -26,7 +26,7 @@ pub(crate) fn a2l_specification(tokens: TokenStream) -> TokenStream {
 
     let mut result = TokenStream::new();
     for (typename, a2ltype) in typesvec {
-        result.extend(codegenerator::data_structure::generate(typename, a2ltype));
+        result.extend(codegenerator::data_structure::generate(typename, a2ltype, true));
         result.extend(codegenerator::parser::generate(typename, a2ltype));
         result.extend(codegenerator::writer::generate(typename, a2ltype));
     }

@@ -107,8 +107,8 @@ fn generate_block_parser_generic(
     // check the block /end tag - blocks only, not for keywords or structs
     let blockcheck = if is_block {
         quote! {
-            let __end_offset = parser.get_current_line_offset();
             parser.expect_token(context, A2lTokenType::End)?;
+            let __end_offset = parser.get_line_offset();
             let ident = parser.get_identifier(context)?;
             if ident != context.element {
                 parser.error_or_log(ParserError::incorrect_end_tag(parser, context, &ident))?;
@@ -120,12 +120,33 @@ fn generate_block_parser_generic(
         }
     };
 
+    let has_taggedstruct = structitems.iter().any(|item| {
+        matches!(
+            item.basetype,
+            BaseType::TaggedStructRef | BaseType::TaggedStruct { .. }
+        )
+    });
+    let a2lcomment_definition = if is_block && has_taggedstruct {
+        quote! {
+            let mut a2lcomment = Vec::new();
+        }
+    } else {
+        quote! {}
+    };
+
+    let a2lcomment_use = if is_block && has_taggedstruct {
+        quote! { a2lcomment,}
+    } else {
+        quote! {}
+    };
+
     quote! {
         impl ParseableA2lObject for #name {
             fn parse(parser: &mut ParserState, context: &ParseContext, __start_offset: u32) -> Result<Self, ParserError> {
                 let __location_incfile = parser.get_incfilename(context.fileid);
                 let __location_line = context.line;
                 let __uid = parser.get_next_id();
+                #a2lcomment_definition
                 #(#itemparsers)*
                 #blockcheck
                 Ok(Self {
@@ -137,6 +158,7 @@ fn generate_block_parser_generic(
                         end_offset: __end_offset,
                         item_location:( #(#location_names),* )
                     },
+                    #a2lcomment_use
                     #(#itemnames),*
                 })
             }
@@ -238,22 +260,34 @@ fn generate_item_parser_call(typename: &Option<String>, item: &BaseType) -> Toke
         | BaseType::Uint64 => {
             let intparser = get_int_parser(item);
             quote! {{
-                let line = parser.get_current_line_offset();
                 let (value, is_hex) = #intparser(context)?;
-                ((line, is_hex), value)
+                let offset = parser.get_line_offset();
+                ((offset, is_hex), value)
             }}
         }
         BaseType::Double => {
-            quote! {(parser.get_current_line_offset(), parser.get_double(context)?)}
+            quote! {{
+                let value = parser.get_double(context)?;
+                (parser.get_line_offset(), value)
+            }}
         }
         BaseType::Float => {
-            quote! {(parser.get_current_line_offset(), parser.get_float(context)?)}
+            quote! {{
+                let value = parser.get_float(context)?;
+                (parser.get_line_offset(), value)
+            }}
         }
         BaseType::Ident => {
-            quote! {(parser.get_current_line_offset(), parser.get_identifier(context)?)}
+            quote! {{
+                let value = parser.get_identifier(context)?;
+                (parser.get_line_offset(), value)
+            }}
         }
         BaseType::String => {
-            quote! {(parser.get_current_line_offset(), parser.get_string(context)?)}
+            quote! {{
+                let value = parser.get_string(context)?;
+                (parser.get_line_offset(), value)
+            }}
         }
         BaseType::Array { arraytype, dim } => {
             if let BaseType::Char = arraytype.basetype {
@@ -274,12 +308,15 @@ fn generate_item_parser_call(typename: &Option<String>, item: &BaseType) -> Toke
         BaseType::EnumRef => {
             let typename = typename.as_ref().unwrap();
             let name = format_ident!("{}", typename);
-            quote! { (parser.get_current_line_offset(), #name::parse(parser, context, 0)?) }
+            quote! {{
+                let value = #name::parse(parser, context, 0)?;
+                (parser.get_line_offset(), value)
+            }}
         }
         BaseType::StructRef => {
             let typename = typename.as_ref().unwrap();
             let name = format_ident!("{}", typename);
-            quote! { (parser.get_current_line_offset(), #name::parse(parser, context, 0)?) }
+            quote! { (0, #name::parse(parser, context, 0)?) }
         }
         _ => panic!("forbidden type: {item:#?}"),
     }
@@ -394,22 +431,68 @@ fn generate_taggeditem_parser(
         parent_is_block,
     );
 
-    // wrap the match statement inside an if or a while loop
-    if is_taggedunion {
-        result.extend(quote! {
-            let mut next_tag = parser.get_next_tag(context)?;
-            if next_tag.is_some() {
-                #parser_core
-            }
-        });
+    if parent_is_block {
+        if is_taggedunion {
+            // if the parent is a block, then the tagged union is a block too
+            result.extend(quote! {
+                let mut next_tag = parser.get_next_tag_or_comment(context)?;
+                if let BlockContent::Block(token, is_block, line_offset) = next_tag {
+                    #parser_core
+                }
+            });
+        } else {
+            // if the parent is a block, then the tagged struct is a block too
+            result.extend(quote! {
+                loop {
+                    let next_tag = parser.get_next_tag_or_comment(context)?;
+                    match next_tag {
+                        BlockContent::Block(token, is_block, line_offset) => {
+                            #parser_core
+                        }
+                        BlockContent::Comment(token, line_offset) => {
+                            a2lcomment.push(Comment {
+                                comment: parser.get_token_text(token).to_string(),
+                                is_included: context.fileid != 0,
+                                line: context.line,
+                                uid: parser.get_next_id(),
+                                start_offset: line_offset,
+                            });
+                        }
+                        _ => {
+                            break;
+                        }
+                    }
+                }
+            });
+        }
     } else {
-        result.extend(quote! {
-            let mut next_tag = parser.get_next_tag(context)?;
-            while next_tag.is_some() {
-                #parser_core
-                next_tag = parser.get_next_tag(context)?;
-            }
-        });
+        // wrap the match statement inside an if or a while loop
+        if is_taggedunion {
+            result.extend(quote! {
+                let mut next_tag = parser.get_next_tag_or_comment(context)?;
+                if let BlockContent::Block(token, is_block, line_offset) = next_tag {
+                    #parser_core
+                }
+            });
+        } else {
+            result.extend(quote! {
+                loop {
+                    let next_tag = parser.get_next_tag_or_comment(context)?;
+                    match next_tag {
+                        BlockContent::Block(token, is_block, line_offset) => {
+                            #parser_core
+                        }
+                        BlockContent::Comment(_token, _start_offset) => {
+                            // the parent is not a block, so preserving the comment is currently not supported
+                            // it is implicitly discarded, because it isn't stored anywhere
+                        }
+                        _ => {
+                            break;
+                        }
+                    }
+                }
+            });
+        }
     }
 
     // now that all items have been parsed, the check if all required items are present can be performed
@@ -573,7 +656,6 @@ fn generate_taggeditem_parser_core(
     let taglist_len = taglist.len();
     // generate the full match statement
     quote! {
-        let (token, is_block, line_offset) = next_tag.unwrap();
         let tag = parser.get_token_text(token);
         let newcontext = ParseContext::from_token(tag, token);
         const TAG_LIST: [&str; #taglist_len] = [#(#taglist),*];

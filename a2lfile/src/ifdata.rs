@@ -1,5 +1,5 @@
 use crate::a2ml::{A2mlTaggedTypeSpec, A2mlTypeSpec, GenericIfData, GenericIfDataTaggedItem};
-use crate::parser::{ParseContext, ParserError, ParserState};
+use crate::parser::{BlockContent, ParseContext, ParserError, ParserState};
 use crate::tokenizer::{A2lToken, A2lTokenType};
 use std::collections::HashMap;
 
@@ -86,51 +86,50 @@ fn parse_ifdata_item(
 ) -> Result<GenericIfData, ParserError> {
     Ok(match spec {
         A2mlTypeSpec::None => GenericIfData::None,
-        A2mlTypeSpec::Char => GenericIfData::Char(
-            parser.get_current_line_offset(),
-            parser.get_integer::<i8>(context)?,
-        ),
-        A2mlTypeSpec::Int => GenericIfData::Int(
-            parser.get_current_line_offset(),
-            parser.get_integer::<i16>(context)?,
-        ),
-        A2mlTypeSpec::Long => GenericIfData::Long(
-            parser.get_current_line_offset(),
-            parser.get_integer::<i32>(context)?,
-        ),
-        A2mlTypeSpec::Int64 => GenericIfData::Int64(
-            parser.get_current_line_offset(),
-            parser.get_integer::<i64>(context)?,
-        ),
-        A2mlTypeSpec::UChar => GenericIfData::UChar(
-            parser.get_current_line_offset(),
-            parser.get_integer::<u8>(context)?,
-        ),
-        A2mlTypeSpec::UInt => GenericIfData::UInt(
-            parser.get_current_line_offset(),
-            parser.get_integer::<u16>(context)?,
-        ),
-        A2mlTypeSpec::ULong => GenericIfData::ULong(
-            parser.get_current_line_offset(),
-            parser.get_integer::<u32>(context)?,
-        ),
-        A2mlTypeSpec::UInt64 => GenericIfData::UInt64(
-            parser.get_current_line_offset(),
-            parser.get_integer::<u64>(context)?,
-        ),
-        A2mlTypeSpec::Float => {
-            GenericIfData::Float(parser.get_current_line_offset(), parser.get_float(context)?)
+        A2mlTypeSpec::Char => {
+            let value = parser.get_integer(context)?;
+            GenericIfData::Char(parser.get_line_offset(), value)
         }
-        A2mlTypeSpec::Double => GenericIfData::Double(
-            parser.get_current_line_offset(),
-            parser.get_double(context)?,
-        ),
+        A2mlTypeSpec::Int => {
+            let value = parser.get_integer(context)?;
+            GenericIfData::Int(parser.get_line_offset(), value)
+        }
+        A2mlTypeSpec::Long => {
+            let value = parser.get_integer(context)?;
+            GenericIfData::Long(parser.get_line_offset(), value)
+        }
+        A2mlTypeSpec::Int64 => {
+            let value = parser.get_integer(context)?;
+            GenericIfData::Int64(parser.get_line_offset(), value)
+        }
+        A2mlTypeSpec::UChar => {
+            let value = parser.get_integer(context)?;
+            GenericIfData::UChar(parser.get_line_offset(), value)
+        }
+        A2mlTypeSpec::UInt => {
+            let value = parser.get_integer(context)?;
+            GenericIfData::UInt(parser.get_line_offset(), value)
+        }
+        A2mlTypeSpec::ULong => {
+            let value = parser.get_integer(context)?;
+            GenericIfData::ULong(parser.get_line_offset(), value)
+        }
+        A2mlTypeSpec::UInt64 => {
+            let value = parser.get_integer(context)?;
+            GenericIfData::UInt64(parser.get_line_offset(), value)
+        }
+        A2mlTypeSpec::Float => {
+            let value = parser.get_float(context)?;
+            GenericIfData::Float(parser.get_line_offset(), value)
+        }
+        A2mlTypeSpec::Double => {
+            let value = parser.get_double(context)?;
+            GenericIfData::Double(parser.get_line_offset(), value)
+        }
         A2mlTypeSpec::Array(arraytype, dim) => {
             if **arraytype == A2mlTypeSpec::Char {
-                GenericIfData::String(
-                    parser.get_current_line_offset(),
-                    parser.get_string_maxlen(context, *dim)?,
-                )
+                let value = parser.get_string_maxlen(context, *dim)?;
+                GenericIfData::String(parser.get_line_offset(), value)
             } else {
                 let mut arrayitems = Vec::new();
                 for _ in 0..*dim {
@@ -140,8 +139,8 @@ fn parse_ifdata_item(
             }
         }
         A2mlTypeSpec::Enum(enumspec) => {
-            let pos = parser.get_current_line_offset();
             let enumitem = parser.get_identifier(context)?;
+            let pos = parser.get_line_offset();
             if enumspec.get(&enumitem).is_some() {
                 GenericIfData::EnumItem(pos, enumitem)
             } else {
@@ -150,11 +149,10 @@ fn parse_ifdata_item(
         }
         A2mlTypeSpec::Struct(structspec) => {
             let mut structitems = Vec::with_capacity(structspec.len());
-            let line = parser.get_current_line_offset();
             for itemspec in structspec {
                 structitems.push(parse_ifdata_item(parser, context, itemspec)?);
             }
-            GenericIfData::Struct(parser.get_incfilename(context.fileid), line, structitems)
+            GenericIfData::Struct(parser.get_incfilename(context.fileid), 0, structitems)
         }
         A2mlTypeSpec::Sequence(seqspec) => {
             let mut seqitems = Vec::new();
@@ -211,8 +209,21 @@ fn parse_ifdata_taggeditem(
     spec: &HashMap<String, A2mlTaggedTypeSpec>,
 ) -> Result<Option<GenericIfDataTaggedItem>, ParserError> {
     let checkpoint = parser.get_tokenpos();
+
+    // skip all comments, since this function must return a tagged item
+    while let Some(A2lToken {
+        ttype: A2lTokenType::Comment,
+        ..
+    }) = parser.peek_token()
+    {
+        // skip comments
+        parser.get_token(context)?;
+    }
+
     // check if there is a tag
-    if let Ok(Some((token, is_block, start_offset))) = parser.get_next_tag(context) {
+    if let Ok(BlockContent::Block(token, is_block, start_offset)) =
+        parser.get_next_tag_or_comment(context)
+    {
         let tag = parser.get_token_text(token);
 
         // check if the tag is valid inside this TaggedStruct/TaggedUnion. If it is not, parsing should abort so that the caller sees the tag
@@ -232,10 +243,10 @@ fn parse_ifdata_taggeditem(
                 newcontext.line,
             );
 
-            let end_offset = parser.get_current_line_offset();
             // make sure that blocks that started with /begin end with /end
-            if is_block {
+            let end_offset = if is_block {
                 parser.expect_token(&newcontext, A2lTokenType::End)?;
+                let end_offset = parser.get_line_offset();
                 let endident = parser.expect_token(&newcontext, A2lTokenType::Identifier)?;
                 let endtag = parser.get_token_text(endident);
                 if endtag != tag {
@@ -247,7 +258,11 @@ fn parse_ifdata_taggeditem(
                         block_line: newcontext.line,
                     });
                 }
-            }
+                end_offset
+            } else {
+                // only blocks have an /end tag which uses an end_offset
+                0
+            };
 
             Ok(Some(GenericIfDataTaggedItem {
                 incfile: parser.get_incfilename(newcontext.fileid),
@@ -302,13 +317,16 @@ pub(crate) fn parse_unknown_ifdata_start(
     }) = token_peek
     {
         // first token is an identifier, so it could be a tag of a tagegdunion
-        let start_offset = parser.get_current_line_offset();
         let token = parser.get_token(context)?;
+        let start_offset = parser.get_line_offset();
         let tag = parser.get_token_text(token);
         let uid = parser.get_next_id();
         let newcontext = ParseContext::from_token(tag, token);
         let result = parse_unknown_ifdata(parser, &newcontext, true)?;
-        let end_offset = parser.get_current_line_offset();
+        // hack: temporarily undo the previous token, so that we can get it's end offset
+        parser.undo_get_token();
+        let end_offset = parser.get_line_offset();
+        let _ = parser.get_token(context);
         let taggeditem = GenericIfDataTaggedItem {
             incfile: parser.get_incfilename(newcontext.fileid),
             line: newcontext.line,
@@ -347,7 +365,6 @@ pub(crate) fn parse_unknown_ifdata(
     is_block: bool,
 ) -> Result<GenericIfData, ParserError> {
     let mut items: Vec<GenericIfData> = Vec::new();
-    let offset = parser.get_current_line_offset();
 
     loop {
         let token_peek = parser.peek_token();
@@ -359,25 +376,22 @@ pub(crate) fn parse_unknown_ifdata(
         match token.ttype {
             A2lTokenType::Identifier => {
                 // an arbitrary identifier; it could be a tag of a taggedstruct, but we don't know that here. The other option is an enum value.
-                items.push(GenericIfData::EnumItem(
-                    parser.get_current_line_offset(),
-                    parser.get_identifier(context)?,
-                ));
+                let value = parser.get_identifier(context)?;
+                items.push(GenericIfData::EnumItem(parser.get_line_offset(), value));
             }
             A2lTokenType::String => {
-                items.push(GenericIfData::String(
-                    parser.get_current_line_offset(),
-                    parser.get_string(context)?,
-                ));
+                let value = parser.get_string(context)?;
+                items.push(GenericIfData::String(parser.get_line_offset(), value));
             }
             A2lTokenType::Number => {
-                let line_offset = parser.get_current_line_offset();
                 if let Ok(num) = parser.get_integer::<i32>(context) {
+                    let line_offset = parser.get_line_offset();
                     items.push(GenericIfData::Long(line_offset, num));
                 } else {
                     // try again, looks like the number is a float instead
                     parser.undo_get_token();
                     let floatnum = parser.get_float(context)?; // if this also returns an error, it is neither int nor float, which is a genuine parse error
+                    let line_offset = parser.get_line_offset();
                     items.push(GenericIfData::Float(line_offset, floatnum));
                 }
             }
@@ -395,12 +409,16 @@ pub(crate) fn parse_unknown_ifdata(
                 break;
             }
             A2lTokenType::Include => { /* A2lTokenType::Include doesn't matter here */ }
+            A2lTokenType::Comment => {
+                /* A2lTokenType::Comment can be ignored, but the token must be consumed */
+                parser.get_token(context)?;
+            }
         }
     }
 
     Ok(GenericIfData::Struct(
         parser.get_incfilename(context.fileid),
-        offset,
+        0,
         items,
     ))
 }
@@ -414,15 +432,26 @@ fn parse_unknown_taggedstruct(
 ) -> Result<GenericIfData, ParserError> {
     let mut tsitems: HashMap<String, Vec<GenericIfDataTaggedItem>> = HashMap::new();
 
-    while let Ok(Some((token, is_block, start_offset))) = parser.get_next_tag(context) {
+    while let Some(A2lToken {
+        ttype: A2lTokenType::Comment,
+        ..
+    }) = parser.peek_token()
+    {
+        // skip comments
+        parser.get_token(context)?;
+    }
+
+    while let Ok(BlockContent::Block(token, is_block, start_offset)) =
+        parser.get_next_tag_or_comment(context)
+    {
         let uid = parser.get_next_id();
         let tag = parser.get_token_text(token);
         let newcontext = ParseContext::from_token(tag, token);
         let result = parse_unknown_ifdata(parser, &newcontext, is_block)?;
 
-        let end_offset = parser.get_current_line_offset();
-        if is_block {
+        let end_offset = if is_block {
             parser.expect_token(&newcontext, A2lTokenType::End)?;
+            let end_offset = parser.get_line_offset();
             let endident = parser.expect_token(&newcontext, A2lTokenType::Identifier)?;
             let endtag = parser.get_token_text(endident);
             if endtag != tag {
@@ -434,7 +463,11 @@ fn parse_unknown_taggedstruct(
                     block_line: newcontext.line,
                 });
             }
-        }
+            end_offset
+        } else {
+            // only blocks have an /end tag which uses an end_offset
+            0
+        };
 
         let taggeditem = GenericIfDataTaggedItem {
             incfile: parser.get_incfilename(newcontext.fileid),

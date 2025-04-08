@@ -2,6 +2,8 @@ use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::fmt::Write;
 
+use crate::Comment;
+
 #[derive(Debug)]
 pub(crate) struct Writer {
     indent: usize,
@@ -9,16 +11,36 @@ pub(crate) struct Writer {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct TaggedItemInfo<'a> {
-    pub(crate) tag: &'a str,
-    pub(crate) incfile: &'a Option<String>,
-    pub(crate) uid: u32,
-    pub(crate) line: u32,
-    pub(crate) start_offset: u32,
-    pub(crate) end_offset: u32,
-    pub(crate) is_block: bool,
-    pub(crate) item_text: String,
-    pub(crate) position_restriction: Option<u16>,
+pub(crate) enum TaggedItemInfo<'a> {
+    // IncludedTag {
+    //     tag: &'a str,
+    //     incfile: &'a Option<String>,
+    //     uid: u32,
+    //     line: u32,
+    //     start_offset: u32,
+    //     end_offset: u32,
+    //     is_block: bool,
+    //     item_text: String,
+    //     position_restriction: Option<u16>,
+    // },
+    Tag {
+        tag: &'a str,
+        incfile: &'a Option<String>,
+        uid: u32,
+        line: u32,
+        start_offset: u32,
+        end_offset: u32,
+        is_block: bool,
+        item_text: String,
+        position_restriction: Option<u16>,
+    },
+    Comment {
+        comment: &'a str,
+        is_included: bool,
+        uid: u32,
+        line: u32,
+        start_offset: u32,
+    },
 }
 
 impl Writer {
@@ -121,26 +143,53 @@ impl Writer {
         let mut included_files = HashSet::<String>::new();
 
         for item in group {
-            if let Some(incname) = item.incfile {
-                if !included_files.contains(incname) {
-                    self.add_whitespace(item.start_offset);
-                    self.outstring.push_str("/include \"");
-                    self.outstring.push_str(incname);
-                    self.outstring.push('"');
+            match item {
+                TaggedItemInfo::Tag {
+                    tag,
+                    incfile,
+                    start_offset,
+                    end_offset,
+                    is_block,
+                    item_text,
+                    ..
+                } => {
+                    if let Some(incname) = incfile {
+                        if !included_files.contains(incname) {
+                            self.add_whitespace(start_offset);
+                            self.outstring.push_str("/include \"");
+                            self.outstring.push_str(incname);
+                            self.outstring.push('"');
 
-                    included_files.insert(incname.to_owned());
+                            included_files.insert(incname.to_owned());
+                        }
+                    } else {
+                        self.add_whitespace(start_offset);
+                        if is_block {
+                            self.outstring.push_str("/begin ");
+                        }
+                        self.outstring.push_str(tag);
+                        self.outstring.push_str(&item_text);
+                        if is_block {
+                            self.add_whitespace(end_offset);
+                            self.outstring.push_str("/end ");
+                            self.outstring.push_str(tag);
+                        }
+                    }
                 }
-            } else {
-                self.add_whitespace(item.start_offset);
-                if item.is_block {
-                    self.outstring.push_str("/begin ");
-                }
-                self.outstring.push_str(item.tag);
-                self.outstring.push_str(&item.item_text);
-                if item.is_block {
-                    self.add_whitespace(item.end_offset);
-                    self.outstring.push_str("/end ");
-                    self.outstring.push_str(item.tag);
+                TaggedItemInfo::Comment {
+                    comment,
+                    is_included,
+                    start_offset,
+                    ..
+                } => {
+                    if !is_included {
+                        // don't use self.add_whitespace() here, because comments don't follow indentation rules
+                        // if the comment was indented when it was parsed, then the indentation is preserved in the comment
+                        for _ in 0..start_offset {
+                            self.outstring.push('\n');
+                        }
+                        self.outstring.push_str(comment);
+                    }
                 }
             }
         }
@@ -160,20 +209,20 @@ impl Writer {
     }
 
     fn sort_function(a: &TaggedItemInfo, b: &TaggedItemInfo) -> Ordering {
-        if a.uid == 0 && b.uid != 0 {
+        if a.uid() == 0 && b.uid() != 0 {
             Ordering::Greater
-        } else if b.uid == 0 && a.uid != 0 {
+        } else if b.uid() == 0 && a.uid() != 0 {
             Ordering::Less
-        } else if a.uid == b.uid {
+        } else if a.uid() == b.uid() {
             // probably both uids are zero
-            if a.line == b.line {
+            if a.line() == b.line() {
                 // both uid and line are equal - newly created elements
-                a.tag.cmp(b.tag)
+                a.tag().cmp(b.tag())
             } else {
-                a.line.cmp(&b.line)
+                a.line().cmp(&b.line())
             }
         } else {
-            a.uid.cmp(&b.uid)
+            a.uid().cmp(&b.uid())
         }
     }
 
@@ -182,25 +231,72 @@ impl Writer {
     }
 }
 
+impl TaggedItemInfo<'_> {
+    fn uid(&self) -> u32 {
+        match self {
+            TaggedItemInfo::Tag { uid, .. } | TaggedItemInfo::Comment { uid, .. } => *uid,
+        }
+    }
+
+    fn line(&self) -> u32 {
+        match self {
+            TaggedItemInfo::Tag { line, .. } | TaggedItemInfo::Comment { line, .. } => *line,
+        }
+    }
+
+    fn tag(&self) -> &str {
+        match self {
+            TaggedItemInfo::Tag { tag, .. } => tag,
+            TaggedItemInfo::Comment { .. } => "", // no tag for comments
+        }
+    }
+
+    fn position_restriction(&self) -> Option<u16> {
+        match self {
+            TaggedItemInfo::Tag {
+                position_restriction,
+                ..
+            } => *position_restriction,
+            TaggedItemInfo::Comment { .. } => None, // no position restriction for comments
+        }
+    }
+}
+
 fn apply_position_restrictions(group: &mut [TaggedItemInfo]) {
     let positions: Vec<usize> = group
         .iter()
         .enumerate()
-        .filter(|(_, item)| item.position_restriction.is_some())
+        .filter(|(_, item)| item.position_restriction().is_some())
         .map(|(idx, _)| idx)
         .collect();
     let len = positions.len();
     if len > 1 {
         let mut items: Vec<TaggedItemInfo> = group
             .iter()
-            .filter(|item| item.position_restriction.is_some())
+            .filter(|item| item.position_restriction().is_some())
             .cloned()
             .collect();
-        items.sort_by(|a, b| a.position_restriction.cmp(&b.position_restriction));
+        items.sort_by_key(TaggedItemInfo::position_restriction);
 
         for idx in 0..len {
             group[positions[idx]] = items[idx].clone();
         }
+    }
+}
+
+pub(crate) fn add_comments_to_group<'a>(
+    group: &mut Vec<TaggedItemInfo<'a>>,
+    comment_list: &'a [Comment],
+) {
+    // add the comments to the group
+    for item in comment_list {
+        group.push(TaggedItemInfo::Comment {
+            comment: &item.comment,
+            is_included: item.is_included,
+            uid: item.uid,
+            line: item.line,
+            start_offset: item.start_offset,
+        });
     }
 }
 
@@ -273,7 +369,7 @@ mod test {
     fn write_group() {
         let mut writer = Writer::new(0);
         let group = vec![
-            TaggedItemInfo {
+            TaggedItemInfo::Tag {
                 tag: "MEASUREMENT",
                 incfile: &None,
                 uid: 0,
@@ -284,7 +380,7 @@ mod test {
                 item_text: "".to_string(),
                 position_restriction: None,
             },
-            TaggedItemInfo {
+            TaggedItemInfo::Tag {
                 tag: "CHARACTERISTIC",
                 incfile: &None,
                 uid: 0,

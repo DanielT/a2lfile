@@ -40,7 +40,7 @@ pub(crate) fn a2ml_specification(tokens: TokenStream) -> TokenStream {
     typesvec.sort_by(|a, b| a.0.cmp(b.0));
 
     for (typename, a2mltype) in typesvec {
-        result.extend(codegenerator::data_structure::generate(typename, a2mltype));
+        result.extend(codegenerator::data_structure::generate(typename, a2mltype, false));
         result.extend(codegenerator::ifdata_parser::generate(typename, a2mltype));
         result.extend(codegenerator::ifdata_writer::generate(typename, a2mltype));
     }
@@ -1466,7 +1466,7 @@ mod test {
         let spec = parse_specification(&mut iter);
         let outtypes = fixup_output_datatypes(&spec);
         for (typename, a2mltype) in &outtypes {
-            codegenerator::data_structure::generate(typename, a2mltype);
+            codegenerator::data_structure::generate(typename, a2mltype, false);
         }
     }
 
@@ -1477,7 +1477,7 @@ mod test {
         let spec = parse_specification(&mut iter);
         let outtypes = fixup_output_datatypes(&spec);
         for (typename, a2mltype) in &outtypes {
-            codegenerator::data_structure::generate(typename, a2mltype);
+            codegenerator::data_structure::generate(typename, a2mltype, false);
             codegenerator::parser::generate(typename, a2mltype);
         }
     }

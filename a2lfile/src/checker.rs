@@ -1739,7 +1739,7 @@ mod test {
             "unit".to_string(),
         );
         let datatype = DataType::Ubyte;
-        let (lower_limit, upper_limit) = super::calc_compu_method_limits(Some(&&cm), datatype);
+        let (lower_limit, upper_limit) = super::calc_compu_method_limits(Some(&cm), datatype);
         // FORM conversion type: any value is allowed, because the formula is not evaluated
         assert_eq!(lower_limit, f64::MIN);
         assert_eq!(upper_limit, f64::MAX);
@@ -1754,7 +1754,7 @@ mod test {
         );
         cm.coeffs_linear = Some(CoeffsLinear::new(33.0, 2.0));
         let datatype = DataType::Sbyte;
-        let (lower_limit, upper_limit) = super::calc_compu_method_limits(Some(&&cm), datatype);
+        let (lower_limit, upper_limit) = super::calc_compu_method_limits(Some(&cm), datatype);
         // linear conversion type: lower and upper limits are physical values
         assert_eq!(lower_limit, 33.0 * -128.0 + 2.0);
         assert_eq!(upper_limit, 33.0 * 127.0 + 2.0);
@@ -1769,7 +1769,7 @@ mod test {
         );
         cm.coeffs = Some(Coeffs::new(0.0, 3.5, 4.44, 0.0, 0.0, 2.0));
         let datatype = DataType::Slong;
-        let (lower_limit, upper_limit) = super::calc_compu_method_limits(Some(&&cm), datatype);
+        let (lower_limit, upper_limit) = super::calc_compu_method_limits(Some(&cm), datatype);
         // rational function conversion type: lower and upper limits are physical values
         // y = (3.5x + 4.44) / 2 -> x = (2y - 4.44) / 3.5
         assert_eq!(lower_limit, (2.0 * -2147483648.0 - 4.44) / 3.5);
@@ -1786,7 +1786,7 @@ mod test {
         );
         cm.coeffs = Some(Coeffs::new(0.0, -3.5, 4.44, 0.0, 0.0, 2.0));
         let datatype = DataType::Float64Ieee;
-        let (lower_limit, upper_limit) = super::calc_compu_method_limits(Some(&&cm), datatype);
+        let (lower_limit, upper_limit) = super::calc_compu_method_limits(Some(&cm), datatype);
         // min and max values are not f64::MIN, f64::MAX, -f64::INFINITY or f64::INFINITY
         assert_ne!(lower_limit, f64::MIN);
         assert_ne!(upper_limit, f64::MAX);
@@ -1803,7 +1803,7 @@ mod test {
         );
         cm.coeffs = Some(Coeffs::new(1.0, 3.5, 4.44, 2.0, 3.0, 4.0));
         let datatype = DataType::Slong;
-        let (lower_limit, upper_limit) = super::calc_compu_method_limits(Some(&&cm), datatype);
+        let (lower_limit, upper_limit) = super::calc_compu_method_limits(Some(&cm), datatype);
         assert_eq!(lower_limit, f64::MIN);
         assert_eq!(upper_limit, f64::MAX);
 
@@ -1816,7 +1816,7 @@ mod test {
             "unit".to_string(),
         );
         let datatype = DataType::Float32Ieee;
-        let (lower_limit, upper_limit) = super::calc_compu_method_limits(Some(&&cm), datatype);
+        let (lower_limit, upper_limit) = super::calc_compu_method_limits(Some(&cm), datatype);
         // identical conversion type: any value is allowed, because the compu method does not modify the limits given by the datatype
         assert_eq!(lower_limit, f32::MIN as f64);
         assert_eq!(upper_limit, f32::MAX as f64);

@@ -16,8 +16,12 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
         BaseType::Struct { structitems } => {
             result.extend(generate_struct_writer(typename, structitems));
         }
-        BaseType::Block { blockitems, .. } => {
-            result.extend(generate_block_writer(typename, blockitems));
+        BaseType::Block {
+            blockitems,
+            is_block,
+            ..
+        } => {
+            result.extend(generate_block_writer(typename, blockitems, *is_block));
         }
         _ => {
             panic!("only block, struct and enum are allowed as top-level types, but {typename} = {dataitem:#?} was encountered");
@@ -53,20 +57,24 @@ fn generate_enum_writer(typename: &str, enumitems: &[EnumItem]) -> TokenStream {
 
 // generate_block_writer()
 // Choose between custom handling for A2ml and IfData and generic handling for every other block.
-fn generate_block_writer(typename: &str, blockitems: &[DataItem]) -> TokenStream {
+fn generate_block_writer(typename: &str, blockitems: &[DataItem], is_block: bool) -> TokenStream {
     match typename {
         "A2ml" | "IfData" => quote! {},
-        _ => generate_block_writer_generic(typename, blockitems),
+        _ => generate_block_writer_generic(typename, blockitems, is_block),
     }
 }
 
 // generate_block_writer_generic()
 // Generate a stringify() function for a block
 // Each block instantiates its own Writer and uses it to write all of its child elements
-fn generate_block_writer_generic(typename: &str, structitems: &[DataItem]) -> TokenStream {
+fn generate_block_writer_generic(
+    typename: &str,
+    structitems: &[DataItem],
+    is_block: bool,
+) -> TokenStream {
     let typeident = format_ident!("{}", typename);
 
-    let write_items = generate_block_item_writers(structitems);
+    let write_items = generate_block_item_writers(structitems, is_block);
 
     if write_items.is_empty() {
         quote! {
@@ -96,7 +104,7 @@ fn generate_block_writer_generic(typename: &str, structitems: &[DataItem]) -> To
 fn generate_struct_writer(typename: &str, structitems: &[DataItem]) -> TokenStream {
     let typeident = format_ident!("{}", typename);
 
-    let write_items = generate_block_item_writers(structitems);
+    let write_items = generate_block_item_writers(structitems, false);
 
     quote! {
         impl #typeident {
@@ -109,7 +117,7 @@ fn generate_struct_writer(typename: &str, structitems: &[DataItem]) -> TokenStre
 
 // generate_block_item_writers()
 // Generate a write command for every item in the block.
-fn generate_block_item_writers(structitems: &[DataItem]) -> Vec<TokenStream> {
+fn generate_block_item_writers(structitems: &[DataItem], allow_comments: bool) -> Vec<TokenStream> {
     let mut write_items = Vec::<TokenStream>::new();
     let mut posidx: usize = 0;
 
@@ -132,8 +140,9 @@ fn generate_block_item_writers(structitems: &[DataItem]) -> Vec<TokenStream> {
                     if tgitem.repeat {
                         tgwriters.push(quote! {
                             for #tgname in &self.#tgname {
-                                let #tgname_out = #tgname.stringify(indent + 1);
-                                tgroup.push(writer::TaggedItemInfo {
+                                // only stringify the block if it is in the current file
+                                let #tgname_out = if #tgname.__block_info.incfile.is_none() { #tgname.stringify(indent + 1) } else { String::new() };
+                                tgroup.push(writer::TaggedItemInfo::Tag {
                                     tag: #tag,
                                     item_text: #tgname_out,
                                     is_block: #is_block,
@@ -148,8 +157,9 @@ fn generate_block_item_writers(structitems: &[DataItem]) -> Vec<TokenStream> {
                         });
                     } else if tgitem.required {
                         tgwriters.push(quote! {
-                            let #tgname_out = self.#tgname.stringify(indent + 1);
-                            tgroup.push(writer::TaggedItemInfo {
+                            // only stringify the block if it is in the current file
+                            let #tgname_out = if self.#tgname.__block_info.incfile.is_none() { self.#tgname.stringify(indent + 1) } else { String::new() };
+                            tgroup.push(writer::TaggedItemInfo::Tag {
                                 tag: #tag,
                                 item_text: #tgname_out,
                                 is_block: #is_block,
@@ -164,8 +174,9 @@ fn generate_block_item_writers(structitems: &[DataItem]) -> Vec<TokenStream> {
                     } else {
                         tgwriters.push(quote! {
                             if let Some(#tgname) = &self.#tgname {
-                                let #tgname_out = #tgname.stringify(indent + 1);
-                                tgroup.push(writer::TaggedItemInfo {
+                                // only stringify the block if it is in the current file
+                                let #tgname_out = if #tgname.__block_info.incfile.is_none() { #tgname.stringify(indent + 1) } else { String::new() };
+                                tgroup.push(writer::TaggedItemInfo::Tag {
                                     tag: #tag,
                                     item_text: #tgname_out,
                                     is_block: #is_block,
@@ -180,9 +191,15 @@ fn generate_block_item_writers(structitems: &[DataItem]) -> Vec<TokenStream> {
                         });
                     }
                 }
+                let comment_writer = if allow_comments {
+                    quote! { writer::add_comments_to_group(&mut tgroup, &self.a2lcomment); }
+                } else {
+                    quote! {}
+                };
                 write_items.push(quote! {
                     let mut tgroup = Vec::<writer::TaggedItemInfo>::new();
                     #(#tgwriters)*
+                    #comment_writer
                     writer.add_group(tgroup);
                 });
             }

@@ -1951,4 +1951,32 @@ ASAP2_VERSION 1 61
             0xFFFFFFFFFFFFFFFFu64
         );
     }
+
+    #[test]
+    fn comments_everywhere() {
+        let a2l = r#"/* comment */
+        // comment
+        /* comment */ASAP2_VERSION/* comment */ 1/* comment */ 71/* comment */
+        // comment
+        /* comment *//begin /* comment */PROJECT /* comment */project/* comment */ ""/* comment */
+            // comment
+            /* comment *//begin/* comment */ MODULE/* comment */ module /* comment */""/* comment */
+                // comment
+                /* comment *//begin/* comment */ MEASUREMENT /* comment */measurement_name/* comment */
+                    // comment
+                    "long_identifier"/* comment */ FLOAT32_IEEE/* comment */ compu_method_name
+                    // comment
+                    /* comment */ 1 /* comment */1.0/* comment */ 0/* comment */ 100/* comment */
+                // comment
+                /* comment *//end/* comment */ MEASUREMENT/* comment */
+                // comment
+            /* comment *//end/* comment */ MODULE/* comment */
+            // comment
+        /* comment *//end/* comment */ PROJECT/* comment */
+        /* comment */
+        // comment
+        "#;
+        let result = a2lfile::load_from_string(a2l, None, true);
+        assert!(result.is_ok());
+    }
 }

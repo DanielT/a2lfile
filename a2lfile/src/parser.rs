@@ -225,6 +225,12 @@ pub enum ParserError {
     InvalidVersion { major: u16, minor: u16 },
 }
 
+pub(crate) enum BlockContent<'a> {
+    Block(&'a A2lToken, bool, u32),
+    Comment(&'a A2lToken, u32),
+    None,
+}
+
 // it pretends to be an Iter, but it really isn't
 impl<'a> TokenIter<'a> {
     fn next(&mut self) -> Option<&'a A2lToken> {
@@ -391,18 +397,24 @@ impl<'a> ParserState<'a> {
         &data[token.startpos..token.endpos]
     }
 
-    pub(crate) fn get_current_line_offset(&self) -> u32 {
-        if self.token_cursor.pos > 0 && self.token_cursor.pos < self.token_cursor.tokens.len() {
-            let prev_line = self.token_cursor.tokens[self.token_cursor.pos - 1].line;
-            let prev_fileid = self.token_cursor.tokens[self.token_cursor.pos - 1].fileid;
-            let cur_line = self.token_cursor.tokens[self.token_cursor.pos].line;
-            let cur_fileid = self.token_cursor.tokens[self.token_cursor.pos].fileid;
+    /// get the line offset of the token that was just consumed
+    /// this means that seff.token_cursor.pos is already incremented
+    /// - usually we're calculating token[pos-1] - token[pos-2]
+    /// - for token[pos==1] it returns the line number of the first token - 1
+    /// - the function shouldn't be called while pos == 0, but this case would behave like pos==1
+    pub(crate) fn get_line_offset(&self) -> u32 {
+        if self.token_cursor.pos > 1 && self.token_cursor.pos < self.token_cursor.tokens.len() {
+            let prev_line = self.token_cursor.tokens[self.token_cursor.pos - 2].line;
+            let prev_fileid = self.token_cursor.tokens[self.token_cursor.pos - 2].fileid;
+            let cur_line = self.token_cursor.tokens[self.token_cursor.pos - 1].line;
+            let cur_fileid = self.token_cursor.tokens[self.token_cursor.pos - 1].fileid;
 
             // subtracting line numbers is only sane within a file
             if prev_fileid == cur_fileid {
                 cur_line - prev_line
             } else {
-                // if the tokens come from different files then there is no line offset and the value 2 is used for formatting
+                // if the tokens come from different files then there is no line offset and the
+                // value 2 is used for formatting: 2 newlines leave one line empty
                 2
             }
         } else {
@@ -508,7 +520,11 @@ impl<'a> ParserState<'a> {
         context: &ParseContext,
         token_type: A2lTokenType,
     ) -> Result<&'a A2lToken, ParserError> {
-        let token = self.get_token(context)?;
+        let mut token = self.get_token(context)?;
+        // we never "expect" a comment token, so we skip it
+        while token.ttype == A2lTokenType::Comment {
+            token = self.get_token(context)?;
+        }
 
         if token.ttype != token_type {
             return Err(ParserError::unexpected_token_type(
@@ -658,51 +674,64 @@ impl<'a> ParserState<'a> {
 
     // get_next_tag()
     // get the tag of the next item of a taggedstruct or taggedunion
-    pub(crate) fn get_next_tag(
+    // alternatively, get the next comment
+    //
+    // Handling tags and comments in the same function makes sense, because the current parser
+    // implementation can only handle comments where blocks are permitted. If the parser is ever
+    // extended to handle comments in other locations, then this function will need to be split.
+    pub(crate) fn get_next_tag_or_comment(
         &mut self,
         context: &ParseContext,
-    ) -> Result<Option<(&'a A2lToken, bool, u32)>, ParserError> {
+    ) -> Result<BlockContent<'a>, ParserError> {
         let mut is_block = false;
         let tokenpos = self.get_tokenpos();
-        let start_offset = self.get_current_line_offset();
 
-        // if the next token is /begin, then set is_block and skip the token
-        if let Some(A2lToken {
-            ttype: A2lTokenType::Begin,
-            ..
-        }) = self.token_cursor.peek()
-        {
-            is_block = true;
-            self.get_token(context)?;
-        }
-
-        let token = self.token_cursor.next();
-        // get the tag or return None if the token is not an Identifier
         if let Some(
             tokenval @ A2lToken {
-                ttype: A2lTokenType::Identifier,
+                ttype: A2lTokenType::Comment,
                 ..
             },
-        ) = token
+        ) = self.token_cursor.peek()
         {
-            Ok(Some((tokenval, is_block, start_offset)))
+            self.token_cursor.next(); // consume the peeked token
+            let start_offset = self.get_line_offset();
+            Ok(BlockContent::Comment(tokenval, start_offset))
         } else {
-            self.set_tokenpos(tokenpos);
-            if is_block {
-                if let Some(token) = token {
-                    // an Identifier must follow after a /begin
-                    Err(ParserError::unexpected_token_type(
-                        self,
-                        context,
-                        token,
-                        A2lTokenType::Identifier,
-                    ))
-                } else {
-                    Err(ParserError::unexpected_eof(self, context))
-                }
+            // if the next token is /begin, then set is_block and skip the token
+            let (token_result, start_offset) = if let Some(A2lToken {
+                ttype: A2lTokenType::Begin,
+                ..
+            }) = self.token_cursor.peek()
+            {
+                is_block = true;
+                self.get_token(context)?;
+                // for blocks, we went to set start_offset to the offset of the /begin token,
+                // and then get the tag from the next token
+                let start_offset = self.get_line_offset();
+                (
+                    self.expect_token(context, A2lTokenType::Identifier),
+                    start_offset,
+                )
             } else {
-                // no tag? no problem!
-                Ok(None)
+                // if this is not a block, then just get the tag and the offset of the tag
+                (
+                    self.expect_token(context, A2lTokenType::Identifier),
+                    self.get_line_offset(),
+                )
+            };
+
+            // get the tag or return None if the token is not an Identifier
+            match token_result {
+                Ok(token) => Ok(BlockContent::Block(token, is_block, start_offset)),
+                Err(error) => {
+                    self.set_tokenpos(tokenpos);
+                    if is_block {
+                        Err(error)
+                    } else {
+                        // no tag? no problem!
+                        Ok(BlockContent::None)
+                    }
+                }
             }
         }
     }
@@ -1364,5 +1393,27 @@ mod tests {
         let (a2l_file, _) = result.unwrap();
         assert_eq!(a2l_file.project.module.len(), 1);
         assert_eq!(a2l_file.project.module[0].group.len(), 1);
+    }
+
+    #[test]
+    fn parse_with_comments() {
+        static DATA: &str = r#"
+        /begin TRANSFORMER Transformer
+            "1.0.0"                          // Version info
+            "TransformerDll32.dll"           // Name of the 32bit DLL
+            ""                               // Name of the 64bit DLL
+            1500                             // timeout in [ms]
+            ON_CHANGE
+            InverseTransformer
+        /end TRANSFORMER"#;
+        let module = crate::load_fragment(DATA, None).unwrap();
+        let bi = &module.transformer[0].__block_info;
+        assert_eq!(bi.item_location.1, 1); // offset of the version
+        assert_eq!(bi.item_location.2, 1); // offset of the 32-bit dll name
+        assert_eq!(bi.item_location.3, 1); // offset of the 64-bit dll name
+        assert_eq!(bi.item_location.4, (1, false)); // offset of the timeout
+        assert_eq!(bi.item_location.5, 1); // offset of the trigger [ON_CHANGE]
+        assert_eq!(bi.item_location.6, 1); // offset of the inverse transformer
+        assert_eq!(bi.end_offset, 1); // offset of the /end TRANSFORMER
     }
 }

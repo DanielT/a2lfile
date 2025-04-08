@@ -1147,7 +1147,7 @@ impl GenericIfData {
                 let mut tgroup = Vec::new();
                 for tgitemlist in taggeditems.values() {
                     for tgitem in tgitemlist {
-                        tgroup.push(TaggedItemInfo {
+                        tgroup.push(TaggedItemInfo::Tag {
                             tag: &tgitem.tag,
                             incfile: &tgitem.incfile,
                             uid: tgitem.uid,

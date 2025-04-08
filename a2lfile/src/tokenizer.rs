@@ -48,6 +48,7 @@ pub enum A2lTokenType {
     Include,
     String,
     Number,
+    Comment,
 }
 
 #[derive(Debug, Clone)]
@@ -200,19 +201,49 @@ fn tokenize_core(
             if filebytes[bytepos] == b'*' {
                 // block comment
                 separated = true;
-                bytepos = skip_block_comment(filebytes, bytepos + 1).map_err(|()| {
+                bytepos = find_block_comment_end(filebytes, bytepos + 1).map_err(|()| {
                     TokenizerError::UnclosedComment {
                         filename: filename.clone(),
                         line,
                     }
                 })?;
+                // comments don't follow the formatting/indentation rules of the rest of the file
+                // a comment may be indented, or not. it could be indented differently, etc.
+                // for this reason, the spaces before the comment should also be considered part of the comment
+                let mut comment_start = startpos;
+                while comment_start > 0 && filebytes[comment_start - 1] == b' ' {
+                    comment_start -= 1;
+                }
+
+                tokens.push(A2lToken {
+                    ttype: A2lTokenType::Comment,
+                    startpos: comment_start,
+                    endpos: bytepos,
+                    fileid,
+                    line,
+                });
                 line += count_newlines(&filebytes[startpos..bytepos]);
             } else if filebytes[bytepos] == b'/' {
                 // line comment
                 separated = true;
+
+                // comments don't follow the formatting/indentation rules of the rest of the file
+                // a comment may be indented, or not. it could be indented differently, etc.
+                // for this reason, the spaces before the comment should also be considered part of the comment
+                let mut comment_start = startpos;
+                while comment_start > 0 && filebytes[comment_start - 1] == b' ' {
+                    comment_start -= 1;
+                }
                 while bytepos < datalen && filebytes[bytepos] != b'\n' {
                     bytepos += 1;
                 }
+                tokens.push(A2lToken {
+                    ttype: A2lTokenType::Comment,
+                    startpos: comment_start,
+                    endpos: bytepos,
+                    fileid,
+                    line,
+                });
             } else if filebytes[bytepos..].starts_with(b"begin") {
                 separator_check(separated, &filename, line)?;
                 bytepos += 5;
@@ -372,7 +403,7 @@ fn tokenize_core(
 
 // skip_block_comment
 // finds the first byte position after the end of a block comment
-fn skip_block_comment(filebytes: &[u8], mut bytepos: usize) -> Result<usize, ()> {
+fn find_block_comment_end(filebytes: &[u8], mut bytepos: usize) -> Result<usize, ()> {
     let datalen = filebytes.len();
 
     bytepos += 1;
@@ -578,31 +609,38 @@ mod tests {
     fn tokenize_a2l_comment() {
         let data = String::from("/**/");
         let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
-        assert_eq!(tokresult.tokens.len(), 0);
+        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Comment);
 
         let data = String::from("/*/*/");
         let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
-        assert_eq!(tokresult.tokens.len(), 0);
+        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Comment);
 
         let data = String::from("/***********/");
         let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
-        assert_eq!(tokresult.tokens.len(), 0);
+        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Comment);
 
         let data = String::from("/***********/ abcdef");
         let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
-        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens.len(), 2);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Comment);
 
         let data = String::from("//");
         let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
-        assert_eq!(tokresult.tokens.len(), 0);
+        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Comment);
 
         let data = String::from("// abcdef");
         let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
-        assert_eq!(tokresult.tokens.len(), 0);
+        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Comment);
 
         let data = String::from("// abcdef\nabcde");
         let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
-        assert_eq!(tokresult.tokens.len(), 1);
+        assert_eq!(tokresult.tokens.len(), 2);
+        assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Comment);
 
         // unclosed block comment
         let data = String::from("/*");

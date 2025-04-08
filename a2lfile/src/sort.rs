@@ -60,6 +60,10 @@ pub(crate) fn sort_new_items(a2l_file: &mut A2lFile) {
         sort_objectlist_new(&mut module.typedef_structure);
         sort_objectlist_new(&mut module.unit);
 
+        for comment in &mut module.a2lcomment {
+            comment.uid *= 2;
+        }
+
         if let Some(maxid) = module
             .if_data
             .iter()
@@ -216,6 +220,11 @@ pub(crate) fn sort(a2l_file: &mut A2lFile) {
         uid = sort_objectlist_full(&mut module.record_layout, uid);
         uid = sort_objectlist_full(&mut module.transformer, uid);
         uid = sort_objectlist_full(&mut module.unit, uid);
+
+        // Comments no longer make sense after sorting. Usually, a comment either
+        // - denotes the beginning of a section, which is lost during sorting
+        // - or is a comment for a specific object, but the object is moved during sorting
+        module.a2lcomment.clear();
 
         module
             .user_rights
