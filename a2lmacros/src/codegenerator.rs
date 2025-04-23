@@ -1,8 +1,8 @@
 use crate::util::{make_varname, ucname_to_typename};
 use proc_macro2::TokenStream;
+use quote::ToTokens;
 use quote::format_ident;
 use quote::quote;
-use quote::ToTokens;
 use std::str::FromStr;
 
 pub(crate) mod data_structure;

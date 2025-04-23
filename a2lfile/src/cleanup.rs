@@ -233,13 +233,17 @@ mod test {
         // compu_vtab_unused is not used and should be removed
         assert!(!module.compu_vtab.contains_key("compu_vtab_unused"));
         // compu_vtab_range_used is used by compu_method_used3
-        assert!(module
-            .compu_vtab_range
-            .contains_key("compu_vtab_range_used"));
+        assert!(
+            module
+                .compu_vtab_range
+                .contains_key("compu_vtab_range_used")
+        );
         // compu_vtab_range_unused is not used and should be removed
-        assert!(!module
-            .compu_vtab_range
-            .contains_key("compu_vtab_range_unused"));
+        assert!(
+            !module
+                .compu_vtab_range
+                .contains_key("compu_vtab_range_unused")
+        );
 
         // used_unit is used by compu_method_used1
         assert!(module.unit.contains_key("used_unit"));

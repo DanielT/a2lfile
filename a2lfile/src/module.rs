@@ -1,6 +1,6 @@
 //! Additional operations for the a2l `Module`
 
-use crate::{specification::*, ItemList};
+use crate::{ItemList, specification::*};
 
 #[derive(Debug, PartialEq)]
 pub enum AnyObject<'a> {

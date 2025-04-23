@@ -1,7 +1,6 @@
 use crate::{
-    loader, tokenizer,
+    Filename, loader, tokenizer,
     writer::{TaggedItemInfo, Writer},
-    Filename,
 };
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -644,7 +643,9 @@ fn parse_aml_type_taggedstruct(
                     ));
                 }
             } else {
-                return Err(String::from("expected either an identifier or an opening bracket after keyword taggedstruct."));
+                return Err(String::from(
+                    "expected either an identifier or an opening bracket after keyword taggedstruct.",
+                ));
             }
         }
     }
@@ -689,7 +690,9 @@ fn parse_aml_type_taggedunion(
                     return Err(format!("taggedunion {name} was referenced but not defined"));
                 }
             } else {
-                return Err(String::from("A2ML error: expected either an identifier or an opening bracket after keyword taggedunion."));
+                return Err(String::from(
+                    "A2ML error: expected either an identifier or an opening bracket after keyword taggedunion.",
+                ));
             }
         }
     }

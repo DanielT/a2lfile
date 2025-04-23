@@ -87,7 +87,9 @@ pub enum A2lError {
     },
 
     /// `NameCollisionError`: A name collision occurred bateween two blocks of the same type
-    #[error("Name collision: {blockname} blocks on line {line_1} and {line_2} both use the name \"{item_name}\"")]
+    #[error(
+        "Name collision: {blockname} blocks on line {line_1} and {line_2} both use the name \"{item_name}\""
+    )]
     NameCollisionError {
         item_name: String,
         blockname: String,
@@ -96,7 +98,9 @@ pub enum A2lError {
     },
 
     /// `NameCollisionError2`: A name collision occurred bateween two different blocks which share the same namespace
-    #[error("Name collision: {blockname_1} on line {line_1} and {blockname_2} on line {line_2} both use the name \"{item_name}\"")]
+    #[error(
+        "Name collision: {blockname_1} on line {line_1} and {blockname_2} on line {line_2} both use the name \"{item_name}\""
+    )]
     NameCollisionError2 {
         item_name: String,
         blockname_1: String,
@@ -106,7 +110,9 @@ pub enum A2lError {
     },
 
     /// `CrossReferenceError`: A reference to a non-existent item was found
-    #[error("Cross-reference error: {source_type} {source_name} on line {source_line} references a non-existent {target_type} {target_name}")]
+    #[error(
+        "Cross-reference error: {source_type} {source_name} on line {source_line} references a non-existent {target_type} {target_name}"
+    )]
     CrossReferenceError {
         source_type: String,
         source_name: String,
@@ -116,7 +122,9 @@ pub enum A2lError {
     },
 
     /// `LimitCheckError`: The given limits are outside of the calculated limits
-    #[error("Limit check error: {blockname} {item_name} on line {line} has limits {lower_limit} .. {upper_limit}, but the calculated limits are {calculated_lower_limit} .. {calculated_upper_limit}")]
+    #[error(
+        "Limit check error: {blockname} {item_name} on line {line} has limits {lower_limit} .. {upper_limit}, but the calculated limits are {calculated_lower_limit} .. {calculated_upper_limit}"
+    )]
     LimitCheckError {
         item_name: String,
         blockname: String,

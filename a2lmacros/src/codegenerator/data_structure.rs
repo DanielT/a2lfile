@@ -42,7 +42,9 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem, is_a2l: bool) -> Tok
             ));
         }
         _ => {
-            panic!("only block, struct and enum are allowed as top-level types, but {typename} = {dataitem:#?} was encountered");
+            panic!(
+                "only block, struct and enum are allowed as top-level types, but {typename} = {dataitem:#?} was encountered"
+            );
         }
     }
 
@@ -139,8 +141,13 @@ fn generate_block_data_structure_generic(
     // generate all of the utility functions together with the data structure
     // only write and parse are excluded here, because they are not shared between A2l and A2ml
     let debug = generate_block_data_structure_debug(typename, structitems);
-    let constructor =
-        generate_block_data_structure_constructor(typename, structitems, is_struct, is_block, allow_comments);
+    let constructor = generate_block_data_structure_constructor(
+        typename,
+        structitems,
+        is_struct,
+        is_block,
+        allow_comments,
+    );
     let partialeq = generate_block_data_structure_partialeq(typename, structitems);
     let trait_location =
         generate_block_data_structure_trait_location(typename, structitems, &location_spec);
@@ -181,10 +188,14 @@ fn generate_struct_item_definition(
             panic!("type None is not permitted for struct items");
         }
         BaseType::Enum { .. } => {
-            panic!("type Enum is not permitted at this point and should have been transformed to an EnumRef");
+            panic!(
+                "type Enum is not permitted at this point and should have been transformed to an EnumRef"
+            );
         }
         BaseType::Struct { .. } => {
-            panic!("type Struct is not permitted at this point and should have been transformed to a StructRef");
+            panic!(
+                "type Struct is not permitted at this point and should have been transformed to a StructRef"
+            );
         }
         BaseType::TaggedUnionRef => {
             panic!("TaggedUnionRef should have been resolved in the data structure fixup phase");

@@ -2,7 +2,7 @@
 name = "a2lfile"
 version = "2.4.0"
 authors = ["Daniel Thaler <daniel@dthaler.de>"]
-edition = "2021"
+edition = "2024"
 description = "read, modify and write a2l files"
 readme = "README.md"
 license = "MIT OR Apache-2.0"

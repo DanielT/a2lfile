@@ -1,6 +1,6 @@
 use crate::{
-    specification::{A2lFile, A2lObject, A2lObjectName},
     ItemList,
+    specification::{A2lFile, A2lObject, A2lObjectName},
 };
 use std::cmp::Ordering;
 

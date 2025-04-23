@@ -45,7 +45,9 @@ pub struct ParseContext {
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ParserError {
-    #[error("{filename}:{error_line}: expected token of type {expected_ttype:?}, got {actual_ttype:?} (\"{actual_text}\") inside block {element} starting on line {block_line}")]
+    #[error(
+        "{filename}:{error_line}: expected token of type {expected_ttype:?}, got {actual_ttype:?} (\"{actual_text}\") inside block {element} starting on line {block_line}"
+    )]
     UnexpectedTokenType {
         filename: String,
         error_line: u32,
@@ -63,7 +65,9 @@ pub enum ParserError {
         numstr: String,
     },
 
-    #[error("{filename}:{error_line}: expected an enum value, but \"{enumtxt}\" is not part of the enum (located inside block {block} starting on line {block_line})")]
+    #[error(
+        "{filename}:{error_line}: expected an enum value, but \"{enumtxt}\" is not part of the enum (located inside block {block} starting on line {block_line})"
+    )]
     InvalidEnumValue {
         filename: String,
         error_line: u32,
@@ -72,7 +76,9 @@ pub enum ParserError {
         block_line: u32,
     },
 
-    #[error("{filename}:{error_line}: optional element {tag} occurs too often within block {block} starting on line {block_line}")]
+    #[error(
+        "{filename}:{error_line}: optional element {tag} occurs too often within block {block} starting on line {block_line}"
+    )]
     InvalidMultiplicityTooMany {
         filename: String,
         error_line: u32,
@@ -81,7 +87,9 @@ pub enum ParserError {
         block_line: u32,
     },
 
-    #[error("{filename}:{error_line}: element {tag} is missing in block {block} starting on line {block_line}")]
+    #[error(
+        "{filename}:{error_line}: element {tag} is missing in block {block} starting on line {block_line}"
+    )]
     InvalidMultiplicityNotPresent {
         filename: String,
         error_line: u32,
@@ -90,7 +98,9 @@ pub enum ParserError {
         block_line: u32,
     },
 
-    #[error("{filename}:{error_line}: element {tag} in block {block} starting on line {block_line} must be enclosed in /begin and /end")]
+    #[error(
+        "{filename}:{error_line}: element {tag} in block {block} starting on line {block_line} must be enclosed in /begin and /end"
+    )]
     IncorrectBlockError {
         filename: String,
         error_line: u32,
@@ -99,7 +109,9 @@ pub enum ParserError {
         block_line: u32,
     },
 
-    #[error("{filename}:{error_line}: element {tag} in block {block} starting on line {block_line} may not be enclosed in /begin and /end")]
+    #[error(
+        "{filename}:{error_line}: element {tag} in block {block} starting on line {block_line} may not be enclosed in /begin and /end"
+    )]
     IncorrectKeywordError {
         filename: String,
         error_line: u32,
@@ -108,7 +120,9 @@ pub enum ParserError {
         block_line: u32,
     },
 
-    #[error("{filename}:{error_line}: Wrong end tag {tag} found at the end of block {block} starting on line {block_line}")]
+    #[error(
+        "{filename}:{error_line}: Wrong end tag {tag} found at the end of block {block} starting on line {block_line}"
+    )]
     IncorrectEndTag {
         filename: String,
         error_line: u32,
@@ -117,7 +131,9 @@ pub enum ParserError {
         block_line: u32,
     },
 
-    #[error("{filename}:{error_line}: Unknown sub-block {tag} found inside block {block} starting on line {block_line}")]
+    #[error(
+        "{filename}:{error_line}: Unknown sub-block {tag} found inside block {block} starting on line {block_line}"
+    )]
     UnknownSubBlock {
         filename: String,
         error_line: u32,
@@ -126,7 +142,9 @@ pub enum ParserError {
         block_line: u32,
     },
 
-    #[error("{filename}:{error_line}: encountered end of file while not done parsing block {block} starting on line {block_line}")]
+    #[error(
+        "{filename}:{error_line}: encountered end of file while not done parsing block {block} starting on line {block_line}"
+    )]
     UnexpectedEOF {
         filename: String,
         error_line: u32,
@@ -134,7 +152,9 @@ pub enum ParserError {
         block_line: u32,
     },
 
-    #[error("{filename}:{error_line}: String \"{text}\" in block {block} is {length} bytes long, but the maximum allowed length is {max_length}")]
+    #[error(
+        "{filename}:{error_line}: String \"{text}\" in block {block} is {length} bytes long, but the maximum allowed length is {max_length}"
+    )]
     StringTooLong {
         filename: String,
         error_line: u32,
@@ -144,7 +164,9 @@ pub enum ParserError {
         max_length: usize,
     },
 
-    #[error("{filename}:{error_line}: Sub-block \"{tag}\" in block {block} is deprecated after version {limit_ver:.2}, but the file declares version {file_ver:.2}")]
+    #[error(
+        "{filename}:{error_line}: Sub-block \"{tag}\" in block {block} is deprecated after version {limit_ver:.2}, but the file declares version {file_ver:.2}"
+    )]
     BlockRefDeprecated {
         filename: String,
         error_line: u32,
@@ -154,7 +176,9 @@ pub enum ParserError {
         file_ver: A2lVersion,
     },
 
-    #[error("{filename}:{error_line}: Sub-block \"{tag}\" in block {block} is available from version {limit_ver:.2}, but the file declares version {file_ver:.2}")]
+    #[error(
+        "{filename}:{error_line}: Sub-block \"{tag}\" in block {block} is available from version {limit_ver:.2}, but the file declares version {file_ver:.2}"
+    )]
     BlockRefTooNew {
         filename: String,
         error_line: u32,
@@ -164,7 +188,9 @@ pub enum ParserError {
         file_ver: A2lVersion,
     },
 
-    #[error("{filename}:{error_line}: Enum item \"{tag}\" in block {block} is deprecated after version {limit_ver:.2}, but the file declares version {file_ver:.2}")]
+    #[error(
+        "{filename}:{error_line}: Enum item \"{tag}\" in block {block} is deprecated after version {limit_ver:.2}, but the file declares version {file_ver:.2}"
+    )]
     EnumRefDeprecated {
         filename: String,
         error_line: u32,
@@ -174,7 +200,9 @@ pub enum ParserError {
         file_ver: A2lVersion,
     },
 
-    #[error("{filename}:{error_line}: Enum item \"{tag}\" in block {block} is available from version {limit_ver:.2}, but the file declares version {file_ver:.2}")]
+    #[error(
+        "{filename}:{error_line}: Enum item \"{tag}\" in block {block} is available from version {limit_ver:.2}, but the file declares version {file_ver:.2}"
+    )]
     EnumRefTooNew {
         filename: String,
         error_line: u32,
@@ -209,7 +237,9 @@ pub enum ParserError {
     },
 
     /// `AdditionalTokensError` parsing finished without consuming all data in the file
-    #[error("{filename}:{error_line}: unexpected additional data \"{text}...\" after parsed a2l file content")]
+    #[error(
+        "{filename}:{error_line}: unexpected additional data \"{text}...\" after parsed a2l file content"
+    )]
     AdditionalTokensError {
         filename: String,
         error_line: u32,
@@ -1049,7 +1079,7 @@ impl Display for A2lVersion {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{load_from_string, tokenizer, Filename};
+    use crate::{Filename, load_from_string, tokenizer};
 
     #[test]
     fn parsing_numbers_test() {

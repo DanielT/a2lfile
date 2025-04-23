@@ -2,7 +2,7 @@ use proc_macro2::{Literal, TokenStream};
 use quote::format_ident;
 use quote::quote;
 
-use crate::codegenerator::{make_varname, ucname_to_typename, BaseType, DataItem, EnumItem};
+use crate::codegenerator::{BaseType, DataItem, EnumItem, make_varname, ucname_to_typename};
 
 // generate()
 // Generate a pub fn stringify() function for all data types in the specification
@@ -24,7 +24,9 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
             result.extend(generate_block_writer(typename, blockitems, *is_block));
         }
         _ => {
-            panic!("only block, struct and enum are allowed as top-level types, but {typename} = {dataitem:#?} was encountered");
+            panic!(
+                "only block, struct and enum are allowed as top-level types, but {typename} = {dataitem:#?} was encountered"
+            );
         }
     }
 

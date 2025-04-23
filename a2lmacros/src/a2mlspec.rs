@@ -40,7 +40,9 @@ pub(crate) fn a2ml_specification(tokens: TokenStream) -> TokenStream {
     typesvec.sort_by(|a, b| a.0.cmp(b.0));
 
     for (typename, a2mltype) in typesvec {
-        result.extend(codegenerator::data_structure::generate(typename, a2mltype, false));
+        result.extend(codegenerator::data_structure::generate(
+            typename, a2mltype, false,
+        ));
         result.extend(codegenerator::ifdata_parser::generate(typename, a2mltype));
         result.extend(codegenerator::ifdata_writer::generate(typename, a2mltype));
     }
@@ -1049,7 +1051,9 @@ fn fixup_data_type(
                     )
                 }
                 BaseType::TaggedStruct { .. } | BaseType::TaggedStructRef => {
-                    panic!("A repeating taggedstruct cannot be parsed properly, because there is no separator between each instance of the taggedstruct. Suggestion: use a taggdstruct with repeating elements instead.")
+                    panic!(
+                        "A repeating taggedstruct cannot be parsed properly, because there is no separator between each instance of the taggedstruct. Suggestion: use a taggdstruct with repeating elements instead."
+                    )
                 }
                 BaseType::TaggedUnion { .. } | BaseType::TaggedUnionRef => {
                     panic!(
@@ -1092,7 +1096,9 @@ fn fixup_data_type(
             if let Some(name) = typename {
                 fixup_struct(name, structitems, spec, defined_types)
             } else {
-                panic!("unnamed struct {basetype:#?} found in a position where no name can be derived from context.");
+                panic!(
+                    "unnamed struct {basetype:#?} found in a position where no name can be derived from context."
+                );
             }
         }
         BaseType::StructRef => {

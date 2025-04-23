@@ -2,7 +2,7 @@
 name = "a2lmacros"
 version = "2.2.0"
 authors = ["Daniel Thaler <daniel@dthaler.de>"]
-edition = "2021"
+edition = "2024"
 description = "provides macros in support of the a2lfile crate"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/DanielT/a2lfile"

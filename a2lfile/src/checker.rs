@@ -1,7 +1,7 @@
 use crate::{
+    A2lError, ItemList,
     module::{AnyCompuTab, AnyObject, AnyTypedef},
     specification::*,
-    A2lError, ItemList,
 };
 use std::collections::HashMap;
 

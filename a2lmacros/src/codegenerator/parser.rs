@@ -1,10 +1,10 @@
 use proc_macro2::Ident;
 use proc_macro2::TokenStream;
+use quote::TokenStreamExt;
 use quote::format_ident;
 use quote::quote;
-use quote::TokenStreamExt;
 
-use crate::codegenerator::{generate_bare_typename, BaseType, DataItem, EnumItem, TaggedItem};
+use crate::codegenerator::{BaseType, DataItem, EnumItem, TaggedItem, generate_bare_typename};
 use crate::util::{make_varname, ucname_to_typename};
 
 // generate
@@ -28,7 +28,9 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
             result.extend(generate_block_parser(typename, blockitems, *is_block));
         }
         _ => {
-            panic!("only block, struct and enum are allowed as top-level types, but {typename} = {dataitem:#?} was encountered");
+            panic!(
+                "only block, struct and enum are allowed as top-level types, but {typename} = {dataitem:#?} was encountered"
+            );
         }
     }
     result

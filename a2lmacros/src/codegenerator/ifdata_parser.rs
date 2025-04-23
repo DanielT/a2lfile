@@ -22,7 +22,9 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
             result.extend(generate_indirect_block_parser(typename, blockitems));
         }
         _ => {
-            panic!("only block, struct and enum are allowed as top-level types, but {typename} = {dataitem:#?} was encountered");
+            panic!(
+                "only block, struct and enum are allowed as top-level types, but {typename} = {dataitem:#?} was encountered"
+            );
         }
     }
 
