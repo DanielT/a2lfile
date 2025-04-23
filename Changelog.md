@@ -1,5 +1,43 @@
 # Changelog
 
+## Version 3.0.0
+
+### Features
+
+- Named objects are now stored in "ItemLists" which are similar to IndexMaps.
+  This means that the objects can be looked up by index and by name.
+  This change is likely to break some code.
+- Comments are now preserved in some cases. Specifically, any comment that occurs in a
+  position where a block is permitted can be can be represented in the data, and is written to the output file.
+  Sorting a2l files erases comments.
+- Checker: Add the ability to refer to a TYPEDEF_AXIS using THIS
+  A cross reference using THIS is now handled correctly.
+- Individual features of a2lfile can be enabled or disabled in cargo.toml using crate features
+  - [check]: check the plausibility of the data in the a2l file
+  - [cleanup]: remove unused items in the file
+  - [ifdata_cleanup]: remove incorrect IF_DATA
+  - [merge]: merge the content of two MODULEs
+  - [sort]: sort the content of the a2l file
+  All features are active by default.
+
+### A2L data
+
+- The values of BIT_MASK and error mask are u64 instead of u32, and parsing no longer fails for values that don't fit in u32.
+- Allow multiple CALIBRATION_HANDLEs inside of CALIBRATION_METHOD (Rainer Zaiser)
+- Parsing of VAR_CRITERION has been fixed, so that the optional keywords VAR_MEASUREMENT and
+  VAR_SELECTION_CHARACTERISTIC can be recognized.
+
+### API changes
+
+- NameMap was removed, since it is no longer needed.
+- Previously deprecated load_fragment / load_frament_file functions were removed.
+  The replacement functions have been renamed:
+  load_fragment2 -> load_fragment
+  load_fragment_file2 -> load_fragment_file
+- the check() function provides detailed error info in its return value (Vec of A2lError)
+  instead of extending a list of Strings. This allows the caller to inspect the errors
+  without parsing the strings.
+
 ## Version 2.4.0
 
 - OS independen path separator handling in /include (Akhil T Thomas)
