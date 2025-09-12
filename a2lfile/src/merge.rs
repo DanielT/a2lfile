@@ -3,6 +3,9 @@ use crate::{A2lObjectName, ItemList};
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+/// Merges the contents of `merge_module` into `orig_module`.
+/// The output contains all items from both modules, renaming items from `merge_module` as needed to avoid name conflicts.
+/// Identical items are not duplicated.
 pub(crate) fn merge_modules(orig_module: &mut Module, merge_module: &mut Module) {
     // merge A2ML - no dependencies
     merge_a2ml(orig_module, merge_module);
@@ -1037,6 +1040,268 @@ fn make_unique_name<T: A2lObjectName>(
     }
 
     newname
+}
+
+/// Merge the items of `merge_module` into `orig_module`.
+/// This is a limited form of merge, that only imports "new" items from `merge_module` into `orig_module`.
+/// If an item of the same name already exists in `orig_module`, it will be kept as is, and the item from `merge_module` will be ignored.
+/// Essentially, the orig_module is preferred, and merge_module is only used to fill in missing items.
+///
+/// For groups only, the content is merged, so that subgroups, functions, and references are combined.
+pub(crate) fn import_new_module_items(orig: &mut Module, merge: &mut Module) {
+    if orig.mod_par.is_none() {
+        orig.mod_par = merge.mod_par.take();
+    }
+    if orig.if_data.is_empty() && !merge.if_data.is_empty() {
+        let if_data = std::mem::take(&mut merge.if_data);
+        orig.if_data = if_data;
+    }
+    copy_missing(&mut orig.unit, &mut merge.unit);
+    copy_missing(&mut orig.compu_tab, &mut merge.compu_tab);
+    copy_missing(&mut orig.compu_vtab, &mut merge.compu_vtab);
+    copy_missing(&mut orig.compu_vtab_range, &mut merge.compu_vtab_range);
+    copy_missing(&mut orig.compu_method, &mut merge.compu_method);
+    copy_missing(&mut orig.record_layout, &mut merge.record_layout);
+    if orig.mod_common.is_none() {
+        orig.mod_common = merge.mod_common.take();
+    }
+    copy_missing(&mut orig.axis_pts, &mut merge.axis_pts);
+    copy_missing(&mut orig.blob, &mut merge.blob);
+    copy_missing(&mut orig.characteristic, &mut merge.characteristic);
+    copy_missing(&mut orig.measurement, &mut merge.measurement);
+    copy_missing(&mut orig.instance, &mut merge.instance);
+    copy_missing(&mut orig.typedef_axis, &mut merge.typedef_axis);
+    copy_missing(&mut orig.typedef_blob, &mut merge.typedef_blob);
+    copy_missing(
+        &mut orig.typedef_characteristic,
+        &mut merge.typedef_characteristic,
+    );
+    copy_missing(
+        &mut orig.typedef_measurement,
+        &mut merge.typedef_measurement,
+    );
+    copy_missing(&mut orig.typedef_structure, &mut merge.typedef_structure);
+    copy_missing(&mut orig.frame, &mut merge.frame);
+    copy_missing(&mut orig.transformer, &mut merge.transformer);
+    copy_missing(&mut orig.function, &mut merge.function);
+
+    merge_groups_simple(orig, merge);
+    let merge_user_rights = std::mem::take(&mut merge.user_rights);
+    for mut user_rights in merge_user_rights {
+        if !orig.user_rights.contains(&user_rights) {
+            user_rights.reset_location();
+            orig.user_rights.push(user_rights);
+        }
+    }
+
+    if orig.variant_coding.is_none() {
+        // copy the whole VARIANT_CODING from the merged module if it doesn't exist in the original
+        orig.variant_coding = merge.variant_coding.take();
+    } else if let Some(existing_variant) = &mut orig.variant_coding
+        && let Some(merge_variant) = &mut merge.variant_coding
+    {
+        copy_missing(
+            &mut existing_variant.var_criterion,
+            &mut merge_variant.var_criterion,
+        );
+        copy_missing(
+            &mut existing_variant.var_characteristic,
+            &mut merge_variant.var_characteristic,
+        );
+        if existing_variant.var_naming.is_none() {
+            existing_variant.var_naming = merge_variant.var_naming.take();
+        }
+        if existing_variant.var_separator.is_none() {
+            existing_variant.var_separator = merge_variant.var_separator.take();
+        }
+        let var_forbidden_comb = std::mem::take(&mut merge_variant.var_forbidden_comb);
+        for var_forbidden_comb in var_forbidden_comb {
+            if !existing_variant
+                .var_forbidden_comb
+                .contains(&var_forbidden_comb)
+            {
+                existing_variant.var_forbidden_comb.push(var_forbidden_comb);
+            }
+        }
+    }
+}
+
+/// A simplified merge for groups, that only merges the content of existing groups,
+/// but does not rename or skip any groups.
+fn merge_groups_simple(orig: &mut Module, merge: &mut Module) {
+    let merge_groups = std::mem::take(&mut merge.group);
+    for mut merge_group in merge_groups {
+        if let Some(existing_group) = orig.group.get_mut(merge_group.get_name()) {
+            if existing_group.sub_group.is_none() {
+                existing_group.sub_group = merge_group.sub_group;
+            } else if let Some(existing_sub_group) = &mut existing_group.sub_group
+                && let Some(mut merge_sub_group) = merge_group.sub_group
+            {
+                merge_lists(
+                    &mut existing_sub_group.identifier_list,
+                    &mut merge_sub_group.identifier_list,
+                );
+            }
+            if existing_group.function_list.is_none() {
+                existing_group.function_list = merge_group.function_list;
+            } else if let Some(existing_function_list) = &mut existing_group.function_list
+                && let Some(mut merge_function_list) = merge_group.function_list
+            {
+                merge_lists(
+                    &mut existing_function_list.name_list,
+                    &mut merge_function_list.name_list,
+                );
+            }
+            if existing_group.ref_characteristic.is_none() {
+                existing_group.ref_characteristic = merge_group.ref_characteristic;
+            } else if let Some(existing_ref_characteristic) = &mut existing_group.ref_characteristic
+                && let Some(mut merge_ref_characteristic) = merge_group.ref_characteristic
+            {
+                merge_lists(
+                    &mut existing_ref_characteristic.identifier_list,
+                    &mut merge_ref_characteristic.identifier_list,
+                );
+            }
+            if existing_group.ref_measurement.is_none() {
+                existing_group.ref_measurement = merge_group.ref_measurement;
+            } else if let Some(existing_ref_measurement) = &mut existing_group.ref_measurement
+                && let Some(mut merge_ref_measurement) = merge_group.ref_measurement
+            {
+                merge_lists(
+                    &mut existing_ref_measurement.identifier_list,
+                    &mut merge_ref_measurement.identifier_list,
+                );
+            }
+            // not merged: the ROOT attribute. We keep the original one
+        } else {
+            merge_group.reset_location();
+            orig.group.push(merge_group);
+        }
+    }
+}
+
+fn copy_missing<U, T: A2lObjectName + A2lObject<U>>(
+    existing_items: &mut ItemList<T>,
+    new_items: &mut ItemList<T>,
+) {
+    let new_items = std::mem::take(new_items);
+    for mut new_item in new_items {
+        if !existing_items.contains_key(new_item.get_name()) {
+            new_item.reset_location();
+            existing_items.push(new_item);
+        }
+    }
+}
+
+fn merge_lists<T: PartialEq>(existing: &mut Vec<T>, merge: &mut Vec<T>) {
+    let merge_list = std::mem::take(merge);
+    for item in merge_list {
+        if !existing.contains(&item) {
+            existing.push(item);
+        }
+    }
+}
+
+/// Merge the items of `merge_module` into `orig_module`.
+/// This is a limited form of merge, that imports all items from `merge_module` into `orig_module`.
+/// If an item of the same name already exists in `orig_module`, it will be overwritten by the item from `merge_module`.
+/// Here, the merge_module is preferred, so this function is the reverse of `import_new_module_items`.
+///
+/// For groups only, the content is merged, so that subgroups, functions, and references are combined.
+pub(crate) fn import_all_module_items(orig: &mut Module, merge: &mut Module) {
+    if merge.mod_par.is_some() {
+        orig.mod_par = merge.mod_par.take();
+    }
+    if !merge.if_data.is_empty() {
+        let if_data = std::mem::take(&mut merge.if_data);
+        orig.if_data = if_data;
+    }
+    copy_replace_items(&mut orig.unit, &mut merge.unit);
+    copy_replace_items(&mut orig.compu_tab, &mut merge.compu_tab);
+    copy_replace_items(&mut orig.compu_vtab, &mut merge.compu_vtab);
+    copy_replace_items(&mut orig.compu_vtab_range, &mut merge.compu_vtab_range);
+    copy_replace_items(&mut orig.compu_method, &mut merge.compu_method);
+    copy_replace_items(&mut orig.record_layout, &mut merge.record_layout);
+    if merge.mod_common.is_some() {
+        orig.mod_common = merge.mod_common.take();
+    }
+    copy_replace_items(&mut orig.axis_pts, &mut merge.axis_pts);
+    copy_replace_items(&mut orig.blob, &mut merge.blob);
+    copy_replace_items(&mut orig.characteristic, &mut merge.characteristic);
+    copy_replace_items(&mut orig.measurement, &mut merge.measurement);
+    copy_replace_items(&mut orig.instance, &mut merge.instance);
+    copy_replace_items(&mut orig.typedef_axis, &mut merge.typedef_axis);
+    copy_replace_items(&mut orig.typedef_blob, &mut merge.typedef_blob);
+    copy_replace_items(
+        &mut orig.typedef_characteristic,
+        &mut merge.typedef_characteristic,
+    );
+    copy_replace_items(
+        &mut orig.typedef_measurement,
+        &mut merge.typedef_measurement,
+    );
+    copy_replace_items(&mut orig.typedef_structure, &mut merge.typedef_structure);
+    copy_replace_items(&mut orig.frame, &mut merge.frame);
+    copy_replace_items(&mut orig.transformer, &mut merge.transformer);
+    copy_replace_items(&mut orig.function, &mut merge.function);
+
+    merge_groups_simple(orig, merge);
+    let merge_user_rights = std::mem::take(&mut merge.user_rights);
+    for mut user_rights in merge_user_rights {
+        if !orig.user_rights.contains(&user_rights) {
+            user_rights.reset_location();
+            orig.user_rights.push(user_rights);
+        }
+    }
+
+    if orig.variant_coding.is_none() {
+        // copy the whole VARIANT_CODING from the merged module if it doesn't exist in the original
+        orig.variant_coding = merge.variant_coding.take();
+    } else if let Some(existing_variant) = &mut orig.variant_coding
+        && let Some(merge_variant) = &mut merge.variant_coding
+    {
+        copy_replace_items(
+            &mut existing_variant.var_criterion,
+            &mut merge_variant.var_criterion,
+        );
+        copy_replace_items(
+            &mut existing_variant.var_characteristic,
+            &mut merge_variant.var_characteristic,
+        );
+        if merge_variant.var_naming.is_some() {
+            existing_variant.var_naming = merge_variant.var_naming.take();
+        }
+        if merge_variant.var_separator.is_some() {
+            existing_variant.var_separator = merge_variant.var_separator.take();
+        }
+        let var_forbidden_comb = std::mem::take(&mut merge_variant.var_forbidden_comb);
+        for var_forbidden_comb in var_forbidden_comb {
+            if !existing_variant
+                .var_forbidden_comb
+                .contains(&var_forbidden_comb)
+            {
+                existing_variant.var_forbidden_comb.push(var_forbidden_comb);
+            }
+        }
+    }
+}
+
+fn copy_replace_items<U, T: A2lObjectName + A2lObject<U>>(
+    existing_items: &mut ItemList<T>,
+    new_items: &mut ItemList<T>,
+) {
+    let new_items = std::mem::take(new_items);
+    for mut new_item in new_items {
+        if let Some(existing_item) = existing_items.get(new_item.get_name()) {
+            // replace the existing item with the new one, but keep the UID of the existing item
+            // the uid is used for layout tracking, so by keeping it the new item takes the place of the old one
+            new_item.get_layout_mut().uid = existing_item.get_layout().uid;
+            existing_items.push_unique(new_item);
+        } else {
+            new_item.reset_location();
+            existing_items.push(new_item);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -2514,5 +2779,112 @@ mod test {
         assert_eq!(a2l_file_a.project.module[0].measurement.len(), 3);
         let measurement = &a2l_file_a.project.module[0].measurement[2];
         assert_eq!(measurement.name, "m1.MERGE2");
+    }
+
+    #[test]
+    fn test_import_new() {
+        static FILE_A: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin MEASUREMENT m1 "" FLOAT32_IEEE NO_COMPU_METHOD 1 1.0 0 100
+            /end MEASUREMENT
+            /begin VARIANT_CODING
+            /end VARIANT_CODING
+        /end MODULE /end PROJECT"#;
+        static FILE_B: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin MEASUREMENT m1 "text" SWORD NO_COMPU_METHOD 1 2.0 0 200
+            /end MEASUREMENT
+            /begin MEASUREMENT m2 "" UBYTE NO_COMPU_METHOD 1 0 0 100
+            /end MEASUREMENT
+            /begin GROUP grp ""
+            /end GROUP
+            /begin VARIANT_CODING
+            /end VARIANT_CODING
+        /end MODULE /end PROJECT"#;
+
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, true).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
+        super::import_new_module_items(&mut a2l_file_a.project.module[0], &mut a2l_file_b.project.module[0]);
+
+        assert_eq!(a2l_file_a.project.module[0].measurement.len(), 2);
+        // m1 was not replaced, because it already exists in A
+        let meas1 = a2l_file_a.project.module[0].measurement.get("m1").unwrap();
+        assert_eq!(meas1.datatype, DataType::Float32Ieee);
+        assert_eq!(meas1.long_identifier, "");
+        // m2 was imported
+        let meas2 = a2l_file_a.project.module[0].measurement.get("m2").unwrap();
+        assert_eq!(meas2.datatype, DataType::Ubyte);
+        assert_eq!(meas2.long_identifier, "");
+    }
+
+    #[test]
+    fn test_import_all() {
+        static FILE_A: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin MEASUREMENT m1 "" FLOAT32_IEEE NO_COMPU_METHOD 1 1.0 0 100
+            /end MEASUREMENT
+            /begin MEASUREMENT m3 "third" ULONG NO_COMPU_METHOD 1 1.0 0 10000
+            /end MEASUREMENT
+            /begin CHARACTERISTIC c1 "" VALUE 0 deposit_ident 0 NO_COMPU_METHOD 0.0 10.0
+            /end CHARACTERISTIC
+            /begin USER_RIGHTS user_a
+            /end USER_RIGHTS
+            /begin GROUP grp ""
+                /begin FUNCTION_LIST
+                /end FUNCTION_LIST
+                /begin REF_CHARACTERISTIC c1
+                /end REF_CHARACTERISTIC
+                /begin REF_MEASUREMENT m1 m3
+                /end REF_MEASUREMENT
+                /begin SUB_GROUP
+                /end SUB_GROUP
+            /end GROUP
+            /begin VARIANT_CODING
+            /end VARIANT_CODING
+        /end MODULE /end PROJECT"#;
+        static FILE_B: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin MEASUREMENT m1 "text" SWORD NO_COMPU_METHOD 1 2.0 0 200
+            /end MEASUREMENT
+            /begin MEASUREMENT m2 "second" UBYTE NO_COMPU_METHOD 1 0 0 100
+            /end MEASUREMENT
+            /begin CHARACTERISTIC c2 "" VALUE 0 deposit_ident 0 NO_COMPU_METHOD 0.0 10.0
+            /end CHARACTERISTIC
+            /begin USER_RIGHTS user_b
+            /end USER_RIGHTS
+            /begin GROUP grp ""
+                /begin FUNCTION_LIST
+                /end FUNCTION_LIST
+                /begin REF_CHARACTERISTIC c2
+                /end REF_CHARACTERISTIC
+                /begin REF_MEASUREMENT m1 m2
+                /end REF_MEASUREMENT
+                /begin SUB_GROUP
+                /end SUB_GROUP
+            /end GROUP
+            /begin VARIANT_CODING
+            /end VARIANT_CODING
+        /end MODULE /end PROJECT"#;
+
+        let (mut a2l_file_a, _) = load_from_string(FILE_A, None, true).unwrap();
+        let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
+        super::import_all_module_items(&mut a2l_file_a.project.module[0], &mut a2l_file_b.project.module[0]);
+
+        // m1 is taken from B, because import_all replaces existing items
+        // m2 is imported from B
+        // m3 is kept from A
+        assert_eq!(a2l_file_a.project.module[0].measurement.len(), 3);
+        let meas1 = a2l_file_a.project.module[0].measurement.get("m1").unwrap();
+        assert_eq!(meas1.datatype, DataType::Sword);
+        assert_eq!(meas1.long_identifier, "text");
+        let meas1_merge = a2l_file_a.project.module[0].measurement.get("m2").unwrap();
+        assert_eq!(meas1_merge.datatype, DataType::Ubyte);
+        assert_eq!(meas1_merge.long_identifier, "second");
+        let meas2 = a2l_file_a.project.module[0].measurement.get("m3").unwrap();
+        assert_eq!(meas2.datatype, DataType::Ulong);
+        assert_eq!(meas2.long_identifier, "third");
+
+        let group = a2l_file_a.project.module[0].group.get("grp").unwrap();
+        let ref_meas = group.ref_measurement.as_ref().unwrap();
+        assert_eq!(ref_meas.identifier_list.len(), 3);
+        assert!(ref_meas.identifier_list.contains(&"m1".to_string()));
+        assert!(ref_meas.identifier_list.contains(&"m2".to_string()));
+        assert!(ref_meas.identifier_list.contains(&"m3".to_string()));
     }
 }

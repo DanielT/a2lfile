@@ -74,6 +74,26 @@ impl Module {
         merge::merge_modules(self, other);
     }
 
+    #[cfg(feature = "merge")]
+    /// merge another module with this module
+    ///
+    /// Any elements in other that are not present in this module will be moved over. The other module will typically be empty at the end of the merge.
+    pub fn import_new(&mut self, other: &mut Module) {
+        use crate::merge;
+
+        merge::import_new_module_items(self, other);
+    }
+
+    #[cfg(feature = "merge")]
+    /// merge another module with this module
+    ///
+    /// Any elements in other that are not present in this module will be moved over. The other module will typically be empty at the end of the merge.
+    pub fn import_all(&mut self, other: &mut Module) {
+        use crate::merge;
+
+        merge::import_all_module_items(self, other);
+    }
+
     /// build a map of all objects in the module
     ///
     /// An object is one of the following:
@@ -84,7 +104,7 @@ impl Module {
     /// - MEASUREMENT
     ///
     /// The map is indexed by the object's name, and each value contains a reference to the actual object.
-    pub fn objects(&self) -> ItemList<AnyObject> {
+    pub fn objects(&self) -> ItemList<AnyObject<'_>> {
         let mut objects = self
             .axis_pts
             .iter()
@@ -105,7 +125,7 @@ impl Module {
     /// - COMPU_VTAB_RANGE
     ///
     /// The map is indexed by the compu tab's name, and each value contains a reference to the actual compu tab.
-    pub fn compu_tabs(&self) -> ItemList<AnyCompuTab> {
+    pub fn compu_tabs(&self) -> ItemList<AnyCompuTab<'_>> {
         let mut compu_tabs = self
             .compu_tab
             .iter()
@@ -130,7 +150,7 @@ impl Module {
     /// - TYPEDEF_STRUCTURE
     ///
     /// The map is indexed by the typedef's name, and each value contains a reference to the actual typedef.
-    pub fn typedefs(&self) -> ItemList<AnyTypedef> {
+    pub fn typedefs(&self) -> ItemList<AnyTypedef<'_>> {
         let mut typedefs = self
             .typedef_axis
             .iter()

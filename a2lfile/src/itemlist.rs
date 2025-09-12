@@ -40,8 +40,22 @@ impl<T: A2lObjectName> ItemList<T> {
         let index = self.items.len();
         let key = value.get_name().to_string();
         // the ItemList _shouldn't_ contain duplicate keys, but if it does, the map refers to the first one
+        // note: this behaviour exists to allow for invalid a2l files which violate the constraint
+        // of unique names
         self.map.entry(key).or_insert(index);
         self.items.push(value);
+    }
+
+    /// push an item into the ItemList, replacing any existing item with the same name
+    pub fn push_unique(&mut self, value: T) {
+        let key = value.get_name().to_string();
+        if let Some(&index) = self.map.get(&key) {
+            self.items[index] = value;
+        } else {
+            let index = self.items.len();
+            self.map.insert(key, index);
+            self.items.push(value);
+        }
     }
 
     /// pop an item from the ItemList
