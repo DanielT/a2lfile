@@ -6,24 +6,24 @@ use std::cmp::Ordering;
 
 pub(crate) fn sort_new_items(a2l_file: &mut A2lFile) {
     // if there is a newly inserted ASAP2_VERSION then reorder the top-level elements
-    if let Some(asap2version) = &mut a2l_file.asap2_version {
-        if asap2version.__block_info.uid == 0 {
-            asap2version.__block_info.uid = 1;
+    if let Some(asap2version) = &mut a2l_file.asap2_version
+        && asap2version.__block_info.uid == 0
+    {
+        asap2version.__block_info.uid = 1;
 
-            if let Some(a2ml_version) = &mut a2l_file.a2ml_version {
-                a2ml_version.__block_info.uid = 2;
-            }
-
-            a2l_file.project.__block_info.uid = 3;
+        if let Some(a2ml_version) = &mut a2l_file.a2ml_version {
+            a2ml_version.__block_info.uid = 2;
         }
+
+        a2l_file.project.__block_info.uid = 3;
     }
 
     // inside of PROJECT the HEADER is placed as the first element
-    if let Some(header) = &mut a2l_file.project.header {
-        if header.__block_info.uid == 0 {
-            header.__block_info.uid = 1;
-            header.__block_info.start_offset = 1;
-        }
+    if let Some(header) = &mut a2l_file.project.header
+        && header.__block_info.uid == 0
+    {
+        header.__block_info.uid = 1;
+        header.__block_info.start_offset = 1;
     }
 
     /* how it works:
@@ -69,16 +69,15 @@ pub(crate) fn sort_new_items(a2l_file: &mut A2lFile) {
             .iter()
             .map(|item| item.get_layout().uid)
             .max()
+            && maxid > 0
         {
-            if maxid > 0 {
-                module.if_data.iter_mut().for_each(|item| {
-                    if item.get_layout_mut().uid != 0 {
-                        item.get_layout_mut().uid *= 2;
-                    } else {
-                        item.get_layout_mut().uid = maxid * 2 + 1;
-                    }
-                });
-            }
+            module.if_data.iter_mut().for_each(|item| {
+                if item.get_layout_mut().uid != 0 {
+                    item.get_layout_mut().uid *= 2;
+                } else {
+                    item.get_layout_mut().uid = maxid * 2 + 1;
+                }
+            });
         }
 
         if let Some(maxid) = module
@@ -86,16 +85,15 @@ pub(crate) fn sort_new_items(a2l_file: &mut A2lFile) {
             .iter()
             .map(|item| item.get_layout().uid)
             .max()
+            && maxid > 0
         {
-            if maxid > 0 {
-                module.user_rights.iter_mut().for_each(|item| {
-                    if item.get_layout_mut().uid != 0 {
-                        item.get_layout_mut().uid *= 2;
-                    } else {
-                        item.get_layout_mut().uid = maxid * 2 + 1;
-                    }
-                });
-            }
+            module.user_rights.iter_mut().for_each(|item| {
+                if item.get_layout_mut().uid != 0 {
+                    item.get_layout_mut().uid *= 2;
+                } else {
+                    item.get_layout_mut().uid = maxid * 2 + 1;
+                }
+            });
         }
 
         sort_optional_item(&mut module.variant_coding, 0);

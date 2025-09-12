@@ -183,19 +183,19 @@ fn parse_a2ml_type_enum(
             let tag = get_string(enum_token_iter);
             let mut value = None;
             // each enum item may specify an associated value e.g. "= 123"
-            if let Some(TokenTree::Punct(p)) = enum_token_iter.peek() {
-                if p.as_char() == '=' {
-                    get_punct(enum_token_iter);
-                    value = Some(get_integer(enum_token_iter));
-                }
+            if let Some(TokenTree::Punct(p)) = enum_token_iter.peek()
+                && p.as_char() == '='
+            {
+                get_punct(enum_token_iter);
+                value = Some(get_integer(enum_token_iter));
             }
             // a comma is required after every enum value except the last one
             let mut lastvalue = true;
-            if let Some(TokenTree::Punct(p)) = enum_token_iter.peek() {
-                if p.as_char() == ',' {
-                    get_punct(enum_token_iter);
-                    lastvalue = false;
-                }
+            if let Some(TokenTree::Punct(p)) = enum_token_iter.peek()
+                && p.as_char() == ','
+            {
+                get_punct(enum_token_iter);
+                lastvalue = false;
             }
             let comment = parse_optional_comment(enum_token_iter);
             // if there was no comma, but there are stil items remaining, then that is a parsing error

@@ -19,25 +19,25 @@ pub(crate) fn parse_ifdata(
     let mut result = None;
     let mut valid = false;
     // is there any content in the IF_DATA?
-    if let Some(token) = parser.peek_token() {
-        if token.ttype != A2lTokenType::End {
-            // try parsing according to the spec provided by the user of the crate in the a2ml_specification! macro
-            let spec_list = std::mem::take(&mut parser.a2mlspec);
-            for a2mlspec in &spec_list {
-                if let Some(ifdata_items) = parse_ifdata_from_spec(parser, context, a2mlspec) {
-                    result = Some(ifdata_items);
-                    valid = true;
-                    break;
-                }
+    if let Some(token) = parser.peek_token()
+        && token.ttype != A2lTokenType::End
+    {
+        // try parsing according to the spec provided by the user of the crate in the a2ml_specification! macro
+        let spec_list = std::mem::take(&mut parser.a2mlspec);
+        for a2mlspec in &spec_list {
+            if let Some(ifdata_items) = parse_ifdata_from_spec(parser, context, a2mlspec) {
+                result = Some(ifdata_items);
+                valid = true;
+                break;
             }
-            parser.a2mlspec = spec_list;
+        }
+        parser.a2mlspec = spec_list;
 
-            if result.is_none() {
-                // this will succeed if the data format follows the basic a2l rules (e.g. matching /begin and /end)
-                // if it does not, a ParseErrror is generated
-                result = Some(parse_unknown_ifdata_start(parser, context)?);
-                valid = false;
-            }
+        if result.is_none() {
+            // this will succeed if the data format follows the basic a2l rules (e.g. matching /begin and /end)
+            // if it does not, a ParseErrror is generated
+            result = Some(parse_unknown_ifdata_start(parser, context)?);
+            valid = false;
         }
     }
 

@@ -377,7 +377,7 @@ fn tokenize_keyword_ident(input: &str, bytepos: &mut usize) -> TokenType {
     }
 }
 
-fn make_errtxt(pos: usize, input_bytes: &[u8]) -> Cow<str> {
+fn make_errtxt(pos: usize, input_bytes: &[u8]) -> Cow<'_, str> {
     let datalen = input_bytes.len();
     let endpos = if pos + 16 < datalen {
         pos + 16

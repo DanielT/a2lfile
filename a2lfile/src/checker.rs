@@ -597,40 +597,40 @@ fn check_compu_method(
 ) {
     let line = compu_method.get_line();
 
-    if let Some(compu_tab_ref) = &compu_method.compu_tab_ref {
-        if !compu_tabs.contains_key(&compu_tab_ref.conversion_table) {
-            log_msgs.push(A2lError::CrossReferenceError {
-                source_type: "COMPU_METHOD".to_string(),
-                source_name: compu_method.name.to_string(),
-                source_line: line,
-                target_type: "COMPU_TAB".to_string(),
-                target_name: compu_tab_ref.conversion_table.to_string(),
-            });
-        }
+    if let Some(compu_tab_ref) = &compu_method.compu_tab_ref
+        && !compu_tabs.contains_key(&compu_tab_ref.conversion_table)
+    {
+        log_msgs.push(A2lError::CrossReferenceError {
+            source_type: "COMPU_METHOD".to_string(),
+            source_name: compu_method.name.to_string(),
+            source_line: line,
+            target_type: "COMPU_TAB".to_string(),
+            target_name: compu_tab_ref.conversion_table.to_string(),
+        });
     }
 
-    if let Some(ref_unit) = &compu_method.ref_unit {
-        if !module.unit.contains_key(&ref_unit.unit) {
-            log_msgs.push(A2lError::CrossReferenceError {
-                source_type: "COMPU_METHOD".to_string(),
-                source_name: compu_method.name.to_string(),
-                source_line: line,
-                target_type: "UNIT".to_string(),
-                target_name: ref_unit.unit.to_string(),
-            });
-        }
+    if let Some(ref_unit) = &compu_method.ref_unit
+        && !module.unit.contains_key(&ref_unit.unit)
+    {
+        log_msgs.push(A2lError::CrossReferenceError {
+            source_type: "COMPU_METHOD".to_string(),
+            source_name: compu_method.name.to_string(),
+            source_line: line,
+            target_type: "UNIT".to_string(),
+            target_name: ref_unit.unit.to_string(),
+        });
     }
 
-    if let Some(status_string_ref) = &compu_method.status_string_ref {
-        if !compu_tabs.contains_key(&status_string_ref.conversion_table) {
-            log_msgs.push(A2lError::CrossReferenceError {
-                source_type: "COMPU_METHOD".to_string(),
-                source_name: compu_method.name.to_string(),
-                source_line: line,
-                target_type: "COMPU_VTAB".to_string(),
-                target_name: status_string_ref.conversion_table.to_string(),
-            });
-        }
+    if let Some(status_string_ref) = &compu_method.status_string_ref
+        && !compu_tabs.contains_key(&status_string_ref.conversion_table)
+    {
+        log_msgs.push(A2lError::CrossReferenceError {
+            source_type: "COMPU_METHOD".to_string(),
+            source_name: compu_method.name.to_string(),
+            source_line: line,
+            target_type: "COMPU_VTAB".to_string(),
+            target_name: status_string_ref.conversion_table.to_string(),
+        });
     }
 }
 

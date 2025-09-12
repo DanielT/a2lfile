@@ -140,16 +140,16 @@ fn remove_invalid_sub_element_refs(module: &mut Module) {
 
     for compu_method in &mut module.compu_method {
         // if a reference to a non-existent COMPU_TAB exists, delete it
-        if let Some(compu_tab_ref) = &mut compu_method.compu_tab_ref {
-            if !existing_compu_tabs.contains(&compu_tab_ref.conversion_table) {
-                compu_method.compu_tab_ref = None;
-            }
+        if let Some(compu_tab_ref) = &mut compu_method.compu_tab_ref
+            && !existing_compu_tabs.contains(&compu_tab_ref.conversion_table)
+        {
+            compu_method.compu_tab_ref = None;
         }
         // if a reference to a non-existent UNIT exists, delete it
-        if let Some(ref_unit) = &mut compu_method.ref_unit {
-            if !module.unit.contains_key(&ref_unit.unit) {
-                compu_method.ref_unit = None;
-            }
+        if let Some(ref_unit) = &mut compu_method.ref_unit
+            && !module.unit.contains_key(&ref_unit.unit)
+        {
+            compu_method.ref_unit = None;
         }
     }
 }

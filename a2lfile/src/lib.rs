@@ -404,14 +404,13 @@ impl A2lFile {
 
         // if the merge file uses a newer file version, then the file version is upgraded by the merge
         if let Some(file_ver) = &mut self.asap2_version {
-            if let Some(merge_ver) = &merge_file.asap2_version {
-                if file_ver.version_no < merge_ver.version_no
+            if let Some(merge_ver) = &merge_file.asap2_version
+                && (file_ver.version_no < merge_ver.version_no
                     || ((file_ver.version_no == merge_ver.version_no)
-                        && (file_ver.upgrade_no < merge_ver.upgrade_no))
-                {
-                    file_ver.version_no = merge_ver.version_no;
-                    file_ver.upgrade_no = merge_ver.upgrade_no;
-                }
+                        && (file_ver.upgrade_no < merge_ver.upgrade_no)))
+            {
+                file_ver.version_no = merge_ver.version_no;
+                file_ver.upgrade_no = merge_ver.upgrade_no;
             }
         } else {
             // ASAP2_VERSION is required in newer revisions of the standard, but old files might not have it

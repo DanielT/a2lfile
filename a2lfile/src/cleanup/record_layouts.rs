@@ -18,10 +18,10 @@ pub(crate) fn cleanup(module: &mut Module) {
         used_record_layouts.insert(typedef_axis.record_layout.clone());
     }
     // deprecated since 1.60: MOD_COMMON / S_REC_LAOUT can specify the standard RECORD_LAYOUT
-    if let Some(mod_common) = &module.mod_common {
-        if let Some(s_rec_layout) = &mod_common.s_rec_layout {
-            used_record_layouts.insert(s_rec_layout.name.clone());
-        }
+    if let Some(mod_common) = &module.mod_common
+        && let Some(s_rec_layout) = &mod_common.s_rec_layout
+    {
+        used_record_layouts.insert(s_rec_layout.name.clone());
     }
     // remove all unused RECORD_LAYOUTs
     module

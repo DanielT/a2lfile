@@ -57,11 +57,12 @@ pub(crate) fn merge_modules(orig_module: &mut Module, merge_module: &mut Module)
 // ------------------------ MOD_COMMON ------------------------
 
 fn merge_a2ml(orig_module: &mut Module, merge_module: &mut Module) {
-    if merge_module.a2ml.is_some() && orig_module.a2ml.is_none() {
-        if let Some(mut a2ml) = std::mem::take(&mut merge_module.a2ml) {
-            a2ml.reset_location();
-            orig_module.a2ml = Some(a2ml);
-        }
+    if merge_module.a2ml.is_some()
+        && orig_module.a2ml.is_none()
+        && let Some(mut a2ml) = std::mem::take(&mut merge_module.a2ml)
+    {
+        a2ml.reset_location();
+        orig_module.a2ml = Some(a2ml);
     }
 }
 
@@ -135,26 +136,26 @@ fn rename_memory_segment_refs(merge_module: &mut Module, rename_table: &HashMap<
     }
 
     for axis_pts in &mut merge_module.axis_pts {
-        if let Some(ref_memory_segment) = &mut axis_pts.ref_memory_segment {
-            if let Some(newname) = rename_table.get(&ref_memory_segment.name) {
-                ref_memory_segment.name = newname.to_owned();
-            }
+        if let Some(ref_memory_segment) = &mut axis_pts.ref_memory_segment
+            && let Some(newname) = rename_table.get(&ref_memory_segment.name)
+        {
+            ref_memory_segment.name = newname.to_owned();
         }
     }
 
     for characteristic in &mut merge_module.characteristic {
-        if let Some(ref_memory_segment) = &mut characteristic.ref_memory_segment {
-            if let Some(newname) = rename_table.get(&ref_memory_segment.name) {
-                ref_memory_segment.name = newname.to_owned();
-            }
+        if let Some(ref_memory_segment) = &mut characteristic.ref_memory_segment
+            && let Some(newname) = rename_table.get(&ref_memory_segment.name)
+        {
+            ref_memory_segment.name = newname.to_owned();
         }
     }
 
     for measurement in &mut merge_module.measurement {
-        if let Some(ref_memory_segment) = &mut measurement.ref_memory_segment {
-            if let Some(newname) = rename_table.get(&ref_memory_segment.name) {
-                ref_memory_segment.name = newname.to_owned();
-            }
+        if let Some(ref_memory_segment) = &mut measurement.ref_memory_segment
+            && let Some(newname) = rename_table.get(&ref_memory_segment.name)
+        {
+            ref_memory_segment.name = newname.to_owned();
         }
     }
 }
@@ -221,10 +222,10 @@ fn rename_unit_refs(merge_module: &mut Module, rename_table: &HashMap<String, St
     }
 
     for compu_method in &mut merge_module.compu_method {
-        if let Some(ref_unit) = &mut compu_method.ref_unit {
-            if let Some(newname) = rename_table.get(&ref_unit.unit) {
-                ref_unit.unit = newname.to_owned();
-            }
+        if let Some(ref_unit) = &mut compu_method.ref_unit
+            && let Some(newname) = rename_table.get(&ref_unit.unit)
+        {
+            ref_unit.unit = newname.to_owned();
         }
     }
 }
@@ -278,15 +279,15 @@ fn rename_compu_tabs(merge_module: &mut Module, rename_table: &HashMap<String, S
 
     // COMPU_METHODs can refer to any of COMPU_TAB / COMPU_VTAB / COMPU_VTAB_RANGE via a COMPU_TAB_REF
     for compu_method in &mut merge_module.compu_method {
-        if let Some(compu_tab_ref) = &mut compu_method.compu_tab_ref {
-            if let Some(newname) = rename_table.get(&compu_tab_ref.conversion_table) {
-                compu_tab_ref.conversion_table = newname.to_owned();
-            }
+        if let Some(compu_tab_ref) = &mut compu_method.compu_tab_ref
+            && let Some(newname) = rename_table.get(&compu_tab_ref.conversion_table)
+        {
+            compu_tab_ref.conversion_table = newname.to_owned();
         }
-        if let Some(status_string_ref) = &mut compu_method.status_string_ref {
-            if let Some(newname) = rename_table.get(&status_string_ref.conversion_table) {
-                status_string_ref.conversion_table = newname.to_owned();
-            }
+        if let Some(status_string_ref) = &mut compu_method.status_string_ref
+            && let Some(newname) = rename_table.get(&status_string_ref.conversion_table)
+        {
+            status_string_ref.conversion_table = newname.to_owned();
         }
     }
 }
@@ -412,23 +413,23 @@ fn rename_record_layouts(merge_module: &mut Module, rename_table: &HashMap<Strin
         }
     }
 
-    if let Some(mod_common) = &mut merge_module.mod_common {
-        if let Some(s_rec_layout) = &mut mod_common.s_rec_layout {
-            if let Some(newname) = rename_table.get(&s_rec_layout.name) {
-                s_rec_layout.name = newname.to_owned();
-            }
-        }
+    if let Some(mod_common) = &mut merge_module.mod_common
+        && let Some(s_rec_layout) = &mut mod_common.s_rec_layout
+        && let Some(newname) = rename_table.get(&s_rec_layout.name)
+    {
+        s_rec_layout.name = newname.to_owned();
     }
 }
 
 // ------------------------ MOD_COMMON ------------------------
 
 fn merge_mod_common(orig_module: &mut Module, merge_module: &mut Module) {
-    if merge_module.mod_common.is_some() && orig_module.mod_common.is_none() {
-        if let Some(mut mod_common) = std::mem::take(&mut merge_module.mod_common) {
-            mod_common.reset_location();
-            orig_module.mod_common = Some(mod_common);
-        }
+    if merge_module.mod_common.is_some()
+        && orig_module.mod_common.is_none()
+        && let Some(mut mod_common) = std::mem::take(&mut merge_module.mod_common)
+    {
+        mod_common.reset_location();
+        orig_module.mod_common = Some(mod_common);
     }
 }
 
@@ -581,16 +582,16 @@ fn rename_objects(merge_module: &mut Module, rename_table: &HashMap<String, Stri
                 axis_descr.input_quantity = newname.to_owned();
             }
             // MODULE.CHARACTERISTIC.AXIS_DESCR.AXIS_PTS_REF
-            if let Some(axis_pts_ref) = &mut axis_descr.axis_pts_ref {
-                if let Some(newname) = rename_table.get(&axis_pts_ref.axis_points) {
-                    axis_pts_ref.axis_points = newname.to_owned();
-                }
+            if let Some(axis_pts_ref) = &mut axis_descr.axis_pts_ref
+                && let Some(newname) = rename_table.get(&axis_pts_ref.axis_points)
+            {
+                axis_pts_ref.axis_points = newname.to_owned();
             }
             // MODULE.CHARACTERISTIC.AXIS_DESCR.CURVE_AXIS_REF
-            if let Some(curve_axis_ref) = &mut axis_descr.curve_axis_ref {
-                if let Some(newname) = rename_table.get(&curve_axis_ref.curve_axis) {
-                    curve_axis_ref.curve_axis = newname.to_owned();
-                }
+            if let Some(curve_axis_ref) = &mut axis_descr.curve_axis_ref
+                && let Some(newname) = rename_table.get(&curve_axis_ref.curve_axis)
+            {
+                curve_axis_ref.curve_axis = newname.to_owned();
             }
         }
         // MODULE.CHARACTERISTIC.DEPENDENT_CHARACTERISTIC
@@ -610,16 +611,16 @@ fn rename_objects(merge_module: &mut Module, rename_table: &HashMap<String, Stri
                 axis_descr.input_quantity = newname.to_owned();
             }
             // MODULE.TYPEDEF_CHARACTERISTIC.AXIS_DESCR.AXIS_PTS_REF
-            if let Some(axis_pts_ref) = &mut axis_descr.axis_pts_ref {
-                if let Some(newname) = rename_table.get(&axis_pts_ref.axis_points) {
-                    axis_pts_ref.axis_points = newname.to_owned();
-                }
+            if let Some(axis_pts_ref) = &mut axis_descr.axis_pts_ref
+                && let Some(newname) = rename_table.get(&axis_pts_ref.axis_points)
+            {
+                axis_pts_ref.axis_points = newname.to_owned();
             }
             // MODULE.TYPEDEF_CHARACTERISTIC.AXIS_DESCR.CURVE_AXIS_REF
-            if let Some(curve_axis_ref) = &mut axis_descr.curve_axis_ref {
-                if let Some(newname) = rename_table.get(&curve_axis_ref.curve_axis) {
-                    curve_axis_ref.curve_axis = newname.to_owned();
-                }
+            if let Some(curve_axis_ref) = &mut axis_descr.curve_axis_ref
+                && let Some(newname) = rename_table.get(&curve_axis_ref.curve_axis)
+            {
+                curve_axis_ref.curve_axis = newname.to_owned();
             }
         }
     }
@@ -685,18 +686,17 @@ fn rename_objects(merge_module: &mut Module, rename_table: &HashMap<String, Stri
         // MODULE.VARIANT_CODING.VAR_CRITERION
         for var_criterion in &mut variant_coding.var_criterion {
             // MODULE.VARIANT_CODING.VAR_CRITERION.VAR_MEASUREMENT
-            if let Some(var_measurement) = &mut var_criterion.var_measurement {
-                if let Some(newname) = rename_table.get(&var_measurement.name) {
-                    var_measurement.name = newname.to_owned();
-                }
+            if let Some(var_measurement) = &mut var_criterion.var_measurement
+                && let Some(newname) = rename_table.get(&var_measurement.name)
+            {
+                var_measurement.name = newname.to_owned();
             }
             // MODULE.VARIANT_CODING.VAR_CRITERION.VAR_SELECTION
             if let Some(var_selection_characteristic) =
                 &mut var_criterion.var_selection_characteristic
+                && let Some(newname) = rename_table.get(&var_selection_characteristic.name)
             {
-                if let Some(newname) = rename_table.get(&var_selection_characteristic.name) {
-                    var_selection_characteristic.name = newname.to_owned();
-                }
+                var_selection_characteristic.name = newname.to_owned();
             }
         }
         // MODULE.VARIANT_CODING.VAR_CHARACTERISTIC
@@ -2802,7 +2802,10 @@ mod test {
 
         let (mut a2l_file_a, _) = load_from_string(FILE_A, None, true).unwrap();
         let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
-        super::import_new_module_items(&mut a2l_file_a.project.module[0], &mut a2l_file_b.project.module[0]);
+        super::import_new_module_items(
+            &mut a2l_file_a.project.module[0],
+            &mut a2l_file_b.project.module[0],
+        );
 
         assert_eq!(a2l_file_a.project.module[0].measurement.len(), 2);
         // m1 was not replaced, because it already exists in A
@@ -2864,7 +2867,10 @@ mod test {
 
         let (mut a2l_file_a, _) = load_from_string(FILE_A, None, true).unwrap();
         let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
-        super::import_all_module_items(&mut a2l_file_a.project.module[0], &mut a2l_file_b.project.module[0]);
+        super::import_all_module_items(
+            &mut a2l_file_a.project.module[0],
+            &mut a2l_file_b.project.module[0],
+        );
 
         // m1 is taken from B, because import_all replaces existing items
         // m2 is imported from B

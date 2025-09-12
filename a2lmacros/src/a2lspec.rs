@@ -195,25 +195,25 @@ fn parse_blockitem_single(block_token_iter: &mut TokenStreamIter) -> DataItem {
         comment: None,
     };
 
-    if let Some(TokenTree::Group(g)) = block_token_iter.peek() {
-        if g.delimiter() == Delimiter::Bracket {
-            let arrspec_tokens = get_group(block_token_iter, Delimiter::Bracket);
-            if let Some(TokenTree::Literal(lit)) = arrspec_tokens.into_iter().next() {
-                let arraydim = match lit.to_string().parse() {
-                    Ok(val) => val,
-                    Err(error) => panic!("{lit} is not a valid array index: {error}"),
-                };
+    if let Some(TokenTree::Group(g)) = block_token_iter.peek()
+        && g.delimiter() == Delimiter::Bracket
+    {
+        let arrspec_tokens = get_group(block_token_iter, Delimiter::Bracket);
+        if let Some(TokenTree::Literal(lit)) = arrspec_tokens.into_iter().next() {
+            let arraydim = match lit.to_string().parse() {
+                Ok(val) => val,
+                Err(error) => panic!("{lit} is not a valid array index: {error}"),
+            };
 
-                dataitem = DataItem {
-                    typename: None,
-                    basetype: BaseType::Array {
-                        arraytype: Box::new(dataitem),
-                        dim: arraydim,
-                    },
-                    varname: None,
-                    comment: None,
-                };
-            }
+            dataitem = DataItem {
+                typename: None,
+                basetype: BaseType::Array {
+                    arraytype: Box::new(dataitem),
+                    dim: arraydim,
+                },
+                varname: None,
+                comment: None,
+            };
         }
     }
 
@@ -321,29 +321,29 @@ fn parse_optitem(block_token_iter: &mut TokenStreamIter) -> Vec<TaggedItem> {
 fn get_optional_version_range(
     token_iter: &mut TokenStreamIter,
 ) -> (Option<A2lVersion>, Option<A2lVersion>) {
-    if let Some(TokenTree::Group(g)) = token_iter.peek() {
-        if g.delimiter() == Delimiter::Parenthesis {
-            let range_tokens = get_group(token_iter, Delimiter::Parenthesis);
-            let mut range_token_iter = range_tokens.into_iter().peekable();
+    if let Some(TokenTree::Group(g)) = token_iter.peek()
+        && g.delimiter() == Delimiter::Parenthesis
+    {
+        let range_tokens = get_group(token_iter, Delimiter::Parenthesis);
+        let mut range_token_iter = range_tokens.into_iter().peekable();
 
-            // get the minimum version
-            let mut min_ver = None;
-            if let Some(TokenTree::Literal(_)) = range_token_iter.peek() {
-                min_ver = Some(get_version(&mut range_token_iter));
-            }
-
-            // min and max versions are separated by ".."
-            require_punct(&mut range_token_iter, '.');
-            require_punct(&mut range_token_iter, '.');
-
-            // get the maximum version
-            let mut max_ver = None;
-            if let Some(TokenTree::Literal(_)) = range_token_iter.peek() {
-                max_ver = Some(get_version(&mut range_token_iter));
-            }
-
-            return (min_ver, max_ver);
+        // get the minimum version
+        let mut min_ver = None;
+        if let Some(TokenTree::Literal(_)) = range_token_iter.peek() {
+            min_ver = Some(get_version(&mut range_token_iter));
         }
+
+        // min and max versions are separated by ".."
+        require_punct(&mut range_token_iter, '.');
+        require_punct(&mut range_token_iter, '.');
+
+        // get the maximum version
+        let mut max_ver = None;
+        if let Some(TokenTree::Literal(_)) = range_token_iter.peek() {
+            max_ver = Some(get_version(&mut range_token_iter));
+        }
+
+        return (min_ver, max_ver);
     }
 
     (None, None)
@@ -466,13 +466,13 @@ fn build_typelist(structs: Vec<StructInfo>, enums: Vec<DataItem>) -> HashMap<Str
             unreachable!();
         };
 
-        if let Some(lastitem) = structitems.last() {
-            if let BaseType::TaggedStruct { tsitems } = &lastitem.basetype {
-                for tgitem in tsitems {
-                    if tgitem.repeat {
-                        let name = ucname_to_typename(&tgitem.tag);
-                        used_in_list.insert(name, true);
-                    }
+        if let Some(lastitem) = structitems.last()
+            && let BaseType::TaggedStruct { tsitems } = &lastitem.basetype
+        {
+            for tgitem in tsitems {
+                if tgitem.repeat {
+                    let name = ucname_to_typename(&tgitem.tag);
+                    used_in_list.insert(name, true);
                 }
             }
         }
