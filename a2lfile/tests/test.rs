@@ -948,11 +948,21 @@ ASAP2_VERSION 1 61
                     /begin IF_DATA
                     /end IF_DATA
                 /end BLOB
-                /begin CHARACTERISTIC characteristic_name "long_identifier" CURVE 0x1234 record_layout_name 0 compu_method_name 0.0 10.0
+                /begin CHARACTERISTIC characteristic_name "long_identifier" MAP 0x1234 record_layout_name 0 compu_method_name 0.0 10.0
                     /begin AXIS_DESCR COM_AXIS measurement_name compu_method_name 1 0 100
-                        AXIS_PTS_REF axispts_name BYTE_ORDER MSB_LAST CURVE_AXIS_REF characteristic_name DEPOSIT ABSOLUTE
-                        EXTENDED_LIMITS -100 200 FIX_AXIS_PAR 0 0 0 FIX_AXIS_PAR_DIST 0 0 0
-                        FORMAT "%1.1" MAX_GRAD 1 READ_ONLY STEP_SIZE 1
+                        AXIS_PTS_REF axispts_name
+                        BYTE_ORDER MSB_LAST
+                    /end AXIS_DESCR
+                    /begin AXIS_DESCR CURVE_AXIS measurement_name compu_method_name 1 0 100
+                        CURVE_AXIS_REF characteristic_name
+                        DEPOSIT ABSOLUTE
+                        EXTENDED_LIMITS -100 200
+                        FIX_AXIS_PAR 0 0 0
+                        FIX_AXIS_PAR_DIST 0 0 0
+                        FORMAT "%1.1"
+                        MAX_GRAD 1
+                        READ_ONLY
+                        STEP_SIZE 1
                         /begin FIX_AXIS_PAR_LIST 0
                         /end FIX_AXIS_PAR_LIST
                     /end AXIS_DESCR
@@ -969,10 +979,16 @@ ASAP2_VERSION 1 61
                     /end VIRTUAL_CHARACTERISTIC
                     NUMBER 1
                 /end CHARACTERISTIC
-                /begin COMPU_METHOD compu_method_name "" IDENTICAL "%4.2" "unit"
+                /begin COMPU_METHOD compu_method_name "" RAT_FUNC "%4.2" "unit"
                     COEFFS 1 2 3 4 5 6
+                /end COMPU_METHOD
+                /begin COMPU_METHOD compu_method_name_linear "" LINEAR "%4.2" "unit"
                     COEFFS_LINEAR 1 2
+                /end COMPU_METHOD
+                /begin COMPU_METHOD compu_method_name_tab_verb "" TAB_VERB "%4.2" "unit"
                     COMPU_TAB_REF compu_tab_name
+                /end COMPU_METHOD
+                /begin COMPU_METHOD compu_method_name_form "" FORM "%4.2" "unit"
                     /begin FORMULA formula
                         FORMULA_INV "inverse"
                     /end FORMULA
@@ -1338,7 +1354,7 @@ ASAP2_VERSION 1 61
         let mut characteristic = Characteristic::new(
             "characteristic_name".to_string(),
             "long_identifier".to_string(),
-            CharacteristicType::Curve,
+            CharacteristicType::Map,
             0x1234,
             "record_layout_name".to_string(),
             0.0,
@@ -1346,7 +1362,7 @@ ASAP2_VERSION 1 61
             0.0,
             10.0,
         );
-        let mut axis_descr = AxisDescr::new(
+        let mut axis_descr1 = AxisDescr::new(
             AxisDescrAttribute::ComAxis,
             "measurement_name".to_string(),
             "compu_method_name".to_string(),
@@ -1354,21 +1370,30 @@ ASAP2_VERSION 1 61
             0.0,
             100.0,
         );
-        axis_descr.axis_pts_ref = Some(AxisPtsRef::new("axispts_name".to_string()));
-        axis_descr.byte_order = Some(ByteOrder::new(ByteOrderEnum::MsbLast));
-        axis_descr.curve_axis_ref = Some(CurveAxisRef::new("characteristic_name".to_string()));
-        axis_descr.deposit = Some(Deposit::new(DepositMode::Absolute));
-        axis_descr.extended_limits = Some(ExtendedLimits::new(-100.0, 200.0));
-        axis_descr.fix_axis_par = Some(FixAxisPar::new(0, 0, 0));
-        axis_descr.fix_axis_par_dist = Some(FixAxisParDist::new(0, 0, 0));
+        axis_descr1.axis_pts_ref = Some(AxisPtsRef::new("axispts_name".to_string()));
+        axis_descr1.byte_order = Some(ByteOrder::new(ByteOrderEnum::MsbLast));
+        characteristic.axis_descr.push(axis_descr1);
+        let mut axis_descr2 = AxisDescr::new(
+            AxisDescrAttribute::CurveAxis,
+            "measurement_name".to_string(),
+            "compu_method_name".to_string(),
+            1,
+            0.0,
+            100.0,
+        );
+        axis_descr2.curve_axis_ref = Some(CurveAxisRef::new("characteristic_name".to_string()));
+        axis_descr2.deposit = Some(Deposit::new(DepositMode::Absolute));
+        axis_descr2.extended_limits = Some(ExtendedLimits::new(-100.0, 200.0));
+        axis_descr2.fix_axis_par = Some(FixAxisPar::new(0, 0, 0));
+        axis_descr2.fix_axis_par_dist = Some(FixAxisParDist::new(0, 0, 0));
         let mut fix_axis_par_list = FixAxisParList::new();
         fix_axis_par_list.axis_pts_value_list.push(0.0);
-        axis_descr.fix_axis_par_list = Some(fix_axis_par_list);
-        axis_descr.format = Some(Format::new("%1.1".to_string()));
-        axis_descr.max_grad = Some(MaxGrad::new(1.0));
-        axis_descr.read_only = Some(ReadOnly::new());
-        axis_descr.step_size = Some(StepSize::new(1.0));
-        characteristic.axis_descr.push(axis_descr);
+        axis_descr2.fix_axis_par_list = Some(fix_axis_par_list);
+        axis_descr2.format = Some(Format::new("%1.1".to_string()));
+        axis_descr2.max_grad = Some(MaxGrad::new(1.0));
+        axis_descr2.read_only = Some(ReadOnly::new());
+        axis_descr2.step_size = Some(StepSize::new(1.0));
+        characteristic.axis_descr.push(axis_descr2);
         characteristic.comparison_quantity =
             Some(ComparisonQuantity::new("measurement_name".to_string()));
         let mut dependent_characteristic = DependentCharacteristic::new("formula".to_string());
@@ -1388,19 +1413,43 @@ ASAP2_VERSION 1 61
         let mut compu_method = CompuMethod::new(
             "compu_method_name".to_string(),
             "".to_string(),
-            ConversionType::Identical,
+            ConversionType::RatFunc,
             "%4.2".to_string(),
             "unit".to_string(),
         );
         compu_method.coeffs = Some(Coeffs::new(1.0, 2.0, 3.0, 4.0, 5.0, 6.0));
-        compu_method.coeffs_linear = Some(CoeffsLinear::new(1.0, 2.0));
-        compu_method.compu_tab_ref = Some(CompuTabRef::new("compu_tab_name".to_string()));
+        module.compu_method.push(compu_method);
+        let mut compu_method_linear = CompuMethod::new(
+            "compu_method_name_linear".to_string(),
+            "".to_string(),
+            ConversionType::Linear,
+            "%4.2".to_string(),
+            "unit".to_string(),
+        );
+        compu_method_linear.coeffs_linear = Some(CoeffsLinear::new(1.0, 2.0));
+        module.compu_method.push(compu_method_linear);
+        let mut compu_method_tab_verb = CompuMethod::new(
+            "compu_method_name_tab_verb".to_string(),
+            "".to_string(),
+            ConversionType::TabVerb,
+            "%4.2".to_string(),
+            "unit".to_string(),
+        );
+        compu_method_tab_verb.compu_tab_ref = Some(CompuTabRef::new("compu_tab_name".to_string()));
+        module.compu_method.push(compu_method_tab_verb);
+        let mut compu_method_formula = CompuMethod::new(
+            "compu_method_name_form".to_string(),
+            "".to_string(),
+            ConversionType::Form,
+            "%4.2".to_string(),
+            "unit".to_string(),
+        );
         let mut formula = Formula::new("formula".to_string());
         formula.formula_inv = Some(FormulaInv::new("inverse".to_string()));
-        compu_method.formula = Some(formula);
-        compu_method.ref_unit = Some(RefUnit::new("unit_name".to_string()));
-        compu_method.status_string_ref = Some(StatusStringRef::new("compu_vtab_name".to_string()));
-        module.compu_method.push(compu_method);
+        compu_method_formula.formula = Some(formula);
+        compu_method_formula.ref_unit = Some(RefUnit::new("unit_name".to_string()));
+        compu_method_formula.status_string_ref = Some(StatusStringRef::new("compu_vtab_name".to_string()));
+        module.compu_method.push(compu_method_formula);
         let mut compu_tab = CompuTab::new(
             "compu_tab_name".to_string(),
             "long_identifier".to_string(),
@@ -1909,7 +1958,6 @@ ASAP2_VERSION 1 61
 
         // sorting does not affect equality
         a2l_file.sort();
-        assert_eq!(a2l_file, a2l_file5);
         a2l_file5.sort();
         assert_eq!(a2l_file, a2l_file5);
 

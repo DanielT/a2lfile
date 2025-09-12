@@ -154,6 +154,26 @@ fn check_axis_descr(
         // other combinations are valid
         _ => {}
     }
+
+    // CURVE_AXIS_REF is only allowed for AXIS_DESCR of type CURVE_AXIS
+    if axis_descr.attribute != AxisDescrAttribute::CurveAxis && axis_descr.curve_axis_ref.is_some()
+    {
+        log_msgs.push(A2lError::ContentError {
+            item_name: parent_name.to_string(),
+            blockname: format!("AXIS_DESCR[{idx}] of CHARACTERISTIC"),
+            line,
+            description: format!("Only AXIS_DESCR of type CURVE_AXIS can have a CURVE_AXIS_REF."),
+        });
+    } else if axis_descr.attribute == AxisDescrAttribute::CurveAxis
+        && axis_descr.curve_axis_ref.is_none()
+    {
+        log_msgs.push(A2lError::ContentError {
+            item_name: parent_name.to_string(),
+            blockname: format!("AXIS_DESCR[{idx}] of CHARACTERISTIC"),
+            line,
+            description: format!("AXIS_DESCR of type CURVE_AXIS must have a CURVE_AXIS_REF."),
+        });
+    }
 }
 
 // check axis_pts_ref and curve_axis_ref, which both have the special feature
@@ -484,7 +504,7 @@ fn check_characteristic_common(
         );
     }
 
-    let expected_axis_count = match characteristic.characteristic_type() {
+    let mut expected_axis_count = match characteristic.characteristic_type() {
         CharacteristicType::Value | CharacteristicType::ValBlk | CharacteristicType::Ascii => 0,
         CharacteristicType::Curve => 1,
         CharacteristicType::Map => 2,
@@ -492,6 +512,12 @@ fn check_characteristic_common(
         CharacteristicType::Cube4 => 4,
         CharacteristicType::Cube5 => 5,
     };
+    // If the characteristic is a CUBOID and has a MAP_LIST, then it only has one axis, while the referenced MAPs each provide the other two axes.
+    if characteristic.characteristic_type() == CharacteristicType::Cuboid {
+        if characteristic.map_list().is_some() {
+            expected_axis_count = 1; // MAP_LIST defines the x and y axis, only the z axis remains
+        }
+    }
     if characteristic.axis_descr().len() != expected_axis_count {
         log_msgs.push(A2lError::ContentError {
             item_name: name.to_string(),
@@ -596,6 +622,100 @@ fn check_compu_method(
     log_msgs: &mut Vec<A2lError>,
 ) {
     let line = compu_method.get_line();
+    let uses_table = compu_method.conversion_type == ConversionType::TabIntp
+        || compu_method.conversion_type == ConversionType::TabNointp
+        || compu_method.conversion_type == ConversionType::TabVerb;
+
+    // a COMPU_METHOD with conversion type TAB_* must have a COMPU_TAB_REF, others must not have it
+    if uses_table && compu_method.compu_tab_ref.is_none() {
+        log_msgs.push(A2lError::ContentError {
+            item_name: compu_method.name.to_string(),
+            blockname: "COMPU_METHOD".to_string(),
+            line,
+            description: format!(
+                "COMPU_METHOD with conversion type {} must have a COMPU_TAB_REF.",
+                compu_method.conversion_type
+            ),
+        });
+    } else if !uses_table && compu_method.compu_tab_ref.is_some() {
+        log_msgs.push(A2lError::ContentError {
+            item_name: compu_method.name.to_string(),
+            blockname: "COMPU_METHOD".to_string(),
+            line,
+            description: format!(
+                "COMPU_METHOD with conversion type {} must not have a COMPU_TAB_REF.",
+                compu_method.conversion_type
+            ),
+        });
+    }
+
+    // a COMPU_METHOD with conversion type LINEAR must have COEFFS_LINEAR
+    if compu_method.conversion_type == ConversionType::Linear
+        && compu_method.coeffs_linear.is_none()
+    {
+        log_msgs.push(A2lError::ContentError {
+            item_name: compu_method.name.to_string(),
+            blockname: "COMPU_METHOD".to_string(),
+            line,
+            description: "COMPU_METHOD with conversion type LINEAR must have COEFFS_LINEAR."
+                .to_string(),
+        });
+    } else if compu_method.conversion_type != ConversionType::Linear
+        && compu_method.coeffs_linear.is_some()
+    {
+        log_msgs.push(A2lError::ContentError {
+            item_name: compu_method.name.to_string(),
+            blockname: "COMPU_METHOD".to_string(),
+            line,
+            description: format!(
+                "COMPU_METHOD with conversion type {} must not have COEFFS_LINEAR.",
+                compu_method.conversion_type
+            ),
+        });
+    }
+
+    // a COMPU_METHOD with conversion type RATIONAL must have COEFFS
+    if compu_method.conversion_type == ConversionType::RatFunc && compu_method.coeffs.is_none() {
+        log_msgs.push(A2lError::ContentError {
+            item_name: compu_method.name.to_string(),
+            blockname: "COMPU_METHOD".to_string(),
+            line,
+            description: "COMPU_METHOD with conversion type RATIONAL must have COEFFS.".to_string(),
+        });
+    } else if compu_method.conversion_type != ConversionType::RatFunc
+        && compu_method.coeffs.is_some()
+    {
+        log_msgs.push(A2lError::ContentError {
+            item_name: compu_method.name.to_string(),
+            blockname: "COMPU_METHOD".to_string(),
+            line,
+            description: format!(
+                "COMPU_METHOD with conversion type {} must not have COEFFS.",
+                compu_method.conversion_type
+            ),
+        });
+    }
+
+    // a COMPU_METHOD with conversion type FORM must have FORMULA
+    if compu_method.conversion_type == ConversionType::Form && compu_method.formula.is_none() {
+        log_msgs.push(A2lError::ContentError {
+            item_name: compu_method.name.to_string(),
+            blockname: "COMPU_METHOD".to_string(),
+            line,
+            description: "COMPU_METHOD with conversion type FORM must have FORMULA.".to_string(),
+        });
+    } else if compu_method.conversion_type != ConversionType::Form && compu_method.formula.is_some()
+    {
+        log_msgs.push(A2lError::ContentError {
+            item_name: compu_method.name.to_string(),
+            blockname: "COMPU_METHOD".to_string(),
+            line,
+            description: format!(
+                "COMPU_METHOD with conversion type {} must not have FORMULA.",
+                compu_method.conversion_type
+            ),
+        });
+    }
 
     if let Some(compu_tab_ref) = &compu_method.compu_tab_ref
         && !compu_tabs.contains_key(&compu_tab_ref.conversion_table)
@@ -884,7 +1004,7 @@ fn check_transformer(
         let line = transformer_in_objects.get_line();
         check_reference_list(
             "TRANSFORMER_IN_OBJECTS",
-            "CHARACTERISTIC",
+            "CHARACTERISTIC / BLOB / INSTANCE",
             line,
             &transformer_in_objects.identifier_list,
             objects,
@@ -896,7 +1016,7 @@ fn check_transformer(
         let line = transformer_out_objects.get_line();
         check_reference_list(
             "TRANSFORMER_OUT_OBJECTS",
-            "CHARACTERISTIC",
+            "CHARACTERISTIC / BLOB / INSTANCE",
             line,
             &transformer_out_objects.identifier_list,
             objects,
@@ -1194,6 +1314,13 @@ impl CharacteristicWrapper<'_> {
         }
     }
 
+    fn map_list(&self) -> Option<&MapList> {
+        match self {
+            CharacteristicWrapper::Characteristic(c) => c.map_list.as_ref(),
+            CharacteristicWrapper::TypedefCharacteristic(_) => None,
+        }
+    }
+
     fn conversion(&self) -> &str {
         match self {
             CharacteristicWrapper::Characteristic(c) => &c.conversion,
@@ -1257,8 +1384,8 @@ mod test {
         let (a2lfile, _) = load_from_string(A2L_TEXT, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
 
-        // invalid input quantity, conversion, axis points ref, and curve axis ref
-        assert_eq!(log_msgs.len(), 4);
+        // invalid input quantity, conversion, axis points ref, and curve axis ref. Additionally, CURVE_AXIS_REF is not allowed for COM_AXIS
+        assert_eq!(log_msgs.len(), 5);
 
         // error: COM_AXIS should have an AXIS_PTS_REF
         static A2L_TEXT2: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
@@ -1498,7 +1625,7 @@ mod test {
     #[test]
     fn check_compu_method() {
         static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
-            /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit"
+            /begin COMPU_METHOD cm "" TAB_VERB "%4.2" "unit"
                 COMPU_TAB_REF compu_tab_ref
                 REF_UNIT ref_unit
                 STATUS_STRING_REF status_string_ref
@@ -1874,9 +2001,11 @@ mod test {
         static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
             /begin TYPEDEF_AXIS lookup_axis_type "LookUpTable axis" NO_INPUT_QUANTITY F32 0 NO_COMPU_METHOD 16 -1E32 1E32
             /end TYPEDEF_AXIS
-            /begin TYPEDEF_CHARACTERISTIC lookup_values_type "LookUpTable values" CURVE F32 0 NO_COMPU_METHOD -1E32 1E32
+            /begin TYPEDEF_CHARACTERISTIC lookup_values_type "LookUpTable values" MAP F32 0 NO_COMPU_METHOD -1E32 1E32
                 /begin AXIS_DESCR COM_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD 16 0.0 0.0
                     AXIS_PTS_REF THIS.lookup_axis
+                /end AXIS_DESCR
+                /begin AXIS_DESCR CURVE_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD 16 0.0 0.0
                     CURVE_AXIS_REF THIS.lookup_axis
                 /end AXIS_DESCR
             /end TYPEDEF_CHARACTERISTIC
@@ -1911,6 +2040,6 @@ mod test {
         /end MODULE /end PROJECT"#;
         let (a2lfile, _) = load_from_string(A2L_TEXT2, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
-        assert_eq!(log_msgs.len(), 2);
+        assert_eq!(log_msgs.len(), 3);
     }
 }
