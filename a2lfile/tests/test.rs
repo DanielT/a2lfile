@@ -1448,7 +1448,8 @@ ASAP2_VERSION 1 61
         formula.formula_inv = Some(FormulaInv::new("inverse".to_string()));
         compu_method_formula.formula = Some(formula);
         compu_method_formula.ref_unit = Some(RefUnit::new("unit_name".to_string()));
-        compu_method_formula.status_string_ref = Some(StatusStringRef::new("compu_vtab_name".to_string()));
+        compu_method_formula.status_string_ref =
+            Some(StatusStringRef::new("compu_vtab_name".to_string()));
         module.compu_method.push(compu_method_formula);
         let mut compu_tab = CompuTab::new(
             "compu_tab_name".to_string(),

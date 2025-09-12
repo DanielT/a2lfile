@@ -1,5 +1,16 @@
 # Changelog
 
+## Version 3.1.0
+
+### Features
+
+- Add additional ways of merging a2l modules
+  - Module::import_new(): add new items from a module, discarding any with conflicting names
+  - Module::import_all(): import allitems from a module, overwriting any existing ones with conflicting names
+- Add additional consistency checks
+  - COMPU_METHOD must have the correct sub elements depending on the type, e.g. COMPU_TAB_REF for type TAB_VERB
+  - AXIS_DESCR sub elements are also different for each type
+
 ## Version 3.0.0
 
 ### Features
