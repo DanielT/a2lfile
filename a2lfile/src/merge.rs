@@ -1049,6 +1049,9 @@ fn make_unique_name<T: A2lObjectName>(
 ///
 /// For groups only, the content is merged, so that subgroups, functions, and references are combined.
 pub(crate) fn import_new_module_items(orig: &mut Module, merge: &mut Module) {
+    if orig.a2ml.is_none() {
+        orig.a2ml = merge.a2ml.take();
+    }
     if orig.mod_par.is_none() {
         orig.mod_par = merge.mod_par.take();
     }
@@ -1209,6 +1212,9 @@ fn merge_lists<T: PartialEq>(existing: &mut Vec<T>, merge: &mut Vec<T>) {
 ///
 /// For groups only, the content is merged, so that subgroups, functions, and references are combined.
 pub(crate) fn import_all_module_items(orig: &mut Module, merge: &mut Module) {
+    if merge.a2ml.is_some() {
+        orig.a2ml = merge.a2ml.take();
+    }
     if merge.mod_par.is_some() {
         orig.mod_par = merge.mod_par.take();
     }
