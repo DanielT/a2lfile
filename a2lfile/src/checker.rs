@@ -162,7 +162,8 @@ fn check_axis_descr(
             item_name: parent_name.to_string(),
             blockname: format!("AXIS_DESCR[{idx}] of CHARACTERISTIC"),
             line,
-            description: "Only AXIS_DESCR of type CURVE_AXIS can have a CURVE_AXIS_REF.".to_string(),
+            description: "Only AXIS_DESCR of type CURVE_AXIS can have a CURVE_AXIS_REF."
+                .to_string(),
         });
     } else if axis_descr.attribute == AxisDescrAttribute::CurveAxis
         && axis_descr.curve_axis_ref.is_none()
@@ -514,9 +515,10 @@ fn check_characteristic_common(
     };
     // If the characteristic is a CUBOID and has a MAP_LIST, then it only has one axis, while the referenced MAPs each provide the other two axes.
     if characteristic.characteristic_type() == CharacteristicType::Cuboid
-        && characteristic.map_list().is_some() {
-            expected_axis_count = 1; // MAP_LIST defines the x and y axis, only the z axis remains
-        }
+        && characteristic.map_list().is_some()
+    {
+        expected_axis_count = 1; // MAP_LIST defines the x and y axis, only the z axis remains
+    }
     if characteristic.axis_descr().len() != expected_axis_count {
         log_msgs.push(A2lError::ContentError {
             item_name: name.to_string(),
@@ -1233,7 +1235,7 @@ fn calc_compu_method_limits(
                         //   x = (fy - c) / b
                         // this is rewritten to, to fix the edge case where f is f64::MAX, y > 1, but y/b < 1
                         //   x = (f * (y/b)) - c/b
-                        let func = |y: f64| (c.f * (y / c.b) - (c.c / c.b));
+                        let func = |y: f64| c.f * (y / c.b) - (c.c / c.b);
                         lower_limit = func(lower_limit);
                         upper_limit = func(upper_limit);
                         if lower_limit > upper_limit {

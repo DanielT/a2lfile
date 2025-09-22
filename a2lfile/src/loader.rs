@@ -81,7 +81,7 @@ fn decode_raw_bytes(filedata: &[u8]) -> String {
     /* check UTF-32.
      * Big endian format: the filedata should be 0x00 0x00 0xFE 0xFF if it is a BOM, or 00 00 00 xx otherwise.
      * Little endian format: The filedata should be 0xFF 0xFE 0x00 0x00 if it is a BOM, or xx 00 00 00 otherwise.*/
-    if (filedata.len() % 4 == 0) && (filedata.len() > 3) {
+    if filedata.len().is_multiple_of(4) && (filedata.len() > 3) {
         let u32conversion: Option<fn([u8; 4]) -> u32> =
             if (filedata[0] == 0) && (filedata[1] == 0) && (filedata[3] != 0) {
                 Some(u32::from_be_bytes)
@@ -117,7 +117,7 @@ fn decode_raw_bytes(filedata: &[u8]) -> String {
     /* check UTF-16
      * Big endian bom is 0xfe 0xff. Without BOM, the first character should be 0x00 0x??
      * little endian bom is 0xff 0xfe. Without BOM, the first character should be 0x?? 0x00 */
-    if (filedata.len() % 2 == 0) && (filedata.len() > 1) {
+    if filedata.len().is_multiple_of(2) && (filedata.len() > 1) {
         let u16conversion: Option<fn([u8; 2]) -> u16> = if ((filedata[0] == 0)
             && (filedata[1] != 0))
             || (filedata[0] == 0xfe && filedata[1] == 0xff)
