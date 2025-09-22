@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 3.1.1
+
+### Bugfix
+
+- The new functions import_new() and import_all() did not handle a2ml
+
 ## Version 3.1.0
 
 ### Features
