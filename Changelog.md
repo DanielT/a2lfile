@@ -1,5 +1,16 @@
 # Changelog
 
+## Version 3.2.0
+
+### Feature
+
+- Add module::find_instance_component() to find a distinct TYPEDEF_* referenced by an instance based on a full name.
+
+### Bugfixes
+
+- The data type members of of FIX_AXIS_PAR and FIX_AXIS_PAR_DIST was changed to float in A2L version 1.7
+- Cross-references to elements of INSTANCEs are handled correctly during consistency checks
+
 ## Version 3.1.1
 
 ### Bugfix
