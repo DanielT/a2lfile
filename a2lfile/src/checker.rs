@@ -111,6 +111,9 @@ fn check_axis_descr(
     let line = axis_descr.get_line();
     if axis_descr.input_quantity != "NO_INPUT_QUANTITY"
         && !objects.contains_key(&axis_descr.input_quantity)
+        && module
+            .find_instance_component(&axis_descr.input_quantity)
+            .is_none()
     {
         log_msgs.push(A2lError::CrossReferenceError {
             source_type: format!("AXIS_DESCR[{idx}] of CHARACTERISTIC"),
@@ -179,7 +182,9 @@ fn check_axis_descr(
 
 // check axis_pts_ref and curve_axis_ref, which both have the special feature
 // of potentially referencing structure components using THIS.
+#[allow(clippy::too_many_arguments)]
 fn check_axis_descr_refs(
+    module: &Module,
     idx: usize,
     parent_name: &str,
     axis_descr: &AxisDescr,
@@ -207,7 +212,11 @@ fn check_axis_descr_refs(
                     target_name: structure_component.to_string(),
                 });
             }
-        } else if !objects.contains_key(&axis_pts_ref.axis_points) {
+        } else if !objects.contains_key(&axis_pts_ref.axis_points)
+            && module
+                .find_instance_component(&axis_pts_ref.axis_points)
+                .is_none()
+        {
             log_msgs.push(A2lError::CrossReferenceError {
                 source_type: format!("AXIS_DESCR[{idx}] of CHARACTERISTIC"),
                 source_name: parent_name.to_string(),
@@ -237,7 +246,11 @@ fn check_axis_descr_refs(
                     target_name: structure_component.to_string(),
                 });
             }
-        } else if !objects.contains_key(&curve_axis_ref.curve_axis) {
+        } else if !objects.contains_key(&curve_axis_ref.curve_axis)
+            && module
+                .find_instance_component(&curve_axis_ref.curve_axis)
+                .is_none()
+        {
             log_msgs.push(A2lError::CrossReferenceError {
                 source_type: format!("AXIS_DESCR[{idx}] of CHARACTERISTIC"),
                 source_name: parent_name.to_string(),
@@ -271,7 +284,11 @@ fn check_typedef_axis(
     let name = t_axis.get_name();
     let line = t_axis.get_line();
 
-    if t_axis.input_quantity != "NO_INPUT_QUANTITY" && !objects.contains_key(&t_axis.input_quantity)
+    if t_axis.input_quantity != "NO_INPUT_QUANTITY"
+        && !objects.contains_key(&t_axis.input_quantity)
+        && module
+            .find_instance_component(&t_axis.input_quantity)
+            .is_none()
     {
         log_msgs.push(A2lError::CrossReferenceError {
             source_type: "TYPEDEF_AXIS".to_string(),
@@ -328,6 +345,9 @@ fn check_axis_pts(
 
     if axis_pts.input_quantity != "NO_INPUT_QUANTITY"
         && !objects.contains_key(&axis_pts.input_quantity)
+        && module
+            .find_instance_component(&axis_pts.input_quantity)
+            .is_none()
     {
         log_msgs.push(A2lError::CrossReferenceError {
             source_type: "AXIS_PTS".to_string(),
@@ -396,7 +416,11 @@ fn check_characteristic(
 
     if let Some(comparison_quantity) = &characteristic.comparison_quantity {
         let cqline = comparison_quantity.get_line();
-        if !objects.contains_key(&comparison_quantity.name) {
+        if !objects.contains_key(&comparison_quantity.name)
+            && module
+                .find_instance_component(&comparison_quantity.name)
+                .is_none()
+        {
             results.push(A2lError::CrossReferenceError {
                 source_type: "CHARACTERISTIC".to_string(),
                 source_name: characteristic.name.to_string(),
@@ -414,6 +438,7 @@ fn check_characteristic(
             "CHARACTERISTIC",
             depline,
             &dependent_characteristic.characteristic_list,
+            Some(module),
             objects,
             results,
         );
@@ -426,6 +451,7 @@ fn check_characteristic(
             "CHARACTERISTIC",
             ml_line,
             &map_list.name_list,
+            Some(module),
             objects,
             results,
         );
@@ -438,6 +464,7 @@ fn check_characteristic(
             "CHARACTERISTIC",
             vc_line,
             &virtual_characteristic.characteristic_list,
+            Some(module),
             objects,
             results,
         );
@@ -495,6 +522,7 @@ fn check_characteristic_common(
     for (idx, axis_descr) in characteristic.axis_descr().iter().enumerate() {
         check_axis_descr(idx, name, axis_descr, module, objects, log_msgs);
         check_axis_descr_refs(
+            module,
             idx,
             name,
             axis_descr,
@@ -768,6 +796,7 @@ fn check_function(
             "MEASUREMENT",
             line,
             &in_measurement.identifier_list,
+            Some(module),
             objects,
             log_msgs,
         );
@@ -780,6 +809,7 @@ fn check_function(
             "MEASUREMENT",
             line,
             &loc_measurement.identifier_list,
+            Some(module),
             objects,
             log_msgs,
         );
@@ -792,6 +822,7 @@ fn check_function(
             "MEASUREMENT",
             line,
             &out_measurement.identifier_list,
+            Some(module),
             objects,
             log_msgs,
         );
@@ -804,6 +835,7 @@ fn check_function(
             "CHARACTERISTIC",
             line,
             &def_characteristic.identifier_list,
+            Some(module),
             objects,
             log_msgs,
         );
@@ -816,6 +848,7 @@ fn check_function(
             "CHARACTERISTIC",
             line,
             &ref_characteristic.identifier_list,
+            Some(module),
             objects,
             log_msgs,
         );
@@ -828,6 +861,7 @@ fn check_function(
             "FUNCTION",
             line,
             &sub_function.identifier_list,
+            None, // functions can't be instance components, so no need to pass module here
             &module.function,
             log_msgs,
         );
@@ -846,6 +880,7 @@ fn check_function_list(
             "FUNCTION",
             line,
             &function_list.name_list,
+            None, // functions can't be instance components, so no need to pass module here
             &module.function,
             log_msgs,
         );
@@ -865,6 +900,7 @@ fn check_group(
             "CHARACTERISTIC",
             line,
             &ref_characteristic.identifier_list,
+            Some(module),
             objects,
             log_msgs,
         );
@@ -877,6 +913,7 @@ fn check_group(
             "MEASUREMENT",
             line,
             &ref_measurement.identifier_list,
+            Some(module),
             objects,
             log_msgs,
         );
@@ -889,6 +926,7 @@ fn check_group(
             "FUNCTION",
             line,
             &function_list.name_list,
+            None, // functions can't be instance components, so no need to pass module here
             &module.function,
             log_msgs,
         );
@@ -901,6 +939,7 @@ fn check_group(
             "GROUP",
             line,
             &sub_group.identifier_list,
+            None, // groups can't be instance components, so no need to pass module here
             &module.group,
             log_msgs,
         );
@@ -1008,6 +1047,7 @@ fn check_transformer(
             "CHARACTERISTIC / BLOB / INSTANCE",
             line,
             &transformer_in_objects.identifier_list,
+            Some(module),
             objects,
             log_msgs,
         );
@@ -1020,6 +1060,7 @@ fn check_transformer(
             "CHARACTERISTIC / BLOB / INSTANCE",
             line,
             &transformer_out_objects.identifier_list,
+            Some(module),
             objects,
             log_msgs,
         );
@@ -1061,11 +1102,16 @@ fn check_reference_list<T: A2lObjectName>(
     ref_type: &str,
     line: u32,
     identifier_list: &[String],
+    opt_module: Option<&Module>,
     map: &ItemList<T>,
     log_msgs: &mut Vec<A2lError>,
 ) {
     for ident in identifier_list {
-        if map.get(ident).is_none() {
+        if map.get(ident).is_none()
+            && opt_module
+                .and_then(|m| m.find_instance_component(ident))
+                .is_none()
+        {
             log_msgs.push(A2lError::CrossReferenceError {
                 source_type: container_type.to_string(),
                 source_name: ident.to_string(),
@@ -2042,5 +2088,32 @@ mod test {
         let (a2lfile, _) = load_from_string(A2L_TEXT2, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 3);
+    }
+
+    #[test]
+    fn check_instance_references() {
+        // a CHARACTERISTIC that uses a structure component in an INSTANCE as the input of its AXIS_DESCR
+        static A2L_TEXT2: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin TYPEDEF_MEASUREMENT td_measurement "" UBYTE NO_COMPU_METHOD 1 1 0 100
+            /end TYPEDEF_MEASUREMENT
+            /begin TYPEDEF_STRUCTURE td_struct "" 128 CONSISTENT_EXCHANGE
+                /begin STRUCTURE_COMPONENT item td_measurement 1 /end STRUCTURE_COMPONENT
+            /end TYPEDEF_STRUCTURE
+            /begin INSTANCE inst "" td_struct 0x80010000 /end INSTANCE
+            /begin RECORD_LAYOUT F32
+                FNC_VALUES 0 FLOAT32_IEEE ROW_DIR DIRECT
+            /end RECORD_LAYOUT
+            /begin CHARACTERISTIC char "" CURVE 0x1234 rl 0 NO_COMPU_METHOD 0.0 1.0
+                /begin AXIS_DESCR STD_AXIS inst.item NO_COMPU_METHOD 1 0 100
+                /end AXIS_DESCR
+            /end CHARACTERISTIC
+            /begin RECORD_LAYOUT rl
+                FNC_VALUES 0 FLOAT32_IEEE ROW_DIR DIRECT
+                AXIS_PTS_X 1 FLOAT32_IEEE INDEX_INCR DIRECT
+            /end RECORD_LAYOUT
+        /end MODULE /end PROJECT"#;
+        let (a2lfile, _) = load_from_string(A2L_TEXT2, None, true).unwrap();
+        let log_msgs = super::check(&a2lfile);
+        assert_eq!(log_msgs.len(), 0);
     }
 }
