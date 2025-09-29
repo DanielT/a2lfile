@@ -693,15 +693,15 @@ a2l_specification! {
 
     /// Parameters for the calculation of fixed axis points: X_i = Offset + (i - 1)*2^shift
     keyword FIX_AXIS_PAR {
-        int offset
-        int shift
+        float offset // before 1.70: int
+        float shift // before 1.70: int
         uint number_apo
     }
 
     /// Parameters for the calculation of fixed axis points: X_i = Offset + (i - 1)*distance
     keyword FIX_AXIS_PAR_DIST {
-        int offset
-        int distance
+        float offset // before 1.70: int
+        float distance // before 1.70: int
         uint number_apo
     }
 
@@ -2233,9 +2233,9 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = ExtendedLimits::new(0.0, 0.0);
         trait_test_helper(&mut item);
-        let mut item = FixAxisPar::new(0, 0, 0);
+        let mut item = FixAxisPar::new(0.0, 0.0, 0);
         trait_test_helper(&mut item);
-        let mut item = FixAxisParDist::new(0, 0, 0);
+        let mut item = FixAxisParDist::new(0.0, 0.0, 0);
         trait_test_helper(&mut item);
         let mut item = FixAxisParList::new();
         trait_test_helper(&mut item);

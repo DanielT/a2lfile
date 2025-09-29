@@ -193,8 +193,8 @@ ASAP2_VERSION 1 61
         axis_descr.curve_axis_ref = Some(CurveAxisRef::new("curve_axis_ref".to_string()));
         axis_descr.deposit = Some(Deposit::new(DepositMode::Absolute));
         axis_descr.extended_limits = Some(ExtendedLimits::new(0f64, f64::MAX));
-        axis_descr.fix_axis_par = Some(FixAxisPar::new(0i16, 0i16, 0u16));
-        axis_descr.fix_axis_par_dist = Some(FixAxisParDist::new(0i16, 0i16, 0u16));
+        axis_descr.fix_axis_par = Some(FixAxisPar::new(0.0, 0.0, 0u16));
+        axis_descr.fix_axis_par_dist = Some(FixAxisParDist::new(0.0, 0.0, 0u16));
         axis_descr.fix_axis_par_list = Some(fix_axis_par_list);
         axis_descr.format = Some(Format::new("format".to_string()));
         axis_descr.max_grad = Some(MaxGrad::new(0f64));
@@ -1384,8 +1384,8 @@ ASAP2_VERSION 1 61
         axis_descr2.curve_axis_ref = Some(CurveAxisRef::new("characteristic_name".to_string()));
         axis_descr2.deposit = Some(Deposit::new(DepositMode::Absolute));
         axis_descr2.extended_limits = Some(ExtendedLimits::new(-100.0, 200.0));
-        axis_descr2.fix_axis_par = Some(FixAxisPar::new(0, 0, 0));
-        axis_descr2.fix_axis_par_dist = Some(FixAxisParDist::new(0, 0, 0));
+        axis_descr2.fix_axis_par = Some(FixAxisPar::new(0.0, 0.0, 0));
+        axis_descr2.fix_axis_par_dist = Some(FixAxisParDist::new(0.0, 0.0, 0));
         let mut fix_axis_par_list = FixAxisParList::new();
         fix_axis_par_list.axis_pts_value_list.push(0.0);
         axis_descr2.fix_axis_par_list = Some(fix_axis_par_list);

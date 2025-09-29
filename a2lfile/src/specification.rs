@@ -12020,10 +12020,10 @@ impl ExtendedLimits {
 /// Parameters for the calculation of fixed axis points: X_i = Offset + (i - 1)*2^shift
 #[derive(Clone)]
 pub struct FixAxisPar {
-    pub offset: i16,
-    pub shift: i16,
+    pub offset: f64,
+    pub shift: f64,
     pub number_apo: u16,
-    pub(crate) __block_info: BlockInfo<((u32, bool), (u32, bool), (u32, bool))>,
+    pub(crate) __block_info: BlockInfo<(u32, u32, (u32, bool))>,
 }
 
 impl std::fmt::Debug for FixAxisPar {
@@ -12039,7 +12039,7 @@ impl std::fmt::Debug for FixAxisPar {
 impl FixAxisPar {
     #[allow(clippy::too_many_arguments)]
     #[must_use]
-    pub fn new(offset: i16, shift: i16, number_apo: u16) -> Self {
+    pub fn new(offset: f64, shift: f64, number_apo: u16) -> Self {
         Self {
             offset,
             shift,
@@ -12050,7 +12050,7 @@ impl FixAxisPar {
                 uid: 0,
                 start_offset: 1u32,
                 end_offset: 1,
-                item_location: ((0u32, false), (0u32, false), (0u32, false)),
+                item_location: (0u32, 0u32, (0u32, false)),
             },
         }
     }
@@ -12064,11 +12064,11 @@ impl PartialEq for FixAxisPar {
     }
 }
 
-impl A2lObject<((u32, bool), (u32, bool), (u32, bool))> for FixAxisPar {
-    fn get_layout(&self) -> &BlockInfo<((u32, bool), (u32, bool), (u32, bool))> {
+impl A2lObject<(u32, u32, (u32, bool))> for FixAxisPar {
+    fn get_layout(&self) -> &BlockInfo<(u32, u32, (u32, bool))> {
         &self.__block_info
     }
-    fn get_layout_mut(&mut self) -> &mut BlockInfo<((u32, bool), (u32, bool), (u32, bool))> {
+    fn get_layout_mut(&mut self) -> &mut BlockInfo<(u32, u32, (u32, bool))> {
         &mut self.__block_info
     }
     fn reset_location(&mut self) {
@@ -12093,14 +12093,12 @@ impl ParseableA2lObject for FixAxisPar {
         let __location_line = context.line;
         let __uid = parser.get_next_id();
         let (__offset_location, offset) = {
-            let (value, is_hex) = parser.get_integer::<i16>(context)?;
-            let offset = parser.get_line_offset();
-            ((offset, is_hex), value)
+            let value = parser.get_double(context)?;
+            (parser.get_line_offset(), value)
         };
         let (__shift_location, shift) = {
-            let (value, is_hex) = parser.get_integer::<i16>(context)?;
-            let offset = parser.get_line_offset();
-            ((offset, is_hex), value)
+            let value = parser.get_double(context)?;
+            (parser.get_line_offset(), value)
         };
         let (__number_apo_location, number_apo) = {
             let (value, is_hex) = parser.get_integer::<u16>(context)?;
@@ -12127,16 +12125,8 @@ impl ParseableA2lObject for FixAxisPar {
 impl FixAxisPar {
     pub(crate) fn stringify(&self, indent: usize) -> String {
         let mut writer = writer::Writer::new(indent);
-        writer.add_integer(
-            self.offset,
-            self.__block_info.item_location.0.1,
-            self.__block_info.item_location.0.0,
-        );
-        writer.add_integer(
-            self.shift,
-            self.__block_info.item_location.1.1,
-            self.__block_info.item_location.1.0,
-        );
+        writer.add_float(self.offset, self.__block_info.item_location.0);
+        writer.add_float(self.shift, self.__block_info.item_location.1);
         writer.add_integer(
             self.number_apo,
             self.__block_info.item_location.2.1,
@@ -12149,10 +12139,10 @@ impl FixAxisPar {
 /// Parameters for the calculation of fixed axis points: `X_i` = Offset + (i - 1)*distance
 #[derive(Clone)]
 pub struct FixAxisParDist {
-    pub offset: i16,
-    pub distance: i16,
+    pub offset: f64,
+    pub distance: f64,
     pub number_apo: u16,
-    pub(crate) __block_info: BlockInfo<((u32, bool), (u32, bool), (u32, bool))>,
+    pub(crate) __block_info: BlockInfo<(u32, u32, (u32, bool))>,
 }
 
 impl std::fmt::Debug for FixAxisParDist {
@@ -12168,7 +12158,7 @@ impl std::fmt::Debug for FixAxisParDist {
 impl FixAxisParDist {
     #[allow(clippy::too_many_arguments)]
     #[must_use]
-    pub fn new(offset: i16, distance: i16, number_apo: u16) -> Self {
+    pub fn new(offset: f64, distance: f64, number_apo: u16) -> Self {
         Self {
             offset,
             distance,
@@ -12179,7 +12169,7 @@ impl FixAxisParDist {
                 uid: 0,
                 start_offset: 1u32,
                 end_offset: 1,
-                item_location: ((0u32, false), (0u32, false), (0u32, false)),
+                item_location: (0u32, 0u32, (0u32, false)),
             },
         }
     }
@@ -12193,11 +12183,11 @@ impl PartialEq for FixAxisParDist {
     }
 }
 
-impl A2lObject<((u32, bool), (u32, bool), (u32, bool))> for FixAxisParDist {
-    fn get_layout(&self) -> &BlockInfo<((u32, bool), (u32, bool), (u32, bool))> {
+impl A2lObject<(u32, u32, (u32, bool))> for FixAxisParDist {
+    fn get_layout(&self) -> &BlockInfo<(u32, u32, (u32, bool))> {
         &self.__block_info
     }
-    fn get_layout_mut(&mut self) -> &mut BlockInfo<((u32, bool), (u32, bool), (u32, bool))> {
+    fn get_layout_mut(&mut self) -> &mut BlockInfo<(u32, u32, (u32, bool))> {
         &mut self.__block_info
     }
     fn reset_location(&mut self) {
@@ -12222,14 +12212,12 @@ impl ParseableA2lObject for FixAxisParDist {
         let __location_line = context.line;
         let __uid = parser.get_next_id();
         let (__offset_location, offset) = {
-            let (value, is_hex) = parser.get_integer::<i16>(context)?;
-            let offset = parser.get_line_offset();
-            ((offset, is_hex), value)
+            let value = parser.get_double(context)?;
+            (parser.get_line_offset(), value)
         };
         let (__distance_location, distance) = {
-            let (value, is_hex) = parser.get_integer::<i16>(context)?;
-            let offset = parser.get_line_offset();
-            ((offset, is_hex), value)
+            let value = parser.get_double(context)?;
+            (parser.get_line_offset(), value)
         };
         let (__number_apo_location, number_apo) = {
             let (value, is_hex) = parser.get_integer::<u16>(context)?;
@@ -12260,16 +12248,8 @@ impl ParseableA2lObject for FixAxisParDist {
 impl FixAxisParDist {
     pub(crate) fn stringify(&self, indent: usize) -> String {
         let mut writer = writer::Writer::new(indent);
-        writer.add_integer(
-            self.offset,
-            self.__block_info.item_location.0.1,
-            self.__block_info.item_location.0.0,
-        );
-        writer.add_integer(
-            self.distance,
-            self.__block_info.item_location.1.1,
-            self.__block_info.item_location.1.0,
-        );
+        writer.add_float(self.offset, self.__block_info.item_location.0);
+        writer.add_float(self.distance, self.__block_info.item_location.1);
         writer.add_integer(
             self.number_apo,
             self.__block_info.item_location.2.1,
@@ -35010,9 +34990,9 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = ExtendedLimits::new(0.0, 0.0);
         trait_test_helper(&mut item);
-        let mut item = FixAxisPar::new(0, 0, 0);
+        let mut item = FixAxisPar::new(0.0, 0.0, 0);
         trait_test_helper(&mut item);
-        let mut item = FixAxisParDist::new(0, 0, 0);
+        let mut item = FixAxisParDist::new(0.0, 0.0, 0);
         trait_test_helper(&mut item);
         let mut item = FixAxisParList::new();
         trait_test_helper(&mut item);

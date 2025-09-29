@@ -28,15 +28,12 @@ mod specification;
 mod tokenizer;
 mod writer;
 
-pub use itemlist::ItemList;
-pub use parser::ParserError;
 use std::convert::AsRef;
 use std::ffi::OsString;
 use std::fmt::Display;
 use std::path::Path;
 use std::path::PathBuf;
 use thiserror::Error;
-pub use tokenizer::TokenizerError;
 // used internally
 use parser::A2lVersion;
 use parser::{ParseContext, ParserState};
@@ -44,7 +41,11 @@ use parser::{ParseContext, ParserState};
 // re-export for the crate user
 pub use a2lmacros::a2ml_specification;
 pub use a2ml::{GenericIfData, GenericIfDataTaggedItem};
+pub use itemlist::ItemList;
+pub use module::{AnyCompuTab, AnyObject, AnyTypedef};
+pub use parser::ParserError;
 pub use specification::*;
+pub use tokenizer::TokenizerError;
 
 #[derive(Debug, Error)]
 #[non_exhaustive]
