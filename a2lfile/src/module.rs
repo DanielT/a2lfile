@@ -2,7 +2,7 @@
 
 use crate::{ItemList, specification::*};
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum AnyObject<'a> {
     Measurement(&'a Measurement),
     Characteristic(&'a Characteristic),
@@ -12,7 +12,7 @@ pub enum AnyObject<'a> {
 }
 
 #[allow(clippy::enum_variant_names)]
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum AnyCompuTab<'a> {
     CompuTab(&'a CompuTab),
     CompuVtab(&'a CompuVtab),
@@ -20,7 +20,7 @@ pub enum AnyCompuTab<'a> {
 }
 
 #[allow(clippy::enum_variant_names)]
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum AnyTypedef<'a> {
     TypedefBlob(&'a TypedefBlob),
     TypedefAxis(&'a TypedefAxis),
@@ -174,6 +174,53 @@ impl Module {
         );
         typedefs
     }
+
+    /// Find the typedef for an instance component
+    ///
+    /// For example, given an instance inst, and a name "inst.a.b", this function
+    /// will resolve each parent structure and return the typedef for the final component b.
+    pub fn find_instance_component(&self, full_name: &str) -> Option<AnyTypedef<'_>> {
+        let name_parts = full_name.split('.').collect::<Vec<_>>();
+        let typedef_collection = self.typedefs();
+
+        let instance = self.instance.get(&strip_array_index(name_parts[0]))?;
+        if (instance.matrix_dim.is_some() && !name_parts[0].ends_with(']'))
+            || (instance.matrix_dim.is_none() && name_parts[0].ends_with(']'))
+        {
+            // mismatch between array/matrix and array indexing in the name
+            return None;
+        }
+
+        let typedef_name = &instance.type_ref;
+        let mut current_typedef = typedef_collection.get(typedef_name)?;
+
+        // try to get a sub-structure for each name component until all parts are processed
+        let mut pos = 1;
+        while let AnyTypedef::TypedefStructure(structure) = current_typedef
+            && pos < name_parts.len()
+        {
+            // get the next component in the structure
+            // possible extension - verify array indexing here too? This is complicated, because
+            // both the structure component and the referenced typedef can define MATRIX_DIM
+            let member_name = strip_array_index(name_parts.get(pos)?);
+            let member = structure.structure_component.get(&member_name)?;
+            current_typedef = typedef_collection.get(&member.component_type)?;
+            pos += 1;
+        }
+
+        Some(*current_typedef)
+    }
+}
+
+fn strip_array_index<'a>(name: &'a str) -> std::borrow::Cow<'a, str> {
+    // potentially strip off multi-dimensional array indexes, e.g. "my_array[3][4]" -> "my_array"
+    if name.ends_with(']')
+        && let Some(pos) = name.find('[')
+    {
+        std::borrow::Cow::from(&name[..pos])
+    } else {
+        std::borrow::Cow::from(name)
+    }
 }
 
 impl A2lObjectName for AnyObject<'_> {
@@ -323,5 +370,59 @@ mod test {
         assert_ne!(computabs[1].get_line(), 0);
         assert_eq!(computabs[2].get_name(), "compu_vtab_range");
         assert_ne!(computabs[2].get_line(), 0);
+    }
+
+    #[test]
+    fn test_find_instance_component() {
+        static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin TYPEDEF_AXIS typedef_axis "" meas record_layout 0 compu_method 1 0 100 /end TYPEDEF_AXIS
+            /begin TYPEDEF_BLOB typedef_blob "" 1 /end TYPEDEF_BLOB
+            /begin TYPEDEF_CHARACTERISTIC typedef_characteristic "" VALUE record_layout 0 compu_method 0 100 /end TYPEDEF_CHARACTERISTIC
+            /begin TYPEDEF_MEASUREMENT typedef_measurement "" UBYTE compu_method 1 1 0 100 /end TYPEDEF_MEASUREMENT
+            /begin TYPEDEF_STRUCTURE typedef_sub_structure "" 3 
+                /begin STRUCTURE_COMPONENT meas typedef_characteristic 0 /end STRUCTURE_COMPONENT
+                /begin STRUCTURE_COMPONENT param typedef_measurement 0 /end STRUCTURE_COMPONENT
+            /end TYPEDEF_STRUCTURE
+            /begin TYPEDEF_STRUCTURE typedef_structure "" 3 
+                /begin STRUCTURE_COMPONENT comp1 typedef_axis 0 /end STRUCTURE_COMPONENT
+                /begin STRUCTURE_COMPONENT comp2 typedef_blob 0 /end STRUCTURE_COMPONENT
+                /begin STRUCTURE_COMPONENT comp3 typedef_sub_structure 0 /end STRUCTURE_COMPONENT
+            /end TYPEDEF_STRUCTURE
+            /begin INSTANCE inst "" typedef_structure 0x1234 /end INSTANCE
+        /end MODULE /end PROJECT"#;
+        let (a2lfile, _) = load_from_string(A2L_TEXT, None, true).unwrap();
+        let module = &a2lfile.project.module[0];
+
+        let typedef = module.find_instance_component("inst.comp1").unwrap();
+        assert_eq!(typedef, AnyTypedef::TypedefAxis(&module.typedef_axis[0]));
+
+        let typedef = module.find_instance_component("inst.comp2").unwrap();
+        assert_eq!(typedef, AnyTypedef::TypedefBlob(&module.typedef_blob[0]));
+
+        let typedef = module.find_instance_component("inst.comp3.meas").unwrap();
+        assert_eq!(
+            typedef,
+            AnyTypedef::TypedefCharacteristic(&module.typedef_characteristic[0])
+        );
+
+        let typedef = module.find_instance_component("inst.comp3.param").unwrap();
+        assert_eq!(
+            typedef,
+            AnyTypedef::TypedefMeasurement(&module.typedef_measurement[0])
+        );
+
+        let td_sub_structure = module
+            .typedef_structure
+            .get("typedef_sub_structure")
+            .unwrap();
+        let typedef = module.find_instance_component("inst.comp3").unwrap();
+        assert_eq!(typedef, AnyTypedef::TypedefStructure(td_sub_structure));
+
+        let td_structure = module.typedef_structure.get("typedef_structure").unwrap();
+        let typedef = module.find_instance_component("inst").unwrap();
+        assert_eq!(typedef, AnyTypedef::TypedefStructure(td_structure));
+
+        let result = module.find_instance_component("inst[0]");
+        assert!(result.is_none());
     }
 }
