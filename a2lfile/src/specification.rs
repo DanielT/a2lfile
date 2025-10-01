@@ -15281,7 +15281,7 @@ pub struct Instance {
     pub max_refresh: Option<MaxRefresh>,
     pub model_link: Option<ModelLink>,
     pub overwrite: ItemList<Overwrite>,
-    pub read_only: Option<ReadOnly>,
+    pub read_write: Option<ReadWrite>,
     pub symbol_link: Option<SymbolLink>,
     pub(crate) a2lcomment: Vec<Comment>,
     pub(crate) __block_info: BlockInfo<(u32, u32, u32, (u32, bool))>,
@@ -15305,7 +15305,7 @@ impl std::fmt::Debug for Instance {
             .field("max_refresh", &self.max_refresh)
             .field("model_link", &self.model_link)
             .field("overwrite", &self.overwrite)
-            .field("read_only", &self.read_only)
+            .field("read_write", &self.read_write)
             .field("symbol_link", &self.symbol_link)
             .finish()
     }
@@ -15336,7 +15336,7 @@ impl Instance {
             max_refresh: None,
             model_link: None,
             overwrite: ItemList::default(),
-            read_only: None,
+            read_write: None,
             symbol_link: None,
             a2lcomment: Vec::new(),
             __block_info: BlockInfo {
@@ -15368,7 +15368,7 @@ impl PartialEq for Instance {
             && self.max_refresh == other.max_refresh
             && self.model_link == other.model_link
             && self.overwrite == other.overwrite
-            && self.read_only == other.read_only
+            && self.read_write == other.read_write
             && self.symbol_link == other.symbol_link
     }
 }
@@ -15419,8 +15419,8 @@ impl A2lObject<(u32, u32, u32, (u32, bool))> for Instance {
         for overwrite in &mut self.overwrite {
             overwrite.merge_includes();
         }
-        if let Some(read_only) = &mut self.read_only {
-            read_only.merge_includes();
+        if let Some(read_write) = &mut self.read_write {
+            read_write.merge_includes();
         }
         if let Some(symbol_link) = &mut self.symbol_link {
             symbol_link.merge_includes();
@@ -15481,7 +15481,7 @@ impl ParseableA2lObject for Instance {
         let mut max_refresh: Option<MaxRefresh> = None;
         let mut model_link: Option<ModelLink> = None;
         let mut overwrite: ItemList<Overwrite> = ItemList::default();
-        let mut read_only: Option<ReadOnly> = None;
+        let mut read_write: Option<ReadWrite> = None;
         let mut symbol_link: Option<SymbolLink> = None;
         loop {
             let next_tag = parser.get_next_tag_or_comment(context)?;
@@ -15501,7 +15501,7 @@ impl ParseableA2lObject for Instance {
                         "MAX_REFRESH",
                         "MODEL_LINK",
                         "OVERWRITE",
-                        "READ_ONLY",
+                        "READ_WRITE",
                         "SYMBOL_LINK",
                     ];
                     match tag {
@@ -15596,11 +15596,11 @@ impl ParseableA2lObject for Instance {
                             let newitem = Overwrite::parse(parser, &newcontext, line_offset)?;
                             overwrite.push(newitem);
                         }
-                        "READ_ONLY" => {
+                        "READ_WRITE" => {
                             parser.require_keyword(tag, is_block, context)?;
-                            let newitem = ReadOnly::parse(parser, &newcontext, line_offset)?;
-                            parser.handle_multiplicity_error(context, tag, read_only.is_some())?;
-                            read_only = Some(newitem);
+                            let newitem = ReadWrite::parse(parser, &newcontext, line_offset)?;
+                            parser.handle_multiplicity_error(context, tag, read_write.is_some())?;
+                            read_write = Some(newitem);
                         }
                         "SYMBOL_LINK" => {
                             parser.require_keyword(tag, is_block, context)?;
@@ -15669,7 +15669,7 @@ impl ParseableA2lObject for Instance {
             max_refresh,
             model_link,
             overwrite,
-            read_only,
+            read_write,
             symbol_link,
         })
     }
@@ -15886,22 +15886,22 @@ impl Instance {
                 position_restriction: overwrite.pos_restrict(),
             });
         }
-        if let Some(read_only) = &self.read_only {
-            let read_only_out = if read_only.__block_info.incfile.is_none() {
-                read_only.stringify(indent + 1)
+        if let Some(read_write) = &self.read_write {
+            let read_write_out = if read_write.__block_info.incfile.is_none() {
+                read_write.stringify(indent + 1)
             } else {
                 String::new()
             };
             tgroup.push(writer::TaggedItemInfo::Tag {
-                tag: "READ_ONLY",
-                item_text: read_only_out,
+                tag: "READ_WRITE",
+                item_text: read_write_out,
                 is_block: false,
-                incfile: &read_only.__block_info.incfile,
-                uid: read_only.__block_info.uid,
-                line: read_only.__block_info.line,
-                start_offset: read_only.__block_info.start_offset,
-                end_offset: read_only.__block_info.end_offset,
-                position_restriction: read_only.pos_restrict(),
+                incfile: &read_write.__block_info.incfile,
+                uid: read_write.__block_info.uid,
+                line: read_write.__block_info.line,
+                start_offset: read_write.__block_info.start_offset,
+                end_offset: read_write.__block_info.end_offset,
+                position_restriction: read_write.pos_restrict(),
             });
         }
         if let Some(symbol_link) = &self.symbol_link {

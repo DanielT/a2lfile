@@ -850,7 +850,7 @@ a2l_specification! {
         [-> MAX_REFRESH]
         [-> MODEL_LINK]
         [-> OVERWRITE]*
-        [-> READ_ONLY]
+        [-> READ_WRITE]
         [-> SYMBOL_LINK]
     }
 

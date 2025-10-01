@@ -424,7 +424,7 @@ ASAP2_VERSION 1 61
         instance.max_refresh = Some(MaxRefresh::new(0u16, 0u32));
         instance.model_link = Some(ModelLink::new("model_link".to_string()));
         instance.overwrite = itemlist![overwrite];
-        instance.read_only = Some(ReadOnly::new());
+        instance.read_write = Some(ReadWrite::new());
         instance.symbol_link = Some(SymbolLink::new("symbol_link".to_string(), 0));
 
         let mut bit_operation = BitOperation::new();
@@ -1071,7 +1071,7 @@ ASAP2_VERSION 1 61
                         MONOTONY MON_INCREASE
                         PHYS_UNIT "unit"
                     /end OVERWRITE
-                    READ_ONLY
+                    READ_WRITE
                     SYMBOL_LINK "symbol name" 0x1234
                     /begin IF_DATA
                     /end IF_DATA
@@ -1581,7 +1581,7 @@ ASAP2_VERSION 1 61
         overwrite.monotony = Some(Monotony::new(MonotonyType::MonIncrease));
         overwrite.phys_unit = Some(PhysUnit::new("unit".to_string()));
         instance.overwrite.push(overwrite);
-        instance.read_only = Some(ReadOnly::new());
+        instance.read_write = Some(ReadWrite::new());
         instance.symbol_link = Some(SymbolLink::new("symbol name".to_string(), 0x1234));
         instance.if_data.push(IfData::default());
         module.instance.push(instance);
