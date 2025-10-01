@@ -6,6 +6,7 @@ edition = "2024"
 description = "provides macros in support of the a2lfile crate"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/DanielT/a2lfile"
+rust-version = "1.88"
 
 [lib]
 proc-macro = true
