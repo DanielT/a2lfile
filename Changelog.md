@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 3.3.0
+
+- Bugfix: INSTANCEs can have a READ_WRITE attribute, instead of READ_ONLY
+
 ## Version 3.2.0
 
 ### Feature
