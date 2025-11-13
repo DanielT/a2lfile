@@ -434,10 +434,14 @@ impl<'a> ParserState<'a> {
     /// - the function shouldn't be called while pos == 0, but this case would behave like pos==1
     pub(crate) fn get_line_offset(&self) -> u32 {
         if self.token_cursor.pos > 1 && self.token_cursor.pos < self.token_cursor.tokens.len() {
-            let prev_line = self.token_cursor.tokens[self.token_cursor.pos - 2].line;
-            let prev_fileid = self.token_cursor.tokens[self.token_cursor.pos - 2].fileid;
-            let cur_line = self.token_cursor.tokens[self.token_cursor.pos - 1].line;
-            let cur_fileid = self.token_cursor.tokens[self.token_cursor.pos - 1].fileid;
+            let prev_token = &self.token_cursor.tokens[self.token_cursor.pos - 2];
+            let cur_token = &self.token_cursor.tokens[self.token_cursor.pos - 1];
+            let (prev_line, prev_fileid) = if self.token_cursor.pos > 2 
+                && prev_token.line == cur_token.line && prev_token.ttype == A2lTokenType::Comment{
+                (self.token_cursor.tokens[self.token_cursor.pos - 3].line, self.token_cursor.tokens[self.token_cursor.pos - 3].fileid)
+            } else {(prev_token.line, prev_token.fileid)};
+            let cur_line = cur_token.line;
+            let cur_fileid = cur_token.fileid;
 
             // subtracting line numbers is only sane within a file
             if prev_fileid == cur_fileid {
