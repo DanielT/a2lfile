@@ -434,14 +434,32 @@ impl<'a> ParserState<'a> {
     /// - the function shouldn't be called while pos == 0, but this case would behave like pos==1
     pub(crate) fn get_line_offset(&self) -> u32 {
         if self.token_cursor.pos > 1 && self.token_cursor.pos < self.token_cursor.tokens.len() {
-            let prev_token = &self.token_cursor.tokens[self.token_cursor.pos - 2];
-            let cur_token = &self.token_cursor.tokens[self.token_cursor.pos - 1];
-            let (prev_line, prev_fileid) = if self.token_cursor.pos > 2 
-                && prev_token.line == cur_token.line && prev_token.ttype == A2lTokenType::Comment{
-                (self.token_cursor.tokens[self.token_cursor.pos - 3].line, self.token_cursor.tokens[self.token_cursor.pos - 3].fileid)
-            } else {(prev_token.line, prev_token.fileid)};
-            let cur_line = cur_token.line;
-            let cur_fileid = cur_token.fileid;
+            let cur_line = self.token_cursor.tokens[self.token_cursor.pos - 1].line;
+            let cur_fileid = self.token_cursor.tokens[self.token_cursor.pos - 1].fileid;
+            let mut idx = (self.token_cursor.pos - 2) as isize;
+             // look for the previous non-comment token on the same line
+             // to deal a case like this:
+             // /* comment */ current_token
+             // if the previous token is a comment on other line, a newline should be inserted before current_token
+            while idx >= 0 {  
+                let token = &self.token_cursor.tokens[idx as usize];
+                if token.ttype != A2lTokenType::Comment || token.line != cur_line {   
+                    break;
+                }
+                // if the last token is a comment on the same line, skip it 
+                idx -= 1;
+            }
+            let (prev_line, prev_fileid) = if idx >= 0 {
+                let prev_token = &self.token_cursor.tokens[idx as usize];
+                if prev_token.ttype == A2lTokenType::Comment {
+                    // if the previous token was a comment on a different line, use cur_line minus 1, so one newline is inserted
+                    (cur_line - 1, cur_fileid) 
+                } else {
+                    (prev_token.line, prev_token.fileid)
+                }
+            } else {
+                (cur_line - 1 , cur_fileid) // this case should never happen, fail-safe with a newline
+            };
 
             // subtracting line numbers is only sane within a file
             if prev_fileid == cur_fileid {
@@ -1449,5 +1467,149 @@ mod tests {
         assert_eq!(bi.item_location.5, 1); // offset of the trigger [ON_CHANGE]
         assert_eq!(bi.item_location.6, 1); // offset of the inverse transformer
         assert_eq!(bi.end_offset, 1); // offset of the /end TRANSFORMER
+    }
+    #[test]
+    fn parse_with_comments_inline() {
+        static DATA1: &str = r#"
+        /begin CHARACTERISTIC
+            /* Name                   */      characteristic_name
+            /* Long Identifier        */      "long identifier with spaces and /* inside comments */"
+            /* multible quotes here */ /* yet another quote */  /* Type                   */      VALUE 
+            /* ECU Address            */      0x0000 /* @ECU_Address@xxxxxxxx@ */ 
+            /* Record Layout          */      Scalar_FLOAT32_IEEE 
+            /* Maximum Difference     */      0 
+            /* Conversion Method      */      single 
+            /* Lower Limit            */      -3.4E+38 
+            /* Upper Limit            */      3.4E+38
+        /end CHARACTERISTIC
+        "#;
+        let module = crate::load_fragment(DATA1, None).unwrap();
+        let bi = &module.characteristic[0].__block_info;
+        assert_eq!(bi.item_location.0, 1); // offset of the identifier
+        assert_eq!(bi.item_location.1, 1); // offset of the long identifier
+        assert_eq!(bi.item_location.2, 1); // offset of the type
+        assert_eq!(bi.item_location.3, (1, true)); // offset of the ecu address
+        assert_eq!(bi.item_location.4, 1); // offset of the layout
+        assert_eq!(bi.item_location.5, 1); // offset of the max diff
+        assert_eq!(bi.item_location.6, 1); // offset of the conversion method
+        assert_eq!(bi.item_location.7, 1); // offset of the lower limit
+        assert_eq!(bi.item_location.8, 1); // offset of the upper limit
+        assert_eq!(bi.end_offset, 1); // offset of the /end 
+        assert_eq!(module.characteristic[0].stringify(4), r#"
+        characteristic_name
+        "long identifier with spaces and /* inside comments */"
+        VALUE
+        0x0
+        Scalar_FLOAT32_IEEE
+        0
+        single
+        -3.4e38
+        3.4e38"#);
+
+        static DATA2: &str = r#"
+        /begin MEASUREMENT
+            /* Name                   */      measurement_name
+            /* Long Identifier        */      "measurement long indentifier."
+            /* Data type              */      FLOAT32_IEEE
+            /* very very long comments here ; */
+            /* Conversion Method      */      single
+            /* Resolution (Not used)  */      0
+            /* Accuracy (Not used)    */      0
+            /* Lower Limit            */      -2000.0
+            /* Upper Limit            */      2000.0
+            ARRAY_SIZE                        4
+            ECU_ADDRESS                       0x70031180 /* @ECU_Address@measurement_name@ */
+        /end MEASUREMENT
+      "#;
+        let module = crate::load_fragment(DATA2, None).unwrap();
+        let bi = &module.measurement[0].__block_info;
+        assert_eq!(bi.item_location.0, 1); // offset of the name
+        assert_eq!(bi.item_location.1, 1); // offset of the long identifier
+        assert_eq!(bi.item_location.2, 1); // offset of the data type
+        assert_eq!(bi.item_location.3, 1); // offset of the conversion method
+        assert_eq!(bi.item_location.4, (1, false)); // offset of the resolution
+        assert_eq!(bi.item_location.5, 1); // offset of the accuracy
+        assert_eq!(bi.item_location.6, 1); // offset of the lower limit
+        assert_eq!(bi.item_location.7, 1); // offset of the upper limit
+        assert_eq!(module.measurement[0].stringify(4), r#"
+        measurement_name
+        "measurement long indentifier."
+        FLOAT32_IEEE
+        single
+        0
+        0
+        -2000
+        2000
+        ARRAY_SIZE 4
+        ECU_ADDRESS 0x70031180 /* @ECU_Address@measurement_name@ */"#);
+
+        static DATA3: &str = r#"
+        /begin MEASUREMENT
+            /* Name                   */      measurement_name
+            /* Long Identifier        */      "measurement long indentifier."
+            /* Data type              */      FLOAT32_IEEE
+            /* a very long  
+            and multiline-comments here ; 
+            situation is not optimal;
+            not sure what to do about this kind of comments;
+            */
+            /* Conversion Method      */      single
+            /* Resolution (Not used)  */      0
+            /* Accuracy (Not used)    */      0
+            /* Lower Limit            */      -2000.0
+            /* Upper Limit            */      2000.0
+            ARRAY_SIZE                        4
+            ECU_ADDRESS                       0x70031180 /* @ECU_Address@measurement_name@ */
+        /end MEASUREMENT
+        "#;
+        let module = crate::load_fragment(DATA3, None).unwrap();
+        assert_eq!(module.measurement[0].stringify(4), r#"
+        measurement_name
+        "measurement long indentifier."
+        FLOAT32_IEEE
+        single
+        0
+        0
+        -2000
+        2000
+        ARRAY_SIZE 4
+        ECU_ADDRESS 0x70031180 /* @ECU_Address@measurement_name@ */"#);
+    }
+
+    #[test]
+    fn parse_comments_preserved() {
+        static DATA: &str = r#"
+        /begin CHARACTERISTIC
+        xxxxxxxxxxxxx "xxxxxxx" VALUE  0x0000  Scalar_FLOAT32_IEEE  0  single -3.4E+38  3.4E+38
+        /* this characteristic is read only for very important reasons - this comment is preserved! */
+        READ_ONLY
+        /end CHARACTERISTIC
+        "#;
+        let module = crate::load_fragment(DATA, None).unwrap();
+        assert_eq!(module.characteristic[0].stringify(4), r#"
+        xxxxxxxxxxxxx "xxxxxxx" VALUE 0x0 Scalar_FLOAT32_IEEE 0 single -3.4e38 3.4e38
+        /* this characteristic is read only for very important reasons - this comment is preserved! */
+        READ_ONLY"#);
+
+        static DATA1: &str = r#"
+        /begin CHARACTERISTIC
+        xxxxxxxxxxxxx "xxxxxxx" VALUE  0x0000  Scalar_FLOAT32_IEEE  0  single -3.4E+38  3.4E+38
+        /* this characteristic is read only for very important reasons
+        -
+        -
+        -
+        this comment is preserved! */
+        READ_ONLY
+        /end CHARACTERISTIC
+        "#;
+        let module = crate::load_fragment(DATA1, None).unwrap();
+        assert_eq!(module.characteristic[0].stringify(4), r#"
+        xxxxxxxxxxxxx "xxxxxxx" VALUE 0x0 Scalar_FLOAT32_IEEE 0 single -3.4e38 3.4e38
+        /* this characteristic is read only for very important reasons
+        -
+        -
+        -
+        this comment is preserved! */
+        READ_ONLY"#);
     }
 }
