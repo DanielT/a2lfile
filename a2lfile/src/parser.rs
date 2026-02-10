@@ -1618,4 +1618,28 @@ mod tests {
         this comment is preserved! */
         READ_ONLY"#);
     }
+
+    #[test]
+    fn parse_string_fallback() {
+        // regression test for the issue fixed in PR #47
+        // An identifier would not be accepted in a context where a string was expected if the identifier was preceded by a comment.
+        static DATA: &str = r#"/* comment */ identifier "#;
+        let tokenresult = tokenizer::tokenize(&Filename::from("test_input"), 0, DATA);
+        assert!(tokenresult.is_ok());
+
+        let tokenresult = tokenresult.unwrap();
+        let mut log_msgs = Vec::<A2lError>::new();
+        let mut parser = ParserState::new(&tokenresult, &mut log_msgs, false);
+        let context = ParseContext {
+            element: "TEST".to_string(),
+            fileid: 0,
+            line: 0,
+        };
+
+        // try to get a string, but the next token is an identifier. The parser should fall back to getting an identifier and return it as a string
+        let res = parser.get_string(&context);
+        assert!(res.is_ok());
+        let val = res.unwrap();
+        assert_eq!(val, "identifier");
+    }
 }
