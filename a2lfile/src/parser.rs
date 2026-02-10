@@ -441,19 +441,19 @@ impl<'a> ParserState<'a> {
              // to deal a case like this:
              // /* comment */ current_token
              // if the previous token is a comment on other line, a newline should be inserted before current_token
-            while idx >= 0 {  
+            while idx >= 0 {
                 let token = &self.token_cursor.tokens[idx as usize];
-                if token.ttype != A2lTokenType::Comment || token.line != cur_line {   
+                if token.ttype != A2lTokenType::Comment || token.line != cur_line {
                     break;
                 }
-                // if the last token is a comment on the same line, skip it 
+                // if the last token is a comment on the same line, skip it
                 idx -= 1;
             }
             let (prev_line, prev_fileid) = if idx >= 0 {
                 let prev_token = &self.token_cursor.tokens[idx as usize];
                 if prev_token.ttype == A2lTokenType::Comment {
                     // if the previous token was a comment on a different line, use cur_line minus 1, so one newline is inserted
-                    (cur_line - 1, cur_fileid) 
+                    (cur_line - 1, cur_fileid)
                 } else {
                     (prev_token.line, prev_token.fileid)
                 }
@@ -1474,12 +1474,12 @@ mod tests {
         /begin CHARACTERISTIC
             /* Name                   */      characteristic_name
             /* Long Identifier        */      "long identifier with spaces and /* inside comments */"
-            /* multible quotes here */ /* yet another quote */  /* Type                   */      VALUE 
-            /* ECU Address            */      0x0000 /* @ECU_Address@xxxxxxxx@ */ 
-            /* Record Layout          */      Scalar_FLOAT32_IEEE 
-            /* Maximum Difference     */      0 
-            /* Conversion Method      */      single 
-            /* Lower Limit            */      -3.4E+38 
+            /* multible quotes here */ /* yet another quote */  /* Type                   */      VALUE
+            /* ECU Address            */      0x0000 /* @ECU_Address@xxxxxxxx@ */
+            /* Record Layout          */      Scalar_FLOAT32_IEEE
+            /* Maximum Difference     */      0
+            /* Conversion Method      */      single
+            /* Lower Limit            */      -3.4E+38
             /* Upper Limit            */      3.4E+38
         /end CHARACTERISTIC
         "#;
@@ -1494,7 +1494,7 @@ mod tests {
         assert_eq!(bi.item_location.6, 1); // offset of the conversion method
         assert_eq!(bi.item_location.7, 1); // offset of the lower limit
         assert_eq!(bi.item_location.8, 1); // offset of the upper limit
-        assert_eq!(bi.end_offset, 1); // offset of the /end 
+        assert_eq!(bi.end_offset, 1); // offset of the /end
         assert_eq!(module.characteristic[0].stringify(4), r#"
         characteristic_name
         "long identifier with spaces and /* inside comments */"
@@ -1548,8 +1548,8 @@ mod tests {
             /* Name                   */      measurement_name
             /* Long Identifier        */      "measurement long indentifier."
             /* Data type              */      FLOAT32_IEEE
-            /* a very long  
-            and multiline-comments here ; 
+            /* a very long
+            and multiline-comments here ;
             situation is not optimal;
             not sure what to do about this kind of comments;
             */
