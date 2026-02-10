@@ -590,6 +590,12 @@ impl<'a> ParserState<'a> {
     // get_string()
     // Get the content of a String token as a string
     pub(crate) fn get_string(&mut self, context: &ParseContext) -> Result<String, ParserError> {
+
+        // Consume leading comment tokens
+        while let Some(A2lToken { ttype: A2lTokenType::Comment, .. }) = self.peek_token() {
+            // Intentionally ignore the returned token; we just want to advance
+            let _ = self.get_token(context);
+        }
         let text = if let Some(
             token @ A2lToken {
                 ttype: A2lTokenType::Identifier,
