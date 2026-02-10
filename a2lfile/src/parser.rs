@@ -437,10 +437,10 @@ impl<'a> ParserState<'a> {
             let cur_line = self.token_cursor.tokens[self.token_cursor.pos - 1].line;
             let cur_fileid = self.token_cursor.tokens[self.token_cursor.pos - 1].fileid;
             let mut idx = (self.token_cursor.pos - 2) as isize;
-             // look for the previous non-comment token on the same line
-             // to deal a case like this:
-             // /* comment */ current_token
-             // if the previous token is a comment on other line, a newline should be inserted before current_token
+            // look for the previous non-comment token on the same line
+            // to deal a case like this:
+            // /* comment */ current_token
+            // if the previous token is a comment on other line, a newline should be inserted before current_token
             while idx >= 0 {
                 let token = &self.token_cursor.tokens[idx as usize];
                 if token.ttype != A2lTokenType::Comment || token.line != cur_line {
@@ -458,7 +458,7 @@ impl<'a> ParserState<'a> {
                     (prev_token.line, prev_token.fileid)
                 }
             } else {
-                (cur_line - 1 , cur_fileid) // this case should never happen, fail-safe with a newline
+                (cur_line - 1, cur_fileid) // this case should never happen, fail-safe with a newline
             };
 
             // subtracting line numbers is only sane within a file
@@ -590,9 +590,12 @@ impl<'a> ParserState<'a> {
     // get_string()
     // Get the content of a String token as a string
     pub(crate) fn get_string(&mut self, context: &ParseContext) -> Result<String, ParserError> {
-
         // Consume leading comment tokens
-        while let Some(A2lToken { ttype: A2lTokenType::Comment, .. }) = self.peek_token() {
+        while let Some(A2lToken {
+            ttype: A2lTokenType::Comment,
+            ..
+        }) = self.peek_token()
+        {
             // Intentionally ignore the returned token; we just want to advance
             let _ = self.get_token(context);
         }
@@ -1501,7 +1504,9 @@ mod tests {
         assert_eq!(bi.item_location.7, 1); // offset of the lower limit
         assert_eq!(bi.item_location.8, 1); // offset of the upper limit
         assert_eq!(bi.end_offset, 1); // offset of the /end
-        assert_eq!(module.characteristic[0].stringify(4), r#"
+        assert_eq!(
+            module.characteristic[0].stringify(4),
+            r#"
         characteristic_name
         "long identifier with spaces and /* inside comments */"
         VALUE
@@ -1510,7 +1515,8 @@ mod tests {
         0
         single
         -3.4e38
-        3.4e38"#);
+        3.4e38"#
+        );
 
         static DATA2: &str = r#"
         /begin MEASUREMENT
@@ -1537,7 +1543,9 @@ mod tests {
         assert_eq!(bi.item_location.5, 1); // offset of the accuracy
         assert_eq!(bi.item_location.6, 1); // offset of the lower limit
         assert_eq!(bi.item_location.7, 1); // offset of the upper limit
-        assert_eq!(module.measurement[0].stringify(4), r#"
+        assert_eq!(
+            module.measurement[0].stringify(4),
+            r#"
         measurement_name
         "measurement long indentifier."
         FLOAT32_IEEE
@@ -1547,7 +1555,8 @@ mod tests {
         -2000
         2000
         ARRAY_SIZE 4
-        ECU_ADDRESS 0x70031180 /* @ECU_Address@measurement_name@ */"#);
+        ECU_ADDRESS 0x70031180 /* @ECU_Address@measurement_name@ */"#
+        );
 
         static DATA3: &str = r#"
         /begin MEASUREMENT
@@ -1569,7 +1578,9 @@ mod tests {
         /end MEASUREMENT
         "#;
         let module = crate::load_fragment(DATA3, None).unwrap();
-        assert_eq!(module.measurement[0].stringify(4), r#"
+        assert_eq!(
+            module.measurement[0].stringify(4),
+            r#"
         measurement_name
         "measurement long indentifier."
         FLOAT32_IEEE
@@ -1579,7 +1590,8 @@ mod tests {
         -2000
         2000
         ARRAY_SIZE 4
-        ECU_ADDRESS 0x70031180 /* @ECU_Address@measurement_name@ */"#);
+        ECU_ADDRESS 0x70031180 /* @ECU_Address@measurement_name@ */"#
+        );
     }
 
     #[test]
@@ -1592,10 +1604,13 @@ mod tests {
         /end CHARACTERISTIC
         "#;
         let module = crate::load_fragment(DATA, None).unwrap();
-        assert_eq!(module.characteristic[0].stringify(4), r#"
+        assert_eq!(
+            module.characteristic[0].stringify(4),
+            r#"
         xxxxxxxxxxxxx "xxxxxxx" VALUE 0x0 Scalar_FLOAT32_IEEE 0 single -3.4e38 3.4e38
         /* this characteristic is read only for very important reasons - this comment is preserved! */
-        READ_ONLY"#);
+        READ_ONLY"#
+        );
 
         static DATA1: &str = r#"
         /begin CHARACTERISTIC
@@ -1609,14 +1624,17 @@ mod tests {
         /end CHARACTERISTIC
         "#;
         let module = crate::load_fragment(DATA1, None).unwrap();
-        assert_eq!(module.characteristic[0].stringify(4), r#"
+        assert_eq!(
+            module.characteristic[0].stringify(4),
+            r#"
         xxxxxxxxxxxxx "xxxxxxx" VALUE 0x0 Scalar_FLOAT32_IEEE 0 single -3.4e38 3.4e38
         /* this characteristic is read only for very important reasons
         -
         -
         -
         this comment is preserved! */
-        READ_ONLY"#);
+        READ_ONLY"#
+        );
     }
 
     #[test]
