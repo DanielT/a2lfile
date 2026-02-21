@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 3.3.1
+
+- Bugfix: Non-strict parsing should not fail if a string was expected, but comment + identifier was found.
+  Previously the comment prevented the error recovery, where an identifier is accepted in place of a string.
+
 ## Version 3.3.0
 
 - Bugfix: INSTANCEs can have a READ_WRITE attribute, instead of READ_ONLY
