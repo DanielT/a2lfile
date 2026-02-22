@@ -441,9 +441,15 @@ fn parse_unknown_taggedstruct(
         parser.get_token(context)?;
     }
 
-    while let Ok(BlockContent::Block(token, is_block, start_offset)) =
-        parser.get_next_tag_or_comment(context)
-    {
+    loop {
+        let (token, is_block, start_offset) = match parser.get_next_tag_or_comment(context) {
+            Ok(BlockContent::Block(token, is_block, start_offset)) => {
+                (token, is_block, start_offset)
+            }
+            Ok(BlockContent::Comment(..)) => continue,
+            Ok(BlockContent::None) | Err(_) => break,
+        };
+
         let uid = parser.get_next_id();
         let tag = parser.get_token_text(token);
         let newcontext = ParseContext::from_token(tag, token);
@@ -830,5 +836,38 @@ mod ifdata_test {
         let result =
             parse_helper(r##"abc def ghi /begin AAA 12 23 34 45 "foo" "bar" /end IFDATA"##);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_unknown_with_comments() {
+        // Block comments inside an unknown IF_DATA block should be skipped by the fallback parser.
+
+        // block comment before a /begin block
+        let result = parse_helper(
+            r##"abc /* block comment */ /begin AAA 12 /end AAA /end IFDATA"##,
+        );
+        assert!(result.is_ok());
+        let (gen_ifdata, valid) = result.unwrap();
+        assert!(!valid);
+        assert!(gen_ifdata.is_some());
+
+        // line comment before a /begin block
+        let result = parse_helper(
+            r##"abc // line comment
+            /begin AAA 12 /end AAA /end IFDATA"##,
+        );
+        assert!(result.is_ok());
+        let (gen_ifdata, valid) = result.unwrap();
+        assert!(!valid);
+        assert!(gen_ifdata.is_some());
+
+        // multiple block comments (simulates copyright headers in included files)
+        let result = parse_helper(
+            r##"abc /* first comment */ /* second comment */ /begin AAA 12 /end AAA /end IFDATA"##,
+        );
+        assert!(result.is_ok());
+        let (gen_ifdata, valid) = result.unwrap();
+        assert!(!valid);
+        assert!(gen_ifdata.is_some());
     }
 }
