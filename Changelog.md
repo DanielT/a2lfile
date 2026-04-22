@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 3.4.0
+
+### Feature
+
+- Support comments at the top level of a2l files
+
 ## Version 3.3.2
 
 - Bugfix: Allow fallback parser to skip comments in unknown IF_DATA blocks (Akhil T Thomas)
