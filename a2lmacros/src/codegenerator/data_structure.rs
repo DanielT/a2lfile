@@ -132,7 +132,9 @@ fn generate_block_data_structure_generic(
             used_in_list,
         ));
     }
-    if allow_comments && is_block && contains_taggedstruct(structitems) {
+    let support_comments =
+        (is_block && contains_taggedstruct(structitems)) || typename == "A2lFile";
+    if allow_comments && support_comments {
         definitions.push(quote! {pub(crate) a2lcomment: Vec<Comment>});
     }
     let location_spec = generate_struct_block_location(structitems);
@@ -462,7 +464,9 @@ fn generate_block_data_structure_constructor(
         }
     }
 
-    if allow_comments && is_block && contains_taggedstruct(structitems) {
+    let support_comments =
+        (is_block && contains_taggedstruct(structitems)) || typename == "A2lFile";
+    if allow_comments && support_comments {
         // a block that contains a taggedstruct can also contain comments
         fieldinit.push(quote! {a2lcomment: Vec::new()});
     }

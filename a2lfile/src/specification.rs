@@ -89,6 +89,7 @@ pub struct A2lFile {
     pub asap2_version: Option<Asap2Version>,
     pub a2ml_version: Option<A2mlVersion>,
     pub project: Project,
+    pub(crate) a2lcomment: Vec<Comment>,
     pub(crate) __block_info: BlockInfo<()>,
 }
 
@@ -110,6 +111,7 @@ impl A2lFile {
             asap2_version: None,
             a2ml_version: None,
             project,
+            a2lcomment: Vec::new(),
             __block_info: BlockInfo {
                 incfile: None,
                 line: 0,
@@ -165,6 +167,7 @@ impl ParseableA2lObject for A2lFile {
         let __location_incfile = parser.get_incfilename(context.fileid);
         let __location_line = context.line;
         let __uid = parser.get_next_id();
+        let mut a2lcomment = Vec::new();
         let mut asap2_version: Option<Asap2Version> = None;
         let mut a2ml_version: Option<A2mlVersion> = None;
         let mut __tmp_required_project: Option<Project> = None;
@@ -214,7 +217,15 @@ impl ParseableA2lObject for A2lFile {
                         }
                     }
                 }
-                BlockContent::Comment(_token, _start_offset) => {}
+                BlockContent::Comment(token, line_offset) => {
+                    a2lcomment.push(Comment {
+                        comment: parser.get_token_text(token).to_string(),
+                        is_included: context.fileid != 0,
+                        line: context.line,
+                        uid: parser.get_next_id(),
+                        start_offset: line_offset,
+                    });
+                }
                 _ => {
                     break;
                 }
@@ -241,6 +252,7 @@ impl ParseableA2lObject for A2lFile {
                 end_offset: __end_offset,
                 item_location: (),
             },
+            a2lcomment,
             asap2_version,
             a2ml_version,
             project,
@@ -304,6 +316,7 @@ impl A2lFile {
             end_offset: self.project.__block_info.end_offset,
             position_restriction: self.project.pos_restrict(),
         });
+        writer::add_comments_to_group(&mut tgroup, &self.a2lcomment);
         writer.add_group(tgroup);
         writer.finish()
     }

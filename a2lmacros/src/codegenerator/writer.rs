@@ -76,7 +76,8 @@ fn generate_block_writer_generic(
 ) -> TokenStream {
     let typeident = format_ident!("{}", typename);
 
-    let write_items = generate_block_item_writers(structitems, is_block);
+    let allow_comments = is_block || typename == "A2lFile";
+    let write_items = generate_block_item_writers(structitems, allow_comments);
 
     if write_items.is_empty() {
         quote! {

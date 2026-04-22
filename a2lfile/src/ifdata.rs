@@ -843,9 +843,8 @@ mod ifdata_test {
         // Block comments inside an unknown IF_DATA block should be skipped by the fallback parser.
 
         // block comment before a /begin block
-        let result = parse_helper(
-            r##"abc /* block comment */ /begin AAA 12 /end AAA /end IFDATA"##,
-        );
+        let result =
+            parse_helper(r##"abc /* block comment */ /begin AAA 12 /end AAA /end IFDATA"##);
         assert!(result.is_ok());
         let (gen_ifdata, valid) = result.unwrap();
         assert!(!valid);

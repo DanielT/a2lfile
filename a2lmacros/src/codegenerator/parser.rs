@@ -102,9 +102,19 @@ fn generate_block_parser_generic(
     structitems: &[DataItem],
     is_block: bool,
 ) -> TokenStream {
+    let has_taggedstruct = structitems.iter().any(|item| {
+        matches!(
+            item.basetype,
+            BaseType::TaggedStructRef | BaseType::TaggedStruct { .. }
+        )
+    });
+    // comments require a block context and are stored as special taggedstruct items.
+    // The top-level A2lFile type is special since it behaves like a block (but doesn't end with /end) and can also support comments.
+    let uses_comments = (is_block && has_taggedstruct) || typename == "A2lFile";
+
     let name = format_ident!("{}", typename);
     let (itemnames, itemparsers, location_names) =
-        generate_struct_item_fragments(structitems, is_block);
+        generate_struct_item_fragments(structitems, is_block, uses_comments);
 
     // check the block /end tag - blocks only, not for keywords or structs
     let blockcheck = if is_block {
@@ -122,13 +132,7 @@ fn generate_block_parser_generic(
         }
     };
 
-    let has_taggedstruct = structitems.iter().any(|item| {
-        matches!(
-            item.basetype,
-            BaseType::TaggedStructRef | BaseType::TaggedStruct { .. }
-        )
-    });
-    let a2lcomment_definition = if is_block && has_taggedstruct {
+    let a2lcomment_definition = if uses_comments {
         quote! {
             let mut a2lcomment = Vec::new();
         }
@@ -136,7 +140,7 @@ fn generate_block_parser_generic(
         quote! {}
     };
 
-    let a2lcomment_use = if is_block && has_taggedstruct {
+    let a2lcomment_use = if uses_comments {
         quote! { a2lcomment,}
     } else {
         quote! {}
@@ -173,6 +177,7 @@ fn generate_block_parser_generic(
 fn generate_struct_item_fragments(
     structitems: &[DataItem],
     is_block: bool,
+    uses_comments: bool,
 ) -> (Vec<Ident>, Vec<TokenStream>, Vec<Ident>) {
     let mut itemparsers = Vec::<TokenStream>::new();
     let mut itemnames = Vec::<Ident>::new();
@@ -182,12 +187,18 @@ fn generate_struct_item_fragments(
         match &sitem.basetype {
             BaseType::TaggedStruct { tsitems } => {
                 itemparsers.push(generate_taggeditem_parser(
-                    tsitems, false, is_block, is_last,
+                    tsitems,
+                    false,
+                    is_block,
+                    is_last,
+                    uses_comments,
                 ));
                 itemnames.extend(generate_tagged_item_names(tsitems));
             }
             BaseType::TaggedUnion { tuitems } => {
-                itemparsers.push(generate_taggeditem_parser(tuitems, true, is_block, is_last));
+                itemparsers.push(generate_taggeditem_parser(
+                    tuitems, true, is_block, is_last, false,
+                ));
                 itemnames.extend(generate_tagged_item_names(tuitems));
             }
             BaseType::Sequence { seqtype } => {
@@ -414,6 +425,7 @@ fn generate_taggeditem_parser(
     is_taggedunion: bool,
     parent_is_block: bool,
     is_last: bool,
+    uses_comments: bool,
 ) -> TokenStream {
     // result: the TokenStream that ultimately collcts all the code fragements in this function
     let mut result = quote! {};
@@ -433,68 +445,55 @@ fn generate_taggeditem_parser(
         parent_is_block,
     );
 
-    if parent_is_block {
-        if is_taggedunion {
-            // if the parent is a block, then the tagged union is a block too
-            result.extend(quote! {
-                let mut next_tag = parser.get_next_tag_or_comment(context)?;
-                if let BlockContent::Block(token, is_block, line_offset) = next_tag {
-                    #parser_core
-                }
-            });
-        } else {
-            // if the parent is a block, then the tagged struct is a block too
-            result.extend(quote! {
-                loop {
-                    let next_tag = parser.get_next_tag_or_comment(context)?;
-                    match next_tag {
-                        BlockContent::Block(token, is_block, line_offset) => {
-                            #parser_core
-                        }
-                        BlockContent::Comment(token, line_offset) => {
-                            a2lcomment.push(Comment {
-                                comment: parser.get_token_text(token).to_string(),
-                                is_included: context.fileid != 0,
-                                line: context.line,
-                                uid: parser.get_next_id(),
-                                start_offset: line_offset,
-                            });
-                        }
-                        _ => {
-                            break;
-                        }
+    if is_taggedunion {
+        // if the parent is a block, then the tagged union is a block too
+        result.extend(quote! {
+            let mut next_tag = parser.get_next_tag_or_comment(context)?;
+            if let BlockContent::Block(token, is_block, line_offset) = next_tag {
+                #parser_core
+            }
+        });
+    } else if uses_comments {
+        result.extend(quote! {
+            loop {
+                let next_tag = parser.get_next_tag_or_comment(context)?;
+                match next_tag {
+                    BlockContent::Block(token, is_block, line_offset) => {
+                        #parser_core
+                    }
+                    BlockContent::Comment(token, line_offset) => {
+                        a2lcomment.push(Comment {
+                            comment: parser.get_token_text(token).to_string(),
+                            is_included: context.fileid != 0,
+                            line: context.line,
+                            uid: parser.get_next_id(),
+                            start_offset: line_offset,
+                        });
+                    }
+                    _ => {
+                        break;
                     }
                 }
-            });
-        }
+            }
+        });
     } else {
-        // wrap the match statement inside an if or a while loop
-        if is_taggedunion {
-            result.extend(quote! {
-                let mut next_tag = parser.get_next_tag_or_comment(context)?;
-                if let BlockContent::Block(token, is_block, line_offset) = next_tag {
-                    #parser_core
-                }
-            });
-        } else {
-            result.extend(quote! {
-                loop {
-                    let next_tag = parser.get_next_tag_or_comment(context)?;
-                    match next_tag {
-                        BlockContent::Block(token, is_block, line_offset) => {
-                            #parser_core
-                        }
-                        BlockContent::Comment(_token, _start_offset) => {
-                            // the parent is not a block, so preserving the comment is currently not supported
-                            // it is implicitly discarded, because it isn't stored anywhere
-                        }
-                        _ => {
-                            break;
-                        }
+        result.extend(quote! {
+            loop {
+                let next_tag = parser.get_next_tag_or_comment(context)?;
+                match next_tag {
+                    BlockContent::Block(token, is_block, line_offset) => {
+                        #parser_core
+                    }
+                    BlockContent::Comment(_token, _start_offset) => {
+                        // the parent is not a block, so preserving the comment is currently not supported
+                        // it is implicitly discarded, because it isn't stored anywhere
+                    }
+                    _ => {
+                        break;
                     }
                 }
-            });
-        }
+            }
+        });
     }
 
     // now that all items have been parsed, the check if all required items are present can be performed
