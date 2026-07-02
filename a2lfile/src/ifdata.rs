@@ -158,8 +158,15 @@ fn parse_ifdata_item(
             let mut seqitems = Vec::new();
             let mut checkpoint = parser.get_tokenpos();
             while let Ok(item) = parse_ifdata_item(parser, context, seqspec) {
+                let newpos = parser.get_tokenpos();
+                // A TaggedStruct/TaggedUnion can succeed without consuming any tokens, e.g. once
+                // all the tags of a repeated taggedunion have been used up.
+                // In that case, we must break to avoid an infinite loop.
+                if newpos == checkpoint {
+                    break;
+                }
                 seqitems.push(item);
-                checkpoint = parser.get_tokenpos();
+                checkpoint = newpos;
             }
             parser.set_tokenpos(checkpoint);
             GenericIfData::Sequence(seqitems)
@@ -769,6 +776,39 @@ mod ifdata_test {
         assert!(result.is_ok());
         let decoded_ifdata = check_and_decode(result);
         assert!(decoded_ifdata.none.is_some());
+    }
+
+    #[test]
+    fn parse_ifdata_sequence_of_taggedunion_terminates() {
+        // A TaggedStruct/TaggedUnion can succeed without consuming any tokens
+        // once none of its tags match (e.g. all repetitions have already been
+        // consumed). A Sequence wrapping one must stop in that case instead of
+        // looping forever at the same token position.
+        let ifdata = "NONE /end IFDATA";
+        let token_result =
+            a2lfile::tokenizer::tokenize(&Filename::from("test"), 0, ifdata).unwrap();
+        let mut log_msgs = Vec::new();
+        let ifdatas = [ifdata.to_string()];
+        let filenames = [Filename::from("test")];
+        let mut parser = ParserState::new_internal(
+            &token_result.tokens,
+            &ifdatas,
+            &filenames,
+            &mut log_msgs,
+            false,
+        );
+        let context = a2lfile::ParseContext {
+            fileid: 0,
+            line: 0,
+            element: "IFDATA".to_string(),
+        };
+        let spec = A2mlTypeSpec::Sequence(Box::new(A2mlTypeSpec::TaggedUnion(HashMap::new())));
+
+        let result = parse_ifdata_item(&mut parser, &context, &spec);
+        match result {
+            Ok(GenericIfData::Sequence(items)) => assert!(items.is_empty()),
+            other => panic!("unexpected result: {other:?}"),
+        }
     }
 
     fn parse_helper(ifdata: &str) -> Result<(Option<GenericIfData>, bool), ParserError> {
