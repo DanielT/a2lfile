@@ -600,6 +600,11 @@ fn check_characteristic_common(
         ];
         let axis_pts_names = ["X", "Y", "Z", "4", "5"];
         for (idx, axis_descr) in characteristic.axis_descr().iter().enumerate() {
+            if idx >= axis_refs.len() {
+                // Prevent an out-of bounds panic if the characteristic has more axes than the record layout supports.
+                // There is already a warning about the number of axes above, no further action required.
+                break;
+            }
             if axis_descr.attribute == AxisDescrAttribute::StdAxis {
                 // an STD_AXIS must be described by the record layout - should this also apply to CURVE_AXIS?
                 if let Some(axis_pts_dim) = axis_refs[idx] {
@@ -1626,6 +1631,40 @@ mod test {
         let (a2lfile, _) = load_from_string(A2L_TEXT4, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 0);
+    }
+
+    #[test]
+    fn check_typedef_axis_descr_count() {
+        static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin CHARACTERISTIC name "" CUBE_5 0x1234 rl 0 cm 0.0 1.0
+                /begin AXIS_DESCR STD_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD 1 0 100
+                /end AXIS_DESCR
+                /begin AXIS_DESCR STD_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD 1 0 100
+                /end AXIS_DESCR
+                /begin AXIS_DESCR STD_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD 1 0 100
+                /end AXIS_DESCR
+                /begin AXIS_DESCR STD_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD 1 0 100
+                /end AXIS_DESCR
+                /begin AXIS_DESCR STD_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD 1 0 100
+                /end AXIS_DESCR
+                // axis #6: invalid, too many axis descrs
+                /begin AXIS_DESCR STD_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD 1 0 100
+                /end AXIS_DESCR
+            /end CHARACTERISTIC
+            /begin RECORD_LAYOUT rl
+                FNC_VALUES 0 FLOAT32_IEEE ROW_DIR DIRECT
+                AXIS_PTS_X 1 FLOAT32_IEEE INDEX_INCR DIRECT
+                AXIS_PTS_Y 2 FLOAT32_IEEE INDEX_INCR DIRECT
+                AXIS_PTS_Z 3 FLOAT32_IEEE INDEX_INCR DIRECT
+                AXIS_PTS_4 4 FLOAT32_IEEE INDEX_INCR DIRECT
+                AXIS_PTS_5 5 FLOAT32_IEEE INDEX_INCR DIRECT
+            /end RECORD_LAYOUT
+            /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit" /end COMPU_METHOD
+        /end MODULE /end PROJECT"#;
+        let (a2lfile, _) = load_from_string(A2L_TEXT, None, true).unwrap();
+        let log_msgs = super::check(&a2lfile);
+        // Warning: Expected 5 AXIS_DESCR for type CUBE_5, found 6
+        assert_eq!(log_msgs.len(), 1);
     }
 
     #[test]
