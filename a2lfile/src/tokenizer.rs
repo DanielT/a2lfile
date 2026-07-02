@@ -1,5 +1,6 @@
 use crate::Filename;
 use crate::loader;
+use std::ffi::OsString;
 use std::path::Path;
 use thiserror::Error;
 
@@ -15,6 +16,13 @@ pub enum TokenizerError {
 
     #[error("{filename}:{line}: Include directive was not follwed by a filename")]
     IncompleteIncludeError { filename: String, line: u32 },
+
+    #[error("{filename}:{line}: Include of \"{incname}\" forms a cycle of /include directives")]
+    IncludeRecursionError {
+        filename: String,
+        line: u32,
+        incname: String,
+    },
 
     #[error("{filename}:{line}: Input text \"{tokentext}...\" was not recognized as an a2l token")]
     InvalidA2lToken {
@@ -74,12 +82,28 @@ pub(crate) fn tokenize(
     fileid: usize,
     filetext: &str,
 ) -> Result<TokenResult, TokenizerError> {
+    // include_chain tracks the files that are currently being tokenized, from the
+    // top-level file down to the current one. It is used to detect cycles of
+    // /include directives, which would otherwise cause unbounded recursion.
+    let top_level = std::fs::canonicalize(&filename.full)
+        .map(OsString::from)
+        .unwrap_or_else(|_| filename.full.clone());
+    let mut include_chain: Vec<OsString> = vec![top_level];
+    tokenize_file(filename, fileid, filetext, &mut include_chain)
+}
+
+fn tokenize_file(
+    filename: &Filename,
+    fileid: usize,
+    filetext: &str,
+    include_chain: &mut Vec<OsString>,
+) -> Result<TokenResult, TokenizerError> {
     let mut filenames: Vec<Filename> = vec![filename.clone()];
     let mut filedatas: Vec<String> = vec![filetext.to_owned()];
     let filebytes = filetext.as_bytes();
     let mut next_fileid = fileid + 1;
 
-    let input_tokens = tokenize_core(filename.display.clone(), fileid, filetext)?;
+    let input_tokens = lex_tokens(filename.display.clone(), fileid, filetext)?;
     let mut include_directives: Vec<usize> = input_tokens
         .iter()
         .enumerate()
@@ -124,11 +148,29 @@ pub(crate) fn tokenize(
                 let incpathref = Path::new(&incfilename);
                 let loadresult = loader::load(incpathref);
                 if let Ok(incfiledata) = loadresult {
-                    let mut tokresult = tokenize(
+                    // Resolve the include to a canonical path (falling back to the
+                    // unresolved path if that fails) and check it against the chain of
+                    // files that are currently being tokenized, to detect include cycles.
+                    let canonical_incfilename = std::fs::canonicalize(incpathref)
+                        .map(OsString::from)
+                        .unwrap_or_else(|_| incfilename.clone());
+                    if include_chain.contains(&canonical_incfilename) {
+                        return Err(TokenizerError::IncludeRecursionError {
+                            filename: filename.to_string(),
+                            line: token_subseq[0].line,
+                            incname: incname.to_owned(),
+                        });
+                    }
+
+                    include_chain.push(canonical_incfilename);
+                    let tokresult = tokenize_file(
                         &Filename::new(incfilename, incname),
                         next_fileid,
                         &incfiledata,
-                    )?;
+                        include_chain,
+                    );
+                    include_chain.pop();
+                    let mut tokresult = tokresult?;
 
                     next_fileid += tokresult.filenames.len();
 
@@ -166,13 +208,13 @@ pub(crate) fn tokenize(
     })
 }
 
-// tokenize_core()
+// lex_tokens()
 // Convert the text of an a2l file to tokens.
 // During tokenization the text is treated as ASCII, even though it is actually UTF-8. It is
 // possible to do this because characters outside of basic ASCII can actually only occur in
 // strings and comments. UTF-8 in strings is directly copied to the output, while comments are discarded.
 // An important extra goal of the tokenizer is to attach the source line number to each token so that error messages can give accurate location info
-fn tokenize_core(
+fn lex_tokens(
     filename: String,
     fileid: usize,
     filetext: &str,
@@ -664,7 +706,7 @@ mod tests {
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::End);
 
         let data = String::from("/include");
-        let tokresult = tokenize_core(String::from("testcase"), 0, &data).expect("Error");
+        let tokresult = lex_tokens(String::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.len(), 1);
         assert_eq!(tokresult[0].ttype, A2lTokenType::Include);
 
@@ -837,7 +879,7 @@ ASAP2_VERSION 1 60
             "##,
         );
 
-        let tokresult = tokenize_core(String::from("test"), 0, &data).expect("Error");
+        let tokresult = lex_tokens(String::from("test"), 0, &data).expect("Error");
         assert_eq!(tokresult.len(), 8);
         assert_eq!(tokresult[0].ttype, A2lTokenType::Include);
         assert_eq!(tokresult[1].ttype, A2lTokenType::Identifier);
@@ -898,5 +940,39 @@ ASAP2_VERSION 1 60
         let filetext = loader::load(&base_filename).unwrap();
         let tokresult = tokenize(&Filename::from(base_filename.as_path()), 0, &filetext).unwrap();
         assert_eq!(tokresult.filenames.len(), 3);
+    }
+
+    #[test]
+    fn included_files_cycle() {
+        // a file that includes itself must be rejected instead of recursing forever
+        let dir = tempdir().unwrap();
+        let self_inc_filename = dir.path().join("self_inc.a2l");
+        let mut self_inc_file = std::fs::File::create_new(&self_inc_filename).unwrap();
+        self_inc_file
+            .write_all(br#"/include "self_inc.a2l""#)
+            .unwrap();
+
+        let filetext = loader::load(&self_inc_filename).unwrap();
+        let tokresult = tokenize(&Filename::from(self_inc_filename.as_path()), 0, &filetext);
+        assert!(matches!(
+            tokresult,
+            Err(TokenizerError::IncludeRecursionError { .. })
+        ));
+
+        // a cycle of two files that include each other must also be rejected
+        let dir = tempdir().unwrap();
+        let a_filename = dir.path().join("a.a2l");
+        let b_filename = dir.path().join("b.a2l");
+        let mut a_file = std::fs::File::create_new(&a_filename).unwrap();
+        a_file.write_all(br#"/include "b.a2l""#).unwrap();
+        let mut b_file = std::fs::File::create_new(&b_filename).unwrap();
+        b_file.write_all(br#"/include "a.a2l""#).unwrap();
+
+        let filetext = loader::load(&a_filename).unwrap();
+        let tokresult = tokenize(&Filename::from(a_filename.as_path()), 0, &filetext);
+        assert!(matches!(
+            tokresult,
+            Err(TokenizerError::IncludeRecursionError { .. })
+        ));
     }
 }
