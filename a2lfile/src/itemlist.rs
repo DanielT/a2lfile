@@ -102,9 +102,12 @@ impl<T: A2lObjectName> ItemList<T> {
     pub fn swap_remove(&mut self, key: &str) -> Option<T> {
         let index = self.map.remove(key)?;
         let item = self.items.swap_remove(index);
-        // the last item was swapped into the index, so we need to update the map
-        self.map
-            .insert(self.items[index].get_name().to_string(), index);
+        // if the last item was removed, then index is now out of bounds and we don't need to update the map
+        if index < self.items.len() {
+            // the last item was swapped into the index, so we need to update the map
+            self.map
+                .insert(self.items[index].get_name().to_string(), index);
+        }
         Some(item)
     }
 
@@ -114,9 +117,12 @@ impl<T: A2lObjectName> ItemList<T> {
             let item = self.items.swap_remove(index);
             // remove the item from the map
             self.map.remove(item.get_name());
-            // the last item was swapped into the index, so we need to update the map
-            self.map
-                .insert(self.items[index].get_name().to_string(), index);
+            // if the last item was removed, then index is now out of bounds and we don't need to update the map
+            if index < self.items.len() {
+                // the last item was swapped into the index, so we need to update the map
+                self.map
+                    .insert(self.items[index].get_name().to_string(), index);
+            }
             Some(item)
         } else {
             None
@@ -440,6 +446,9 @@ mod test {
             itemlist,
             itemlist![TestItem::new("item5"), TestItem::new("item8")]
         );
+
+        // test that swap_remove works when removing the last item
+        itemlist.swap_remove("item8").unwrap();
     }
 
     fn verify_itemlist(itemlist: &ItemList<TestItem>) {
