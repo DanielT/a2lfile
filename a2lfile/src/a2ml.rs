@@ -4,6 +4,7 @@ use crate::{
 };
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::ffi::OsString;
 use std::path::Path;
 
 // tokenizer types
@@ -124,6 +125,21 @@ pub enum GenericIfData {
 // tokenize()
 // Tokenize the text of the a2ml section
 fn tokenize_a2ml(filename: &Filename, input: &str) -> Result<(Vec<TokenType>, String), String> {
+    // include_chain tracks the files that are currently being tokenized, from the
+    // top-level file down to the current one. It is used to detect cycles of
+    // /include directives, which would otherwise cause unbounded recursion.
+    let top_level = std::fs::canonicalize(&filename.full)
+        .map(OsString::from)
+        .unwrap_or_else(|_| filename.full.clone());
+    let mut include_chain: Vec<OsString> = vec![top_level];
+    tokenize_a2ml_file(filename, input, &mut include_chain)
+}
+
+fn tokenize_a2ml_file(
+    filename: &Filename,
+    input: &str,
+    include_chain: &mut Vec<OsString>,
+) -> Result<(Vec<TokenType>, String), String> {
     let mut amltokens = Vec::<TokenType>::new();
     let input_bytes = input.as_bytes();
     let datalen = input_bytes.len();
@@ -166,7 +182,8 @@ fn tokenize_a2ml(filename: &Filename, input: &str) -> Result<(Vec<TokenType>, St
         } else if input_bytes[bytepos..].starts_with(b"/include") {
             // copy any uncopied text before the include token
             complete_string.push_str(&input[copypos..startpos]);
-            let (mut tokresult, incfile_text) = tokenize_include(filename, input, &mut bytepos)?;
+            let (mut tokresult, incfile_text) =
+                tokenize_include(filename, input, &mut bytepos, include_chain)?;
             complete_string.push_str(&incfile_text);
             copypos = bytepos;
 
@@ -252,6 +269,7 @@ fn tokenize_include(
     filename: &Filename,
     input: &str,
     bytepos: &mut usize,
+    include_chain: &mut Vec<OsString>,
 ) -> Result<(Vec<TokenType>, String), String> {
     let input_bytes = input.as_bytes();
     let datalen = input_bytes.len();
@@ -309,7 +327,23 @@ fn tokenize_include(
     let incpathref = Path::new(&incfilename);
     let loadresult = loader::load(incpathref);
     if let Ok(incfiledata) = loadresult {
-        tokenize_a2ml(&Filename::from(incpathref), &incfiledata)
+        // Resolve the include to a canonical path (falling back to the unresolved
+        // path if that fails) and check it against the chain of files that are
+        // currently being tokenized, to detect include cycles.
+        let canonical_incfilename = std::fs::canonicalize(incpathref)
+            .map(OsString::from)
+            .unwrap_or_else(|_| incfilename.clone());
+        if include_chain.contains(&canonical_incfilename) {
+            return Err(format!(
+                "include of \"{}\" forms a cycle of /include directives",
+                incpathref.display()
+            ));
+        }
+
+        include_chain.push(canonical_incfilename);
+        let result = tokenize_a2ml_file(&Filename::from(incpathref), &incfiledata, include_chain);
+        include_chain.pop();
+        result
     } else {
         Err(format!("failed reading {}", incpathref.display()))
     }
@@ -1454,6 +1488,35 @@ mod test {
             tokenize_a2ml(&Filename::from(base_filename.as_path()), &filetext).unwrap();
         assert_eq!(tokens.len(), 0);
         assert!(fulltext.trim().is_empty());
+    }
+
+    #[test]
+    fn included_files_cycle() {
+        // an a2ml /include that (transitively) includes itself must be rejected
+        // instead of recursing forever
+        let dir = tempdir().unwrap();
+        let self_inc_filename = dir.path().join("self_inc.a2ml");
+        let mut self_inc_file = std::fs::File::create_new(&self_inc_filename).unwrap();
+        self_inc_file
+            .write_all(br#"/include "self_inc.a2ml""#)
+            .unwrap();
+
+        let filetext = loader::load(&self_inc_filename).unwrap();
+        let result = tokenize_a2ml(&Filename::from(self_inc_filename.as_path()), &filetext);
+        assert!(result.is_err());
+
+        // a cycle of two files that include each other must also be rejected
+        let dir = tempdir().unwrap();
+        let a_filename = dir.path().join("a.a2ml");
+        let b_filename = dir.path().join("b.a2ml");
+        let mut a_file = std::fs::File::create_new(&a_filename).unwrap();
+        a_file.write_all(br#"/include "b.a2ml""#).unwrap();
+        let mut b_file = std::fs::File::create_new(&b_filename).unwrap();
+        b_file.write_all(br#"/include "a.a2ml""#).unwrap();
+
+        let filetext = loader::load(&a_filename).unwrap();
+        let result = tokenize_a2ml(&Filename::from(a_filename.as_path()), &filetext);
+        assert!(result.is_err());
     }
 
     #[test]
