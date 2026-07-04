@@ -397,7 +397,12 @@ fn lex_tokens(
             }
             if bytepos == datalen || !is_identchar(filebytes[bytepos]) {
                 let number = &filebytes[startpos..bytepos];
-                if number == b"-" || number == b"." || number == b"0x" {
+                // hex constants are unsigned, per the standard, so a sign in front of
+                // "0x"/"0X" is not a valid number - reject it here instead of letting
+                // it through as a token that the parser could try to misinterpret
+                let signed_hex = (number.starts_with(b"-") || number.starts_with(b"+"))
+                    && (number[1..].starts_with(b"0x") || number[1..].starts_with(b"0X"));
+                if number == b"-" || number == b"." || number == b"0x" || signed_hex {
                     return Err(TokenizerError::InvalidNumericalConstant {
                         filename,
                         line,
@@ -818,6 +823,26 @@ mod tests {
         let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
         assert_eq!(tokresult.tokens.len(), 1);
         assert_eq!(tokresult.tokens[0].ttype, A2lTokenType::Number);
+
+        // hex constants are unsigned, so a sign in front of "0x"/"0X" is rejected
+        for data in ["-0x1A", "+0x1A", "-0X1a", "+0X1a"] {
+            let tokresult = tokenize(&Filename::from("testcase"), 0, &String::from(data));
+            assert!(
+                matches!(
+                    tokresult,
+                    Err(TokenizerError::InvalidNumericalConstant { .. })
+                ),
+                "expected {data} to be rejected as a signed hex constant"
+            );
+        }
+
+        // plain signed decimal numbers are unaffected
+        let data = String::from("-123 +123 -1.5 -1.5e10");
+        let tokresult = tokenize(&Filename::from("testcase"), 0, &data).expect("Error");
+        assert_eq!(tokresult.tokens.len(), 4);
+        for token in &tokresult.tokens {
+            assert_eq!(token.ttype, A2lTokenType::Number);
+        }
     }
 
     #[test]
