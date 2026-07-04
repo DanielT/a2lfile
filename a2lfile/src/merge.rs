@@ -755,7 +755,6 @@ fn merge_function(orig_module: &mut Module, merge_module: &mut Module) {
                 // merge the sub functions
                 match (&mut orig_function.sub_function, function.sub_function) {
                     (Some(orig_sub_function), Some(merge_sub_function)) => {
-                        // merge the sub_functions
                         for item in merge_sub_function.identifier_list {
                             if !orig_sub_function.identifier_list.contains(&item) {
                                 orig_sub_function.identifier_list.push(item);
@@ -772,7 +771,6 @@ fn merge_function(orig_module: &mut Module, merge_module: &mut Module) {
                 // merge the IN_MEASUREMENT
                 match (&mut orig_function.in_measurement, function.in_measurement) {
                     (Some(orig_in_measurement), Some(merge_in_measurement)) => {
-                        // merge the sub_functions
                         for item in merge_in_measurement.identifier_list {
                             if !orig_in_measurement.identifier_list.contains(&item) {
                                 orig_in_measurement.identifier_list.push(item);
@@ -789,7 +787,6 @@ fn merge_function(orig_module: &mut Module, merge_module: &mut Module) {
                 // merge the LOC_MEASUREMENT
                 match (&mut orig_function.loc_measurement, function.loc_measurement) {
                     (Some(orig_loc_measurement), Some(merge_loc_measurement)) => {
-                        // merge the sub_functions
                         for item in merge_loc_measurement.identifier_list {
                             if !orig_loc_measurement.identifier_list.contains(&item) {
                                 orig_loc_measurement.identifier_list.push(item);
@@ -806,7 +803,6 @@ fn merge_function(orig_module: &mut Module, merge_module: &mut Module) {
                 // merge the OUT_MEASUREMENT
                 match (&mut orig_function.out_measurement, function.out_measurement) {
                     (Some(orig_out_measurement), Some(merge_out_measurement)) => {
-                        // merge the sub_functions
                         for item in merge_out_measurement.identifier_list {
                             if !orig_out_measurement.identifier_list.contains(&item) {
                                 orig_out_measurement.identifier_list.push(item);
@@ -816,6 +812,38 @@ fn merge_function(orig_module: &mut Module, merge_module: &mut Module) {
                     (None, Some(merge_out_measurement)) => {
                         // the original function has no out_measurement, but the merge function has one
                         orig_function.out_measurement = Some(merge_out_measurement);
+                    }
+                    _ => {}
+                }
+
+                // merge the DEF_CHARACTERISTIC
+                match (&mut orig_function.def_characteristic, function.def_characteristic) {
+                    (Some(orig_def_characteristic), Some(merge_def_characteristic)) => {
+                        for item in merge_def_characteristic.identifier_list {
+                            if !orig_def_characteristic.identifier_list.contains(&item) {
+                                orig_def_characteristic.identifier_list.push(item);
+                            }
+                        }
+                    }
+                    (None, Some(merge_def_characteristic)) => {
+                        // the original function has no def_characteristic, but the merge function has one
+                        orig_function.def_characteristic = Some(merge_def_characteristic);
+                    }
+                    _ => {}
+                }
+
+                // merge the REF_CHARACTERISTIC
+                match (&mut orig_function.ref_characteristic, function.ref_characteristic) {
+                    (Some(orig_ref_characteristic), Some(merge_ref_characteristic)) => {
+                        for item in merge_ref_characteristic.identifier_list {
+                            if !orig_ref_characteristic.identifier_list.contains(&item) {
+                                orig_ref_characteristic.identifier_list.push(item);
+                            }
+                        }
+                    }
+                    (None, Some(merge_ref_characteristic)) => {
+                        // the original function has no ref_characteristic, but the merge function has one
+                        orig_function.ref_characteristic = Some(merge_ref_characteristic);
                     }
                     _ => {}
                 }
