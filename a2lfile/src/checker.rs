@@ -395,7 +395,7 @@ fn check_axis_pts(
         });
     }
 
-    check_function_list(&axis_pts.function_list, module, log_msgs);
+    check_function_list(&axis_pts.name, &axis_pts.function_list, module, log_msgs);
     check_ref_memory_segment(&axis_pts.ref_memory_segment, module, log_msgs);
 }
 
@@ -435,6 +435,7 @@ fn check_characteristic(
         let depline = dependent_characteristic.get_line();
         check_reference_list(
             "DEPENDENT_CHARACTERISTIC",
+            &characteristic.name,
             "CHARACTERISTIC",
             depline,
             &dependent_characteristic.characteristic_list,
@@ -448,6 +449,7 @@ fn check_characteristic(
         let ml_line = map_list.get_line();
         check_reference_list(
             "MAP_LIST",
+            &characteristic.name,
             "CHARACTERISTIC",
             ml_line,
             &map_list.name_list,
@@ -461,6 +463,7 @@ fn check_characteristic(
         let vc_line = virtual_characteristic.get_line();
         check_reference_list(
             "VIRTUAL_CHARACTERISTIC",
+            &characteristic.name,
             "CHARACTERISTIC",
             vc_line,
             &virtual_characteristic.characteristic_list,
@@ -470,7 +473,12 @@ fn check_characteristic(
         );
     }
 
-    check_function_list(&characteristic.function_list, module, results);
+    check_function_list(
+        &characteristic.name,
+        &characteristic.function_list,
+        module,
+        results,
+    );
     check_ref_memory_segment(&characteristic.ref_memory_segment, module, results);
 }
 
@@ -798,6 +806,7 @@ fn check_function(
         let line = in_measurement.get_line();
         check_reference_list(
             "IN_MEASUREMENT",
+            &function.name,
             "MEASUREMENT",
             line,
             &in_measurement.identifier_list,
@@ -811,6 +820,7 @@ fn check_function(
         let line = loc_measurement.get_line();
         check_reference_list(
             "LOC_MEASUREMENT",
+            &function.name,
             "MEASUREMENT",
             line,
             &loc_measurement.identifier_list,
@@ -824,6 +834,7 @@ fn check_function(
         let line = out_measurement.get_line();
         check_reference_list(
             "OUT_MEASUREMENT",
+            &function.name,
             "MEASUREMENT",
             line,
             &out_measurement.identifier_list,
@@ -837,6 +848,7 @@ fn check_function(
         let line = def_characteristic.get_line();
         check_reference_list(
             "DEF_CHARACTERISTIC",
+            &function.name,
             "CHARACTERISTIC",
             line,
             &def_characteristic.identifier_list,
@@ -850,6 +862,7 @@ fn check_function(
         let line = ref_characteristic.get_line();
         check_reference_list(
             "REF_CHARACTERISTIC",
+            &function.name,
             "CHARACTERISTIC",
             line,
             &ref_characteristic.identifier_list,
@@ -863,6 +876,7 @@ fn check_function(
         let line = sub_function.get_line();
         check_reference_list(
             "SUB_FUNCTION",
+            &function.name,
             "FUNCTION",
             line,
             &sub_function.identifier_list,
@@ -874,6 +888,7 @@ fn check_function(
 }
 
 fn check_function_list(
+    source_name: &str,
     opt_function_list: &Option<FunctionList>,
     module: &Module,
     log_msgs: &mut Vec<A2lError>,
@@ -882,6 +897,7 @@ fn check_function_list(
         let line = function_list.get_line();
         check_reference_list(
             "FUNCTION_LIST",
+            source_name,
             "FUNCTION",
             line,
             &function_list.name_list,
@@ -902,6 +918,7 @@ fn check_group(
         let line = ref_characteristic.get_line();
         check_reference_list(
             "REF_CHARACTERISTIC",
+            &group.name,
             "CHARACTERISTIC",
             line,
             &ref_characteristic.identifier_list,
@@ -915,6 +932,7 @@ fn check_group(
         let line = ref_measurement.get_line();
         check_reference_list(
             "REF_MEASUREMENT",
+            &group.name,
             "MEASUREMENT",
             line,
             &ref_measurement.identifier_list,
@@ -928,6 +946,7 @@ fn check_group(
         let line = function_list.get_line();
         check_reference_list(
             "FUNCTION_LIST",
+            &group.name,
             "FUNCTION",
             line,
             &function_list.name_list,
@@ -941,6 +960,7 @@ fn check_group(
         let line = sub_group.get_line();
         check_reference_list(
             "SUB_GROUP",
+            &group.name,
             "GROUP",
             line,
             &sub_group.identifier_list,
@@ -983,7 +1003,12 @@ fn check_measurement(measurement: &Measurement, module: &Module, log_msgs: &mut 
     }
 
     check_ref_memory_segment(&measurement.ref_memory_segment, module, log_msgs);
-    check_function_list(&measurement.function_list, module, log_msgs);
+    check_function_list(
+        &measurement.name,
+        &measurement.function_list,
+        module,
+        log_msgs,
+    );
 }
 
 fn check_typedef_measurement(
@@ -1049,6 +1074,7 @@ fn check_transformer(
         let line = transformer_in_objects.get_line();
         check_reference_list(
             "TRANSFORMER_IN_OBJECTS",
+            &transformer.name,
             "CHARACTERISTIC / BLOB / INSTANCE",
             line,
             &transformer_in_objects.identifier_list,
@@ -1062,6 +1088,7 @@ fn check_transformer(
         let line = transformer_out_objects.get_line();
         check_reference_list(
             "TRANSFORMER_OUT_OBJECTS",
+            &transformer.name,
             "CHARACTERISTIC / BLOB / INSTANCE",
             line,
             &transformer_out_objects.identifier_list,
@@ -1102,8 +1129,10 @@ fn check_ref_memory_segment(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn check_reference_list<T: A2lObjectName>(
     container_type: &str,
+    source_name: &str,
     ref_type: &str,
     line: u32,
     identifier_list: &[String],
@@ -1119,7 +1148,7 @@ fn check_reference_list<T: A2lObjectName>(
         {
             log_msgs.push(A2lError::CrossReferenceError {
                 source_type: container_type.to_string(),
-                source_name: ident.to_string(),
+                source_name: source_name.to_string(),
                 source_line: line,
                 target_type: ref_type.to_string(),
                 target_name: ident.to_string(),
