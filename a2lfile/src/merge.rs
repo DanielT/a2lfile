@@ -362,6 +362,16 @@ fn rename_compu_method_refs(merge_module: &mut Module, rename_table: &HashMap<St
             typedef_measurement.conversion = newname.to_owned();
         }
     }
+
+    for instance in &mut merge_module.instance {
+        for overwrite in &mut instance.overwrite {
+            if let Some(conversion) = &mut overwrite.conversion
+                && let Some(newname) = rename_table.get(&conversion.name)
+            {
+                conversion.name = newname.to_owned();
+            }
+        }
+    }
 }
 
 // ------------------------ RECORD_LAYOUT ------------------------
@@ -573,6 +583,15 @@ fn rename_objects(merge_module: &mut Module, rename_table: &HashMap<String, Stri
             axis_pts.input_quantity = newname.to_owned();
         }
     }
+
+    // MODULE.TYPEDEF_AXIS
+    for typedef_axis in &mut merge_module.typedef_axis {
+        // MODULE.TYPEDEF_AXIS.input_quantity
+        if let Some(newname) = rename_table.get(&typedef_axis.input_quantity) {
+            typedef_axis.input_quantity = newname.to_owned();
+        }
+    }
+
     // MODULE.CHARACTERISTIC
     for characteristic in &mut merge_module.characteristic {
         // MODULE.CHARACTERISTIC.AXIS_DESCR
@@ -602,6 +621,7 @@ fn rename_objects(merge_module: &mut Module, rename_table: &HashMap<String, Stri
             );
         }
     }
+
     // MODULE.TYPEDEF_CHARACTERISTIC
     for typedef_characteristic in &mut merge_module.typedef_characteristic {
         // MODULE.TYPEDEF_CHARACTERISTIC.AXIS_DESCR
@@ -621,6 +641,19 @@ fn rename_objects(merge_module: &mut Module, rename_table: &HashMap<String, Stri
                 && let Some(newname) = rename_table.get(&curve_axis_ref.curve_axis)
             {
                 curve_axis_ref.curve_axis = newname.to_owned();
+            }
+        }
+    }
+
+    // MODULE.INSTANCE
+    for instance in &mut merge_module.instance {
+        // MODULE.INSTANCE.OVERWRITE
+        for overwrite in &mut instance.overwrite {
+            // MODULE.INSTANCE.OVERWRITE.INPUT_QUANTITY
+            if let Some(input_quantity) = &mut overwrite.input_quantity
+                && let Some(newname) = rename_table.get(&input_quantity.name)
+            {
+                input_quantity.name = newname.to_owned();
             }
         }
     }
@@ -950,6 +983,14 @@ fn rename_typedef_refs(merge_module: &mut Module, rename_table: &HashMap<String,
             if let Some(newname) = rename_table.get(&structure_component.component_type) {
                 structure_component.component_type = newname.to_owned();
             }
+        }
+    }
+
+    // MODULE.INSTANCE
+    for instance in &mut merge_module.instance {
+        // MODULE.INSTANCE.type_ref
+        if let Some(newname) = rename_table.get(&instance.type_ref) {
+            instance.type_ref = newname.to_owned();
         }
     }
 }
@@ -1403,6 +1444,13 @@ mod test {
                         VAR_MEASUREMENT measurement2
                     /end VAR_CRITERION
                 /end VARIANT_CODING
+                /begin TYPEDEF_AXIS typedef_axis1 "" measurement1 record_layout_name 0 compu_method 1 0 100
+                /end TYPEDEF_AXIS
+                /begin INSTANCE instance1 "" type_ref 0x1234
+                    /begin OVERWRITE overwrite_name 0
+                        INPUT_QUANTITY measurement1
+                    /end OVERWRITE
+                /end INSTANCE
             /end MODULE
         /end PROJECT"#;
 
@@ -1464,6 +1512,16 @@ mod test {
         assert_eq!(
             var_criterion2.var_measurement.as_ref().unwrap().name,
             "measurement2"
+        );
+
+        let typedef_axis1 = &module.typedef_axis[0];
+        assert_eq!(typedef_axis1.input_quantity, "measurement1.MERGE");
+
+        let instance1 = &module.instance[0];
+        let overwrite = &instance1.overwrite[0];
+        assert_eq!(
+            overwrite.input_quantity.as_ref().unwrap().name,
+            "measurement1.MERGE"
         );
     }
 
@@ -1812,6 +1870,23 @@ mod test {
         assert_eq!(a2l_file_c.project.module[0].typedef_axis.len(), 2);
         a2l_file_b.merge_modules(&mut a2l_file_c);
         assert_eq!(a2l_file_b.project.module[0].typedef_axis.len(), 3);
+
+        // typedef_axis1 from C collided with the one already present (different
+        // input_quantity), so it must have been renamed...
+        let module = &a2l_file_b.project.module[0];
+        assert_eq!(module.typedef_axis[1].name, "typedef_axis1.MERGE");
+        assert_eq!(module.typedef_axis[2].name, "typedef_axis2");
+
+        // ...and instance1, which referenced the renamed typedef_axis1, must follow
+        // the rename, while instance2 (referencing the untouched typedef_axis2) must
+        // not be changed
+        assert_eq!(module.instance.len(), 2);
+        let instance1 = &module.instance[0];
+        assert_eq!(instance1.name, "instance1");
+        assert_eq!(instance1.type_ref, "typedef_axis1.MERGE");
+        let instance2 = &module.instance[1];
+        assert_eq!(instance2.name, "instance2");
+        assert_eq!(instance2.type_ref, "typedef_axis2");
     }
 
     #[test]
@@ -2109,6 +2184,16 @@ mod test {
                 /end TYPEDEF_MEASUREMENT
                 /begin TYPEDEF_MEASUREMENT typedef_measurement2 "" UBYTE m2 1 1 0 100
                 /end TYPEDEF_MEASUREMENT
+                /begin INSTANCE instance1 "" type_ref 0x1234
+                    /begin OVERWRITE overwrite_name 0
+                        CONVERSION m1
+                    /end OVERWRITE
+                /end INSTANCE
+                /begin INSTANCE instance2 "" type_ref 0x1234
+                    /begin OVERWRITE overwrite_name 0
+                        CONVERSION m2
+                    /end OVERWRITE
+                /end INSTANCE
              /end MODULE
         /end PROJECT"#;
 
@@ -2149,6 +2234,10 @@ mod test {
         let typedef_measurement1 = &module.typedef_measurement[0];
         assert_eq!(typedef_measurement1.conversion, "m1.MERGE");
 
+        let instance1 = &module.instance[0];
+        let overwrite1 = &instance1.overwrite[0];
+        assert_eq!(overwrite1.conversion.as_ref().unwrap().name, "m1.MERGE");
+
         // check that the references in file C to m2 have not been renamed
         let axispts2 = &module.axis_pts[1];
         assert_eq!(axispts2.conversion, "m2");
@@ -2169,6 +2258,10 @@ mod test {
 
         let typedef_measurement2 = &module.typedef_measurement[1];
         assert_eq!(typedef_measurement2.conversion, "m2");
+
+        let instance2 = &module.instance[1];
+        let overwrite2 = &instance2.overwrite[0];
+        assert_eq!(overwrite2.conversion.as_ref().unwrap().name, "m2");
     }
 
     #[test]
