@@ -428,12 +428,12 @@ impl<'a> ParserState<'a> {
     }
 
     /// get the line offset of the token that was just consumed
-    /// this means that seff.token_cursor.pos is already incremented
+    /// this means that self.token_cursor.pos is already incremented
     /// - usually we're calculating token[pos-1] - token[pos-2]
     /// - for token[pos==1] it returns the line number of the first token - 1
     /// - the function shouldn't be called while pos == 0, but this case would behave like pos==1
     pub(crate) fn get_line_offset(&self) -> u32 {
-        if self.token_cursor.pos > 1 && self.token_cursor.pos < self.token_cursor.tokens.len() {
+        if self.token_cursor.pos > 1 && self.token_cursor.pos <= self.token_cursor.tokens.len() {
             let cur_line = self.token_cursor.tokens[self.token_cursor.pos - 1].line;
             let cur_fileid = self.token_cursor.tokens[self.token_cursor.pos - 1].fileid;
             let mut idx = (self.token_cursor.pos - 2) as isize;
@@ -1659,5 +1659,40 @@ mod tests {
         assert!(res.is_ok());
         let val = res.unwrap();
         assert_eq!(val, "identifier");
+    }
+
+    #[test]
+    fn get_line_offset() {
+        static DATA: &str = r#"/begin CHARACTERISTIC
+        xxxxxxxxxxxxx"#;
+        let tokenresult = tokenizer::tokenize(&Filename::from("test_input"), 0, DATA);
+        assert!(tokenresult.is_ok());
+
+        let tokenresult = tokenresult.unwrap();
+        let mut log_msgs = Vec::<A2lError>::new();
+        let mut parser = ParserState::new(&tokenresult, &mut log_msgs, false);
+        let context = ParseContext {
+            element: "TEST".to_string(),
+            fileid: 0,
+            line: 0,
+        };
+
+        // get the first token and check the cursor position
+        let res = parser.get_token(&context);
+        assert!(res.is_ok());
+        let offset = parser.get_line_offset();
+        assert_eq!(offset, 0);
+
+        // get the second token and check the cursor position
+        let res = parser.get_token(&context);
+        assert!(res.is_ok());
+        let offset = parser.get_line_offset();
+        assert_eq!(offset, 0);
+
+        // get the third (last) token and check the cursor position
+        let res = parser.get_token(&context);
+        assert!(res.is_ok());
+        let offset = parser.get_line_offset();
+        assert_eq!(offset, 1);
     }
 }
