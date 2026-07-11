@@ -83,11 +83,6 @@ fn remove_unused_compumethods(module: &mut Module) {
     for typedef_measurement in &mut module.typedef_measurement {
         used_compumethods.insert(typedef_measurement.conversion.clone());
     }
-    for compu_method in &mut module.compu_method {
-        if let Some(ssr) = compu_method.status_string_ref.as_ref() {
-            used_compumethods.insert(ssr.conversion_table.clone());
-        }
-    }
 
     module
         .compu_method
@@ -105,6 +100,9 @@ fn remove_unused_sub_elements(module: &mut Module) {
         }
         if let Some(ref_unit) = &compu_method.ref_unit {
             used_units.insert(ref_unit.unit.clone());
+        }
+        if let Some(ssr) = &compu_method.status_string_ref {
+            used_compu_tabs.insert(ssr.conversion_table.clone());
         }
     }
 

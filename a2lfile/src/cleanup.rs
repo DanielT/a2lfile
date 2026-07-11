@@ -103,6 +103,7 @@ mod test {
             /begin COMPU_METHOD compu_method_used4 "" TAB_NOINTP "%6.3" ""
                 COMPU_TAB_REF invalid_compu_tab
                 REF_UNIT invalid_unit
+                STATUS_STRING_REF compu_vtab_status_string
             /end COMPU_METHOD
             /begin COMPU_METHOD compu_method_unused1 "" TAB_NOINTP "%6.3" ""
                 COMPU_TAB_REF compu_tab_unused
@@ -123,6 +124,9 @@ mod test {
                 1 "v"
             /end COMPU_VTAB
             /begin COMPU_VTAB compu_vtab_unused "" TAB_VERB 1
+                1 "v"
+            /end COMPU_VTAB
+            /begin COMPU_VTAB compu_vtab_status_string "" TAB_VERB 1
                 1 "v"
             /end COMPU_VTAB
             /begin COMPU_VTAB_RANGE compu_vtab_range_used "" 1
@@ -244,6 +248,8 @@ mod test {
                 .compu_vtab_range
                 .contains_key("compu_vtab_range_unused")
         );
+        // compu_vtab_status_string is used by compu_method_used4
+        assert!(module.compu_vtab.contains_key("compu_vtab_status_string"));
 
         // used_unit is used by compu_method_used1
         assert!(module.unit.contains_key("used_unit"));
