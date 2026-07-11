@@ -34,7 +34,7 @@ pub(crate) fn generate(typename: &str, dataitem: &DataItem) -> TokenStream {
 }
 
 // generate_enum_writer()
-// For enums it actually makes more sense to implement the trait std::fmt::Display, than to have a non-standard stringify() function
+// Enums implement both Display and the custom as_str() function.
 fn generate_enum_writer(typename: &str, enumitems: &[EnumItem]) -> TokenStream {
     let typeident = format_ident!("{}", typename);
     let mut match_arms = Vec::new();
@@ -46,12 +46,18 @@ fn generate_enum_writer(typename: &str, enumitems: &[EnumItem]) -> TokenStream {
     }
 
     quote! {
+        impl #typeident {
+            pub(crate) fn as_str(&self) -> &'static str {
+                match &self {
+                    #(#match_arms),*
+                }
+            }
+        }
+
         impl std::fmt::Display for #typeident {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                let tag = match &self {
-                    #(#match_arms),*
-                };
-                f.write_str(tag)
+                f.write_str(self.as_str())?;
+                Ok(())
             }
         }
     }
@@ -258,7 +264,7 @@ fn generate_block_item_write_cmd(
         }
         BaseType::EnumRef => {
             quote! {
-                writer.add_str(&#itemname.to_string(), #location);
+                writer.add_str(#itemname.as_str(), #location);
             }
         }
         BaseType::StructRef => {

@@ -577,16 +577,22 @@ impl ParseableA2lObject for AddrType {
     }
 }
 
-impl std::fmt::Display for AddrType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tag = match &self {
+impl AddrType {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match &self {
             Self::Pbyte => "PBYTE",
             Self::Pword => "PWORD",
             Self::Plong => "PLONG",
             Self::Plonglong => "PLONGLONG",
             Self::Direct => "DIRECT",
-        };
-        f.write_str(tag)
+        }
+    }
+}
+
+impl std::fmt::Display for AddrType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())?;
+        Ok(())
     }
 }
 
@@ -681,7 +687,7 @@ impl AddressType {
     pub(crate) fn stringify(&self, indent: usize) -> String {
         let mut writer = writer::Writer::new(indent);
         writer.add_str(
-            &self.address_type.to_string(),
+            self.address_type.as_str(),
             self.__block_info.item_location.0,
         );
         writer.finish()
@@ -2906,11 +2912,11 @@ impl AxisDescr {
     pub(crate) fn stringify(&self, indent: usize) -> String {
         let mut writer = writer::Writer::new(indent);
         writer.add_str(
-            &self.attribute.to_string(),
+            self.attribute.as_str(),
             self.__block_info.item_location.0,
         );
-        writer.add_str(&self.input_quantity, self.__block_info.item_location.1);
-        writer.add_str(&self.conversion, self.__block_info.item_location.2);
+        writer.add_str(self.input_quantity.as_str(), self.__block_info.item_location.1);
+        writer.add_str(self.conversion.as_str(), self.__block_info.item_location.2);
         writer.add_integer(
             self.max_axis_points,
             self.__block_info.item_location.3.1,
@@ -3229,16 +3235,22 @@ impl ParseableA2lObject for AxisDescrAttribute {
     }
 }
 
-impl std::fmt::Display for AxisDescrAttribute {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tag = match &self {
+impl AxisDescrAttribute {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match &self {
             Self::CurveAxis => "CURVE_AXIS",
             Self::ComAxis => "COM_AXIS",
             Self::FixAxis => "FIX_AXIS",
             Self::ResAxis => "RES_AXIS",
             Self::StdAxis => "STD_AXIS",
-        };
-        f.write_str(tag)
+        }
+    }
+}
+
+impl std::fmt::Display for AxisDescrAttribute {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())?;
+        Ok(())
     }
 }
 
@@ -4411,15 +4423,15 @@ impl AxisPtsDim {
             self.__block_info.item_location.0.0,
         );
         writer.add_str(
-            &self.datatype.to_string(),
+            self.datatype.as_str(),
             self.__block_info.item_location.1,
         );
         writer.add_str(
-            &self.index_incr.to_string(),
+            self.index_incr.as_str(),
             self.__block_info.item_location.2,
         );
         writer.add_str(
-            &self.addressing.to_string(),
+            self.addressing.as_str(),
             self.__block_info.item_location.3,
         );
         writer.finish()
@@ -4669,7 +4681,7 @@ impl AxisRescaleDim {
             self.__block_info.item_location.0.0,
         );
         writer.add_str(
-            &self.datatype.to_string(),
+            self.datatype.as_str(),
             self.__block_info.item_location.1,
         );
         writer.add_integer(
@@ -4678,11 +4690,11 @@ impl AxisRescaleDim {
             self.__block_info.item_location.2.0,
         );
         writer.add_str(
-            &self.index_incr.to_string(),
+            self.index_incr.as_str(),
             self.__block_info.item_location.3,
         );
         writer.add_str(
-            &self.addressing.to_string(),
+            self.addressing.as_str(),
             self.__block_info.item_location.4,
         );
         writer.finish()
@@ -5639,7 +5651,7 @@ impl ByteOrder {
     pub(crate) fn stringify(&self, indent: usize) -> String {
         let mut writer = writer::Writer::new(indent);
         writer.add_str(
-            &self.byte_order.to_string(),
+            self.byte_order.as_str(),
             self.__block_info.item_location.0,
         );
         writer.finish()
@@ -5702,17 +5714,23 @@ impl ParseableA2lObject for ByteOrderEnum {
     }
 }
 
-impl std::fmt::Display for ByteOrderEnum {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tag = match &self {
+impl ByteOrderEnum {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match &self {
             Self::LittleEndian => "LITTLE_ENDIAN",
             Self::BigEndian => "BIG_ENDIAN",
             Self::MsbLast => "MSB_LAST",
             Self::MsbFirst => "MSB_FIRST",
             Self::MsbFirstMswLast => "MSB_FIRST_MSW_LAST",
             Self::MsbLastMswFirst => "MSB_LAST_MSW_FIRST",
-        };
-        f.write_str(tag)
+        }
+    }
+}
+
+impl std::fmt::Display for ByteOrderEnum {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())?;
+        Ok(())
     }
 }
 
@@ -5807,7 +5825,7 @@ impl CalibrationAccess {
     pub(crate) fn stringify(&self, indent: usize) -> String {
         let mut writer = writer::Writer::new(indent);
         writer.add_str(
-            &self.calibration_access.to_string(),
+            self.calibration_access.as_str(),
             self.__block_info.item_location.0,
         );
         writer.finish()
@@ -5846,15 +5864,21 @@ impl ParseableA2lObject for CalibrationAccessEnum {
     }
 }
 
-impl std::fmt::Display for CalibrationAccessEnum {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tag = match &self {
+impl CalibrationAccessEnum {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match &self {
             Self::Calibration => "CALIBRATION",
             Self::NoCalibration => "NO_CALIBRATION",
             Self::NotInMcdSystem => "NOT_IN_MCD_SYSTEM",
             Self::OfflineCalibration => "OFFLINE_CALIBRATION",
-        };
-        f.write_str(tag)
+        }
+    }
+}
+
+impl std::fmt::Display for CalibrationAccessEnum {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())?;
+        Ok(())
     }
 }
 
@@ -6382,14 +6406,20 @@ impl ParseableA2lObject for CharacterEncoding {
     }
 }
 
-impl std::fmt::Display for CharacterEncoding {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tag = match &self {
+impl CharacterEncoding {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match &self {
             Self::Utf8 => "UTF8",
             Self::Utf16 => "UTF16",
             Self::Utf32 => "UTF32",
-        };
-        f.write_str(tag)
+        }
+    }
+}
+
+impl std::fmt::Display for CharacterEncoding {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())?;
+        Ok(())
     }
 }
 
@@ -7155,7 +7185,7 @@ impl Characteristic {
         writer.add_str(&self.name, self.__block_info.item_location.0);
         writer.add_quoted_string(&self.long_identifier, self.__block_info.item_location.1);
         writer.add_str(
-            &self.characteristic_type.to_string(),
+            self.characteristic_type.as_str(),
             self.__block_info.item_location.2,
         );
         writer.add_integer(
@@ -7710,9 +7740,9 @@ impl ParseableA2lObject for CharacteristicType {
     }
 }
 
-impl std::fmt::Display for CharacteristicType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tag = match &self {
+impl CharacteristicType {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match &self {
             Self::Ascii => "ASCII",
             Self::Curve => "CURVE",
             Self::Map => "MAP",
@@ -7721,8 +7751,14 @@ impl std::fmt::Display for CharacteristicType {
             Self::Cube5 => "CUBE_5",
             Self::ValBlk => "VAL_BLK",
             Self::Value => "VALUE",
-        };
-        f.write_str(tag)
+        }
+    }
+}
+
+impl std::fmt::Display for CharacteristicType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())?;
+        Ok(())
     }
 }
 
@@ -8497,7 +8533,7 @@ impl CompuMethod {
         writer.add_str(&self.name, self.__block_info.item_location.0);
         writer.add_quoted_string(&self.long_identifier, self.__block_info.item_location.1);
         writer.add_str(
-            &self.conversion_type.to_string(),
+            self.conversion_type.as_str(),
             self.__block_info.item_location.2,
         );
         writer.add_quoted_string(&self.format, self.__block_info.item_location.3);
@@ -8868,7 +8904,7 @@ impl CompuTab {
         writer.add_str(&self.name, self.__block_info.item_location.0);
         writer.add_quoted_string(&self.long_identifier, self.__block_info.item_location.1);
         writer.add_str(
-            &self.conversion_type.to_string(),
+            self.conversion_type.as_str(),
             self.__block_info.item_location.2,
         );
         writer.add_integer(
@@ -9244,7 +9280,7 @@ impl CompuVtab {
         writer.add_str(&self.name, self.__block_info.item_location.0);
         writer.add_quoted_string(&self.long_identifier, self.__block_info.item_location.1);
         writer.add_str(
-            &self.conversion_type.to_string(),
+            self.conversion_type.as_str(),
             self.__block_info.item_location.2,
         );
         writer.add_integer(
@@ -9758,9 +9794,9 @@ impl ParseableA2lObject for ConversionType {
     }
 }
 
-impl std::fmt::Display for ConversionType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tag = match &self {
+impl ConversionType {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match &self {
             Self::Identical => "IDENTICAL",
             Self::Form => "FORM",
             Self::Linear => "LINEAR",
@@ -9768,8 +9804,14 @@ impl std::fmt::Display for ConversionType {
             Self::TabIntp => "TAB_INTP",
             Self::TabNointp => "TAB_NOINTP",
             Self::TabVerb => "TAB_VERB",
-        };
-        f.write_str(tag)
+        }
+    }
+}
+
+impl std::fmt::Display for ConversionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())?;
+        Ok(())
     }
 }
 
@@ -10308,9 +10350,9 @@ impl ParseableA2lObject for DataType {
     }
 }
 
-impl std::fmt::Display for DataType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tag = match &self {
+impl DataType {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match &self {
             Self::Ubyte => "UBYTE",
             Self::Sbyte => "SBYTE",
             Self::Uword => "UWORD",
@@ -10322,8 +10364,14 @@ impl std::fmt::Display for DataType {
             Self::Float16Ieee => "FLOAT16_IEEE",
             Self::Float32Ieee => "FLOAT32_IEEE",
             Self::Float64Ieee => "FLOAT64_IEEE",
-        };
-        f.write_str(tag)
+        }
+    }
+}
+
+impl std::fmt::Display for DataType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())?;
+        Ok(())
     }
 }
 
@@ -10359,14 +10407,20 @@ impl ParseableA2lObject for DataTypeSize {
     }
 }
 
-impl std::fmt::Display for DataTypeSize {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tag = match &self {
+impl DataTypeSize {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match &self {
             Self::Byte => "BYTE",
             Self::Word => "WORD",
             Self::Long => "LONG",
-        };
-        f.write_str(tag)
+        }
+    }
+}
+
+impl std::fmt::Display for DataTypeSize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())?;
+        Ok(())
     }
 }
 
@@ -10906,7 +10960,7 @@ impl ParseableA2lObject for Deposit {
 impl Deposit {
     pub(crate) fn stringify(&self, indent: usize) -> String {
         let mut writer = writer::Writer::new(indent);
-        writer.add_str(&self.mode.to_string(), self.__block_info.item_location.0);
+        writer.add_str(self.mode.as_str(), self.__block_info.item_location.0);
         writer.finish()
     }
 }
@@ -10939,13 +10993,19 @@ impl ParseableA2lObject for DepositMode {
     }
 }
 
-impl std::fmt::Display for DepositMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tag = match &self {
+impl DepositMode {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match &self {
             Self::Absolute => "ABSOLUTE",
             Self::Difference => "DIFFERENCE",
-        };
-        f.write_str(tag)
+        }
+    }
+}
+
+impl std::fmt::Display for DepositMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())?;
+        Ok(())
     }
 }
 
@@ -11232,7 +11292,7 @@ impl DistOpDim {
             self.__block_info.item_location.0.0,
         );
         writer.add_str(
-            &self.datatype.to_string(),
+            self.datatype.as_str(),
             self.__block_info.item_location.1,
         );
         writer.finish()
@@ -11725,7 +11785,7 @@ impl Encoding {
     pub(crate) fn stringify(&self, indent: usize) -> String {
         let mut writer = writer::Writer::new(indent);
         writer.add_str(
-            &self.encoding.to_string(),
+            self.encoding.as_str(),
             self.__block_info.item_location.0,
         );
         writer.finish()
@@ -12630,15 +12690,15 @@ impl FncValues {
             self.__block_info.item_location.0.0,
         );
         writer.add_str(
-            &self.datatype.to_string(),
+            self.datatype.as_str(),
             self.__block_info.item_location.1,
         );
         writer.add_str(
-            &self.index_mode.to_string(),
+            self.index_mode.as_str(),
             self.__block_info.item_location.2,
         );
         writer.add_str(
-            &self.address_type.to_string(),
+            self.address_type.as_str(),
             self.__block_info.item_location.3,
         );
         writer.finish()
@@ -14949,7 +15009,7 @@ impl Identification {
             self.__block_info.item_location.0.0,
         );
         writer.add_str(
-            &self.datatype.to_string(),
+            self.datatype.as_str(),
             self.__block_info.item_location.1,
         );
         writer.finish()
@@ -15116,16 +15176,22 @@ impl ParseableA2lObject for IndexMode {
     }
 }
 
-impl std::fmt::Display for IndexMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tag = match &self {
+impl IndexMode {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match &self {
             Self::AlternateCurves => "ALTERNATE_CURVES",
             Self::AlternateWithX => "ALTERNATE_WITH_X",
             Self::AlternateWithY => "ALTERNATE_WITH_Y",
             Self::ColumnDir => "COLUMN_DIR",
             Self::RowDir => "ROW_DIR",
-        };
-        f.write_str(tag)
+        }
+    }
+}
+
+impl std::fmt::Display for IndexMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())?;
+        Ok(())
     }
 }
 
@@ -15159,13 +15225,19 @@ impl ParseableA2lObject for IndexOrder {
     }
 }
 
-impl std::fmt::Display for IndexOrder {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tag = match &self {
+impl IndexOrder {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match &self {
             Self::IndexIncr => "INDEX_INCR",
             Self::IndexDecr => "INDEX_DECR",
-        };
-        f.write_str(tag)
+        }
+    }
+}
+
+impl std::fmt::Display for IndexOrder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())?;
+        Ok(())
     }
 }
 
@@ -16032,7 +16104,7 @@ impl Layout {
     pub(crate) fn stringify(&self, indent: usize) -> String {
         let mut writer = writer::Writer::new(indent);
         writer.add_str(
-            &self.index_mode.to_string(),
+            self.index_mode.as_str(),
             self.__block_info.item_location.0,
         );
         writer.finish()
@@ -17503,7 +17575,7 @@ impl Measurement {
         writer.add_str(&self.name, self.__block_info.item_location.0);
         writer.add_quoted_string(&self.long_identifier, self.__block_info.item_location.1);
         writer.add_str(
-            &self.datatype.to_string(),
+            self.datatype.as_str(),
             self.__block_info.item_location.2,
         );
         writer.add_str(&self.conversion, self.__block_info.item_location.3);
@@ -17965,13 +18037,19 @@ impl ParseableA2lObject for MemoryAttribute {
     }
 }
 
-impl std::fmt::Display for MemoryAttribute {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tag = match &self {
+impl MemoryAttribute {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match &self {
             Self::Intern => "INTERN",
             Self::Extern => "EXTERN",
-        };
-        f.write_str(tag)
+        }
+    }
+}
+
+impl std::fmt::Display for MemoryAttribute {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())?;
+        Ok(())
     }
 }
 
@@ -18203,7 +18281,7 @@ impl MemoryLayout {
     pub(crate) fn stringify(&self, indent: usize) -> String {
         let mut writer = writer::Writer::new(indent);
         writer.add_str(
-            &self.prog_type.to_string(),
+            self.prog_type.as_str(),
             self.__block_info.item_location.0,
         );
         writer.add_integer(
@@ -18583,15 +18661,15 @@ impl MemorySegment {
         writer.add_str(&self.name, self.__block_info.item_location.0);
         writer.add_quoted_string(&self.long_identifier, self.__block_info.item_location.1);
         writer.add_str(
-            &self.prg_type.to_string(),
+            self.prg_type.as_str(),
             self.__block_info.item_location.2,
         );
         writer.add_str(
-            &self.memory_type.to_string(),
+            self.memory_type.as_str(),
             self.__block_info.item_location.3,
         );
         writer.add_str(
-            &self.attribute.to_string(),
+            self.attribute.as_str(),
             self.__block_info.item_location.4,
         );
         writer.add_integer(
@@ -18677,9 +18755,9 @@ impl ParseableA2lObject for MemoryType {
     }
 }
 
-impl std::fmt::Display for MemoryType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tag = match &self {
+impl MemoryType {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match &self {
             Self::Eeprom => "EEPROM",
             Self::Eprom => "EPROM",
             Self::Flash => "FLASH",
@@ -18687,8 +18765,14 @@ impl std::fmt::Display for MemoryType {
             Self::Rom => "ROM",
             Self::Register => "REGISTER",
             Self::NotInEcu => "NOT_IN_ECU",
-        };
-        f.write_str(tag)
+        }
+    }
+}
+
+impl std::fmt::Display for MemoryType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())?;
+        Ok(())
     }
 }
 
@@ -21203,7 +21287,7 @@ impl Monotony {
     pub(crate) fn stringify(&self, indent: usize) -> String {
         let mut writer = writer::Writer::new(indent);
         writer.add_str(
-            &self.monotony.to_string(),
+            self.monotony.as_str(),
             self.__block_info.item_location.0,
         );
         writer.finish()
@@ -21257,9 +21341,9 @@ impl ParseableA2lObject for MonotonyType {
     }
 }
 
-impl std::fmt::Display for MonotonyType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tag = match &self {
+impl MonotonyType {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match &self {
             Self::MonDecrease => "MON_DECREASE",
             Self::MonIncrease => "MON_INCREASE",
             Self::StrictDecrease => "STRICT_DECREASE",
@@ -21267,8 +21351,14 @@ impl std::fmt::Display for MonotonyType {
             Self::Monotonous => "MONOTONOUS",
             Self::StrictMon => "STRICT_MON",
             Self::NotMon => "NOT_MON",
-        };
-        f.write_str(tag)
+        }
+    }
+}
+
+impl std::fmt::Display for MonotonyType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())?;
+        Ok(())
     }
 }
 
@@ -21376,7 +21466,7 @@ impl NoAxisPtsDim {
             self.__block_info.item_location.0.0,
         );
         writer.add_str(
-            &self.datatype.to_string(),
+            self.datatype.as_str(),
             self.__block_info.item_location.1,
         );
         writer.finish()
@@ -21587,7 +21677,7 @@ impl NoRescaleDim {
             self.__block_info.item_location.0.0,
         );
         writer.add_str(
-            &self.datatype.to_string(),
+            self.datatype.as_str(),
             self.__block_info.item_location.1,
         );
         writer.finish()
@@ -21798,7 +21888,7 @@ impl OffsetDim {
             self.__block_info.item_location.0.0,
         );
         writer.add_str(
-            &self.datatype.to_string(),
+            self.datatype.as_str(),
             self.__block_info.item_location.1,
         );
         writer.finish()
@@ -22569,9 +22659,9 @@ impl ParseableA2lObject for PrgType {
     }
 }
 
-impl std::fmt::Display for PrgType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tag = match &self {
+impl PrgType {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match &self {
             Self::CalibrationVariables => "CALIBRATION_VARIABLES",
             Self::Code => "CODE",
             Self::Data => "DATA",
@@ -22580,8 +22670,14 @@ impl std::fmt::Display for PrgType {
             Self::Reserved => "RESERVED",
             Self::Seram => "SERAM",
             Self::Variables => "VARIABLES",
-        };
-        f.write_str(tag)
+        }
+    }
+}
+
+impl std::fmt::Display for PrgType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())?;
+        Ok(())
     }
 }
 
@@ -22615,14 +22711,20 @@ impl ParseableA2lObject for ProgType {
     }
 }
 
-impl std::fmt::Display for ProgType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tag = match &self {
+impl ProgType {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match &self {
             Self::PrgCode => "PRG_CODE",
             Self::PrgData => "PRG_DATA",
             Self::PrgReserved => "PRG_RESERVED",
-        };
-        f.write_str(tag)
+        }
+    }
+}
+
+impl std::fmt::Display for ProgType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())?;
+        Ok(())
     }
 }
 
@@ -26233,7 +26335,7 @@ impl Reserved {
             self.__block_info.item_location.0.0,
         );
         writer.add_str(
-            &self.data_size.to_string(),
+            self.data_size.as_str(),
             self.__block_info.item_location.1,
         );
         writer.finish()
@@ -26444,7 +26546,7 @@ impl RipAddrDim {
             self.__block_info.item_location.0.0,
         );
         writer.add_str(
-            &self.datatype.to_string(),
+            self.datatype.as_str(),
             self.__block_info.item_location.1,
         );
         writer.finish()
@@ -26746,7 +26848,7 @@ impl ShiftOpDim {
             self.__block_info.item_location.0.0,
         );
         writer.add_str(
-            &self.datatype.to_string(),
+            self.datatype.as_str(),
             self.__block_info.item_location.1,
         );
         writer.finish()
@@ -27192,7 +27294,7 @@ impl SrcAddrDim {
             self.__block_info.item_location.0.0,
         );
         writer.add_str(
-            &self.datatype.to_string(),
+            self.datatype.as_str(),
             self.__block_info.item_location.1,
         );
         writer.finish()
@@ -28891,7 +28993,7 @@ impl Transformer {
             self.__block_info.item_location.4.1,
             self.__block_info.item_location.4.0,
         );
-        writer.add_str(&self.trigger.to_string(), self.__block_info.item_location.5);
+        writer.add_str(self.trigger.as_str(), self.__block_info.item_location.5);
         writer.add_str(&self.inverse_transformer, self.__block_info.item_location.6);
         let mut tgroup = Vec::<writer::TaggedItemInfo>::new();
         if let Some(transformer_in_objects) = &self.transformer_in_objects {
@@ -29216,13 +29318,19 @@ impl ParseableA2lObject for TransformerTrigger {
     }
 }
 
-impl std::fmt::Display for TransformerTrigger {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tag = match &self {
+impl TransformerTrigger {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match &self {
             Self::OnUserRequest => "ON_USER_REQUEST",
             Self::OnChange => "ON_CHANGE",
-        };
-        f.write_str(tag)
+        }
+    }
+}
+
+impl std::fmt::Display for TransformerTrigger {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())?;
+        Ok(())
     }
 }
 
@@ -30350,7 +30458,7 @@ impl TypedefCharacteristic {
         writer.add_str(&self.name, self.__block_info.item_location.0);
         writer.add_quoted_string(&self.long_identifier, self.__block_info.item_location.1);
         writer.add_str(
-            &self.characteristic_type.to_string(),
+            self.characteristic_type.as_str(),
             self.__block_info.item_location.2,
         );
         writer.add_str(&self.record_layout, self.__block_info.item_location.3);
@@ -30958,7 +31066,7 @@ impl TypedefMeasurement {
         writer.add_str(&self.name, self.__block_info.item_location.0);
         writer.add_quoted_string(&self.long_identifier, self.__block_info.item_location.1);
         writer.add_str(
-            &self.datatype.to_string(),
+            self.datatype.as_str(),
             self.__block_info.item_location.2,
         );
         writer.add_str(&self.conversion, self.__block_info.item_location.3);
@@ -31717,7 +31825,7 @@ impl Unit {
         writer.add_quoted_string(&self.long_identifier, self.__block_info.item_location.1);
         writer.add_quoted_string(&self.display, self.__block_info.item_location.2);
         writer.add_str(
-            &self.unit_type.to_string(),
+            self.unit_type.as_str(),
             self.__block_info.item_location.3,
         );
         let mut tgroup = Vec::<writer::TaggedItemInfo>::new();
@@ -31912,13 +32020,19 @@ impl ParseableA2lObject for UnitType {
     }
 }
 
-impl std::fmt::Display for UnitType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tag = match &self {
+impl UnitType {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match &self {
             Self::Derived => "DERIVED",
             Self::ExtendedSi => "EXTENDED_SI",
-        };
-        f.write_str(tag)
+        }
+    }
+}
+
+impl std::fmt::Display for UnitType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())?;
+        Ok(())
     }
 }
 
@@ -33388,7 +33502,7 @@ impl ParseableA2lObject for VarNaming {
 impl VarNaming {
     pub(crate) fn stringify(&self, indent: usize) -> String {
         let mut writer = writer::Writer::new(indent);
-        writer.add_str(&self.tag.to_string(), self.__block_info.item_location.0);
+        writer.add_str(self.tag.as_str(), self.__block_info.item_location.0);
         writer.finish()
     }
 }
@@ -33419,12 +33533,18 @@ impl ParseableA2lObject for VarNamingTag {
     }
 }
 
+impl VarNamingTag {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match &self {
+            Self::Numeric => "NUMERIC",
+        }
+    }
+}
+
 impl std::fmt::Display for VarNamingTag {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tag = match &self {
-            Self::Numeric => "NUMERIC",
-        };
-        f.write_str(tag)
+        f.write_str(self.as_str())?;
+        Ok(())
     }
 }
 

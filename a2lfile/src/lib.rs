@@ -370,19 +370,20 @@ impl A2lFile {
     ///
     /// [`A2lError::FileWriteError`] if writing the file fails.
     pub fn write<P: AsRef<Path>>(&self, path: P, banner: Option<&str>) -> Result<(), A2lError> {
-        let mut outstr = String::new();
-
         let file_text = self.write_to_string();
 
-        if let Some(banner_text) = banner {
-            outstr = format!("/* {banner_text} */");
+        let outstr = if let Some(banner_text) = banner {
+            let mut outstr = format!("/* {banner_text} */");
             // if the first line is empty (first charachter is \n), then the banner is placed on the empty line
             // otherwise a newline is added
             if !file_text.starts_with('\n') {
                 outstr.push('\n');
             }
-        }
-        outstr.push_str(&file_text);
+            outstr.push_str(&file_text);
+            outstr
+        } else {
+            file_text
+        };
 
         std::fs::write(&path, outstr).map_err(|ioerror| A2lError::FileWriteError {
             filename: path.as_ref().to_path_buf(),
