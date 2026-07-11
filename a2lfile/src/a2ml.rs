@@ -1223,6 +1223,11 @@ impl GenericIfData {
                     }
                 }
             }
+            Self::Array(items) | Self::Sequence(items) => {
+                for item in items {
+                    item.merge_includes();
+                }
+            }
             _ => {}
         }
     }
