@@ -584,7 +584,7 @@ fn handle_a2ml(
             {
                 bytepos -= 1;
             }
-            if filebytes[bytepos - 1] == b'\r' && filebytes[bytepos - 1] == b'\n' {
+            if filebytes[bytepos - 2] == b'\r' && filebytes[bytepos - 1] == b'\n' {
                 bytepos -= 2;
             } else if filebytes[bytepos - 1] == b'\n' {
                 bytepos -= 1;
