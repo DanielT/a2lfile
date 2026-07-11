@@ -179,9 +179,8 @@ impl Module {
     ///
     /// For example, given an instance inst, and a name "inst.a.b", this function
     /// will resolve each parent structure and return the typedef for the final component b.
-    pub fn find_instance_component(&self, full_name: &str) -> Option<AnyTypedef<'_>> {
+    pub fn find_instance_component<'a>(&'a self, full_name: &str, typedef_collection: &'a ItemList<AnyTypedef<'_>>) -> Option<AnyTypedef<'a>> {
         let name_parts = full_name.split('.').collect::<Vec<_>>();
-        let typedef_collection = self.typedefs();
 
         let instance = self.instance.get(&strip_array_index(name_parts[0]))?;
         if (instance.matrix_dim.is_some() && !name_parts[0].ends_with(']'))
@@ -393,19 +392,20 @@ mod test {
         let (a2lfile, _) = load_from_string(A2L_TEXT, None, true).unwrap();
         let module = &a2lfile.project.module[0];
 
-        let typedef = module.find_instance_component("inst.comp1").unwrap();
+        let typedef_collection = module.typedefs();
+        let typedef = module.find_instance_component("inst.comp1", &typedef_collection).unwrap();
         assert_eq!(typedef, AnyTypedef::TypedefAxis(&module.typedef_axis[0]));
 
-        let typedef = module.find_instance_component("inst.comp2").unwrap();
+        let typedef = module.find_instance_component("inst.comp2", &typedef_collection).unwrap();
         assert_eq!(typedef, AnyTypedef::TypedefBlob(&module.typedef_blob[0]));
 
-        let typedef = module.find_instance_component("inst.comp3.meas").unwrap();
+        let typedef = module.find_instance_component("inst.comp3.meas", &typedef_collection).unwrap();
         assert_eq!(
             typedef,
             AnyTypedef::TypedefCharacteristic(&module.typedef_characteristic[0])
         );
 
-        let typedef = module.find_instance_component("inst.comp3.param").unwrap();
+        let typedef = module.find_instance_component("inst.comp3.param", &typedef_collection).unwrap();
         assert_eq!(
             typedef,
             AnyTypedef::TypedefMeasurement(&module.typedef_measurement[0])
@@ -415,14 +415,14 @@ mod test {
             .typedef_structure
             .get("typedef_sub_structure")
             .unwrap();
-        let typedef = module.find_instance_component("inst.comp3").unwrap();
+        let typedef = module.find_instance_component("inst.comp3", &typedef_collection).unwrap();
         assert_eq!(typedef, AnyTypedef::TypedefStructure(td_sub_structure));
 
         let td_structure = module.typedef_structure.get("typedef_structure").unwrap();
-        let typedef = module.find_instance_component("inst").unwrap();
+        let typedef = module.find_instance_component("inst", &typedef_collection).unwrap();
         assert_eq!(typedef, AnyTypedef::TypedefStructure(td_structure));
 
-        let result = module.find_instance_component("inst[0]");
+        let result = module.find_instance_component("inst[0]", &typedef_collection);
         assert!(result.is_none());
     }
 }

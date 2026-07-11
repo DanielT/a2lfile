@@ -22,15 +22,15 @@ pub fn check(a2l_file: &A2lFile) -> Vec<A2lError> {
         let typedefs = module.typedefs();
 
         for axis_pts in &module.axis_pts {
-            check_axis_pts(axis_pts, module, &objects, &mut results);
+            check_axis_pts(axis_pts, module, &objects, &typedefs, &mut results);
         }
 
         for t_axis in &module.typedef_axis {
-            check_typedef_axis(t_axis, module, &objects, &mut results);
+            check_typedef_axis(t_axis, module, &objects, &typedefs, &mut results);
         }
 
         for characteristic in &module.characteristic {
-            check_characteristic(characteristic, module, &objects, &mut results);
+            check_characteristic(characteristic, module, &objects, &typedefs, &mut results);
         }
 
         for t_characteristic in &module.typedef_characteristic {
@@ -59,6 +59,7 @@ pub fn check(a2l_file: &A2lFile) -> Vec<A2lError> {
                 &objects,
                 is_directly_used,
                 &containing_structures,
+                &typedefs,
                 &mut results,
             );
         }
@@ -68,16 +69,16 @@ pub fn check(a2l_file: &A2lFile) -> Vec<A2lError> {
         }
 
         for function in &module.function {
-            check_function(function, module, &objects, &mut results);
+            check_function(function, module, &objects, &typedefs, &mut results);
         }
 
         for group in &module.group {
-            check_group(group, module, &objects, &mut results);
+            check_group(group, module, &objects, &typedefs, &mut results);
         }
         check_group_structure(&module.group, &mut results);
 
         for measurement in &module.measurement {
-            check_measurement(measurement, module, &mut results);
+            check_measurement(measurement, module, &typedefs, &mut results);
         }
 
         for t_measurement in &module.typedef_measurement {
@@ -85,7 +86,7 @@ pub fn check(a2l_file: &A2lFile) -> Vec<A2lError> {
         }
 
         for transformer in &module.transformer {
-            check_transformer(transformer, module, &objects, &mut results);
+            check_transformer(transformer, module, &objects, &typedefs, &mut results);
         }
 
         for instance in &module.instance {
@@ -106,13 +107,14 @@ fn check_axis_descr(
     axis_descr: &AxisDescr,
     module: &Module,
     objects: &ItemList<AnyObject>,
+    typedefs: &ItemList<AnyTypedef>,
     log_msgs: &mut Vec<A2lError>,
 ) {
     let line = axis_descr.get_line();
     if axis_descr.input_quantity != "NO_INPUT_QUANTITY"
         && !objects.contains_key(&axis_descr.input_quantity)
         && module
-            .find_instance_component(&axis_descr.input_quantity)
+            .find_instance_component(&axis_descr.input_quantity, typedefs)
             .is_none()
     {
         log_msgs.push(A2lError::CrossReferenceError {
@@ -191,6 +193,7 @@ fn check_axis_descr_refs(
     objects: &ItemList<AnyObject>,
     is_directly_used: bool,
     containing_structures: &[&TypedefStructure],
+    typedefs: &ItemList<AnyTypedef>,
     log_msgs: &mut Vec<A2lError>,
 ) {
     // AXIS_DESCR.AXIS_PTS_REF
@@ -214,7 +217,7 @@ fn check_axis_descr_refs(
             }
         } else if !objects.contains_key(&axis_pts_ref.axis_points)
             && module
-                .find_instance_component(&axis_pts_ref.axis_points)
+                .find_instance_component(&axis_pts_ref.axis_points, typedefs)
                 .is_none()
         {
             log_msgs.push(A2lError::CrossReferenceError {
@@ -248,7 +251,7 @@ fn check_axis_descr_refs(
             }
         } else if !objects.contains_key(&curve_axis_ref.curve_axis)
             && module
-                .find_instance_component(&curve_axis_ref.curve_axis)
+                .find_instance_component(&curve_axis_ref.curve_axis, typedefs)
                 .is_none()
         {
             log_msgs.push(A2lError::CrossReferenceError {
@@ -279,6 +282,7 @@ fn check_typedef_axis(
     t_axis: &TypedefAxis,
     module: &Module,
     objects: &ItemList<AnyObject>,
+    typedefs: &ItemList<AnyTypedef>,
     log_msgs: &mut Vec<A2lError>,
 ) {
     let name = t_axis.get_name();
@@ -287,7 +291,7 @@ fn check_typedef_axis(
     if t_axis.input_quantity != "NO_INPUT_QUANTITY"
         && !objects.contains_key(&t_axis.input_quantity)
         && module
-            .find_instance_component(&t_axis.input_quantity)
+            .find_instance_component(&t_axis.input_quantity, typedefs)
             .is_none()
     {
         log_msgs.push(A2lError::CrossReferenceError {
@@ -326,6 +330,7 @@ fn check_axis_pts(
     axis_pts: &AxisPts,
     module: &Module,
     objects: &ItemList<AnyObject>,
+    typedefs: &ItemList<AnyTypedef>,
     log_msgs: &mut Vec<A2lError>,
 ) {
     let name = &axis_pts.name;
@@ -346,7 +351,7 @@ fn check_axis_pts(
     if axis_pts.input_quantity != "NO_INPUT_QUANTITY"
         && !objects.contains_key(&axis_pts.input_quantity)
         && module
-            .find_instance_component(&axis_pts.input_quantity)
+            .find_instance_component(&axis_pts.input_quantity, typedefs)
             .is_none()
     {
         log_msgs.push(A2lError::CrossReferenceError {
@@ -395,7 +400,13 @@ fn check_axis_pts(
         });
     }
 
-    check_function_list(&axis_pts.name, &axis_pts.function_list, module, log_msgs);
+    check_function_list(
+        &axis_pts.name,
+        &axis_pts.function_list,
+        module,
+        typedefs,
+        log_msgs,
+    );
     check_ref_memory_segment(&axis_pts.ref_memory_segment, module, log_msgs);
 }
 
@@ -403,6 +414,7 @@ fn check_characteristic(
     characteristic: &Characteristic,
     module: &Module,
     objects: &ItemList<AnyObject>,
+    typedefs: &ItemList<AnyTypedef>,
     results: &mut Vec<A2lError>,
 ) {
     check_characteristic_common(
@@ -411,6 +423,7 @@ fn check_characteristic(
         objects,
         true, // all CHARACTERISTICs are directly used, indirect use only exists for TYPEDEF_CHARACTERISTICs
         &[],
+        typedefs,
         results,
     );
 
@@ -418,7 +431,7 @@ fn check_characteristic(
         let cqline = comparison_quantity.get_line();
         if !objects.contains_key(&comparison_quantity.name)
             && module
-                .find_instance_component(&comparison_quantity.name)
+                .find_instance_component(&comparison_quantity.name, typedefs)
                 .is_none()
         {
             results.push(A2lError::CrossReferenceError {
@@ -441,6 +454,7 @@ fn check_characteristic(
             &dependent_characteristic.characteristic_list,
             Some(module),
             objects,
+            typedefs,
             results,
         );
     }
@@ -455,6 +469,7 @@ fn check_characteristic(
             &map_list.name_list,
             Some(module),
             objects,
+            typedefs,
             results,
         );
     }
@@ -469,6 +484,7 @@ fn check_characteristic(
             &virtual_characteristic.characteristic_list,
             Some(module),
             objects,
+            typedefs,
             results,
         );
     }
@@ -477,6 +493,7 @@ fn check_characteristic(
         &characteristic.name,
         &characteristic.function_list,
         module,
+        typedefs,
         results,
     );
     check_ref_memory_segment(&characteristic.ref_memory_segment, module, results);
@@ -488,6 +505,7 @@ fn check_typedef_characteristic(
     objects: &ItemList<AnyObject>,
     is_directly_used: bool,
     containing_structures: &[&TypedefStructure],
+    typedefs: &ItemList<AnyTypedef>,
     log_msgs: &mut Vec<A2lError>,
 ) {
     check_characteristic_common(
@@ -496,6 +514,7 @@ fn check_typedef_characteristic(
         objects,
         is_directly_used,
         containing_structures,
+        typedefs,
         log_msgs,
     );
 }
@@ -507,6 +526,7 @@ fn check_characteristic_common(
     objects: &ItemList<AnyObject>,
     is_directly_used: bool,
     containing_structures: &[&TypedefStructure],
+    typedefs: &ItemList<AnyTypedef>,
     log_msgs: &mut Vec<A2lError>,
 ) {
     let kind = characteristic.kind();
@@ -528,7 +548,7 @@ fn check_characteristic_common(
     }
 
     for (idx, axis_descr) in characteristic.axis_descr().iter().enumerate() {
-        check_axis_descr(idx, name, axis_descr, module, objects, log_msgs);
+        check_axis_descr(idx, name, axis_descr, module, objects, typedefs, log_msgs);
         check_axis_descr_refs(
             module,
             idx,
@@ -537,6 +557,7 @@ fn check_characteristic_common(
             objects,
             is_directly_used,
             containing_structures,
+            typedefs,
             log_msgs,
         );
     }
@@ -800,6 +821,7 @@ fn check_function(
     function: &Function,
     module: &Module,
     objects: &ItemList<AnyObject>,
+    typedefs: &ItemList<AnyTypedef>,
     log_msgs: &mut Vec<A2lError>,
 ) {
     if let Some(in_measurement) = &function.in_measurement {
@@ -812,6 +834,7 @@ fn check_function(
             &in_measurement.identifier_list,
             Some(module),
             objects,
+            typedefs,
             log_msgs,
         );
     }
@@ -826,6 +849,7 @@ fn check_function(
             &loc_measurement.identifier_list,
             Some(module),
             objects,
+            typedefs,
             log_msgs,
         );
     }
@@ -840,6 +864,7 @@ fn check_function(
             &out_measurement.identifier_list,
             Some(module),
             objects,
+            typedefs,
             log_msgs,
         );
     }
@@ -854,6 +879,7 @@ fn check_function(
             &def_characteristic.identifier_list,
             Some(module),
             objects,
+            typedefs,
             log_msgs,
         );
     }
@@ -868,6 +894,7 @@ fn check_function(
             &ref_characteristic.identifier_list,
             Some(module),
             objects,
+            typedefs,
             log_msgs,
         );
     }
@@ -882,6 +909,7 @@ fn check_function(
             &sub_function.identifier_list,
             None, // functions can't be instance components, so no need to pass module here
             &module.function,
+            typedefs,
             log_msgs,
         );
     }
@@ -891,6 +919,7 @@ fn check_function_list(
     source_name: &str,
     opt_function_list: &Option<FunctionList>,
     module: &Module,
+    typedefs: &ItemList<AnyTypedef>,
     log_msgs: &mut Vec<A2lError>,
 ) {
     if let Some(function_list) = opt_function_list {
@@ -903,6 +932,7 @@ fn check_function_list(
             &function_list.name_list,
             None, // functions can't be instance components, so no need to pass module here
             &module.function,
+            typedefs,
             log_msgs,
         );
     }
@@ -912,6 +942,7 @@ fn check_group(
     group: &Group,
     module: &Module,
     objects: &ItemList<AnyObject>,
+    typedefs: &ItemList<AnyTypedef>,
     log_msgs: &mut Vec<A2lError>,
 ) {
     if let Some(ref_characteristic) = &group.ref_characteristic {
@@ -924,6 +955,7 @@ fn check_group(
             &ref_characteristic.identifier_list,
             Some(module),
             objects,
+            typedefs,
             log_msgs,
         );
     }
@@ -938,6 +970,7 @@ fn check_group(
             &ref_measurement.identifier_list,
             Some(module),
             objects,
+            typedefs,
             log_msgs,
         );
     }
@@ -952,6 +985,7 @@ fn check_group(
             &function_list.name_list,
             None, // functions can't be instance components, so no need to pass module here
             &module.function,
+            typedefs,
             log_msgs,
         );
     }
@@ -966,12 +1000,18 @@ fn check_group(
             &sub_group.identifier_list,
             None, // groups can't be instance components, so no need to pass module here
             &module.group,
+            typedefs,
             log_msgs,
         );
     }
 }
 
-fn check_measurement(measurement: &Measurement, module: &Module, log_msgs: &mut Vec<A2lError>) {
+fn check_measurement(
+    measurement: &Measurement,
+    module: &Module,
+    typedefs: &ItemList<AnyTypedef>,
+    log_msgs: &mut Vec<A2lError>,
+) {
     let name = &measurement.name;
     let line = measurement.get_line();
 
@@ -1007,6 +1047,7 @@ fn check_measurement(measurement: &Measurement, module: &Module, log_msgs: &mut 
         &measurement.name,
         &measurement.function_list,
         module,
+        typedefs,
         log_msgs,
     );
 }
@@ -1051,6 +1092,7 @@ fn check_transformer(
     transformer: &Transformer,
     module: &Module,
     objects: &ItemList<AnyObject>,
+    typedefs: &ItemList<AnyTypedef>,
     log_msgs: &mut Vec<A2lError>,
 ) {
     let name = &transformer.name;
@@ -1080,6 +1122,7 @@ fn check_transformer(
             &transformer_in_objects.identifier_list,
             Some(module),
             objects,
+            typedefs,
             log_msgs,
         );
     }
@@ -1094,6 +1137,7 @@ fn check_transformer(
             &transformer_out_objects.identifier_list,
             Some(module),
             objects,
+            typedefs,
             log_msgs,
         );
     }
@@ -1138,12 +1182,13 @@ fn check_reference_list<T: A2lObjectName>(
     identifier_list: &[String],
     opt_module: Option<&Module>,
     map: &ItemList<T>,
+    typedefs: &ItemList<AnyTypedef>,
     log_msgs: &mut Vec<A2lError>,
 ) {
     for ident in identifier_list {
         if map.get(ident).is_none()
             && opt_module
-                .and_then(|m| m.find_instance_component(ident))
+                .and_then(|m| m.find_instance_component(ident, typedefs))
                 .is_none()
         {
             log_msgs.push(A2lError::CrossReferenceError {
