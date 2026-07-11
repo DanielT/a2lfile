@@ -74,9 +74,7 @@ impl Writer {
 
         // escaping lots of strings is an expensive operation, so check if anything needs to be done first
         if value.contains(['\'', '"', '\\', '\r', '\n', '\t']) {
-            let input_chars: Vec<char> = value.chars().collect();
-
-            for c in input_chars {
+            for c in value.chars() {
                 match c {
                     '\'' | '"' | '\\' => {
                         self.outstring.push('\\');
