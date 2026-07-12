@@ -247,3 +247,27 @@ fn generate_indirect_store_taggeditems(tgitems: &[TaggedItem]) -> TokenStream {
         output
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_generate_indirect_struct_writer() {
+        let dataitem = DataItem {
+            typename: Some("TestStruct".to_string()),
+            basetype: BaseType::Struct {
+                structitems: vec![DataItem {
+                    typename: None,
+                    basetype: BaseType::Int,
+                    varname: Some("value".to_string()),
+                    comment: None,
+                }],
+            },
+            varname: None,
+            comment: None,
+        };
+        let output = generate("TestStruct", &dataitem);
+        assert!(!output.is_empty());
+    }
+}

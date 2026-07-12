@@ -1570,6 +1570,20 @@ mod test {
 
         // invalid input quantity
         assert_eq!(log_msgs.len(), 0);
+
+        // error: CURVE_AXIS must have a CURVE_AXIS_REF
+        static A2L_TEXT5: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin CHARACTERISTIC c "" CURVE 0x1234 rl 0 NO_COMPU_METHOD 0.0 1.0
+                /begin AXIS_DESCR CURVE_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD 1 0 100
+                /end AXIS_DESCR
+            /end CHARACTERISTIC
+            /begin RECORD_LAYOUT rl
+                FNC_VALUES 0 FLOAT32_IEEE ROW_DIR DIRECT
+            /end RECORD_LAYOUT
+        /end MODULE /end PROJECT"#;
+        let (a2lfile, _) = load_from_string(A2L_TEXT5, None, true).unwrap();
+        let log_msgs = super::check(&a2lfile);
+        assert_eq!(log_msgs.len(), 1);
     }
 
     #[test]
@@ -1705,6 +1719,20 @@ mod test {
         let (a2lfile, _) = load_from_string(A2L_TEXT4, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 0);
+
+        // record layout exists and has FNC_VALUES, but is missing AXIS_PTS_X for the STD_AXIS
+        static A2L_TEXT5: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin CHARACTERISTIC c "" CURVE 0x1234 rl 0 NO_COMPU_METHOD 0.0 1.0
+                /begin AXIS_DESCR STD_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD 1 0 100
+                /end AXIS_DESCR
+            /end CHARACTERISTIC
+            /begin RECORD_LAYOUT rl
+                FNC_VALUES 0 FLOAT32_IEEE ROW_DIR DIRECT
+            /end RECORD_LAYOUT
+        /end MODULE /end PROJECT"#;
+        let (a2lfile, _) = load_from_string(A2L_TEXT5, None, true).unwrap();
+        let log_msgs = super::check(&a2lfile);
+        assert_eq!(log_msgs.len(), 1);
     }
 
     #[test]
@@ -1805,6 +1833,44 @@ mod test {
         let (a2lfile, _) = load_from_string(A2L_TEXT2, None, true).unwrap();
         let log_msgs = super::check(&a2lfile);
         assert_eq!(log_msgs.len(), 0);
+
+        // error: a non-table conversion type must not have a COMPU_TAB_REF
+        static A2L_TEXT3: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin COMPU_METHOD cm "" IDENTICAL "%4.2" "unit"
+                COMPU_TAB_REF compu_tab_ref
+            /end COMPU_METHOD
+        /end MODULE /end PROJECT"#;
+        let (a2lfile, _) = load_from_string(A2L_TEXT3, None, true).unwrap();
+        let log_msgs = super::check(&a2lfile);
+        // COMPU_TAB_REF is not allowed here, and it also refers to a non-existent COMPU_TAB
+        assert_eq!(log_msgs.len(), 2);
+
+        // error: LINEAR must have COEFFS_LINEAR
+        static A2L_TEXT4: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin COMPU_METHOD cm "" LINEAR "%4.2" "unit"
+            /end COMPU_METHOD
+        /end MODULE /end PROJECT"#;
+        let (a2lfile, _) = load_from_string(A2L_TEXT4, None, true).unwrap();
+        let log_msgs = super::check(&a2lfile);
+        assert_eq!(log_msgs.len(), 1);
+
+        // error: RAT_FUNC must have COEFFS
+        static A2L_TEXT5: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin COMPU_METHOD cm "" RAT_FUNC "%4.2" "unit"
+            /end COMPU_METHOD
+        /end MODULE /end PROJECT"#;
+        let (a2lfile, _) = load_from_string(A2L_TEXT5, None, true).unwrap();
+        let log_msgs = super::check(&a2lfile);
+        assert_eq!(log_msgs.len(), 1);
+
+        // error: FORM must have FORMULA
+        static A2L_TEXT6: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
+            /begin COMPU_METHOD cm "" FORM "%4.2" "unit"
+            /end COMPU_METHOD
+        /end MODULE /end PROJECT"#;
+        let (a2lfile, _) = load_from_string(A2L_TEXT6, None, true).unwrap();
+        let log_msgs = super::check(&a2lfile);
+        assert_eq!(log_msgs.len(), 1);
     }
 
     #[test]

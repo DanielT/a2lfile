@@ -281,6 +281,42 @@ mod test {
     }
 
     #[test]
+    fn test_import_new() {
+        let mut module1 = Module::new("mod".to_string(), String::new());
+        let mut module2 = Module::new("mod2".to_string(), String::new());
+
+        module1
+            .blob
+            .push(Blob::new("blob1".to_string(), String::new(), 0, 1000));
+        module2
+            .blob
+            .push(Blob::new("blob2".to_string(), String::new(), 50000, 1024));
+
+        module1.import_new(&mut module2);
+
+        assert_eq!(module1.blob.len(), 2);
+        assert_eq!(module2.blob.len(), 0);
+    }
+
+    #[test]
+    fn test_import_all() {
+        let mut module1 = Module::new("mod".to_string(), String::new());
+        let mut module2 = Module::new("mod2".to_string(), String::new());
+
+        module1
+            .blob
+            .push(Blob::new("blob1".to_string(), String::new(), 0, 1000));
+        module2
+            .blob
+            .push(Blob::new("blob1".to_string(), String::new(), 50000, 1024));
+
+        module1.import_all(&mut module2);
+
+        assert_eq!(module1.blob.len(), 1);
+        assert_eq!(module1.blob[0].start_address, 50000);
+    }
+
+    #[test]
     fn test_objects() {
         static A2L_TEXT: &str = r#"ASAP2_VERSION 1 71 /begin PROJECT p "" /begin MODULE m ""
             /begin AXIS_PTS axispts "" 0x1234 meas record_layout 0 compu_method 3 0.0 10.0 /end AXIS_PTS

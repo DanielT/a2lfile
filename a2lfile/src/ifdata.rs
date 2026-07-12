@@ -617,6 +617,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let decoded_ifdata = check_and_decode(result);
         assert!(matches!(decoded_ifdata.char, Some(Char { a: 5, .. })));
+        let _ = decoded_ifdata.char.unwrap().store();
 
         let result = parse_helper(r##"CHAR xyz /end IFDATA"##);
         assert!(result.is_ok());
@@ -628,6 +629,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let decoded_ifdata = check_and_decode(result);
         assert!(matches!(decoded_ifdata.int, Some(Int { b: 5, .. })));
+        let _ = decoded_ifdata.int.unwrap().store();
 
         let result = parse_helper(r##"INT xyz /end IFDATA"##);
         assert!(result.is_ok());
@@ -639,6 +641,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let decoded_ifdata = check_and_decode(result);
         assert!(matches!(decoded_ifdata.long, Some(Long { c: 5, .. })));
+        let _ = decoded_ifdata.long.unwrap().store();
 
         let result = parse_helper(r##"LONG xyz /end IFDATA"##);
         assert!(result.is_ok());
@@ -650,6 +653,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let decoded_ifdata = check_and_decode(result);
         assert!(matches!(decoded_ifdata.int64, Some(Int64 { d: 5, .. })));
+        let _ = decoded_ifdata.int64.unwrap().store();
 
         let result = parse_helper(r##"INT64 xyz /end IFDATA"##);
         assert!(result.is_ok());
@@ -661,6 +665,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let decoded_ifdata = check_and_decode(result);
         assert!(matches!(decoded_ifdata.uchar, Some(Uchar { e: 5, .. })));
+        let _ = decoded_ifdata.uchar.unwrap().store();
 
         let result = parse_helper(r##"UCHAR xyz /end IFDATA"##);
         assert!(result.is_ok());
@@ -672,6 +677,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let decoded_ifdata = check_and_decode(result);
         assert!(matches!(decoded_ifdata.uint, Some(Uint { f: 5, .. })));
+        let _ = decoded_ifdata.uint.unwrap().store();
 
         let result = parse_helper(r##"UINT xyz /end IFDATA"##);
         assert!(result.is_ok());
@@ -683,6 +689,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let decoded_ifdata = check_and_decode(result);
         assert!(matches!(decoded_ifdata.ulong, Some(Ulong { g: 5, .. })));
+        let _ = decoded_ifdata.ulong.unwrap().store();
 
         let result = parse_helper(r##"ULONG xyz /end IFDATA"##);
         assert!(result.is_ok());
@@ -694,6 +701,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let decoded_ifdata = check_and_decode(result);
         assert!(matches!(decoded_ifdata.uint64, Some(Uint64 { h: 5, .. })));
+        let _ = decoded_ifdata.uint64.unwrap().store();
 
         let result = parse_helper(r##"UINT64 xyz /end IFDATA"##);
         assert!(result.is_ok());
@@ -705,6 +713,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let decoded_ifdata = check_and_decode(result);
         assert!(matches!(decoded_ifdata.double, Some(Double { .. })));
+        let _ = decoded_ifdata.double.unwrap().store();
 
         let result = parse_helper(r##"DOUBLE xyz /end IFDATA"##);
         assert!(result.is_ok());
@@ -716,6 +725,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let decoded_ifdata = check_and_decode(result);
         assert!(matches!(decoded_ifdata.float, Some(Float { .. })));
+        let _ = decoded_ifdata.float.unwrap().store();
 
         let result = parse_helper(r##"FLOAT xyz /end IFDATA"##);
         assert!(result.is_ok());
@@ -729,6 +739,7 @@ mod ifdata_test {
         let var_struct = decoded_ifdata.var_struct.unwrap();
         assert_eq!(var_struct.item, "text value");
         assert_eq!(var_struct.item_2, 3);
+        let _ = var_struct.store();
 
         let result = parse_helper(r##"STRUCT 5.5 xyz /end IFDATA"##);
         assert!(result.is_ok());
@@ -739,15 +750,16 @@ mod ifdata_test {
         let result = parse_helper(r##"/begin BLOCK TAG1 3 /end BLOCK /end IFDATA"##);
         assert!(result.is_ok());
         let decoded_ifdata = check_and_decode(result);
-        assert_eq!(decoded_ifdata.block.unwrap().tag1.unwrap().intval, 3);
+        let tag1 = decoded_ifdata.block.unwrap().tag1.unwrap();
+        assert_eq!(tag1.intval, 3);
+        let _ = tag1.store();
 
         let result = parse_helper(r##"ENUM ENUMVAL2 /end IFDATA"##);
         assert!(result.is_ok());
         let decoded_ifdata = check_and_decode(result);
-        assert_eq!(
-            decoded_ifdata.var_enum.unwrap().named_enum,
-            EnumTest::Enumval2
-        );
+        let var_enum = decoded_ifdata.var_enum.unwrap();
+        assert_eq!(var_enum.named_enum, EnumTest::Enumval2);
+        let _ = var_enum.store();
 
         let result = parse_helper(r##"ENUM NOTVALID /end IFDATA"##);
         assert!(result.is_ok());
@@ -758,7 +770,9 @@ mod ifdata_test {
         let result = parse_helper(r##"ARRAY 7 8 9 /end IFDATA"##);
         assert!(result.is_ok());
         let decoded_ifdata = check_and_decode(result);
-        assert_eq!(decoded_ifdata.array.unwrap().arr, [7, 8, 9]);
+        let array = decoded_ifdata.array.unwrap();
+        assert_eq!(array.arr, [7, 8, 9]);
+        let _ = array.store();
 
         let result = parse_helper(r##"ARRAY 7 8 "bad" /end IFDATA"##);
         assert!(result.is_ok());
@@ -776,6 +790,7 @@ mod ifdata_test {
         assert!(result.is_ok());
         let decoded_ifdata = check_and_decode(result);
         assert!(decoded_ifdata.none.is_some());
+        let _ = decoded_ifdata.none.unwrap().store();
     }
 
     #[test]

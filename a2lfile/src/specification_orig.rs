@@ -2075,6 +2075,7 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = AddressType::new(AddrType::Direct);
         trait_test_helper(&mut item);
+        assert_eq!(AddrType::Direct.to_string(), "DIRECT");
         let mut item = AlignmentByte::new(0);
         trait_test_helper(&mut item);
         let mut item = AlignmentFloat16Ieee::new(0);
@@ -2101,6 +2102,8 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = ArPrototypeOf::new("".to_string());
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = ArraySize::new(0);
         trait_test_helper(&mut item);
         let mut item = Asap2Version::new(0, 0);
@@ -2127,6 +2130,8 @@ mod test {
             0.0,
         );
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = AxisPtsDim::new(0, DataType::Ubyte, IndexOrder::IndexIncr, AddrType::Direct);
         trait_test_helper(&mut item);
         let mut item = AxisPtsRef::new("".to_string());
@@ -2145,6 +2150,8 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = Blob::new("".to_string(), "".to_string(), 0, 0);
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = ByteOrder::new(ByteOrderEnum::MsbFirst);
         trait_test_helper(&mut item);
         let mut item = CalibrationAccess::new(CalibrationAccessEnum::Calibration);
@@ -2167,12 +2174,16 @@ mod test {
             0.0,
         );
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = Coeffs::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
         trait_test_helper(&mut item);
         let mut item = CoeffsLinear::new(0.0, 0.0);
         trait_test_helper(&mut item);
         let mut item = ComparisonQuantity::new("".to_string());
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = CompuMethod::new(
             "".to_string(),
             "".to_string(),
@@ -2181,18 +2192,28 @@ mod test {
             "".to_string(),
         );
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = CompuTab::new("".to_string(), "".to_string(), ConversionType::Identical, 0);
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = CompuTabRef::new("".to_string());
         trait_test_helper(&mut item);
         let mut item = CompuVtab::new("".to_string(), "".to_string(), ConversionType::Identical, 0);
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = CompuVtabRange::new("".to_string(), "".to_string(), 0);
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = ConsistentExchange::new();
         trait_test_helper(&mut item);
         let mut item = Conversion::new("".to_string());
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = CpuType::new("".to_string());
         trait_test_helper(&mut item);
         let mut item = CurveAxisRef::new("".to_string());
@@ -2251,16 +2272,22 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = Frame::new("".to_string(), "".to_string(), 0, 0);
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = FrameMeasurement::new();
         trait_test_helper(&mut item);
         let mut item = Function::new("".to_string(), "".to_string());
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = FunctionList::new();
         trait_test_helper(&mut item);
         let mut item = FunctionVersion::new("".to_string());
         trait_test_helper(&mut item);
         let mut item = Group::new("".to_string(), "".to_string());
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = GuardRails::new();
         trait_test_helper(&mut item);
         let mut item = Header::new("".to_string());
@@ -2273,8 +2300,12 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = InputQuantity::new("".to_string());
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = Instance::new("".to_string(), "".to_string(), "".to_string(), 0);
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = Layout::new(IndexMode::RowDir);
         trait_test_helper(&mut item);
         let mut item = LeftShift::new(0);
@@ -2302,6 +2333,8 @@ mod test {
             0.0,
         );
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = MemoryLayout::new(ProgType::PrgReserved, 0, 0, [0, 0, 0, 0, 0]);
         trait_test_helper(&mut item);
         let mut item = MemorySegment::new(
@@ -2315,6 +2348,8 @@ mod test {
             [0, 0, 0, 0, 0],
         );
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = ModCommon::new("".to_string());
         trait_test_helper(&mut item);
         let mut item = ModPar::new("".to_string());
@@ -2323,6 +2358,8 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = Module::new("".to_string(), "".to_string());
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = Monotony::new(MonotonyType::MonIncrease);
         trait_test_helper(&mut item);
         let mut item = NoAxisPtsDim::new(0, DataType::Ubyte);
@@ -2339,12 +2376,16 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = Overwrite::new("".to_string(), 0);
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = PhoneNo::new("".to_string());
         trait_test_helper(&mut item);
         let mut item = PhysUnit::new("".to_string());
         trait_test_helper(&mut item);
         let mut item = Project::new("".to_string(), "".to_string());
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = ProjectNo::new("".to_string());
         trait_test_helper(&mut item);
         let mut item = ReadOnly::new();
@@ -2353,6 +2394,8 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = RecordLayout::new("".to_string());
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = RefCharacteristic::new();
         trait_test_helper(&mut item);
         let mut item = RefGroup::new();
@@ -2361,6 +2404,8 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = RefMemorySegment::new("".to_string());
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = RefUnit::new("".to_string());
         trait_test_helper(&mut item);
         let mut item = Reserved::new(0, DataTypeSize::Long);
@@ -2373,6 +2418,8 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = SRecLayout::new("".to_string());
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = ShiftOpDim::new(0, DataType::Slong);
         trait_test_helper(&mut item);
         let mut item = SiExponents::new(0, 0, 0, 0, 0, 0, 0);
@@ -2391,6 +2438,8 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = StructureComponent::new("".to_string(), "".to_string(), 0);
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = SubFunction::new();
         trait_test_helper(&mut item);
         let mut item = SubGroup::new();
@@ -2413,6 +2462,8 @@ mod test {
             "".to_string(),
         );
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = TransformerInObjects::new();
         trait_test_helper(&mut item);
         let mut item = TransformerOutObjects::new();
@@ -2429,8 +2480,12 @@ mod test {
             0.0,
         );
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = TypedefBlob::new("".to_string(), "".to_string(), 0);
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = TypedefCharacteristic::new(
             "".to_string(),
             "".to_string(),
@@ -2442,6 +2497,8 @@ mod test {
             0.0,
         );
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = TypedefMeasurement::new(
             "".to_string(),
             "".to_string(),
@@ -2453,8 +2510,12 @@ mod test {
             0.0,
         );
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = TypedefStructure::new("".to_string(), "".to_string(), 0);
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = Unit::new(
             "".to_string(),
             "".to_string(),
@@ -2462,6 +2523,8 @@ mod test {
             UnitType::Derived,
         );
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = UnitConversion::new(0.0, 0.0);
         trait_test_helper(&mut item);
         let mut item = User::new("".to_string());
@@ -2472,16 +2535,24 @@ mod test {
         trait_test_helper(&mut item);
         let mut item = VarCharacteristic::new("".to_string());
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = VarCriterion::new("".to_string(), "".to_string());
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = VarForbiddenComb::new();
         trait_test_helper(&mut item);
         let mut item = VarMeasurement::new("".to_string());
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = VarNaming::new(VarNamingTag::Numeric);
         trait_test_helper(&mut item);
         let mut item = VarSelectionCharacteristic::new("".to_string());
         trait_test_helper(&mut item);
+        item.set_name("newname".to_string());
+        assert_eq!(item.get_name(), "newname");
         let mut item = VarSeparator::new("".to_string());
         trait_test_helper(&mut item);
         let mut item = VariantCoding::new();
