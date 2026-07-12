@@ -1309,6 +1309,8 @@ mod test {
                 /begin FRAME frame1 "" 1 2
                     FRAME_MEASUREMENT measurement1 measurement2
                 /end FRAME
+                /begin FRAME frame2 "" 1 2
+                /end FRAME
                 /begin VARIANT_CODING
                     /begin VAR_CRITERION criterion_name1 ""
                         VAR_MEASUREMENT measurement1
@@ -1319,9 +1321,16 @@ mod test {
                 /end VARIANT_CODING
                 /begin TYPEDEF_AXIS typedef_axis1 "" measurement1 record_layout_name 0 compu_method 1 0 100
                 /end TYPEDEF_AXIS
+                /begin TYPEDEF_AXIS typedef_axis2 "" measurement2 record_layout_name 0 compu_method 1 0 100
+                /end TYPEDEF_AXIS
                 /begin INSTANCE instance1 "" type_ref 0x1234
                     /begin OVERWRITE overwrite_name 0
                         INPUT_QUANTITY measurement1
+                    /end OVERWRITE
+                /end INSTANCE
+                /begin INSTANCE instance2 "" type_ref 0x1234
+                    /begin OVERWRITE overwrite_name 0
+                        INPUT_QUANTITY measurement2
                     /end OVERWRITE
                 /end INSTANCE
             /end MODULE
@@ -1374,6 +1383,9 @@ mod test {
         assert_eq!(frame_measurement.identifier_list.len(), 2);
         assert_eq!(frame_measurement.identifier_list[0], "measurement1.MERGE");
         assert_eq!(frame_measurement.identifier_list[1], "measurement2");
+        // frame2 has no FRAME_MEASUREMENT sub-block at all
+        let frame2 = &module.frame[1];
+        assert!(frame2.frame_measurement.is_none());
 
         let variant_coding = &module.variant_coding.as_ref().unwrap();
         let var_criterion1 = &variant_coding.var_criterion[0];
@@ -1389,12 +1401,20 @@ mod test {
 
         let typedef_axis1 = &module.typedef_axis[0];
         assert_eq!(typedef_axis1.input_quantity, "measurement1.MERGE");
+        let typedef_axis2 = &module.typedef_axis[1];
+        assert_eq!(typedef_axis2.input_quantity, "measurement2");
 
         let instance1 = &module.instance[0];
         let overwrite = &instance1.overwrite[0];
         assert_eq!(
             overwrite.input_quantity.as_ref().unwrap().name,
             "measurement1.MERGE"
+        );
+        let instance2 = &module.instance[1];
+        let overwrite2 = &instance2.overwrite[0];
+        assert_eq!(
+            overwrite2.input_quantity.as_ref().unwrap().name,
+            "measurement2"
         );
     }
 
@@ -1784,6 +1804,8 @@ mod test {
                     /begin TRANSFORMER_OUT_OBJECTS blob1 blob2
                     /end TRANSFORMER_OUT_OBJECTS
                 /end TRANSFORMER
+                /begin TRANSFORMER transformer_name2 "version string" "dll32" "dll64" 1 ON_CHANGE NO_INVERSE_TRANSFORMER
+                /end TRANSFORMER
             /end MODULE
         /end PROJECT"#;
 
@@ -1811,6 +1833,11 @@ mod test {
         assert_eq!(out_objects.identifier_list.len(), 2);
         assert_eq!(out_objects.identifier_list[0], "blob1.MERGE");
         assert_eq!(out_objects.identifier_list[1], "blob2");
+
+        // transformer_name2 has neither TRANSFORMER_IN_OBJECTS nor TRANSFORMER_OUT_OBJECTS
+        let transformer2 = &a2l_file_b.project.module[0].transformer[1];
+        assert!(transformer2.transformer_in_objects.is_none());
+        assert!(transformer2.transformer_out_objects.is_none());
     }
 
     #[test]
@@ -2768,12 +2795,15 @@ mod test {
             /end MEASUREMENT
             /begin GROUP grp ""
             /end GROUP
+            /begin IF_DATA merge_if_data
+            /end IF_DATA
             /begin VARIANT_CODING
             /end VARIANT_CODING
         /end MODULE /end PROJECT"#;
 
         let (mut a2l_file_a, _) = load_from_string(FILE_A, None, true).unwrap();
         let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
+        assert!(a2l_file_a.project.module[0].if_data.is_empty());
         super::import_new_module_items(
             &mut a2l_file_a.project.module[0],
             &mut a2l_file_b.project.module[0],
@@ -2788,6 +2818,8 @@ mod test {
         let meas2 = a2l_file_a.project.module[0].measurement.get("m2").unwrap();
         assert_eq!(meas2.datatype, DataType::Ubyte);
         assert_eq!(meas2.long_identifier, "");
+        // A had no IF_DATA at all, so it was taken from B
+        assert_eq!(a2l_file_a.project.module[0].if_data.len(), 1);
     }
 
     #[test]
@@ -2811,6 +2843,8 @@ mod test {
                 /begin SUB_GROUP
                 /end SUB_GROUP
             /end GROUP
+            /begin IF_DATA orig_if_data
+            /end IF_DATA
             /begin VARIANT_CODING
             /end VARIANT_CODING
         /end MODULE /end PROJECT"#;
@@ -2833,15 +2867,25 @@ mod test {
                 /begin SUB_GROUP
                 /end SUB_GROUP
             /end GROUP
+            /begin IF_DATA merge_if_data
+            /end IF_DATA
             /begin VARIANT_CODING
             /end VARIANT_CODING
         /end MODULE /end PROJECT"#;
 
         let (mut a2l_file_a, _) = load_from_string(FILE_A, None, true).unwrap();
         let (mut a2l_file_b, _) = load_from_string(FILE_B, None, true).unwrap();
+        assert_eq!(a2l_file_a.project.module[0].if_data.len(), 1);
+        let merge_if_data_line = a2l_file_b.project.module[0].if_data[0].get_line();
         super::import_all_module_items(
             &mut a2l_file_a.project.module[0],
             &mut a2l_file_b.project.module[0],
+        );
+        // import_all always prefers the merge side, so A's IF_DATA was replaced by B's
+        assert_eq!(a2l_file_a.project.module[0].if_data.len(), 1);
+        assert_eq!(
+            a2l_file_a.project.module[0].if_data[0].get_line(),
+            merge_if_data_line
         );
 
         // m1 is taken from B, because import_all replaces existing items
@@ -2864,5 +2908,264 @@ mod test {
         assert!(ref_meas.identifier_list.contains(&"m1".to_string()));
         assert!(ref_meas.identifier_list.contains(&"m2".to_string()));
         assert!(ref_meas.identifier_list.contains(&"m3".to_string()));
+    }
+
+    #[test]
+    fn test_import_new_keeps_existing_optionals() {
+        let mut orig = Module::new("mod".to_string(), String::new());
+        let mut merge = Module::new("mod2".to_string(), String::new());
+
+        orig.a2ml = Some(A2ml::new("orig_a2ml".to_string()));
+        merge.a2ml = Some(A2ml::new("merge_a2ml".to_string()));
+
+        orig.mod_par = Some(ModPar::new("orig mod_par".to_string()));
+        merge.mod_par = Some(ModPar::new("merge mod_par".to_string()));
+
+        orig.mod_common = Some(ModCommon::new("orig mod_common".to_string()));
+        merge.mod_common = Some(ModCommon::new("merge mod_common".to_string()));
+
+        // shared_user is identical on both sides and must not be duplicated; user_b is new
+        orig.user_rights.push(UserRights::new("shared_user".to_string()));
+        merge.user_rights.push(UserRights::new("shared_user".to_string()));
+        merge.user_rights.push(UserRights::new("user_b".to_string()));
+
+        let mut orig_variant = VariantCoding::new();
+        orig_variant.var_naming = Some(VarNaming::new(VarNamingTag::Numeric));
+        orig_variant.var_separator = Some(VarSeparator::new(".".to_string()));
+        let mut orig_comb = VarForbiddenComb::new();
+        orig_comb
+            .combination
+            .push(CombinationStruct::new("crit1".to_string(), "val1".to_string()));
+        orig_variant.var_forbidden_comb.push(orig_comb);
+        orig.variant_coding = Some(orig_variant);
+
+        let mut merge_variant = VariantCoding::new();
+        merge_variant.var_naming = Some(VarNaming::new(VarNamingTag::Numeric));
+        merge_variant.var_separator = Some(VarSeparator::new("/".to_string()));
+        let mut dup_comb = VarForbiddenComb::new();
+        dup_comb
+            .combination
+            .push(CombinationStruct::new("crit1".to_string(), "val1".to_string()));
+        let mut new_comb = VarForbiddenComb::new();
+        new_comb
+            .combination
+            .push(CombinationStruct::new("crit2".to_string(), "val2".to_string()));
+        merge_variant.var_forbidden_comb.push(dup_comb);
+        merge_variant.var_forbidden_comb.push(new_comb);
+        merge.variant_coding = Some(merge_variant);
+
+        super::import_new_module_items(&mut orig, &mut merge);
+
+        // all of these already existed in orig, so the merge side is ignored
+        assert_eq!(orig.a2ml.as_ref().unwrap().a2ml_text, "orig_a2ml");
+        assert_eq!(orig.mod_par.as_ref().unwrap().comment, "orig mod_par");
+        assert_eq!(orig.mod_common.as_ref().unwrap().comment, "orig mod_common");
+
+        // shared_user was already present (skipped), user_b is new (added)
+        assert_eq!(orig.user_rights.len(), 2);
+        assert!(
+            orig.user_rights
+                .iter()
+                .any(|u| u.user_level_id == "shared_user")
+        );
+        assert!(
+            orig.user_rights
+                .iter()
+                .any(|u| u.user_level_id == "user_b")
+        );
+
+        let variant = orig.variant_coding.as_ref().unwrap();
+        assert_eq!(variant.var_separator.as_ref().unwrap().separator, ".");
+        assert_eq!(variant.var_forbidden_comb.len(), 2);
+        assert!(
+            variant
+                .var_forbidden_comb
+                .iter()
+                .any(|c| c.combination[0].criterion_name == "crit1")
+        );
+        assert!(
+            variant
+                .var_forbidden_comb
+                .iter()
+                .any(|c| c.combination[0].criterion_name == "crit2")
+        );
+    }
+
+    #[test]
+    fn test_import_new_keeps_variant_coding_when_merge_has_none() {
+        let mut orig = Module::new("mod".to_string(), String::new());
+        let mut merge = Module::new("mod2".to_string(), String::new());
+
+        let mut orig_variant = VariantCoding::new();
+        orig_variant.var_separator = Some(VarSeparator::new(".".to_string()));
+        orig.variant_coding = Some(orig_variant);
+        // merge.variant_coding stays None
+
+        super::import_new_module_items(&mut orig, &mut merge);
+
+        assert_eq!(
+            orig.variant_coding
+                .as_ref()
+                .unwrap()
+                .var_separator
+                .as_ref()
+                .unwrap()
+                .separator,
+            "."
+        );
+    }
+
+    #[test]
+    fn test_import_all_overwrites_optionals() {
+        let mut orig = Module::new("mod".to_string(), String::new());
+        let mut merge = Module::new("mod2".to_string(), String::new());
+
+        orig.a2ml = Some(A2ml::new("orig_a2ml".to_string()));
+        merge.a2ml = Some(A2ml::new("merge_a2ml".to_string()));
+
+        orig.mod_par = Some(ModPar::new("orig mod_par".to_string()));
+        merge.mod_par = Some(ModPar::new("merge mod_par".to_string()));
+
+        orig.mod_common = Some(ModCommon::new("orig mod_common".to_string()));
+        merge.mod_common = Some(ModCommon::new("merge mod_common".to_string()));
+
+        // shared_user is identical on both sides and must not be duplicated; user_b is new
+        orig.user_rights.push(UserRights::new("shared_user".to_string()));
+        merge.user_rights.push(UserRights::new("shared_user".to_string()));
+        merge.user_rights.push(UserRights::new("user_b".to_string()));
+
+        let mut orig_variant = VariantCoding::new();
+        orig_variant.var_naming = Some(VarNaming::new(VarNamingTag::Numeric));
+        orig_variant.var_separator = Some(VarSeparator::new(".".to_string()));
+        let mut orig_comb = VarForbiddenComb::new();
+        orig_comb
+            .combination
+            .push(CombinationStruct::new("crit1".to_string(), "val1".to_string()));
+        orig_variant.var_forbidden_comb.push(orig_comb);
+        orig.variant_coding = Some(orig_variant);
+
+        let mut merge_variant = VariantCoding::new();
+        merge_variant.var_naming = Some(VarNaming::new(VarNamingTag::Numeric));
+        merge_variant.var_separator = Some(VarSeparator::new("/".to_string()));
+        let mut dup_comb = VarForbiddenComb::new();
+        dup_comb
+            .combination
+            .push(CombinationStruct::new("crit1".to_string(), "val1".to_string()));
+        let mut new_comb = VarForbiddenComb::new();
+        new_comb
+            .combination
+            .push(CombinationStruct::new("crit2".to_string(), "val2".to_string()));
+        merge_variant.var_forbidden_comb.push(dup_comb);
+        merge_variant.var_forbidden_comb.push(new_comb);
+        merge.variant_coding = Some(merge_variant);
+
+        super::import_all_module_items(&mut orig, &mut merge);
+
+        // import_all always prefers the merge side when it is present
+        assert_eq!(orig.a2ml.as_ref().unwrap().a2ml_text, "merge_a2ml");
+        assert_eq!(orig.mod_par.as_ref().unwrap().comment, "merge mod_par");
+        assert_eq!(orig.mod_common.as_ref().unwrap().comment, "merge mod_common");
+
+        // shared_user was already present (skipped), user_b is new (added)
+        assert_eq!(orig.user_rights.len(), 2);
+        assert!(
+            orig.user_rights
+                .iter()
+                .any(|u| u.user_level_id == "shared_user")
+        );
+        assert!(
+            orig.user_rights
+                .iter()
+                .any(|u| u.user_level_id == "user_b")
+        );
+
+        let variant = orig.variant_coding.as_ref().unwrap();
+        assert_eq!(variant.var_separator.as_ref().unwrap().separator, "/");
+        assert_eq!(variant.var_forbidden_comb.len(), 2);
+        assert!(
+            variant
+                .var_forbidden_comb
+                .iter()
+                .any(|c| c.combination[0].criterion_name == "crit1")
+        );
+        assert!(
+            variant
+                .var_forbidden_comb
+                .iter()
+                .any(|c| c.combination[0].criterion_name == "crit2")
+        );
+    }
+
+    #[test]
+    fn test_import_all_keeps_variant_coding_when_merge_has_none() {
+        let mut orig = Module::new("mod".to_string(), String::new());
+        let mut merge = Module::new("mod2".to_string(), String::new());
+
+        let mut orig_variant = VariantCoding::new();
+        orig_variant.var_separator = Some(VarSeparator::new(".".to_string()));
+        orig.variant_coding = Some(orig_variant);
+        // merge.variant_coding stays None
+
+        super::import_all_module_items(&mut orig, &mut merge);
+
+        assert_eq!(
+            orig.variant_coding
+                .as_ref()
+                .unwrap()
+                .var_separator
+                .as_ref()
+                .unwrap()
+                .separator,
+            "."
+        );
+    }
+
+    #[test]
+    fn test_merge_groups_simple_partial_fields() {
+        let mut orig = Module::new("mod".to_string(), String::new());
+        let mut merge = Module::new("mod2".to_string(), String::new());
+
+        let mut orig_group = Group::new("grp".to_string(), String::new());
+        orig_group.sub_group = Some(SubGroup::new());
+        orig_group.function_list = Some(FunctionList::new());
+        orig_group.ref_characteristic = Some(RefCharacteristic::new());
+        orig_group.ref_measurement = Some(RefMeasurement::new());
+        orig.group.push(orig_group);
+
+        // merge's "grp" has none of the optional sub-blocks, so the existing ones must be kept
+        merge.group.push(Group::new("grp".to_string(), String::new()));
+
+        super::import_new_module_items(&mut orig, &mut merge);
+
+        let result = orig.group.get("grp").unwrap();
+        assert!(result.sub_group.is_some());
+        assert!(result.function_list.is_some());
+        assert!(result.ref_characteristic.is_some());
+        assert!(result.ref_measurement.is_some());
+    }
+
+    #[test]
+    fn test_merge_groups_simple_takes_missing_fields() {
+        let mut orig = Module::new("mod".to_string(), String::new());
+        let mut merge = Module::new("mod2".to_string(), String::new());
+
+        // orig's "grp" has none of the optional sub-blocks
+        orig.group.push(Group::new("grp".to_string(), String::new()));
+
+        let mut merge_group = Group::new("grp".to_string(), String::new());
+        merge_group.sub_group = Some(SubGroup::new());
+        merge_group.function_list = Some(FunctionList::new());
+        merge_group.ref_characteristic = Some(RefCharacteristic::new());
+        merge_group.ref_measurement = Some(RefMeasurement::new());
+        merge.group.push(merge_group);
+
+        super::import_new_module_items(&mut orig, &mut merge);
+
+        // the missing sub-blocks are taken over from the merge side
+        let result = orig.group.get("grp").unwrap();
+        assert!(result.sub_group.is_some());
+        assert!(result.function_list.is_some());
+        assert!(result.ref_characteristic.is_some());
+        assert!(result.ref_measurement.is_some());
     }
 }
