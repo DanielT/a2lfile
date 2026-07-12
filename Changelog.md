@@ -1,5 +1,29 @@
 # Changelog
 
+## Version 3.5.0
+
+### Fixes
+
+- Don't crash when removing the last item from a list
+- Don't crash during check if CHARACTERISTIC has 6 or more AXIS_DESCR
+- Don't crash on a cycle of /include directives
+- Don't crash on a cycle of A2ML /include directives
+- Fix infinite loop when parsing empty TaggedStruct/TaggedUnion in IF_DATA
+- Reject signed hex numerical constants in the tokenizer
+- Fix TYPEDEF_* and INSTANCE-related module merging bugs
+- Fix bad error messages for CrossReferenceError during check
+- Fix merge of FUNCTION.DEF_CHARACTERISTIC and FUNCTION.REF_CHARACTERISTIC, which were previously ignored
+- Fix get_line_offset for the last token in the file
+- Fix: STATUS_STRING_REF target can be deleted by cleanup
+- Fix: off by one in CRLF detection at the end of A2ML blocks
+- Fix: merge_includes in IF_DATA must recurse into Array/Sequence
+
+### Performance
+
+- Avoid recomputing module.typedefs() in a loop in check() - potential quadratic runtime
+- Reduce the number of string allocations while writing
+- Avoid an unnecessary allocation while quoting special characters in strings
+
 ## Version 3.4.0
 
 ### Feature
