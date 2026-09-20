@@ -572,6 +572,12 @@ fn handle_a2ml(
                 }
             }
 
+            if bytepos >= datalen {
+                // this is an unterminated A2ML block
+                line += count_newlines(&filebytes[startpos..datalen]);
+                return (datalen, line);
+            }
+
             // while bytepos < datalen && !(filebytes[bytepos] == b'/' && filedata[bytepos .. ].starts_with("/end A2ML")) {
             //     bytepos += 1;
             // }
@@ -999,5 +1005,12 @@ ASAP2_VERSION 1 60
             tokresult,
             Err(TokenizerError::IncludeRecursionError { .. })
         ));
+    }
+
+    #[test]
+    fn unterminated_a2ml() {
+        let data = String::from("/begin A2ML ");
+        let tokresult = tokenize(&Filename::from("test"), 0, &data);
+        assert!(tokresult.is_ok());
     }
 }
