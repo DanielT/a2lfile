@@ -246,6 +246,9 @@ fn tokenize_tag(input: &str, bytepos: &mut usize) -> Result<TokenType, String> {
     let startpos = *bytepos;
 
     *bytepos += 1;
+    if *bytepos >= datalen {
+        return Err(format!("unexpected end of input in {input:?}"));
+    }
     let mut c = input_bytes[*bytepos];
     while *bytepos < datalen {
         c = input_bytes[*bytepos];
