@@ -619,7 +619,7 @@ impl<'a> ParserState<'a> {
             let token = self.expect_token(context, A2lTokenType::String)?;
             let mut text = self.get_token_text(token);
 
-            if text.starts_with('\"') {
+            if text.len() > 1 && text.starts_with('\"') && text.ends_with('\"') {
                 text = &text[1..text.len() - 1];
             }
 
