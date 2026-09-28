@@ -1,5 +1,12 @@
 # Changelog
 
+## Version 3.5.1
+
+### Fixes
+
+- Fix a crash if the parser found a single doublequote character where a string was expected (found by fuzzing)
+- Fix two crashes on malformed A2ML block content (found by fuzzing)
+
 ## Version 3.5.0
 
 ### Fixes
