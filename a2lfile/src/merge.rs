@@ -2925,17 +2925,23 @@ mod test {
         merge.mod_common = Some(ModCommon::new("merge mod_common".to_string()));
 
         // shared_user is identical on both sides and must not be duplicated; user_b is new
-        orig.user_rights.push(UserRights::new("shared_user".to_string()));
-        merge.user_rights.push(UserRights::new("shared_user".to_string()));
-        merge.user_rights.push(UserRights::new("user_b".to_string()));
+        orig.user_rights
+            .push(UserRights::new("shared_user".to_string()));
+        merge
+            .user_rights
+            .push(UserRights::new("shared_user".to_string()));
+        merge
+            .user_rights
+            .push(UserRights::new("user_b".to_string()));
 
         let mut orig_variant = VariantCoding::new();
         orig_variant.var_naming = Some(VarNaming::new(VarNamingTag::Numeric));
         orig_variant.var_separator = Some(VarSeparator::new(".".to_string()));
         let mut orig_comb = VarForbiddenComb::new();
-        orig_comb
-            .combination
-            .push(CombinationStruct::new("crit1".to_string(), "val1".to_string()));
+        orig_comb.combination.push(CombinationStruct::new(
+            "crit1".to_string(),
+            "val1".to_string(),
+        ));
         orig_variant.var_forbidden_comb.push(orig_comb);
         orig.variant_coding = Some(orig_variant);
 
@@ -2943,13 +2949,15 @@ mod test {
         merge_variant.var_naming = Some(VarNaming::new(VarNamingTag::Numeric));
         merge_variant.var_separator = Some(VarSeparator::new("/".to_string()));
         let mut dup_comb = VarForbiddenComb::new();
-        dup_comb
-            .combination
-            .push(CombinationStruct::new("crit1".to_string(), "val1".to_string()));
+        dup_comb.combination.push(CombinationStruct::new(
+            "crit1".to_string(),
+            "val1".to_string(),
+        ));
         let mut new_comb = VarForbiddenComb::new();
-        new_comb
-            .combination
-            .push(CombinationStruct::new("crit2".to_string(), "val2".to_string()));
+        new_comb.combination.push(CombinationStruct::new(
+            "crit2".to_string(),
+            "val2".to_string(),
+        ));
         merge_variant.var_forbidden_comb.push(dup_comb);
         merge_variant.var_forbidden_comb.push(new_comb);
         merge.variant_coding = Some(merge_variant);
@@ -2968,11 +2976,7 @@ mod test {
                 .iter()
                 .any(|u| u.user_level_id == "shared_user")
         );
-        assert!(
-            orig.user_rights
-                .iter()
-                .any(|u| u.user_level_id == "user_b")
-        );
+        assert!(orig.user_rights.iter().any(|u| u.user_level_id == "user_b"));
 
         let variant = orig.variant_coding.as_ref().unwrap();
         assert_eq!(variant.var_separator.as_ref().unwrap().separator, ".");
@@ -3030,17 +3034,23 @@ mod test {
         merge.mod_common = Some(ModCommon::new("merge mod_common".to_string()));
 
         // shared_user is identical on both sides and must not be duplicated; user_b is new
-        orig.user_rights.push(UserRights::new("shared_user".to_string()));
-        merge.user_rights.push(UserRights::new("shared_user".to_string()));
-        merge.user_rights.push(UserRights::new("user_b".to_string()));
+        orig.user_rights
+            .push(UserRights::new("shared_user".to_string()));
+        merge
+            .user_rights
+            .push(UserRights::new("shared_user".to_string()));
+        merge
+            .user_rights
+            .push(UserRights::new("user_b".to_string()));
 
         let mut orig_variant = VariantCoding::new();
         orig_variant.var_naming = Some(VarNaming::new(VarNamingTag::Numeric));
         orig_variant.var_separator = Some(VarSeparator::new(".".to_string()));
         let mut orig_comb = VarForbiddenComb::new();
-        orig_comb
-            .combination
-            .push(CombinationStruct::new("crit1".to_string(), "val1".to_string()));
+        orig_comb.combination.push(CombinationStruct::new(
+            "crit1".to_string(),
+            "val1".to_string(),
+        ));
         orig_variant.var_forbidden_comb.push(orig_comb);
         orig.variant_coding = Some(orig_variant);
 
@@ -3048,13 +3058,15 @@ mod test {
         merge_variant.var_naming = Some(VarNaming::new(VarNamingTag::Numeric));
         merge_variant.var_separator = Some(VarSeparator::new("/".to_string()));
         let mut dup_comb = VarForbiddenComb::new();
-        dup_comb
-            .combination
-            .push(CombinationStruct::new("crit1".to_string(), "val1".to_string()));
+        dup_comb.combination.push(CombinationStruct::new(
+            "crit1".to_string(),
+            "val1".to_string(),
+        ));
         let mut new_comb = VarForbiddenComb::new();
-        new_comb
-            .combination
-            .push(CombinationStruct::new("crit2".to_string(), "val2".to_string()));
+        new_comb.combination.push(CombinationStruct::new(
+            "crit2".to_string(),
+            "val2".to_string(),
+        ));
         merge_variant.var_forbidden_comb.push(dup_comb);
         merge_variant.var_forbidden_comb.push(new_comb);
         merge.variant_coding = Some(merge_variant);
@@ -3064,7 +3076,10 @@ mod test {
         // import_all always prefers the merge side when it is present
         assert_eq!(orig.a2ml.as_ref().unwrap().a2ml_text, "merge_a2ml");
         assert_eq!(orig.mod_par.as_ref().unwrap().comment, "merge mod_par");
-        assert_eq!(orig.mod_common.as_ref().unwrap().comment, "merge mod_common");
+        assert_eq!(
+            orig.mod_common.as_ref().unwrap().comment,
+            "merge mod_common"
+        );
 
         // shared_user was already present (skipped), user_b is new (added)
         assert_eq!(orig.user_rights.len(), 2);
@@ -3073,11 +3088,7 @@ mod test {
                 .iter()
                 .any(|u| u.user_level_id == "shared_user")
         );
-        assert!(
-            orig.user_rights
-                .iter()
-                .any(|u| u.user_level_id == "user_b")
-        );
+        assert!(orig.user_rights.iter().any(|u| u.user_level_id == "user_b"));
 
         let variant = orig.variant_coding.as_ref().unwrap();
         assert_eq!(variant.var_separator.as_ref().unwrap().separator, "/");
@@ -3133,7 +3144,9 @@ mod test {
         orig.group.push(orig_group);
 
         // merge's "grp" has none of the optional sub-blocks, so the existing ones must be kept
-        merge.group.push(Group::new("grp".to_string(), String::new()));
+        merge
+            .group
+            .push(Group::new("grp".to_string(), String::new()));
 
         super::import_new_module_items(&mut orig, &mut merge);
 
@@ -3150,7 +3163,8 @@ mod test {
         let mut merge = Module::new("mod2".to_string(), String::new());
 
         // orig's "grp" has none of the optional sub-blocks
-        orig.group.push(Group::new("grp".to_string(), String::new()));
+        orig.group
+            .push(Group::new("grp".to_string(), String::new()));
 
         let mut merge_group = Group::new("grp".to_string(), String::new());
         merge_group.sub_group = Some(SubGroup::new());

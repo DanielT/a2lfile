@@ -2911,11 +2911,11 @@ impl ParseableA2lObject for AxisDescr {
 impl AxisDescr {
     pub(crate) fn stringify(&self, indent: usize) -> String {
         let mut writer = writer::Writer::new(indent);
+        writer.add_str(self.attribute.as_str(), self.__block_info.item_location.0);
         writer.add_str(
-            self.attribute.as_str(),
-            self.__block_info.item_location.0,
+            self.input_quantity.as_str(),
+            self.__block_info.item_location.1,
         );
-        writer.add_str(self.input_quantity.as_str(), self.__block_info.item_location.1);
         writer.add_str(self.conversion.as_str(), self.__block_info.item_location.2);
         writer.add_integer(
             self.max_axis_points,
@@ -4422,18 +4422,9 @@ impl AxisPtsDim {
             self.__block_info.item_location.0.1,
             self.__block_info.item_location.0.0,
         );
-        writer.add_str(
-            self.datatype.as_str(),
-            self.__block_info.item_location.1,
-        );
-        writer.add_str(
-            self.index_incr.as_str(),
-            self.__block_info.item_location.2,
-        );
-        writer.add_str(
-            self.addressing.as_str(),
-            self.__block_info.item_location.3,
-        );
+        writer.add_str(self.datatype.as_str(), self.__block_info.item_location.1);
+        writer.add_str(self.index_incr.as_str(), self.__block_info.item_location.2);
+        writer.add_str(self.addressing.as_str(), self.__block_info.item_location.3);
         writer.finish()
     }
 }
@@ -4680,23 +4671,14 @@ impl AxisRescaleDim {
             self.__block_info.item_location.0.1,
             self.__block_info.item_location.0.0,
         );
-        writer.add_str(
-            self.datatype.as_str(),
-            self.__block_info.item_location.1,
-        );
+        writer.add_str(self.datatype.as_str(), self.__block_info.item_location.1);
         writer.add_integer(
             self.max_number_of_rescale_pairs,
             self.__block_info.item_location.2.1,
             self.__block_info.item_location.2.0,
         );
-        writer.add_str(
-            self.index_incr.as_str(),
-            self.__block_info.item_location.3,
-        );
-        writer.add_str(
-            self.addressing.as_str(),
-            self.__block_info.item_location.4,
-        );
+        writer.add_str(self.index_incr.as_str(), self.__block_info.item_location.3);
+        writer.add_str(self.addressing.as_str(), self.__block_info.item_location.4);
         writer.finish()
     }
 }
@@ -5650,10 +5632,7 @@ impl ParseableA2lObject for ByteOrder {
 impl ByteOrder {
     pub(crate) fn stringify(&self, indent: usize) -> String {
         let mut writer = writer::Writer::new(indent);
-        writer.add_str(
-            self.byte_order.as_str(),
-            self.__block_info.item_location.0,
-        );
+        writer.add_str(self.byte_order.as_str(), self.__block_info.item_location.0);
         writer.finish()
     }
 }
@@ -11291,10 +11270,7 @@ impl DistOpDim {
             self.__block_info.item_location.0.1,
             self.__block_info.item_location.0.0,
         );
-        writer.add_str(
-            self.datatype.as_str(),
-            self.__block_info.item_location.1,
-        );
+        writer.add_str(self.datatype.as_str(), self.__block_info.item_location.1);
         writer.finish()
     }
 }
@@ -11784,10 +11760,7 @@ impl ParseableA2lObject for Encoding {
 impl Encoding {
     pub(crate) fn stringify(&self, indent: usize) -> String {
         let mut writer = writer::Writer::new(indent);
-        writer.add_str(
-            self.encoding.as_str(),
-            self.__block_info.item_location.0,
-        );
+        writer.add_str(self.encoding.as_str(), self.__block_info.item_location.0);
         writer.finish()
     }
 }
@@ -12689,14 +12662,8 @@ impl FncValues {
             self.__block_info.item_location.0.1,
             self.__block_info.item_location.0.0,
         );
-        writer.add_str(
-            self.datatype.as_str(),
-            self.__block_info.item_location.1,
-        );
-        writer.add_str(
-            self.index_mode.as_str(),
-            self.__block_info.item_location.2,
-        );
+        writer.add_str(self.datatype.as_str(), self.__block_info.item_location.1);
+        writer.add_str(self.index_mode.as_str(), self.__block_info.item_location.2);
         writer.add_str(
             self.address_type.as_str(),
             self.__block_info.item_location.3,
@@ -15008,10 +14975,7 @@ impl Identification {
             self.__block_info.item_location.0.1,
             self.__block_info.item_location.0.0,
         );
-        writer.add_str(
-            self.datatype.as_str(),
-            self.__block_info.item_location.1,
-        );
+        writer.add_str(self.datatype.as_str(), self.__block_info.item_location.1);
         writer.finish()
     }
 }
@@ -16103,10 +16067,7 @@ impl ParseableA2lObject for Layout {
 impl Layout {
     pub(crate) fn stringify(&self, indent: usize) -> String {
         let mut writer = writer::Writer::new(indent);
-        writer.add_str(
-            self.index_mode.as_str(),
-            self.__block_info.item_location.0,
-        );
+        writer.add_str(self.index_mode.as_str(), self.__block_info.item_location.0);
         writer.finish()
     }
 }
@@ -17574,10 +17535,7 @@ impl Measurement {
         let mut writer = writer::Writer::new(indent);
         writer.add_str(&self.name, self.__block_info.item_location.0);
         writer.add_quoted_string(&self.long_identifier, self.__block_info.item_location.1);
-        writer.add_str(
-            self.datatype.as_str(),
-            self.__block_info.item_location.2,
-        );
+        writer.add_str(self.datatype.as_str(), self.__block_info.item_location.2);
         writer.add_str(&self.conversion, self.__block_info.item_location.3);
         writer.add_integer(
             self.resolution,
@@ -18280,10 +18238,7 @@ impl ParseableA2lObject for MemoryLayout {
 impl MemoryLayout {
     pub(crate) fn stringify(&self, indent: usize) -> String {
         let mut writer = writer::Writer::new(indent);
-        writer.add_str(
-            self.prog_type.as_str(),
-            self.__block_info.item_location.0,
-        );
+        writer.add_str(self.prog_type.as_str(), self.__block_info.item_location.0);
         writer.add_integer(
             self.address,
             self.__block_info.item_location.1.1,
@@ -18660,18 +18615,9 @@ impl MemorySegment {
         let mut writer = writer::Writer::new(indent);
         writer.add_str(&self.name, self.__block_info.item_location.0);
         writer.add_quoted_string(&self.long_identifier, self.__block_info.item_location.1);
-        writer.add_str(
-            self.prg_type.as_str(),
-            self.__block_info.item_location.2,
-        );
-        writer.add_str(
-            self.memory_type.as_str(),
-            self.__block_info.item_location.3,
-        );
-        writer.add_str(
-            self.attribute.as_str(),
-            self.__block_info.item_location.4,
-        );
+        writer.add_str(self.prg_type.as_str(), self.__block_info.item_location.2);
+        writer.add_str(self.memory_type.as_str(), self.__block_info.item_location.3);
+        writer.add_str(self.attribute.as_str(), self.__block_info.item_location.4);
         writer.add_integer(
             self.address,
             self.__block_info.item_location.5.1,
@@ -21286,10 +21232,7 @@ impl ParseableA2lObject for Monotony {
 impl Monotony {
     pub(crate) fn stringify(&self, indent: usize) -> String {
         let mut writer = writer::Writer::new(indent);
-        writer.add_str(
-            self.monotony.as_str(),
-            self.__block_info.item_location.0,
-        );
+        writer.add_str(self.monotony.as_str(), self.__block_info.item_location.0);
         writer.finish()
     }
 }
@@ -21465,10 +21408,7 @@ impl NoAxisPtsDim {
             self.__block_info.item_location.0.1,
             self.__block_info.item_location.0.0,
         );
-        writer.add_str(
-            self.datatype.as_str(),
-            self.__block_info.item_location.1,
-        );
+        writer.add_str(self.datatype.as_str(), self.__block_info.item_location.1);
         writer.finish()
     }
 }
@@ -21676,10 +21616,7 @@ impl NoRescaleDim {
             self.__block_info.item_location.0.1,
             self.__block_info.item_location.0.0,
         );
-        writer.add_str(
-            self.datatype.as_str(),
-            self.__block_info.item_location.1,
-        );
+        writer.add_str(self.datatype.as_str(), self.__block_info.item_location.1);
         writer.finish()
     }
 }
@@ -21887,10 +21824,7 @@ impl OffsetDim {
             self.__block_info.item_location.0.1,
             self.__block_info.item_location.0.0,
         );
-        writer.add_str(
-            self.datatype.as_str(),
-            self.__block_info.item_location.1,
-        );
+        writer.add_str(self.datatype.as_str(), self.__block_info.item_location.1);
         writer.finish()
     }
 }
@@ -26334,10 +26268,7 @@ impl Reserved {
             self.__block_info.item_location.0.1,
             self.__block_info.item_location.0.0,
         );
-        writer.add_str(
-            self.data_size.as_str(),
-            self.__block_info.item_location.1,
-        );
+        writer.add_str(self.data_size.as_str(), self.__block_info.item_location.1);
         writer.finish()
     }
 }
@@ -26545,10 +26476,7 @@ impl RipAddrDim {
             self.__block_info.item_location.0.1,
             self.__block_info.item_location.0.0,
         );
-        writer.add_str(
-            self.datatype.as_str(),
-            self.__block_info.item_location.1,
-        );
+        writer.add_str(self.datatype.as_str(), self.__block_info.item_location.1);
         writer.finish()
     }
 }
@@ -26847,10 +26775,7 @@ impl ShiftOpDim {
             self.__block_info.item_location.0.1,
             self.__block_info.item_location.0.0,
         );
-        writer.add_str(
-            self.datatype.as_str(),
-            self.__block_info.item_location.1,
-        );
+        writer.add_str(self.datatype.as_str(), self.__block_info.item_location.1);
         writer.finish()
     }
 }
@@ -27293,10 +27218,7 @@ impl SrcAddrDim {
             self.__block_info.item_location.0.1,
             self.__block_info.item_location.0.0,
         );
-        writer.add_str(
-            self.datatype.as_str(),
-            self.__block_info.item_location.1,
-        );
+        writer.add_str(self.datatype.as_str(), self.__block_info.item_location.1);
         writer.finish()
     }
 }
@@ -31065,10 +30987,7 @@ impl TypedefMeasurement {
         let mut writer = writer::Writer::new(indent);
         writer.add_str(&self.name, self.__block_info.item_location.0);
         writer.add_quoted_string(&self.long_identifier, self.__block_info.item_location.1);
-        writer.add_str(
-            self.datatype.as_str(),
-            self.__block_info.item_location.2,
-        );
+        writer.add_str(self.datatype.as_str(), self.__block_info.item_location.2);
         writer.add_str(&self.conversion, self.__block_info.item_location.3);
         writer.add_integer(
             self.resolution,
@@ -31824,10 +31743,7 @@ impl Unit {
         writer.add_str(&self.name, self.__block_info.item_location.0);
         writer.add_quoted_string(&self.long_identifier, self.__block_info.item_location.1);
         writer.add_quoted_string(&self.display, self.__block_info.item_location.2);
-        writer.add_str(
-            self.unit_type.as_str(),
-            self.__block_info.item_location.3,
-        );
+        writer.add_str(self.unit_type.as_str(), self.__block_info.item_location.3);
         let mut tgroup = Vec::<writer::TaggedItemInfo>::new();
         if let Some(ref_unit) = &self.ref_unit {
             let ref_unit_out = if ref_unit.__block_info.incfile.is_none() {
